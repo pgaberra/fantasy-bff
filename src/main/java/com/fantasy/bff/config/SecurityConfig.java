@@ -3,6 +3,7 @@ package com.fantasy.bff.config;
 import com.fantasy.bff.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -39,7 +40,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").authenticated()
+                        .anyRequest().denyAll()
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((_, response, _) ->
