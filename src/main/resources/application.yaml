@@ -1,3 +1,40 @@
 spring:
   application:
-    name: bff
+    name: fantasy-bff
+  profiles:
+    active: ${SPRING_PROFILE:mock}
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+
+services:
+  nhl:
+    base-url: ${NHL_SERVICE_URL:http://localhost:8081}
+    timeout-ms: 5000
+  yahoo-fantasy:
+    base-url: ${YAHOO_SERVICE_URL:http://localhost:8082}
+    timeout-ms: 7000
+  database:
+    base-url: ${DATABASE_SERVICE_URL:http://localhost:8083}
+    timeout-ms: 3000
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:changeme-this-is-a-dev-only-secret-at-least-256-bits-long}
+    expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
