@@ -520,3 +520,4 @@ When generating code or making suggestions for this project, always follow these
 8. **Add OpenAPI annotations** — annotate all controllers with `@Operation`, `@ApiResponse`, and `@Tag` so the Swagger UI stays accurate.
 9. **Write a test for every new service method** — unit test for happy path and at least one failure/edge case.
 10. **Do not add new downstream services without updating** this document's downstream services table and `RestClientConfig.java`.
+11. **Avoid returning `null` in Java** — Always use `java.util.Optional` for methods that may not return a value. This improves code readability and forces explicit handling of the absent case.
