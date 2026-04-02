@@ -3,7 +3,6 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.NhlServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
-import com.fantasy.bff.exception.DownstreamServiceException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -46,11 +45,11 @@ class PlayerServiceTest {
     }
 
     @Test
-    void getSkaters_whenClientThrows_throwsDownstreamServiceException() {
+    void getSkaters_whenClientThrows_throwsIllegalStateException() {
         when(nhlServiceClient.getSkaters()).thenThrow(new RuntimeException("Connection refused"));
 
         assertThatThrownBy(() -> playerService.getSkaters())
-                .isInstanceOf(DownstreamServiceException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to retrieve skaters from NHL service");
     }
 
@@ -73,11 +72,11 @@ class PlayerServiceTest {
     }
 
     @Test
-    void getGoalies_whenClientThrows_throwsDownstreamServiceException() {
+    void getGoalies_whenClientThrows_throwsIllegalStateException() {
         when(nhlServiceClient.getGoalies()).thenThrow(new RuntimeException("Connection refused"));
 
         assertThatThrownBy(() -> playerService.getGoalies())
-                .isInstanceOf(DownstreamServiceException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to retrieve goalies from NHL service");
     }
 }

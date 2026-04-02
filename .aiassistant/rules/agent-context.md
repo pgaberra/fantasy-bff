@@ -109,8 +109,6 @@ src/
 │       ├── model/
 │       │   └── downstream/                  # Models mapped from downstream APIs
 │       ├── exception/
-│       │   ├── BffException.java
-│       │   ├── DownstreamServiceException.java
 │       │   └── GlobalExceptionHandler.java
 │       └── security/
 │           ├── JwtAuthenticationFilter.java
@@ -401,33 +399,6 @@ security:
 
 ## 7. Data Models
 
-### Response Envelope
-
-All BFF responses to the Angular frontend use a consistent wrapper:
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "error": null,
-  "timestamp": "2026-04-02T10:00:00Z"
-}
-```
-
-On error:
-```json
-{
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "DOWNSTREAM_UNAVAILABLE",
-    "message": "The NHL service is currently unavailable.",
-    "details": {}
-  },
-  "timestamp": "2026-04-02T10:00:00Z"
-}
-```
-
 ### Key DTOs
 
 #### PlayerProfileResponse
@@ -462,36 +433,28 @@ public record FantasyLeagueResponse(
 
 ### Philosophy
 
+- **Prefer standard Java exceptions over custom ones.** Instead of creating custom exception classes, use built-in Java exceptions that semantically match the error condition.
 - The BFF should **never return a 500** due to a downstream service being unavailable if a graceful fallback is possible.
 - Use **partial responses** when feasible (e.g. if the Yahoo service is down, return NHL data with a warning that fantasy data is unavailable).
 - All unhandled exceptions are caught by `GlobalExceptionHandler`.
-
-### Exception Hierarchy
-
-```
-BffException (base)
-├── DownstreamServiceException     # A downstream service returned an error or timed out
-├── AuthenticationException        # JWT invalid or expired
-├── ResourceNotFoundException      # Requested resource doesn't exist
-└── BadRequestException            # Invalid input from frontend
-```
 
 ### Global Exception Handler
 
 Use `@RestControllerAdvice` with `@ExceptionHandler` methods that map each exception type to an appropriate HTTP status and the standard error envelope.
 
-| Exception | HTTP Status |
-|---|---|
-| `AuthenticationException` | `401 Unauthorized` |
-| `ResourceNotFoundException` | `404 Not Found` |
-| `BadRequestException` | `400 Bad Request` |
-| `DownstreamServiceException` | `502 Bad Gateway` |
-| `Exception` (catch-all) | `500 Internal Server Error` |
+| Exception | HTTP Status | Use Case |
+|---|---|---|
+| `SecurityException` | `401 Unauthorized` | JWT invalid/expired, invalid credentials |
+| `NoSuchElementException` | `404 Not Found` | Requested resource doesn't exist |
+| `IllegalArgumentException` | `400 Bad Request` | Invalid input, business rule violation |
+| `IllegalStateException` | `502 Bad Gateway` | Downstream service error or timeout |
+| `MethodArgumentNotValidException` | `400 Bad Request` | Jakarta Validation failure |
+| `Exception` (catch-all) | `500 Internal Error` | Unexpected system failure |
 
 ### Downstream Resilience
 
 - Set **timeouts** on all `RestClient` calls (connect + read timeout via `JdkClientHttpRequestFactory`)
-- Use **try/catch** around `RestClient` calls to handle downstream failures and map them to `DownstreamServiceException`
+- Use **try/catch** around `RestClient` calls to handle downstream failures and map them to `IllegalStateException` (502 Bad Gateway)
 - Use **`onStatus()`** on `RestClient` calls to treat non-2xx responses as exceptions
 - Consider adding **Resilience4j** for circuit breaking and retry logic as the system matures
 

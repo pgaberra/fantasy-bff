@@ -1,6 +1,5 @@
 package com.fantasy.bff.security;
 
-import com.fantasy.bff.exception.AuthenticationException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -43,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (AuthenticationException e) {
+            } catch (SecurityException e) {
                 SecurityContextHolder.clearContext();
             }
         }

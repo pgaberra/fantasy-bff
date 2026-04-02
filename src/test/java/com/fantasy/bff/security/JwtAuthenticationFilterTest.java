@@ -1,6 +1,5 @@
 package com.fantasy.bff.security;
 
-import com.fantasy.bff.exception.AuthenticationException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,7 +70,7 @@ class JwtAuthenticationFilterTest {
     void doFilterInternal_withInvalidToken_clearsContextAndContinues() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer invalid.token");
         when(jwtTokenValidator.validateAndExtractClaims("invalid.token"))
-                .thenThrow(new AuthenticationException("Invalid token"));
+                .thenThrow(new SecurityException("Invalid token"));
 
         filter.doFilterInternal(request, response, filterChain);
 

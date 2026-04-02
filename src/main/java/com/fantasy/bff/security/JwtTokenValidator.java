@@ -1,7 +1,6 @@
 package com.fantasy.bff.security;
 
 import com.fantasy.bff.config.JwtProperties;
-import com.fantasy.bff.exception.AuthenticationException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -43,7 +42,7 @@ public class JwtTokenValidator {
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (JwtException | IllegalArgumentException e) {
-            throw new AuthenticationException("Invalid or expired JWT token", e);
+            throw new SecurityException("Invalid or expired JWT token", e);
         }
     }
 

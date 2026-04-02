@@ -92,4 +92,17 @@ class PlayerControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/players/goalies"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void getSkaters_whenServiceFails_returns502() throws Exception {
+        when(nhlServiceClient.getSkaters()).thenThrow(new RuntimeException("NHL service down"));
+
+        String token = jwtTokenValidator.generateToken("user-1", "test@example.com");
+
+        mockMvc.perform(get("/api/v1/players/skaters")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("DOWNSTREAM_UNAVAILABLE"));
+    }
 }

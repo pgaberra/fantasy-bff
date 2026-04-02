@@ -3,7 +3,6 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.NhlServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
-import com.fantasy.bff.exception.DownstreamServiceException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,7 +20,7 @@ public class PlayerService {
         try {
             return nhlServiceClient.getSkaters();
         } catch (Exception e) {
-            throw new DownstreamServiceException("Failed to retrieve skaters from NHL service", e);
+            throw new IllegalStateException("Failed to retrieve skaters from NHL service", e);
         }
     }
 
@@ -29,7 +28,7 @@ public class PlayerService {
         try {
             return nhlServiceClient.getGoalies();
         } catch (Exception e) {
-            throw new DownstreamServiceException("Failed to retrieve goalies from NHL service", e);
+            throw new IllegalStateException("Failed to retrieve goalies from NHL service", e);
         }
     }
 }
