@@ -49,9 +49,8 @@ class PlayerControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/players/skaters")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].name").value("Connor McDavid"))
-                .andExpect(jsonPath("$.data[0].type").value("skater"));
+                .andExpect(jsonPath("$[0].name").value("Connor McDavid"))
+                .andExpect(jsonPath("$[0].type").value("skater"));
     }
 
     @Test
@@ -82,9 +81,8 @@ class PlayerControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/players/goalies")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].name").value("Igor Shesterkin"))
-                .andExpect(jsonPath("$.data[0].type").value("goalie"));
+                .andExpect(jsonPath("$[0].name").value("Igor Shesterkin"))
+                .andExpect(jsonPath("$[0].type").value("goalie"));
     }
 
     @Test
@@ -102,7 +100,6 @@ class PlayerControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/players/skaters")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("DOWNSTREAM_UNAVAILABLE"));
+                .andExpect(jsonPath("$.code").value("DOWNSTREAM_UNAVAILABLE"));
     }
 }

@@ -129,7 +129,6 @@ src/
 - All routes are prefixed with `/api/v1/`
 - Request and response bodies are JSON
 - All endpoints (except `/api/v1/auth/**` and `/actuator/health`) require a valid JWT in the `Authorization: Bearer <token>` header
-- Responses follow a consistent envelope format (see Data Models section)
 
 ### State of Downstream Services
 
@@ -183,7 +182,7 @@ These are the endpoints currently known and required by the Angular frontend. Th
 }
 ```
 
-**Login response (`data` field):**
+**Login response:**
 ```json
 {
   "token": "string",
@@ -200,7 +199,7 @@ The Angular `PlayerService` currently provides two data streams that will be rep
 | `GET` | `/api/v1/players/skaters` | ✅ | Returns all skaters with full stats | `nhl-service` *(not built — use mock)* |
 | `GET` | `/api/v1/players/goalies` | ✅ | Returns all goalies with full stats | `nhl-service` *(not built — use mock)* |
 
-**Skater response shape** (array of skaters inside the `data` envelope):
+**Skater response shape** (array of skaters):
 ```json
 {
   "type": "skater",
@@ -440,7 +439,7 @@ public record FantasyLeagueResponse(
 
 ### Global Exception Handler
 
-Use `@RestControllerAdvice` with `@ExceptionHandler` methods that map each exception type to an appropriate HTTP status and the standard error envelope.
+Use `@RestControllerAdvice` with `@ExceptionHandler` methods that map each exception type to an appropriate HTTP status and a consistent `ErrorDto`.
 
 | Exception | HTTP Status | Use Case |
 |---|---|---|
@@ -515,9 +514,8 @@ When generating code or making suggestions for this project, always follow these
 3. **Never write reactive code (`Mono`, `Flux`, `.subscribe()`)** — the concurrency model is virtual threads + synchronous code. Reactive patterns are explicitly avoided in this project.
 4. **Never hardcode URLs or secrets** — always use `@Value` or `@ConfigurationProperties` backed by `application.yml` and environment variables.
 5. **Follow the layered structure** — Controllers call Services, Services call Clients. No cross-layer skipping.
-6. **Return the standard response envelope** — every endpoint response must use the `ApiResponse<T>` wrapper.
-7. **Design endpoints for the frontend, not the backend** — the Angular app's needs drive the response shape.
-8. **Add OpenAPI annotations** — annotate all controllers with `@Operation`, `@ApiResponse`, and `@Tag` so the Swagger UI stays accurate.
-9. **Write a test for every new service method** — unit test for happy path and at least one failure/edge case.
-10. **Do not add new downstream services without updating** this document's downstream services table and `RestClientConfig.java`.
-11. **Avoid returning `null` in Java** — Always use `java.util.Optional` for methods that may not return a value. This improves code readability and forces explicit handling of the absent case.
+6. **Design endpoints for the frontend, not the backend** — the Angular app's needs drive the response shape.
+7. **Add OpenAPI annotations** — annotate all controllers with `@Operation`, `@ApiResponse`, and `@Tag` so the Swagger UI stays accurate.
+8. **Write a test for every new service method** — unit test for happy path and at least one failure/edge case.
+9. **Do not add new downstream services without updating** this document's downstream services table and `RestClientConfig.java`.
+10. **Avoid returning `null` in Java** — Always use `java.util.Optional` for methods that may not return a value. This improves code readability and forces explicit handling of the absent case.

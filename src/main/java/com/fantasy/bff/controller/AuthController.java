@@ -2,7 +2,6 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
-import com.fantasy.bff.dto.response.ApiResponse;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,8 +33,8 @@ public class AuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid credentials"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error")
     })
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.login(request)));
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @PostMapping("/register")
@@ -44,8 +43,8 @@ public class AuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "User registered successfully"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Email already in use or validation error")
     })
-    public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(null));
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
