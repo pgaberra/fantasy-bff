@@ -8,7 +8,7 @@ public interface DatabaseServiceClient {
 
     Optional<User> findUserByEmail(String email);
 
-    void createUser(String username, String email, String passwordHash);
+    void createUser(String email, String passwordHash);
 
     boolean existsByEmail(String email);
 }

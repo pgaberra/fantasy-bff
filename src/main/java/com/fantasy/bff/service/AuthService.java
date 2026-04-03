@@ -43,6 +43,6 @@ public class AuthService {
         }
 
         String passwordHash = passwordEncoder.encode(request.password());
-        databaseServiceClient.createUser(request.username(), request.email(), passwordHash);
+        databaseServiceClient.createUser(request.email(), passwordHash);
     }
 }

@@ -21,8 +21,8 @@ public class MockDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
-    public void createUser(String username, String email, String passwordHash) {
-        User user = new User(UUID.randomUUID().toString(), username, email, passwordHash);
+    public void createUser(String email, String passwordHash) {
+        User user = new User(UUID.randomUUID().toString(), email, passwordHash);
         usersByEmail.put(email, user);
     }
 
