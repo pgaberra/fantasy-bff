@@ -2,7 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.NhlServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
-import com.fantasy.bff.dto.response.PlayerType;
+import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class PlayerServiceTest {
     @Test
     void getSkaters_returnsSkatersFromClient() {
         List<SkaterResponse> expected = List.of(
-                new SkaterResponse(PlayerType.SKATER, 1, "Connor McDavid", Set.of("C"),
+                new SkaterResponse(1, "Connor McDavid", Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
                                 new SkaterResponse.UtilityStats(82, 1320),
                                 new SkaterResponse.ScoringStats(64, 89, 33, 36, 22, 38, 1, 0, 8, 348, 18.4, 812, 623, 42, 28)
@@ -41,8 +41,7 @@ class PlayerServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().name()).isEqualTo("Connor McDavid");
-        assertThat(result.getFirst().type()).isEqualTo(PlayerType.SKATER);
-        assertThat(result.getFirst().positions()).contains("C");
+        assertThat(result.getFirst().positions()).contains(SkaterPosition.C);
     }
 
     @Test
@@ -57,7 +56,7 @@ class PlayerServiceTest {
     @Test
     void getGoalies_returnsGoaliesFromClient() {
         List<GoalieResponse> expected = List.of(
-                new GoalieResponse(PlayerType.GOALIE, 101, "Igor Shesterkin",
+                new GoalieResponse(101, "Igor Shesterkin",
                         new GoalieResponse.Stats(
                                 new GoalieResponse.UtilityStats(58),
                                 new GoalieResponse.ScoringStats(58, 36, 17, 3, 1720, 1565, 155, 2.67, 0.910)
@@ -69,7 +68,6 @@ class PlayerServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().name()).isEqualTo("Igor Shesterkin");
-        assertThat(result.getFirst().type()).isEqualTo(PlayerType.GOALIE);
     }
 
     @Test

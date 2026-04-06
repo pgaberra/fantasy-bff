@@ -5,10 +5,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.Set;
 
 public record SkaterResponse(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) PlayerType type,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int id,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Set<String> positions,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Set<SkaterPosition> positions,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
     @Schema(name = "SkaterStats")
