@@ -1,39 +1,41 @@
 package com.fantasy.bff.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Set;
 
 public record SkaterResponse(
-        String type,
-        int id,
-        String name,
-        Set<String> positions,
-        Stats stats
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String type,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int id,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Set<String> positions,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
     public record Stats(
-            UtilityStats utility,
-            ScoringStats scoring
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ScoringStats scoring
     ) {}
 
     public record UtilityStats(
-            int gp,
-            int toiPerGame
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gp,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int toiPerGame
     ) {}
 
     public record ScoringStats(
-            int goals,
-            int assists,
-            int plusMinus,
-            int pim,
-            int ppg,
-            int ppa,
-            int shg,
-            int sha,
-            int gwg,
-            int sog,
-            double shPct,
-            int fw,
-            int fl,
-            int hits,
-            int blocks
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int goals,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int assists,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int plusMinus,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int pim,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int ppg,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int ppa,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int shg,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sha,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gwg,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sog,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double shPct,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int fw,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int fl,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int hits,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int blocks
     ) {}
 }

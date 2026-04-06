@@ -1,29 +1,31 @@
 package com.fantasy.bff.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 public record GoalieResponse(
-        String type,
-        int id,
-        String name,
-        Stats stats
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String type,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int id,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
     public record Stats(
-            UtilityStats utility,
-            ScoringStats scoring
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ScoringStats scoring
     ) {}
 
     public record UtilityStats(
-            int gp
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gp
     ) {}
 
     public record ScoringStats(
-            int gs,
-            int w,
-            int l,
-            int sho,
-            int sa,
-            int sv,
-            int ga,
-            double gaa,
-            double svPct
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gs,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int w,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int l,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sho,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sa,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sv,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int ga,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double gaa,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double svPct
     ) {}
 }
