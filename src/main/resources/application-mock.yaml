@@ -1,0 +1,4 @@
+mock:
+  user:
+    email: ${MOCK_USER_EMAIL:mock@example.com}
+    password: ${MOCK_USER_PASSWORD:mockpassword123}
