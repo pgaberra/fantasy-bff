@@ -25,9 +25,6 @@ security:
   permitted-urls:
     - "/api/v1/auth/**"
     - "/actuator/health"
-    - "/swagger-ui/**"
-    - "/swagger-ui.html"
-    - "/v3/api-docs/**"
   jwt:
     secret: ${JWT_SECRET:changeme-this-is-a-dev-only-secret-at-least-256-bits-long}
     expiration-ms: 900000

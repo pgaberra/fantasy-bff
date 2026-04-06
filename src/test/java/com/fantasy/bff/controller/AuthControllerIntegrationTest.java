@@ -47,7 +47,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void register_withExistingEmail_returns400() throws Exception {
-        RegisterRequest request = new RegisterRequest("user", "test@example.com", "password");
+        RegisterRequest request = new RegisterRequest("test@example.com", "password");
         when(databaseServiceClient.existsByEmail("test@example.com")).thenReturn(true);
 
         mockMvc.perform(post("/api/v1/auth/register")
