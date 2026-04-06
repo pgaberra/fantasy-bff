@@ -11,16 +11,19 @@ public record SkaterResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Set<String> positions,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
+    @Schema(name = "SkaterStats")
     public record Stats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ScoringStats scoring
     ) {}
 
+    @Schema(name = "SkaterUtilityStats")
     public record UtilityStats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gp,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int toiPerGame
     ) {}
 
+    @Schema(name = "SkaterScoringStats")
     public record ScoringStats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int goals,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int assists,

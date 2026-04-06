@@ -8,15 +8,18 @@ public record GoalieResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
+    @Schema(name = "GoalieStats")
     public record Stats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ScoringStats scoring
     ) {}
 
+    @Schema(name = "GoalieUtilityStats")
     public record UtilityStats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gp
     ) {}
 
+    @Schema(name = "GoalieScoringStats")
     public record ScoringStats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gs,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int w,
