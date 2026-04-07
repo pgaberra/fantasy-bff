@@ -1,8 +1,6 @@
 spring:
   application:
     name: fantasy-bff
-  profiles:
-    active: ${SPRING_PROFILE:mock}
   threads:
     virtual:
       enabled: true
