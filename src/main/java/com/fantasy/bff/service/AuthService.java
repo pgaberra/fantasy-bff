@@ -2,7 +2,9 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.LoginRequest;
+import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import io.jsonwebtoken.Claims;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -33,8 +35,24 @@ public class AuthService {
         }
 
         String token = jwtTokenValidator.generateToken(user.id(), user.email());
+        String refreshToken = jwtTokenValidator.generateRefreshToken(user.id(), user.email());
         long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
-        return new AuthResponse(token, expiresIn);
+        long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
+        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn);
+    }
+
+    public AuthResponse refresh(RefreshRequest request) {
+        Claims claims = jwtTokenValidator.validateAndExtractClaims(request.refreshToken());
+        if (!jwtTokenValidator.isRefreshToken(claims)) {
+            throw new SecurityException("Invalid refresh token");
+        }
+        String userId = claims.getSubject();
+        String email = claims.get("email", String.class);
+        String newToken = jwtTokenValidator.generateToken(userId, email);
+        String newRefreshToken = jwtTokenValidator.generateRefreshToken(userId, email);
+        long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
+        long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
+        return new AuthResponse(newToken, expiresIn, newRefreshToken, refreshExpiresIn);
     }
 
     public void register(RegisterRequest request) {

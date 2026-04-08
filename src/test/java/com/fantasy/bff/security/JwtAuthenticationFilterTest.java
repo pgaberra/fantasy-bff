@@ -88,4 +88,16 @@ class JwtAuthenticationFilterTest {
         verify(jwtTokenValidator, never()).validateAndExtractClaims(anyString());
         verify(filterChain).doFilter(request, response);
     }
+
+    @Test
+    void doFilterInternal_withRefreshToken_doesNotSetAuthentication() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer refresh.token");
+        when(jwtTokenValidator.validateAndExtractClaims("refresh.token")).thenReturn(claims);
+        when(jwtTokenValidator.isRefreshToken(claims)).thenReturn(true);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(filterChain).doFilter(request, response);
+    }
 }

@@ -25,8 +25,8 @@ security:
     - "/actuator/health"
   jwt:
     secret: ${JWT_SECRET:}
-    expiration-ms: 900000
-    refresh-expiration-ms: 604800000
+    expiration-ms: 900000 # 15 minutes
+    refresh-expiration-ms: 2592000000  # 30 days
 
 springdoc:
   api-docs:

@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.NhlServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("mock")
-class PlayerControllerIntegrationTest {
+class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

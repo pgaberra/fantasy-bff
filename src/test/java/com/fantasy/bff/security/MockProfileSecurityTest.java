@@ -1,5 +1,6 @@
 package com.fantasy.bff.security;
 
+import com.fantasy.bff.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -17,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("mock")
-public class MockProfileSecurityTest {
+public class MockProfileSecurityTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
