@@ -29,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.jwtTokenValidator = jwtTokenValidator;
     }
 
+    // TODO dubbelchecka denna så allt verkligen går rätt till
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -36,6 +37,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         extractToken(request).ifPresent(token -> {
             try {
                 Claims claims = jwtTokenValidator.validateAndExtractClaims(token);
+                if (jwtTokenValidator.isRefreshToken(claims)) {
+                    return;
+                }
                 String userId = claims.getSubject();
 
                 UsernamePasswordAuthenticationToken authentication =

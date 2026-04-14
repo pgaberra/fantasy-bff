@@ -5,3 +5,5 @@ security:
     - "/swagger-ui/**"
     - "/swagger-ui.html"
     - "/v3/api-docs/**"
+  cors-allowed-origins:
+    - "http://localhost:4200"
