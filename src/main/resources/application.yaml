@@ -10,13 +10,13 @@ server:
 
 services:
   nhl:
-    base-url: ${NHL_SERVICE_URL:http://localhost:8081}
+    base-url: ${NHL_SERVICE_URL:http://localhost:8082}
     timeout-ms: 5000
   yahoo-fantasy:
-    base-url: ${YAHOO_SERVICE_URL:http://localhost:8082}
+    base-url: ${YAHOO_SERVICE_URL:http://localhost:8084}
     timeout-ms: 7000
   database:
-    base-url: ${DATABASE_SERVICE_URL:http://localhost:8083}
+    base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000
 
 security:
