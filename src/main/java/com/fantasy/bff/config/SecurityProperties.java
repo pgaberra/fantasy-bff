@@ -9,10 +9,13 @@ import java.util.List;
  */
 @ConfigurationProperties(prefix = "security")
 @Validated
-public record SecurityProperties(List<String> permittedUrls) {
+public record SecurityProperties(List<String> permittedUrls, List<String> corsAllowedOrigins) {
     public SecurityProperties {
         if (permittedUrls == null) {
             permittedUrls = List.of();
+        }
+        if (corsAllowedOrigins == null) {
+            corsAllowedOrigins = List.of();
         }
     }
 }

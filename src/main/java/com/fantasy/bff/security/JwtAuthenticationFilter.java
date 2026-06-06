@@ -35,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
         extractToken(request).ifPresent(token -> {
             try {
-                Claims claims = jwtTokenValidator.validateAndExtractClaims(token);
+                Claims claims = jwtTokenValidator.validateAndExtractAccessTokenClaims(token);
                 String userId = claims.getSubject();
 
                 UsernamePasswordAuthenticationToken authentication =

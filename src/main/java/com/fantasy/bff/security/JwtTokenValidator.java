@@ -22,19 +22,48 @@ public class JwtTokenValidator {
         this.signingKey = Keys.hmacShaKeyFor(jwtProperties.secret().getBytes(StandardCharsets.UTF_8));
     }
 
+    private static final String CLAIM_TYPE = "type";
+    private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_REFRESH = "refresh";
+
     public String generateToken(String userId, String email) {
+        return buildToken(userId, email, TYPE_ACCESS, jwtProperties.expirationMs());
+    }
+
+    public String generateRefreshToken(String userId, String email) {
+        return buildToken(userId, email, TYPE_REFRESH, jwtProperties.refreshExpirationMs());
+    }
+
+    private String buildToken(String userId, String email, String type, long expirationMs) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + jwtProperties.expirationMs());
+        Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(userId)
                 .claim("email", email)
+                .claim(CLAIM_TYPE, type)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey)
                 .compact();
     }
 
-    public Claims validateAndExtractClaims(String token) {
+    public Claims validateAndExtractAccessTokenClaims(String token) {
+        Claims claims = parseAndValidate(token);
+        if (!TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class))) {
+            throw new SecurityException("Expected access token");
+        }
+        return claims;
+    }
+
+    public Claims validateAndExtractRefreshTokenClaims(String token) {
+        Claims claims = parseAndValidate(token);
+        if (!TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class))) {
+            throw new SecurityException("Expected refresh token");
+        }
+        return claims;
+    }
+
+    private Claims parseAndValidate(String token) {
         try {
             return Jwts.parser()
                     .verifyWith(signingKey)
@@ -48,5 +77,9 @@ public class JwtTokenValidator {
 
     public long getExpirationMs() {
         return jwtProperties.expirationMs();
+    }
+
+    public long getRefreshExpirationMs() {
+        return jwtProperties.refreshExpirationMs();
     }
 }

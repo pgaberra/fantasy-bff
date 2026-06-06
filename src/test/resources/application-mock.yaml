@@ -1,0 +1,4 @@
+mock:
+  user:
+    email: mock@example.com
+    password: mockpassword123

@@ -6,7 +6,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("mock")
-class ApplicationTests {
+class ApplicationTests extends BaseIntegrationTest {
 
     @Test
     void contextLoads() {

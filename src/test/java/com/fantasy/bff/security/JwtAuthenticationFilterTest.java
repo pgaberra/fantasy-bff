@@ -45,7 +45,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void doFilterInternal_withValidToken_setsAuthentication() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer valid.token");
-        when(jwtTokenValidator.validateAndExtractClaims("valid.token")).thenReturn(claims);
+        when(jwtTokenValidator.validateAndExtractAccessTokenClaims("valid.token")).thenReturn(claims);
         when(claims.getSubject()).thenReturn("user-123");
 
         filter.doFilterInternal(request, response, filterChain);
@@ -62,14 +62,14 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(jwtTokenValidator, never()).validateAndExtractClaims(anyString());
+        verify(jwtTokenValidator, never()).validateAndExtractAccessTokenClaims(anyString());
         verify(filterChain).doFilter(request, response);
     }
 
     @Test
     void doFilterInternal_withInvalidToken_clearsContextAndContinues() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer invalid.token");
-        when(jwtTokenValidator.validateAndExtractClaims("invalid.token"))
+        when(jwtTokenValidator.validateAndExtractAccessTokenClaims("invalid.token"))
                 .thenThrow(new SecurityException("Invalid token"));
 
         filter.doFilterInternal(request, response, filterChain);
@@ -85,7 +85,19 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(jwtTokenValidator, never()).validateAndExtractClaims(anyString());
+        verify(jwtTokenValidator, never()).validateAndExtractAccessTokenClaims(anyString());
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void doFilterInternal_withRefreshToken_doesNotSetAuthentication() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer refresh.token");
+        when(jwtTokenValidator.validateAndExtractAccessTokenClaims("refresh.token"))
+                .thenThrow(new SecurityException("Expected access token"));
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(filterChain).doFilter(request, response);
     }
 }
