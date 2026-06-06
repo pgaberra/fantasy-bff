@@ -46,3 +46,9 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Only build the executable Spring Boot jar (skip the non-runnable "-plain" jar)
+// so the Docker image can copy build/libs/*.jar unambiguously.
+tasks.named('jar') {
+	enabled = false
+}

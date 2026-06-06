@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: fantasy-bff-staging
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      # Run with stubbed NHL/database clients + a mock login user, and the
+      # staging profile that reads the CORS origin from WEB_ORIGIN.
+      - key: SPRING_PROFILES_ACTIVE
+        value: mock,staging
+      # 256-bit+ signing key for HS256 JWTs; Render generates a long random value.
+      - key: JWT_SECRET
+        generateValue: true
+      # Set this to the deployed web URL after the static site exists, then redeploy.
+      - key: WEB_ORIGIN
+        sync: false
