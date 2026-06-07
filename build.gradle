@@ -51,6 +51,9 @@ tasks.named('test') {
 		events 'failed'
 		exceptionFormat = 'full'
 	}
+	// Forward -DupdateSpec=true to the test JVM so OpenApiSpecSnapshotTest can
+	// rewrite specs/bff-openapi.yaml instead of asserting against it.
+	systemProperty 'updateSpec', System.getProperty('updateSpec', 'false')
 	finalizedBy jacocoTestReport
 }
 
