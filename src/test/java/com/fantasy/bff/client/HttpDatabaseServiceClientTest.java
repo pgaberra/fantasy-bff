@@ -72,16 +72,10 @@ class HttpDatabaseServiceClientTest {
     @Test
     void createUser_postsEmailAndHash() {
         server.stubFor(post(urlPathEqualTo("/api/v1/users"))
-                .willReturn(aResponse().withStatus(201)));
+                .willReturn(okJson("{\"id\":\"u-9\",\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")
+                        .withStatus(201)));
 
         client.createUser("new@b.com", "hashed");
-
-        var requests = server.findAll(postRequestedFor(urlPathEqualTo("/api/v1/users")));
-        System.out.println("[DEBUG] createUser POST count=" + requests.size());
-        requests.forEach(r -> {
-            System.out.println("[DEBUG] content-type=" + r.getHeader("Content-Type"));
-            System.out.println("[DEBUG] body=" + r.getBodyAsString());
-        });
 
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users"))
                 .withRequestBody(equalToJson("{\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")));
