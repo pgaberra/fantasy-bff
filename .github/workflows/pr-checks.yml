@@ -25,8 +25,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
         run: |
-          gh api repos/pgaberra/fantasy-db-service/contents/specs/openapi.yaml \
-            -H "Accept: application/vnd.github.raw" > /tmp/db-openapi.yaml
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SPEC_READ_TOKEN is not set. Add a fine-grained PAT with read access to fantasy-db-service contents as a repo secret."
+            exit 1
+          fi
+          if ! gh api repos/pgaberra/fantasy-db-service/contents/specs/openapi.yaml \
+                -H "Accept: application/vnd.github.raw" > /tmp/db-openapi.yaml 2> /tmp/gh-err.txt; then
+            echo "::error::Could not fetch the db-service spec — SPEC_READ_TOKEN is likely invalid or expired. Rotate it and update the repo secret. (This is an auth failure, not a spec mismatch.)"
+            cat /tmp/gh-err.txt
+            exit 1
+          fi
           if ! diff -u specs/fantasy-db-service-openapi.yaml /tmp/db-openapi.yaml; then
             echo "::error::Pinned db-service spec is stale. Copy fantasy-db-service/specs/openapi.yaml into specs/fantasy-db-service-openapi.yaml, run ./gradlew openApiGenerate, and fix any compile errors."
             exit 1
