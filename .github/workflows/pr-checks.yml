@@ -21,6 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Verify pinned db-service spec is in sync
+        env:
+          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+        run: |
+          gh api repos/pgaberra/fantasy-db-service/contents/specs/openapi.yaml \
+            -H "Accept: application/vnd.github.raw" > /tmp/db-openapi.yaml
+          if ! diff -u specs/fantasy-db-service-openapi.yaml /tmp/db-openapi.yaml; then
+            echo "::error::Pinned db-service spec is stale. Copy fantasy-db-service/specs/openapi.yaml into specs/fantasy-db-service-openapi.yaml, run ./gradlew openApiGenerate, and fix any compile errors."
+            exit 1
+          fi
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:

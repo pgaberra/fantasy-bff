@@ -86,9 +86,19 @@ The db-service client is now fully generated — `HttpDatabaseServiceClient` use
 models from `com.fantasy.bff.generated.db.model` derived from
 `specs/fantasy-db-service-openapi.yaml`.
 
+`specs/fantasy-db-service-openapi.yaml` is a **verbatim pinned copy** of
+`fantasy-db-service`'s `specs/openapi.yaml`. CI fails if it drifts from that repo's
+`master` (see below). To update after a db-service API change: copy the new
+`specs/openapi.yaml` over the pinned copy, run `./gradlew openApiGenerate`, and fix
+any resulting compile errors.
+
 ## CI / workflow
 
 - `.github/workflows/pr-checks.yml`: runs `./gradlew build --no-daemon` on PRs to `master`.
+- A **spec drift check** runs first: it fetches `fantasy-db-service`'s spec from
+  `master` and fails if the pinned copy differs. This needs a repo secret
+  `SPEC_READ_TOKEN` — a fine-grained PAT with read access to `fantasy-db-service`
+  contents.
 - `@claude` mentions on issues/PRs trigger `.github/workflows/claude.yml`.
 
 See root `CLAUDE.md` for the PR merge convention and commit message rules.

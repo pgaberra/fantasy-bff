@@ -1,3 +1,7 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# Keep committed OpenAPI specs LF-normalised so they diff cleanly between
+# Windows dev machines and Linux CI runners (the spec drift check uses diff).
+specs/*.yaml text eol=lf
