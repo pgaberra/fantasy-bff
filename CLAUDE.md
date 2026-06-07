@@ -5,12 +5,15 @@ service the Angular frontend (`fantasy-web`) talks to. It handles auth (JWT),
 serves player data, and orchestrates calls to downstream services
 (`fantasy-db-service` for users/persistence, an NHL data service for stats).
 
+@.aiassistant/rules/agent-context.md
+
 ## Tech stack
 
 - Java 25, Spring Boot 4.0.5, Gradle (wrapper: `./gradlew`)
 - Spring Security + JWT (jjwt 0.12.6, HS256)
 - Spring WebMVC (virtual threads enabled), `RestClient` for downstream calls
 - springdoc OpenAPI / Swagger UI
+- openapi-generator 7.13.0 (generates model POJOs from `specs/` at compile time)
 - Tests: JUnit 5, Spring Boot Test, MockMvc, WireMock (standalone), H2 not used here
 
 ## Common commands
@@ -20,9 +23,15 @@ serves player data, and orchestrates calls to downstream services
 ./gradlew test           # tests only
 ./gradlew bootRun        # run locally (defaults to no profile — usually run with mock)
 SPRING_PROFILES_ACTIVE=mock ./gradlew bootRun
+./gradlew openApiGenerate  # regenerate models from specs/ (runs automatically on build)
 ```
 
 Swagger UI (when running): `http://localhost:8080/swagger-ui.html`
+
+**Updating db-service client models:** when `fantasy-db-service` adds or changes an
+endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
+`./gradlew openApiGenerate`. Generated classes land in
+`com.fantasy.bff.generated.db.model` (not committed — regenerated on every build).
 
 ## Architecture
 
@@ -60,35 +69,42 @@ Swagger UI (when running): `http://localhost:8080/swagger-ui.html`
 - Keep new endpoints under `/api/v1`. Add the path to `security.permitted-urls`
   only if it should be public (default is authenticated).
 
+### OpenAPI-first downstream clients
+
+All BFF → downstream service communication must use **OpenAPI-generated** typed
+clients, not hand-written `RestClient` calls.
+
+Workflow for a new downstream service:
+1. Ensure the downstream service has complete `@Operation`, `@ApiResponse`, and
+   `@Schema` annotations on its controllers and DTOs.
+2. Add a committed spec YAML to `specs/` and a new `openApiGenerate`-style task in
+   `build.gradle` (or extend the existing one with multiple inputs).
+3. Keep the existing `interface` + `@Profile("mock")` / `@Profile("!mock")` split;
+   use the generated model classes in the `!mock` implementation.
+
+The db-service client is now fully generated — `HttpDatabaseServiceClient` uses
+models from `com.fantasy.bff.generated.db.model` derived from
+`specs/fantasy-db-service-openapi.yaml`.
+
+`specs/fantasy-db-service-openapi.yaml` is a **verbatim pinned copy** of
+`fantasy-db-service`'s `specs/openapi.yaml`. CI fails if it drifts from that repo's
+`master` (see below). To update after a db-service API change: copy the new
+`specs/openapi.yaml` over the pinned copy, run `./gradlew openApiGenerate`, and fix
+any resulting compile errors.
+
 ## CI / workflow
 
 - `.github/workflows/pr-checks.yml`: runs `./gradlew build --no-daemon` on PRs to `master`.
-- Branch → push → PR → checks pass → **squash merge** to `master`.
+- A **spec drift check** runs first: it fetches `fantasy-db-service`'s spec from
+  `master` and fails if the pinned copy differs. This needs a repo secret
+  `SPEC_READ_TOKEN` — a fine-grained PAT with read access to `fantasy-db-service`
+  contents.
 - `@claude` mentions on issues/PRs trigger `.github/workflows/claude.yml`.
 
-### Merging PRs
-
-GitHub squash merge uses the **PR title** as the commit message — the individual
-branch commits are ignored. Before merging:
-
-1. Ensure the PR title is a proper commit message (e.g. `feat: add X`, `fix: correct Y`).
-   Rename it first with `gh pr edit <n> --title "..."` if needed.
-2. Merge with an explicit subject so the commit message is never left to chance:
-   ```
-   gh pr merge <n> --squash --delete-branch \
-     --subject "feat: describe the change (#<n>)" \
-     --body "Optional longer description."
-   ```
-
-Never merge a PR titled "wip", "draft", or similar.
+See root `CLAUDE.md` for the PR merge convention and commit message rules.
 
 ## Deployment
 
 - Dockerized (multi-stage `Dockerfile`), deployed to Render as a web service
   (`SPRING_PROFILES_ACTIVE=mock,staging`). See `DEPLOYMENT.md`.
 - Health check: `/actuator/health`.
-
-## Commit messages
-
-No attribution trailers. `attribution.commit` and `attribution.pr` are set to `""` in
-`~/.claude/settings.json` — this is enforced at the tool level.

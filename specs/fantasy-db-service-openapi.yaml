@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: Fantasy DB Service API
+  description: User persistence API for the fantasy hockey tool.
+  version: v1
+servers:
+- url: /
+tags:
+- name: Users
+  description: User management
+paths:
+  /api/v1/users:
+    get:
+      tags:
+      - Users
+      summary: Look up a user by email address
+      operationId: getByEmail
+      parameters:
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: User found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: No user with that email
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+    post:
+      tags:
+      - Users
+      summary: Create a new user
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+        required: true
+      responses:
+        "201":
+          description: User created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: Validation failed (blank email / password hash)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "409":
+          description: A user with that email already exists
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/exists:
+    get:
+      tags:
+      - Users
+      summary: Check whether a user with the given email exists
+      operationId: existsByEmail
+      parameters:
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Always returns 200; check the 'exists' field
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExistsResponse"
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        passwordHash:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - passwordHash
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        passwordHash:
+          type: string
+      required:
+      - email
+      - id
+      - passwordHash
+    ExistsResponse:
+      type: object
+      properties:
+        exists:
+          type: boolean
+      required:
+      - exists

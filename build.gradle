@@ -3,6 +3,7 @@ plugins {
 	id 'org.springframework.boot' version '4.0.5'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
+	id 'org.openapi.generator' version '7.13.0'
 }
 
 group = 'com.fantasy'
@@ -66,3 +67,37 @@ jacocoTestReport {
 tasks.named('jar') {
 	enabled = false
 }
+
+// Generate a typed client from the committed db-service OpenAPI spec.
+// Re-run after updating specs/fantasy-db-service-openapi.yaml.
+// We only consume the generated *model* classes (com.fantasy.bff.generated.db.model);
+// the rest compiles as a self-consistent unit. The 'native' library builds on the
+// JDK's java.net.http client + Jackson (no Spring), so it is unaffected by the
+// Spring Framework 7 API changes that break the generator's Spring-based templates.
+openApiGenerate {
+	generatorName = 'java'
+	library = 'native'
+	inputSpec = "${projectDir}/specs/fantasy-db-service-openapi.yaml".toString()
+	outputDir = "${buildDir}/generated/openapi/db-service".toString()
+	modelPackage = 'com.fantasy.bff.generated.db.model'
+	apiPackage = 'com.fantasy.bff.generated.db.api'
+	invokerPackage = 'com.fantasy.bff.generated.db'
+	generateApiTests = false
+	generateModelTests = false
+	generateApiDocumentation = false
+	generateModelDocumentation = false
+	configOptions = [
+		openApiNullable: 'false',
+		useJakartaEe: 'true',
+	]
+}
+
+sourceSets {
+	main {
+		java {
+			srcDir "${buildDir}/generated/openapi/db-service/src/main/java"
+		}
+	}
+}
+
+compileJava.dependsOn tasks.openApiGenerate
