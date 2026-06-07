@@ -18,8 +18,13 @@ public class RestClientConfig {
     @Bean
     public RestClient nhlServiceClient(
             @Value("${services.nhl.base-url}") String baseUrl,
-            @Value("${services.nhl.timeout-ms}") int timeoutMs) {
-        return buildRestClient(baseUrl, timeoutMs);
+            @Value("${services.nhl.timeout-ms}") int timeoutMs,
+            @Value("${services.nhl.api-key:}") String apiKey) {
+        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader("X-Internal-Api-Key", apiKey);
+        }
+        return builder.build();
     }
 
     @Bean
