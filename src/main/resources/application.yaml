@@ -18,6 +18,7 @@ services:
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000
+    api-key: ${INTERNAL_API_KEY:}
 
 security:
   permitted-urls:

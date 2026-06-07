@@ -7,13 +7,19 @@ services:
     healthCheckPath: /actuator/health
     autoDeploy: true
     envVars:
-      # Run with stubbed NHL/database clients + a mock login user, and the
-      # staging profile that reads the CORS origin from WEB_ORIGIN.
+      # Run with the staging profile (real downstream services, CORS from WEB_ORIGIN).
       - key: SPRING_PROFILES_ACTIVE
-        value: mock,staging
+        value: staging
       # 256-bit+ signing key for HS256 JWTs; Render generates a long random value.
       - key: JWT_SECRET
         generateValue: true
+      # fantasy-db-service public URL on Render.
+      - key: DATABASE_SERVICE_URL
+        value: https://fantasy-db-service.onrender.com
+      # Pre-shared secret for BFF → db-service auth. Must match INTERNAL_API_KEY
+      # set on the fantasy-db-service. Generate with: openssl rand -hex 32
+      - key: INTERNAL_API_KEY
+        sync: false
       # Set this to the deployed web URL after the static site exists, then redeploy.
       - key: WEB_ORIGIN
         sync: false
