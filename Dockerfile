@@ -7,6 +7,10 @@ COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
 RUN chmod +x gradlew
 
+# Copy the committed OpenAPI specs — openApiGenerate (a compileJava dependency)
+# reads specs/fantasy-db-service-openapi.yaml to generate the db-service client.
+COPY specs ./specs
+
 # Copy sources and build the executable boot jar (skip tests; CI already runs them)
 COPY src ./src
 RUN ./gradlew bootJar --no-daemon
