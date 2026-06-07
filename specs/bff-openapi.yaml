@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: Fantasy Hockey BFF API
+  description: Backend for Frontend aggregation layer for the Fantasy Hockey application
+  version: "1.0"
+servers:
+- url: /
+security:
+- bearerAuth: []
+tags:
+- name: Authentication
+  description: Register and login endpoints
+- name: Players
+  description: NHL player stats endpoints
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+      - Authentication
+      summary: Register
+      description: Create a new user account
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: User registered successfully
+        "400":
+          description: Email already in use or validation error
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Refresh tokens
+      description: Exchange a valid refresh token for a new access token and refresh
+        token pair
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+        required: true
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Login
+      description: Authenticate with email and password to receive a JWT
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /api/v1/players/skaters:
+    get:
+      tags:
+      - Players
+      summary: Get all skaters
+      description: Returns all skaters with full season stats
+      operationId: getSkaters
+      responses:
+        "200":
+          description: Skaters retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+        "502":
+          description: NHL service unavailable
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/players/goalies:
+    get:
+      tags:
+      - Players
+      summary: Get all goalies
+      description: Returns all goalies with full season stats
+      operationId: getGoalies
+      responses:
+        "200":
+          description: Goalies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
+        "502":
+          description: NHL service unavailable
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
+      security:
+      - bearerAuth: []
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          maxLength: 2147483647
+          minLength: 8
+      required:
+      - email
+      - password
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+      required:
+      - refreshToken
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresInSeconds:
+          type: integer
+          format: int64
+        refreshToken:
+          type: string
+        refreshExpiresInSeconds:
+          type: integer
+          format: int64
+      required:
+      - expiresInSeconds
+      - refreshExpiresInSeconds
+      - refreshToken
+      - token
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - password
+    SkaterResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        positions:
+          type: array
+          items:
+            type: string
+            enum:
+            - LW
+            - C
+            - RW
+            - D
+          uniqueItems: true
+        stats:
+          $ref: "#/components/schemas/SkaterStats"
+      required:
+      - id
+      - name
+      - positions
+      - stats
+    SkaterScoringStats:
+      type: object
+      properties:
+        goals:
+          type: integer
+          format: int32
+        assists:
+          type: integer
+          format: int32
+        plusMinus:
+          type: integer
+          format: int32
+        pim:
+          type: integer
+          format: int32
+        ppg:
+          type: integer
+          format: int32
+        ppa:
+          type: integer
+          format: int32
+        shg:
+          type: integer
+          format: int32
+        sha:
+          type: integer
+          format: int32
+        gwg:
+          type: integer
+          format: int32
+        sog:
+          type: integer
+          format: int32
+        shPct:
+          type: number
+          format: double
+        fw:
+          type: integer
+          format: int32
+        fl:
+          type: integer
+          format: int32
+        hits:
+          type: integer
+          format: int32
+        blocks:
+          type: integer
+          format: int32
+      required:
+      - assists
+      - blocks
+      - fl
+      - fw
+      - goals
+      - gwg
+      - hits
+      - pim
+      - plusMinus
+      - ppa
+      - ppg
+      - shPct
+      - sha
+      - shg
+      - sog
+    SkaterStats:
+      type: object
+      properties:
+        utility:
+          $ref: "#/components/schemas/SkaterUtilityStats"
+        scoring:
+          $ref: "#/components/schemas/SkaterScoringStats"
+      required:
+      - scoring
+      - utility
+    SkaterUtilityStats:
+      type: object
+      properties:
+        gp:
+          type: integer
+          format: int32
+        toiPerGame:
+          type: integer
+          format: int32
+      required:
+      - gp
+      - toiPerGame
+    GoalieResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        stats:
+          $ref: "#/components/schemas/GoalieStats"
+      required:
+      - id
+      - name
+      - stats
+    GoalieScoringStats:
+      type: object
+      properties:
+        gs:
+          type: integer
+          format: int32
+        w:
+          type: integer
+          format: int32
+        l:
+          type: integer
+          format: int32
+        sho:
+          type: integer
+          format: int32
+        sa:
+          type: integer
+          format: int32
+        sv:
+          type: integer
+          format: int32
+        ga:
+          type: integer
+          format: int32
+        gaa:
+          type: number
+          format: double
+        svPct:
+          type: number
+          format: double
+      required:
+      - ga
+      - gaa
+      - gs
+      - l
+      - sa
+      - sho
+      - sv
+      - svPct
+      - w
+    GoalieStats:
+      type: object
+      properties:
+        utility:
+          $ref: "#/components/schemas/GoalieUtilityStats"
+        scoring:
+          $ref: "#/components/schemas/GoalieScoringStats"
+      required:
+      - scoring
+      - utility
+    GoalieUtilityStats:
+      type: object
+      properties:
+        gp:
+          type: integer
+          format: int32
+      required:
+      - gp
+  securitySchemes:
+    bearerAuth:
+      type: http
+      name: bearerAuth
+      scheme: bearer
+      bearerFormat: JWT
