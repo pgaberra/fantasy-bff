@@ -72,6 +72,9 @@ tasks.named('jar') {
 // Re-run after updating specs/fantasy-db-service-openapi.yaml.
 openApiGenerate {
 	generatorName = 'java'
+	// Jackson-based library so generated models are plain POJOs (the default
+	// okhttp-gson library embeds Gson TypeAdapters and pulls in com.google.gson).
+	library = 'native'
 	inputSpec = "${projectDir}/specs/fantasy-db-service-openapi.yaml".toString()
 	outputDir = "${buildDir}/generated/openapi/db-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.db.model'
