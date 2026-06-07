@@ -3,10 +3,12 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.model.downstream.User;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -43,7 +45,8 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     public void createUser(String email, String passwordHash) {
         restClient.post()
                 .uri("/api/v1/users")
-                .body(new CreateUserRequest(email, passwordHash))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("email", email, "passwordHash", passwordHash))
                 .retrieve()
                 .toBodilessEntity();
     }
@@ -56,8 +59,6 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(ExistsResponse.class);
         return response != null && response.exists();
     }
-
-    private record CreateUserRequest(String email, String passwordHash) {}
 
     private record ExistsResponse(boolean exists) {}
 }
