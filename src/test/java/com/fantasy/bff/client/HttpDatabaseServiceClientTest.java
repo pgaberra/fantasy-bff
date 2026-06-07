@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.util.Optional;
@@ -29,7 +30,12 @@ class HttpDatabaseServiceClientTest {
     void setUp() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
-        RestClient restClient = RestClient.builder().baseUrl(server.baseUrl()).build();
+        // Use a buffered request factory so POST bodies are sent with a
+        // Content-Length (not chunked); WireMock then records/matches the body.
+        RestClient restClient = RestClient.builder()
+                .baseUrl(server.baseUrl())
+                .requestFactory(new SimpleClientHttpRequestFactory())
+                .build();
         client = new HttpDatabaseServiceClient(restClient);
     }
 
