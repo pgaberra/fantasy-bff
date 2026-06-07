@@ -75,11 +75,14 @@ openApiGenerate {
 	inputSpec = "${projectDir}/specs/fantasy-db-service-openapi.yaml".toString()
 	outputDir = "${buildDir}/generated/openapi/db-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.db.model'
-	generateApis = false
+	// Restrict output to model POJOs — no API classes, supporting files, tests, or docs.
+	globalProperties = [
+		models: ''
+	]
 	generateApiTests = false
 	generateModelTests = false
+	generateApiDocumentation = false
 	generateModelDocumentation = false
-	generateSupportingFiles = false
 	configOptions = [
 		openApiNullable: 'false',
 		serializationLibrary: 'jackson',
