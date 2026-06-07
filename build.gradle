@@ -51,6 +51,9 @@ tasks.named('test') {
 		events 'failed'
 		exceptionFormat = 'full'
 	}
+	// Forward -DupdateSpec=true to the test JVM so OpenApiSpecSnapshotTest can
+	// rewrite specs/bff-openapi.yaml instead of asserting against it.
+	systemProperty 'updateSpec', System.getProperty('updateSpec', 'false')
 	finalizedBy jacocoTestReport
 }
 
@@ -77,7 +80,10 @@ tasks.named('jar') {
 openApiGenerate {
 	generatorName = 'java'
 	library = 'native'
-	inputSpec = "${projectDir}/specs/fantasy-db-service-openapi.yaml".toString()
+	// Pass a file: URI (not a raw path) so the swagger parser resolves internal
+	// $refs correctly on Windows too — a bare "C:\..." path makes it read the
+	// drive letter as a URI scheme and fail.
+	inputSpec = file("specs/fantasy-db-service-openapi.yaml").toURI().toString()
 	outputDir = "${buildDir}/generated/openapi/db-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.db.model'
 	apiPackage = 'com.fantasy.bff.generated.db.api'

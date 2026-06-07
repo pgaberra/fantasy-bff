@@ -92,6 +92,20 @@ models from `com.fantasy.bff.generated.db.model` derived from
 `specs/openapi.yaml` over the pinned copy, run `./gradlew openApiGenerate`, and fix
 any resulting compile errors.
 
+### Own spec snapshot (`specs/bff-openapi.yaml`)
+
+The BFF is itself a producer — `fantasy-web` generates its client from this spec.
+`OpenApiSpecSnapshotTest` boots the app (mock profile) and asserts
+`specs/bff-openapi.yaml` matches the live `/v3/api-docs.yaml`, so **any
+controller/DTO change that isn't reflected in the spec fails the build**.
+
+After an intentional API change, regenerate and commit:
+```
+./gradlew test -DupdateSpec=true   # rewrites specs/bff-openapi.yaml
+git add specs/bff-openapi.yaml
+```
+`OpenApiConfig` pins the server URL to `/` so the spec is deterministic across runs.
+
 ## CI / workflow
 
 - `.github/workflows/pr-checks.yml`: runs `./gradlew build --no-daemon` on PRs to `master`.
