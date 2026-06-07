@@ -68,27 +68,25 @@ tasks.named('jar') {
 	enabled = false
 }
 
-// Generate typed model classes from the committed db-service OpenAPI spec.
+// Generate a typed client from the committed db-service OpenAPI spec.
 // Re-run after updating specs/fantasy-db-service-openapi.yaml.
+// We only consume the generated *model* classes (com.fantasy.bff.generated.db.model);
+// the rest of the client compiles as a self-consistent unit against Spring's
+// RestClient (already a dependency) but is otherwise unused.
 openApiGenerate {
 	generatorName = 'java'
-	// Jackson-based library so generated models are plain POJOs (the default
-	// okhttp-gson library embeds Gson TypeAdapters and pulls in com.google.gson).
-	library = 'native'
+	library = 'restclient'
 	inputSpec = "${projectDir}/specs/fantasy-db-service-openapi.yaml".toString()
 	outputDir = "${buildDir}/generated/openapi/db-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.db.model'
-	// Restrict output to model POJOs — no API classes, supporting files, tests, or docs.
-	globalProperties = [
-		models: ''
-	]
+	apiPackage = 'com.fantasy.bff.generated.db.api'
+	invokerPackage = 'com.fantasy.bff.generated.db'
 	generateApiTests = false
 	generateModelTests = false
 	generateApiDocumentation = false
 	generateModelDocumentation = false
 	configOptions = [
 		openApiNullable: 'false',
-		serializationLibrary: 'jackson',
 		useJakartaEe: 'true',
 	]
 }
