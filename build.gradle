@@ -45,6 +45,11 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	testLogging {
+		events 'failed'
+		exceptionFormat = 'full'
+		showStandardStreams = true
+	}
 }
 
 // Only build the executable Spring Boot jar (skip the non-runnable "-plain" jar)
