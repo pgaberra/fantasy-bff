@@ -21,8 +21,14 @@ serves player data, and orchestrates calls to downstream services
 ```bash
 ./gradlew build          # compile + test (CI runs: ./gradlew build --no-daemon)
 ./gradlew test           # tests only
-./gradlew bootRun        # run locally (defaults to no profile — usually run with mock)
-SPRING_PROFILES_ACTIVE=mock ./gradlew bootRun
+./gradlew bootRun        # run locally (defaults to no profile — usually run with mock or dev)
+
+# With in-memory stubs (no downstream services needed):
+SPRING_PROFILES_ACTIVE=mock,dev JWT_SECRET=<32chars> ./gradlew bootRun
+
+# With real db-service (start Postgres + db-service first — see fantasy-db-service):
+SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> ./gradlew bootRun
+
 ./gradlew openApiGenerate  # regenerate models from specs/ (runs automatically on build)
 ```
 
