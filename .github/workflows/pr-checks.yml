@@ -6,6 +6,9 @@ on:
   push:
     branches: [master]
 
+permissions:
+  pull-requests: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -26,5 +29,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build & test
-        run: ./gradlew build --no-daemon
+      - name: Build, test & coverage
+        run: ./gradlew build jacocoTestReport --no-daemon
+
+      - name: Publish coverage report
+        uses: madraptor/jacoco-report@v1.6.0
+        if: github.event_name == 'pull_request'
+        with:
+          paths: '**/build/reports/jacoco/test/jacocoTestReport.xml'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
+          title: 'Coverage Report — bff'
