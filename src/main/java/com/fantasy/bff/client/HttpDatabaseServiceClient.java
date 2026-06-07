@@ -16,7 +16,7 @@ import java.util.Optional;
  * Active in every profile except {@code mock} (where the in-memory stub is used).
  */
 @Component
-@Profile("!mock")
+@Profile("!mock | real-db")
 public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     private final RestClient restClient;
@@ -43,12 +43,19 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public void createUser(String email, String passwordHash) {
-        restClient.post()
-                .uri("/api/v1/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("email", email, "passwordHash", passwordHash))
-                .retrieve()
-                .toBodilessEntity();
+        try {
+            restClient.post()
+                    .uri("/api/v1/users")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("email", email, "passwordHash", passwordHash))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 409) {
+                throw new IllegalArgumentException("An account with this email already exists");
+            }
+            throw e;
+        }
     }
 
     @Override

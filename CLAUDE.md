@@ -19,7 +19,13 @@ serves player data, and orchestrates calls to downstream services
 ./gradlew build          # compile + test (CI runs: ./gradlew build --no-daemon)
 ./gradlew test           # tests only
 ./gradlew bootRun        # run locally (defaults to no profile — usually run with mock)
-SPRING_PROFILES_ACTIVE=mock ./gradlew bootRun
+
+# Local dev: mock NHL data + real PostgreSQL auth (fantasy-db-service must be running)
+# JWT_SECRET must be ≥32 chars; DATABASE_SERVICE_URL defaults to http://localhost:8086
+JWT_SECRET=localdevsecret1234567890abcdef SPRING_PROFILES_ACTIVE=mock,dev,real-db ./gradlew bootRun
+
+# Local dev: fully mocked (no database needed)
+SPRING_PROFILES_ACTIVE=mock,dev ./gradlew bootRun
 ```
 
 Swagger UI (when running): `http://localhost:8080/swagger-ui.html`

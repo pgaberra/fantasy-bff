@@ -26,9 +26,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorDto> handleBadRequest(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorDto.of("BAD_REQUEST", ex.getMessage()));
+    public ResponseEntity<ErrorDto> handleConflict(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorDto.of("CONFLICT", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)

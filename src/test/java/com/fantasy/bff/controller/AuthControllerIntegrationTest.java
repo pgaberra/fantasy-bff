@@ -56,15 +56,15 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void register_withExistingEmail_returns400() throws Exception {
+    void register_withExistingEmail_returns409() throws Exception {
         RegisterRequest request = new RegisterRequest("test@example.com", "password");
         when(databaseServiceClient.existsByEmail("test@example.com")).thenReturn(true);
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
     }
 
     @Test

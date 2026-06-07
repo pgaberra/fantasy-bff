@@ -13,7 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@Profile("mock")
+@Profile("mock & !real-db")
 public class MockDatabaseServiceClient implements DatabaseServiceClient {
 
     private final Map<String, User> usersByEmail = new ConcurrentHashMap<>();
