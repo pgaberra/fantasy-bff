@@ -90,8 +90,4 @@ Never merge a PR titled "wip", "draft", or similar.
 
 ## Commit messages
 
-End commit messages with:
-
-```
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
+Do not add a `Co-Authored-By` trailer. Keep commit messages clean.
