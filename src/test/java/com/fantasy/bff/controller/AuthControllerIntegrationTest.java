@@ -21,6 +21,8 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -63,6 +65,24 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void register_withNewEmail_returns201WithTokens() throws Exception {
+        String email = "new@example.com";
+        RegisterRequest request = new RegisterRequest(email, "password");
+        when(databaseServiceClient.existsByEmail(email)).thenReturn(false);
+        when(databaseServiceClient.createUser(eq(email), anyString()))
+                .thenReturn(new User("user-7", email, "stored-hash"));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.token", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.expiresInSeconds").isNumber())
+                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
     }
 
     @Test

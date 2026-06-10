@@ -51,13 +51,12 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register", description = "Create a new user account")
+    @Operation(summary = "Register", description = "Create a new user account and return an authenticated session")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "User registered successfully"),
+            @ApiResponse(responseCode = "201", description = "User registered and logged in"),
             @ApiResponse(responseCode = "400", description = "Email already in use or validation error")
     })
-    public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
-        authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 }

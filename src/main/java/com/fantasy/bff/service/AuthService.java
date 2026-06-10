@@ -34,30 +34,33 @@ public class AuthService {
             throw new SecurityException("Invalid email or password");
         }
 
-        String token = jwtTokenValidator.generateToken(user.id(), user.email());
-        String refreshToken = jwtTokenValidator.generateRefreshToken(user.id(), user.email());
-        long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
-        long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
-        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn);
+        return issueTokens(user.id(), user.email());
     }
 
     public AuthResponse refresh(RefreshRequest request) {
         Claims claims = jwtTokenValidator.validateAndExtractRefreshTokenClaims(request.refreshToken());
-        String userId = claims.getSubject();
-        String email = claims.get("email", String.class);
-        String newToken = jwtTokenValidator.generateToken(userId, email);
-        String newRefreshToken = jwtTokenValidator.generateRefreshToken(userId, email);
-        long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
-        long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
-        return new AuthResponse(newToken, expiresIn, newRefreshToken, refreshExpiresIn);
+        return issueTokens(claims.getSubject(), claims.get("email", String.class));
     }
 
-    public void register(RegisterRequest request) {
+    /**
+     * Creates the account and logs the user straight in — registration returns the same
+     * token pair as login, so the client never has to follow up with a separate login.
+     */
+    public AuthResponse register(RegisterRequest request) {
         if (databaseServiceClient.existsByEmail(request.email())) {
             throw new IllegalArgumentException("An account with this email already exists");
         }
 
         String passwordHash = passwordEncoder.encode(request.password());
-        databaseServiceClient.createUser(request.email(), passwordHash);
+        User user = databaseServiceClient.createUser(request.email(), passwordHash);
+        return issueTokens(user.id(), user.email());
+    }
+
+    private AuthResponse issueTokens(String userId, String email) {
+        String token = jwtTokenValidator.generateToken(userId, email);
+        String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email);
+        long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
+        long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
+        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn);
     }
 }
