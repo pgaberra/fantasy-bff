@@ -73,6 +73,22 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 - Keep new endpoints under `/api/v1`. Add the path to `security.permitted-urls`
   only if it should be public (default is authenticated).
 
+### Logging & error handling
+
+**Never silence an error.** `GlobalExceptionHandler` has a catch-all
+`@ExceptionHandler(Exception.class)` that **logs the full stack trace** (`log.error`)
+and returns a consistent `ErrorDto` — an unmatched exception must never surface as an
+opaque 500 with no server-side trace (a downstream failure was once undiagnosable
+because of exactly this). Rules of thumb:
+
+- **5xx / genuine faults** (unexpected exceptions, a downstream service returning a
+  non-2xx or being unreachable — see the `RestClientException` handler): log at `ERROR`
+  with the exception so the stack trace and upstream status are captured.
+- **4xx / expected client outcomes** (unauthorized, bad request, validation): do **not**
+  log as errors — they are normal and would just be noise.
+
+The same convention is documented in `fantasy-db-service` and `fantasy-nhl-service`.
+
 ### OpenAPI-first downstream clients
 
 All BFF → downstream service communication must use **OpenAPI-generated** typed
