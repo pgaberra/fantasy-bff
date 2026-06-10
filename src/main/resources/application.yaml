@@ -9,6 +9,9 @@ server:
   port: ${PORT:8080}
 
 services:
+  # These timeouts suit local dev, where downstream services run on localhost and
+  # respond immediately. The staging profile raises them substantially to absorb
+  # Render free-tier wake-up latency (see application-staging.yaml).
   nhl:
     base-url: ${NHL_SERVICE_URL:http://localhost:8087}
     timeout-ms: 5000
