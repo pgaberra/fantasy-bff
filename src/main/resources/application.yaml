@@ -10,8 +10,11 @@ server:
 
 services:
   nhl:
-    base-url: ${NHL_SERVICE_URL:http://localhost:8082}
+    base-url: ${NHL_SERVICE_URL:http://localhost:8087}
     timeout-ms: 5000
+    api-key: ${NHL_INTERNAL_API_KEY:}
+    # Season whose stats the projections are based on (NHL season id, e.g. 20252026).
+    season: ${NHL_SEASON:20252026}
   yahoo-fantasy:
     base-url: ${YAHOO_SERVICE_URL:http://localhost:8084}
     timeout-ms: 7000

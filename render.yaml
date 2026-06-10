@@ -20,6 +20,13 @@ services:
       # set on the fantasy-db-service. Generate with: openssl rand -hex 32
       - key: INTERNAL_API_KEY
         sync: false
+      # fantasy-nhl-service public URL on Render.
+      - key: NHL_SERVICE_URL
+        value: https://fantasy-nhl-service.onrender.com
+      # Pre-shared secret for BFF → nhl-service auth. Must match INTERNAL_API_KEY
+      # set on the fantasy-nhl-service.
+      - key: NHL_INTERNAL_API_KEY
+        sync: false
       # Set this to the deployed web URL after the static site exists, then redeploy.
       - key: WEB_ORIGIN
         sync: false

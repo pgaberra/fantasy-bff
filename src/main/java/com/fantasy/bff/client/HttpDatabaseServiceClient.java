@@ -5,7 +5,6 @@ import com.fantasy.bff.generated.db.model.ExistsResponse;
 import com.fantasy.bff.generated.db.model.UserResponse;
 import com.fantasy.bff.model.downstream.User;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -14,14 +13,12 @@ import org.springframework.web.client.RestClientResponseException;
 import java.util.Optional;
 
 /**
- * Real {@link DatabaseServiceClient} that talks to fantasy-db-service over HTTP.
- * Active in every profile except {@code mock} (where the in-memory stub is used).
+ * {@link DatabaseServiceClient} that talks to fantasy-db-service over HTTP.
  *
  * Uses model classes generated from specs/fantasy-db-service-openapi.yaml —
  * if the db-service API changes, update the spec and re-run ./gradlew openApiGenerate.
  */
 @Component
-@Profile("!mock")
 public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     private final RestClient restClient;
