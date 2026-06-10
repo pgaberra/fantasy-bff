@@ -18,7 +18,7 @@ paths:
       tags:
       - Authentication
       summary: Register
-      description: Create a new user account
+      description: Create a new user account and return an authenticated session
       operationId: register
       requestBody:
         content:
@@ -28,9 +28,17 @@ paths:
         required: true
       responses:
         "201":
-          description: User registered successfully
+          description: User registered and logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
         "400":
           description: Email already in use or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
   /api/v1/auth/refresh:
     post:
       tags:
@@ -180,14 +188,6 @@ components:
       required:
       - email
       - password
-    RefreshRequest:
-      type: object
-      properties:
-        refreshToken:
-          type: string
-          minLength: 1
-      required:
-      - refreshToken
     AuthResponse:
       type: object
       properties:
@@ -206,6 +206,14 @@ components:
       - refreshExpiresInSeconds
       - refreshToken
       - token
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+      required:
+      - refreshToken
     LoginRequest:
       type: object
       properties:

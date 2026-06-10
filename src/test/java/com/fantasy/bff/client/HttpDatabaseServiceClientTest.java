@@ -76,13 +76,14 @@ class HttpDatabaseServiceClientTest {
     }
 
     @Test
-    void createUser_postsEmailAndHash() {
+    void createUser_postsEmailAndHash_andReturnsCreatedUser() {
         server.stubFor(post(urlPathEqualTo("/api/v1/users"))
                 .willReturn(okJson("{\"id\":\"u-9\",\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")
                         .withStatus(201)));
 
-        client.createUser("new@b.com", "hashed");
+        User created = client.createUser("new@b.com", "hashed");
 
+        assertThat(created).isEqualTo(new User("u-9", "new@b.com", "hashed"));
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users"))
                 .withRequestBody(equalToJson("{\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")));
     }

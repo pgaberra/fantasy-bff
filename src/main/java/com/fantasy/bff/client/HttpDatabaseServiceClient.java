@@ -45,16 +45,20 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
-    public void createUser(String email, String passwordHash) {
+    public User createUser(String email, String passwordHash) {
         CreateUserRequest request = new CreateUserRequest()
                 .email(email)
                 .passwordHash(passwordHash);
-        restClient.post()
+        UserResponse response = restClient.post()
                 .uri("/api/v1/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
-                .toBodilessEntity();
+                .body(UserResponse.class);
+        if (response == null) {
+            throw new IllegalStateException("db-service returned no body when creating the user");
+        }
+        return new User(response.getId(), response.getEmail(), response.getPasswordHash());
     }
 
     @Override
