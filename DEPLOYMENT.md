@@ -1,9 +1,8 @@
 # Deployment — fantasy-bff (Render staging)
 
 The BFF is deployed to Render as a **Docker web service** defined by
-[`render.yaml`](./render.yaml). In staging it runs with the `mock` profile, so
-all downstream calls (NHL, database, Yahoo) are stubbed and no external services
-are required.
+[`render.yaml`](./render.yaml). It talks to the real downstream services:
+`fantasy-db-service` (users) and `fantasy-nhl-service` (player stats).
 
 ## How it runs
 
@@ -23,6 +22,8 @@ are required.
 | `JWT_SECRET` | `render.yaml` (`generateValue`) | Random, ≥256-bit. Must be ≥32 chars for HS256. |
 | `DATABASE_SERVICE_URL` | `render.yaml` | URL of the deployed `fantasy-db-service`. |
 | `INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → db-service auth. Same value as on `fantasy-db-service`. Generate with `openssl rand -hex 32`. |
+| `NHL_SERVICE_URL` | **You, in the dashboard** | URL of the deployed `fantasy-nhl-service`. |
+| `NHL_INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → nhl-service auth. Same value as `INTERNAL_API_KEY` on `fantasy-nhl-service`. |
 | `WEB_ORIGIN` | **You, in the dashboard** | The deployed web URL, used for CORS. Set after the web site exists, then redeploy. |
 
 ## First-time setup
@@ -37,18 +38,11 @@ are required.
 
 ## Local development
 
-To run locally with the real db-service (no mock):
-
 ```bash
-# Start Postgres and db-service first (see fantasy-db-service DEPLOYMENT.md)
+# Start Postgres + db-service + nhl-service first (see their DEPLOYMENT.md / CLAUDE.md)
 SPRING_PROFILES_ACTIVE=dev JWT_SECRET=$(openssl rand -base64 48) ./gradlew bootRun
 ```
 
 The `dev` profile enables CORS from `http://localhost:4200` and Swagger UI.
-No `INTERNAL_API_KEY` needed locally — the filter is disabled when the key is unset.
-
-To still use the in-memory mock locally (no db-service required):
-
-```bash
-SPRING_PROFILES_ACTIVE=mock,dev JWT_SECRET=$(openssl rand -base64 48) ./gradlew bootRun
-```
+No `INTERNAL_API_KEY` / `NHL_INTERNAL_API_KEY` needed locally — the downstream
+filters are disabled when the key is unset.

@@ -3,7 +3,6 @@ package com.fantasy.bff;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import java.net.URI;
@@ -27,11 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * then commit the updated specs/bff-openapi.yaml.
  *
- * The api-docs endpoints are denied by default under the mock profile, so this test
- * permits them explicitly. The JWT secret comes from {@link BaseIntegrationTest}.
+ * The api-docs endpoints are denied by default, so this test permits them
+ * explicitly. The JWT secret comes from {@link BaseIntegrationTest}.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("mock")
 @TestPropertySource(properties = {
         "security.permitted-urls[0]=/api/v1/auth/**",
         "security.permitted-urls[1]=/actuator/health",
@@ -56,12 +54,12 @@ class OpenApiSpecSnapshotTest extends BaseIntegrationTest {
         }
 
         assertThat(Files.exists(SPEC))
-                .as("specs/bff-openapi.yaml is missing — run ./gradlew test -DupdateSpec=true to generate it")
+                .as("specs/bff-openapi.yaml is missing â€” run ./gradlew test -DupdateSpec=true to generate it")
                 .isTrue();
 
         String committed = normalize(Files.readString(SPEC));
         assertThat(generated)
-                .as("specs/bff-openapi.yaml is stale — run ./gradlew test -DupdateSpec=true and commit the result")
+                .as("specs/bff-openapi.yaml is stale â€” run ./gradlew test -DupdateSpec=true and commit the result")
                 .isEqualTo(committed);
     }
 
