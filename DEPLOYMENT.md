@@ -21,7 +21,7 @@ The BFF is deployed to Render as a **Docker web service** defined by
 | `SPRING_PROFILES_ACTIVE` | `render.yaml` | `staging` |
 | `JWT_SECRET` | `render.yaml` (`generateValue`) | Random, ≥256-bit. Must be ≥32 chars for HS256. |
 | `DATABASE_SERVICE_URL` | `render.yaml` | URL of the deployed `fantasy-db-service`. |
-| `INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → db-service auth. Same value as on `fantasy-db-service`. Generate with `openssl rand -hex 32`. |
+| `DB_INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → db-service auth. Same value as `INTERNAL_API_KEY` on `fantasy-db-service`. Generate with `openssl rand -hex 32`. |
 | `NHL_SERVICE_URL` | **You, in the dashboard** | URL of the deployed `fantasy-nhl-service`. |
 | `NHL_INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → nhl-service auth. Same value as `INTERNAL_API_KEY` on `fantasy-nhl-service`. |
 | `WEB_ORIGIN` | **You, in the dashboard** | The deployed web URL, used for CORS. Set after the web site exists, then redeploy. |
@@ -32,7 +32,8 @@ The BFF is deployed to Render as a **Docker web service** defined by
 
 1. Render → **New → Blueprint** → connect this repo. It reads `render.yaml` and
    creates the `fantasy-bff-staging` service. Deploy it.
-2. Set `INTERNAL_API_KEY` to the same value used on `fantasy-db-service`.
+2. Set `DB_INTERNAL_API_KEY` to the same value as `INTERNAL_API_KEY` on `fantasy-db-service`,
+   and `NHL_INTERNAL_API_KEY` to the same value as `INTERNAL_API_KEY` on `fantasy-nhl-service`.
 3. Set `WEB_ORIGIN` to the deployed web URL after the static site is deployed.
 4. Redeploy. Verify: register a user, log in, receive a JWT.
 
@@ -44,5 +45,5 @@ SPRING_PROFILES_ACTIVE=dev JWT_SECRET=$(openssl rand -base64 48) ./gradlew bootR
 ```
 
 The `dev` profile enables CORS from `http://localhost:4200` and Swagger UI.
-No `INTERNAL_API_KEY` / `NHL_INTERNAL_API_KEY` needed locally — the downstream
+No `DB_INTERNAL_API_KEY` / `NHL_INTERNAL_API_KEY` needed locally — the downstream
 filters are disabled when the key is unset.

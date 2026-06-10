@@ -131,7 +131,7 @@ shared `X-Internal-Api-Key` header.
 **Never commit a password, API key, token, or any secret to git — in any environment**,
 not even throwaway local-dev credentials, so the habit is absolute and we never risk
 leaking (or reusing) a real one. Secrets come only from environment variables
-(`${JWT_SECRET}`, `${INTERNAL_API_KEY}`, …) — no literal value and **no default** in
+(`${JWT_SECRET}`, `${DB_INTERNAL_API_KEY}`, …) — no literal value and **no default** in
 `application*.yaml`; a missing var should fail fast, not fall back to a baked-in value.
 Non-secret connection details (host, port, service URLs) may be committed.
 
@@ -157,5 +157,6 @@ No attribution trailers (`attribution.commit` / `attribution.pr` are `""` in
 - Dockerized (multi-stage `Dockerfile`), deployed to Render as a web service
   (`SPRING_PROFILES_ACTIVE=staging`). See `DEPLOYMENT.md`. Requires
   `NHL_SERVICE_URL` + `NHL_INTERNAL_API_KEY` (nhl-service) and
-  `DATABASE_SERVICE_URL` + `INTERNAL_API_KEY` (db-service).
+  `DATABASE_SERVICE_URL` + `DB_INTERNAL_API_KEY` (db-service). Each `*_INTERNAL_API_KEY`
+  is the value the matching downstream service exposes as its own `INTERNAL_API_KEY`.
 - Health check: `/actuator/health`.
