@@ -7,6 +7,9 @@ security:
     - "/v3/api-docs/**"
   cors-allowed-origins:
     - ${WEB_ORIGIN:http://localhost:4200}
+    # Lets a developer run the web locally (npm run start:staging) against staging
+    # without booting the backend services.
+    - http://localhost:4200
 
 # Downstream services run on Render's free tier and spin down after idle; a cold
 # wake-up takes tens of seconds. These timeouts are deliberately large so the first
