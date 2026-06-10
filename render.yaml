@@ -18,7 +18,7 @@ services:
         value: https://fantasy-db-service.onrender.com
       # Pre-shared secret for BFF → db-service auth. Must match INTERNAL_API_KEY
       # set on the fantasy-db-service. Generate with: openssl rand -hex 32
-      - key: INTERNAL_API_KEY
+      - key: DB_INTERNAL_API_KEY
         sync: false
       # fantasy-nhl-service public URL on Render.
       - key: NHL_SERVICE_URL
