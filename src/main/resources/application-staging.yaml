@@ -7,3 +7,13 @@ security:
     - "/v3/api-docs/**"
   cors-allowed-origins:
     - ${WEB_ORIGIN:http://localhost:4200}
+
+# Downstream services run on Render's free tier and spin down after idle; a cold
+# wake-up takes tens of seconds. These timeouts are deliberately large so the first
+# request after idle waits for the service to wake instead of failing with a 502.
+# (Overrides the modest local-dev values in application.yaml.)
+services:
+  database:
+    timeout-ms: 60000
+  nhl:
+    timeout-ms: 60000
