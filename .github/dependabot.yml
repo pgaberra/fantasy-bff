@@ -9,12 +9,18 @@ updates:
       prefix: chore
       include: scope
     groups:
-      gradle-minor-patch:
+      all-dependencies:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
+          - major
           - minor
           - patch
+      all-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
@@ -24,6 +30,10 @@ updates:
       prefix: chore
       include: scope
     groups:
-      github-actions:
+      all-actions:
         patterns:
           - "*"
+        update-types:
+          - major
+          - minor
+          - patch
