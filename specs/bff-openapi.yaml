@@ -261,6 +261,9 @@ components:
         assists:
           type: integer
           format: int32
+        points:
+          type: integer
+          format: int32
         plusMinus:
           type: integer
           format: int32
@@ -273,10 +276,16 @@ components:
         ppa:
           type: integer
           format: int32
+        ppp:
+          type: integer
+          format: int32
         shg:
           type: integer
           format: int32
         sha:
+          type: integer
+          format: int32
+        shp:
           type: integer
           format: int32
         gwg:
@@ -310,11 +319,14 @@ components:
       - hits
       - pim
       - plusMinus
+      - points
       - ppa
       - ppg
+      - ppp
       - shPct
       - sha
       - shg
+      - shp
       - sog
     SkaterStats:
       type: object

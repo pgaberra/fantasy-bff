@@ -40,7 +40,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                 new SkaterResponse(1, "Connor McDavid", Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
                                 new SkaterResponse.UtilityStats(82, 1320),
-                                new SkaterResponse.ScoringStats(64, 89, 33, 36, 22, 38, 1, 0, 8, 348, 18.4, 812, 623, 42, 28)
+                                new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348, 18.4, 812, 623, 42, 28)
                         ))
         ));
 

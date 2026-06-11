@@ -80,14 +80,17 @@ public class HttpNhlServiceClient implements NhlServiceClient {
                         new SkaterResponse.ScoringStats(
                                 zero(s.getGoals()),
                                 zero(s.getAssists()),
+                                zero(s.getPoints()),
                                 zero(s.getPlusMinus()),
                                 zero(s.getPim()),
                                 ppg,
                                 // The NHL API exposes power-play/shorthanded *points*,
                                 // not assists; derive assists as points - goals.
                                 ppp - ppg,
+                                ppp,
                                 shg,
                                 shp - shg,
+                                shp,
                                 zero(s.getGameWinningGoals()),
                                 zero(s.getShots()),
                                 // NHL shootingPctg is a fraction (0.156); UI wants percent.
