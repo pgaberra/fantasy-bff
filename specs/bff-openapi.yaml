@@ -239,6 +239,10 @@ components:
           format: int32
         name:
           type: string
+        teamAbbrev:
+          type: string
+        headshot:
+          type: string
         positions:
           type: array
           items:
@@ -361,6 +365,10 @@ components:
           type: integer
           format: int32
         name:
+          type: string
+        teamAbbrev:
+          type: string
+        headshot:
           type: string
         stats:
           $ref: "#/components/schemas/GoalieStats"
