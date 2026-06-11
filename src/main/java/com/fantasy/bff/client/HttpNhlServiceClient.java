@@ -86,8 +86,10 @@ public class HttpNhlServiceClient implements NhlServiceClient {
                                 // The NHL API exposes power-play/shorthanded *points*,
                                 // not assists; derive assists as points - goals.
                                 ppp - ppg,
+                                ppp,
                                 shg,
                                 shp - shg,
+                                shp,
                                 zero(s.getGameWinningGoals()),
                                 zero(s.getShots()),
                                 // NHL shootingPctg is a fraction (0.156); UI wants percent.

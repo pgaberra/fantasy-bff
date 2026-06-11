@@ -273,10 +273,16 @@ components:
         ppa:
           type: integer
           format: int32
+        ppp:
+          type: integer
+          format: int32
         shg:
           type: integer
           format: int32
         sha:
+          type: integer
+          format: int32
+        shp:
           type: integer
           format: int32
         gwg:
@@ -312,9 +318,11 @@ components:
       - plusMinus
       - ppa
       - ppg
+      - ppp
       - shPct
       - sha
       - shg
+      - shp
       - sog
     SkaterStats:
       type: object
