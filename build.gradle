@@ -95,6 +95,7 @@ openApiGenerate {
 	configOptions = [
 		openApiNullable: 'false',
 		useJakartaEe: 'true',
+		useBeanValidation: 'true',
 	]
 }
 
@@ -115,6 +116,7 @@ tasks.register('generateNhlClient', org.openapitools.generator.gradle.plugin.tas
 	configOptions = [
 		openApiNullable: 'false',
 		useJakartaEe: 'true',
+		useBeanValidation: 'true',
 	]
 }
 

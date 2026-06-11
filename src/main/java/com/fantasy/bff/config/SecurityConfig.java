@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").authenticated()
+                        .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(ex -> ex

@@ -1,7 +1,11 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
+import com.fantasy.bff.generated.db.model.ProjectionResponse;
+import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
+import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UserResponse;
 import com.fantasy.bff.model.downstream.User;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -10,7 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * {@link DatabaseServiceClient} that talks to fantasy-db-service over HTTP.
@@ -68,5 +74,50 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .retrieve()
                 .body(ExistsResponse.class);
         return response != null && Boolean.TRUE.equals(response.getExists());
+    }
+
+    @Override
+    public List<ProjectionSummaryResponse> listProjections(UUID userId) {
+        ProjectionSummaryResponse[] response = restClient.get()
+                .uri("/api/v1/users/{userId}/projections", userId)
+                .retrieve()
+                .body(ProjectionSummaryResponse[].class);
+        return response == null ? List.of() : List.of(response);
+    }
+
+    @Override
+    public ProjectionResponse getProjection(UUID userId, UUID projectionId) {
+        return restClient.get()
+                .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
+                .retrieve()
+                .body(ProjectionResponse.class);
+    }
+
+    @Override
+    public ProjectionResponse createProjection(UUID userId, CreateProjectionRequest request) {
+        return restClient.post()
+                .uri("/api/v1/users/{userId}/projections", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(ProjectionResponse.class);
+    }
+
+    @Override
+    public ProjectionResponse updateProjection(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
+        return restClient.put()
+                .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(ProjectionResponse.class);
+    }
+
+    @Override
+    public void deleteProjection(UUID userId, UUID projectionId) {
+        restClient.delete()
+                .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
+                .retrieve()
+                .toBodilessEntity();
     }
 }

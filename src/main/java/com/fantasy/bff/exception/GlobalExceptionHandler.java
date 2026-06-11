@@ -53,18 +53,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * A downstream service (db-service, nhl-service) returned a non-2xx status or was
-     * unreachable. Surfaced as 502 with the upstream status logged, so an auth/key
-     * mismatch (401) or outage doesn't masquerade as an opaque 500.
+     * A downstream service returned a non-2xx response. Resource-level client errors
+     * (404 not found, 409 conflict, 400 bad request) are genuine verdicts about the
+     * request, so we relay them to the caller. Anything else (an auth/key mismatch,
+     * a 5xx) is a failure on our side of the boundary and is surfaced as 502.
+     */
+    @ExceptionHandler(RestClientResponseException.class)
+    public ResponseEntity<ErrorDto> handleDownstreamResponse(RestClientResponseException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == HttpStatus.NOT_FOUND || status == HttpStatus.CONFLICT
+                || status == HttpStatus.BAD_REQUEST) {
+            log.warn("Relaying downstream {}: {}", status, ex.getResponseBodyAsString());
+            return ResponseEntity.status(status).body(ErrorDto.of(status.name(), ex.getMessage()));
+        }
+        log.error("Downstream service returned {}: {}", ex.getStatusCode(),
+                ex.getResponseBodyAsString(), ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable"));
+    }
+
+    /**
+     * A downstream service was unreachable (connection refused, timeout) — no response
+     * to inspect. Always a gateway failure on our side.
      */
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ErrorDto> handleDownstreamCall(RestClientException ex) {
-        if (ex instanceof RestClientResponseException response) {
-            log.error("Downstream service returned {}: {}", response.getStatusCode(),
-                    response.getResponseBodyAsString(), ex);
-        } else {
-            log.error("Downstream service call failed", ex);
-        }
+        log.error("Downstream service call failed", ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable"));
     }
