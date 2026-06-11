@@ -68,6 +68,17 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void register_withOversizedPassword_returns400() throws Exception {
+        RegisterRequest request = new RegisterRequest("test@example.com", "a".repeat(73));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
     void register_withNewEmail_returns201WithTokens() throws Exception {
         String email = "new@example.com";
         RegisterRequest request = new RegisterRequest(email, "password");

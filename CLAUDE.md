@@ -142,6 +142,14 @@ Shared across all four repos (`fantasy-web` → `fantasy-bff` → `fantasy-db-se
 `fantasy-nhl-service`). The web talks only to the BFF; inter-service calls to db/nhl use a
 shared `X-Internal-Api-Key` header.
 
+### Input validation
+
+**Every service validates its own inbound data independently** — never trust that an
+upstream caller (e.g. the BFF) validated correctly. Reject malformed input at the
+boundary with Bean Validation (`@Valid` on the controller param + `@NotBlank` / `@Email`
+/ `@Size` / … on the DTO). **Every user-supplied string gets a `@Size(max=…)`** so an
+oversized payload is rejected rather than processed or stored.
+
 ### Secrets
 
 **Never commit a password, API key, token, or any secret to git — in any environment**,
