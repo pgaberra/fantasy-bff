@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Verify pinned db-service spec is in sync
+        if: github.actor != 'dependabot[bot]'
         env:
           GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
         run: |
@@ -41,6 +42,7 @@ jobs:
           fi
 
       - name: Verify pinned nhl-service spec is in sync
+        if: github.actor != 'dependabot[bot]'
         env:
           GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
         run: |
@@ -69,7 +71,7 @@ jobs:
 
       - name: Publish coverage report
         uses: Madrapps/jacoco-report@v1.8.0
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
         with:
           paths: '**/build/reports/jacoco/test/jacocoTestReport.xml'
           token: ${{ secrets.GITHUB_TOKEN }}
