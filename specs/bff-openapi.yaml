@@ -180,10 +180,11 @@ components:
         email:
           type: string
           format: email
-          minLength: 1
+          maxLength: 254
+          minLength: 0
         password:
           type: string
-          maxLength: 2147483647
+          maxLength: 72
           minLength: 8
       required:
       - email
@@ -211,7 +212,8 @@ components:
       properties:
         refreshToken:
           type: string
-          minLength: 1
+          maxLength: 4096
+          minLength: 0
       required:
       - refreshToken
     LoginRequest:
@@ -220,10 +222,12 @@ components:
         email:
           type: string
           format: email
-          minLength: 1
+          maxLength: 254
+          minLength: 0
         password:
           type: string
-          minLength: 1
+          maxLength: 72
+          minLength: 0
       required:
       - email
       - password

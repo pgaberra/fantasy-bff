@@ -91,10 +91,12 @@ components:
         email:
           type: string
           format: email
-          minLength: 1
+          maxLength: 254
+          minLength: 0
         passwordHash:
           type: string
-          minLength: 1
+          maxLength: 100
+          minLength: 0
       required:
       - email
       - passwordHash
