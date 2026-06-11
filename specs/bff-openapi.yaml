@@ -12,7 +12,140 @@ tags:
   description: Register and login endpoints
 - name: Players
   description: NHL player stats endpoints
+- name: Projections
+  description: The authenticated user's saved player projections
 paths:
+  /api/v1/projections/{id}:
+    get:
+      tags:
+      - Projections
+      summary: "Fetch one of the current user's saved projections, including its data"
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Projection found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "404":
+          description: No such projection for this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+    put:
+      tags:
+      - Projections
+      summary: Update one of the current user's saved projections
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectionRequest"
+        required: true
+      responses:
+        "200":
+          description: Projection updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "404":
+          description: No such projection for this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "409":
+          description: Another projection with that name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+    delete:
+      tags:
+      - Projections
+      summary: Delete one of the current user's saved projections
+      operationId: delete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Projection deleted
+        "404":
+          description: No such projection for this user
+  /api/v1/projections:
+    get:
+      tags:
+      - Projections
+      summary: List the current user's saved projections (metadata only)
+      operationId: list
+      responses:
+        "200":
+          description: "The user's projections, newest first"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectionSummaryResponse"
+    post:
+      tags:
+      - Projections
+      summary: Save a new projection for the current user
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectionRequest"
+        required: true
+      responses:
+        "201":
+          description: Projection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "409":
+          description: A projection with that name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
   /api/v1/auth/register:
     post:
       tags:
@@ -174,6 +307,159 @@ paths:
       - bearerAuth: []
 components:
   schemas:
+    PlayerProjection:
+      type: object
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        type:
+          type: string
+          enum:
+          - skater
+          - goalie
+        stats:
+          $ref: "#/components/schemas/PlayerStats"
+      required:
+      - playerId
+      - stats
+      - type
+    PlayerStats:
+      type: object
+      properties:
+        utility:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        scoring:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      required:
+      - scoring
+      - utility
+    ProjectionData:
+      type: object
+      properties:
+        settings:
+          $ref: "#/components/schemas/ProjectionSettings"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerProjection"
+        tings:
+          $ref: "#/components/schemas/ProjectionData"
+          writeOnly: true
+      required:
+      - players
+      - settings
+    ProjectionSettings:
+      type: object
+      properties:
+        scoringType:
+          type: string
+          enum:
+          - points
+          - category
+        statWeights:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        activeScoringColumns:
+          type: array
+          items:
+            type: string
+        activeUtilityColumns:
+          type: array
+          items:
+            type: string
+        scaleSettings:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ScaleConfig"
+        decimalSettings:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        useDefaultDecimals:
+          type: boolean
+      required:
+      - activeScoringColumns
+      - activeUtilityColumns
+      - decimalSettings
+      - scaleSettings
+      - scoringType
+      - statWeights
+      - useDefaultDecimals
+    ScaleConfig:
+      type: object
+      properties:
+        scale:
+          type: boolean
+        scalableStats:
+          type: array
+          items:
+            type: string
+      required:
+      - scalableStats
+      - scale
+    UpdateProjectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        data:
+          $ref: "#/components/schemas/ProjectionData"
+      required:
+      - data
+      - name
+    ProjectionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        season:
+          type: string
+          enum:
+          - "20252026"
+          - "20262027"
+          - "20272028"
+          - "20282029"
+        data:
+          $ref: "#/components/schemas/ProjectionData"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - createdAt
+      - data
+      - id
+      - name
+      - season
+      - updatedAt
+    CreateProjectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        data:
+          $ref: "#/components/schemas/ProjectionData"
+      required:
+      - data
+      - name
     RegisterRequest:
       type: object
       properties:
@@ -231,6 +517,32 @@ components:
       required:
       - email
       - password
+    ProjectionSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        season:
+          type: string
+          enum:
+          - "20252026"
+          - "20262027"
+          - "20272028"
+          - "20282029"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - createdAt
+      - id
+      - name
+      - season
+      - updatedAt
     SkaterResponse:
       type: object
       properties:

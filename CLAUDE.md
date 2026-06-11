@@ -38,7 +38,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 
 ## Architecture
 
-- `controller/` — REST endpoints under `/api/v1` (`AuthController`, `PlayerController`)
+- `controller/` — REST endpoints under `/api/v1` (`AuthController`, `PlayerController`,
+  `ProjectionController` — the user's saved projections; takes the user id from the JWT
+  and forwards to db-service, never trusting a client-supplied user id)
 - `service/` — business logic (`AuthService`, `PlayerService`)
 - `client/` — downstream clients. Each is an **interface** plus an **http**
   implementation that uses OpenAPI-generated models (no mock implementations —
