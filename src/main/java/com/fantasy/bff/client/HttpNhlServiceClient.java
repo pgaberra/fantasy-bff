@@ -80,6 +80,7 @@ public class HttpNhlServiceClient implements NhlServiceClient {
                         new SkaterResponse.ScoringStats(
                                 zero(s.getGoals()),
                                 zero(s.getAssists()),
+                                zero(s.getPoints()),
                                 zero(s.getPlusMinus()),
                                 zero(s.getPim()),
                                 ppg,

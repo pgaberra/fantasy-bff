@@ -26,6 +26,7 @@ public record SkaterResponse(
     public record ScoringStats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int goals,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int assists,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int points,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int plusMinus,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int pim,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int ppg,
