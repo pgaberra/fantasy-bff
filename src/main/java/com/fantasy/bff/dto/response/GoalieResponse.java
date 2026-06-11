@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record GoalieResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int id,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+        String teamAbbrev,
+        String headshot,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
     @Schema(name = "GoalieStats")

@@ -7,6 +7,8 @@ import java.util.Set;
 public record SkaterResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int id,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+        String teamAbbrev,
+        String headshot,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Set<SkaterPosition> positions,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {

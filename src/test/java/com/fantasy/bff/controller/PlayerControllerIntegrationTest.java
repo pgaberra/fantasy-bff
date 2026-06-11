@@ -37,7 +37,8 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void getSkaters_withValidToken_returns200() throws Exception {
         when(nhlServiceClient.getSkaters()).thenReturn(List.of(
-                new SkaterResponse(1, "Connor McDavid", Set.of(SkaterPosition.C),
+                new SkaterResponse(1, "Connor McDavid", "EDM",
+                        "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png", Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
                                 new SkaterResponse.UtilityStats(82, 1320),
                                 new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348, 18.4, 812, 623, 42, 28)
@@ -50,6 +51,8 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Connor McDavid"))
+                .andExpect(jsonPath("$[0].teamAbbrev").value("EDM"))
+                .andExpect(jsonPath("$[0].headshot").value("https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png"))
                 .andExpect(jsonPath("$[0].positions[0]").value("C"));
     }
 
@@ -69,7 +72,8 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void getGoalies_withValidToken_returns200() throws Exception {
         when(nhlServiceClient.getGoalies()).thenReturn(List.of(
-                new GoalieResponse(101, "Igor Shesterkin",
+                new GoalieResponse(101, "Igor Shesterkin", "NYR",
+                        "https://assets.nhle.com/mugs/nhl/20242025/NYR/8478048.png",
                         new GoalieResponse.Stats(
                                 new GoalieResponse.UtilityStats(58),
                                 new GoalieResponse.ScoringStats(58, 36, 17, 3, 1720, 1565, 155, 2.67, 0.910)

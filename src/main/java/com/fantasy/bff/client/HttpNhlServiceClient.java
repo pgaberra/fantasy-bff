@@ -72,6 +72,8 @@ public class HttpNhlServiceClient implements NhlServiceClient {
         return new SkaterResponse(
                 (int) (long) s.getId(),
                 s.getFirstName() + " " + s.getLastName(),
+                s.getTeamAbbrev(),
+                s.getHeadshot(),
                 Set.of(toPosition(s.getPosition())),
                 new SkaterResponse.Stats(
                         new SkaterResponse.UtilityStats(
@@ -105,6 +107,8 @@ public class HttpNhlServiceClient implements NhlServiceClient {
         return new GoalieResponse(
                 (int) (long) g.getId(),
                 g.getFirstName() + " " + g.getLastName(),
+                g.getTeamAbbrev(),
+                g.getHeadshot(),
                 new GoalieResponse.Stats(
                         new GoalieResponse.UtilityStats(zero(g.getGamesPlayed())),
                         new GoalieResponse.ScoringStats(
