@@ -18,6 +18,12 @@ public interface DatabaseServiceClient {
 
     boolean existsByEmail(String email);
 
+    /**
+     * Resolves the account for a verified Google identity — finds it by subject,
+     * links it to an existing same-email account, or creates a password-less user.
+     */
+    User findOrCreateGoogleUser(String email, String googleSub);
+
     List<ProjectionSummaryResponse> listProjections(UUID userId);
 
     ProjectionResponse getProjection(UUID userId, UUID projectionId);

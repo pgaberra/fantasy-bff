@@ -237,6 +237,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/google:
+    post:
+      tags:
+      - Authentication
+      summary: Login with Google
+      description: "Verify a Google ID token and log the user in, registering a new\
+        \ account on first login"
+      operationId: googleLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleLoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid Google ID token or unverified email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
   /api/v1/players/skaters:
     get:
       tags:
@@ -517,6 +550,16 @@ components:
       required:
       - email
       - password
+    GoogleLoginRequest:
+      type: object
+      properties:
+        idToken:
+          type: string
+          description: Google ID token (JWT) issued by Google Identity Services
+          maxLength: 4096
+          minLength: 0
+      required:
+      - idToken
     ProjectionSummaryResponse:
       type: object
       properties:

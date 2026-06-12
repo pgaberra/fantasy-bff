@@ -1,12 +1,15 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
 import io.jsonwebtoken.Claims;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.model.downstream.User;
+import com.fantasy.bff.security.GoogleIdentity;
+import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fantasy.bff.security.JwtTokenValidator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,13 +20,16 @@ public class AuthService {
     private final DatabaseServiceClient databaseServiceClient;
     private final JwtTokenValidator jwtTokenValidator;
     private final PasswordEncoder passwordEncoder;
+    private final GoogleTokenVerifier googleTokenVerifier;
 
     public AuthService(DatabaseServiceClient databaseServiceClient,
                        JwtTokenValidator jwtTokenValidator,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       GoogleTokenVerifier googleTokenVerifier) {
         this.databaseServiceClient = databaseServiceClient;
         this.jwtTokenValidator = jwtTokenValidator;
         this.passwordEncoder = passwordEncoder;
+        this.googleTokenVerifier = googleTokenVerifier;
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -53,6 +59,17 @@ public class AuthService {
 
         String passwordHash = passwordEncoder.encode(request.password());
         User user = databaseServiceClient.createUser(request.email(), passwordHash);
+        return issueTokens(user.id(), user.email());
+    }
+
+    /**
+     * Logs in (or registers) via a Google ID token. The verifier guarantees signature,
+     * audience and a verified email; db-service resolves the account by Google subject,
+     * links it to an existing same-email account, or creates a new password-less user.
+     */
+    public AuthResponse googleLogin(GoogleLoginRequest request) {
+        GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
+        User user = databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub());
         return issueTokens(user.id(), user.email());
     }
 

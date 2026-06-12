@@ -52,7 +52,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `DatabaseServiceClient` — `HttpDatabaseServiceClient` talks to `fantasy-db-service`.
 - `config/` — `SecurityConfig`, `RestClientConfig` (downstream `RestClient` beans),
   `*Properties` (typed config), `OpenApiConfig`
-- `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`
+- `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
+  `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
+  Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified
+  email). `POST /api/v1/auth/google` exchanges a Google ID token for our own JWT pair;
+  db-service resolves the account (find by subject / link by email / create
+  password-less). The Client ID is **public** (shipped to the browser by design) and
+  comes from `${GOOGLE_CLIENT_ID}`; when unset the endpoint rejects all requests.
 - `dto/` — request/response records
 - `model/downstream/` — models for downstream responses (e.g. `User`)
 - `exception/GlobalExceptionHandler` — maps exceptions → `ErrorDto`

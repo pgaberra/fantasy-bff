@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
+import com.fantasy.bff.generated.db.model.GoogleUserRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
@@ -74,6 +75,23 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .retrieve()
                 .body(ExistsResponse.class);
         return response != null && Boolean.TRUE.equals(response.getExists());
+    }
+
+    @Override
+    public User findOrCreateGoogleUser(String email, String googleSub) {
+        GoogleUserRequest request = new GoogleUserRequest()
+                .email(email)
+                .googleSub(googleSub);
+        UserResponse response = restClient.post()
+                .uri("/api/v1/users/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(UserResponse.class);
+        if (response == null) {
+            throw new IllegalStateException("db-service returned no body when resolving the Google user");
+        }
+        return new User(response.getId(), response.getEmail(), response.getPasswordHash());
     }
 
     @Override

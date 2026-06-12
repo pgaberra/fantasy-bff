@@ -2,9 +2,12 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.security.GoogleIdentity;
+import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +45,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean
     private DatabaseServiceClient databaseServiceClient;
+
+    @MockitoBean
+    private GoogleTokenVerifier googleTokenVerifier;
 
     @Test
     void login_withInvalidCredentials_returns401() throws Exception {
@@ -111,6 +117,44 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.expiresInSeconds").isNumber())
                 .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
+    }
+
+    @Test
+    void googleLogin_withValidToken_returnsBothTokens() throws Exception {
+        when(googleTokenVerifier.verify("valid-google-token"))
+                .thenReturn(new GoogleIdentity("google-sub-1", "g@example.com"));
+        when(databaseServiceClient.findOrCreateGoogleUser("g@example.com", "google-sub-1"))
+                .thenReturn(new User("user-3", "g@example.com", null));
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new GoogleLoginRequest("valid-google-token"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.expiresInSeconds").isNumber())
+                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
+    }
+
+    @Test
+    void googleLogin_withInvalidToken_returns401() throws Exception {
+        when(googleTokenVerifier.verify("bad-token"))
+                .thenThrow(new SecurityException("Invalid Google ID token"));
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new GoogleLoginRequest("bad-token"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void googleLogin_withBlankToken_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new GoogleLoginRequest(""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test

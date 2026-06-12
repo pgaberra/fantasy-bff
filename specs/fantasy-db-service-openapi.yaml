@@ -230,6 +230,34 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/users/google:
+    post:
+      tags:
+      - Users
+      summary: Resolve the account for a verified Google identity
+      description: "Returns the user linked to this Google subject, linking it to\
+        \ an existing account with the same email or creating a new password-less\
+        \ user."
+      operationId: findOrCreateGoogleUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleUserRequest"
+        required: true
+      responses:
+        "200":
+          description: "User resolved (found, linked, or created)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: Validation failed (blank email / subject)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
   /api/v1/users/exists:
     get:
       tags:
@@ -413,10 +441,13 @@ components:
           type: string
         passwordHash:
           type: string
+          description: Null for users who only authenticate via Google
+        googleSub:
+          type: string
+          description: Google subject id; null for password-only users
       required:
       - email
       - id
-      - passwordHash
     CreateProjectionRequest:
       type: object
       properties:
@@ -429,6 +460,21 @@ components:
       required:
       - data
       - name
+    GoogleUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          minLength: 0
+        googleSub:
+          type: string
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+      - googleSub
     ProjectionSummaryResponse:
       type: object
       properties:
