@@ -20,3 +20,5 @@ services:
     timeout-ms: 60000
   nhl:
     timeout-ms: 60000
+  yahoo-fantasy:
+    timeout-ms: 60000

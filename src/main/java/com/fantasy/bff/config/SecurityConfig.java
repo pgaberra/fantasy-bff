@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").authenticated()
                         .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
+                        .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(ex -> ex

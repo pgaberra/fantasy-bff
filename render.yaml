@@ -27,6 +27,15 @@ services:
       # set on the fantasy-nhl-service.
       - key: NHL_INTERNAL_API_KEY
         sync: false
+      # fantasy-yahoo-service public URL on Render (the onrender URL is fine for
+      # internal BFF→service calls; Yahoo's custom-domain rule only applies to the
+      # OAuth callback, which the browser hits directly, not the BFF).
+      - key: YAHOO_SERVICE_URL
+        value: https://fantasy-yahoo-service.onrender.com
+      # Pre-shared secret for BFF → yahoo-service auth. Must match INTERNAL_API_KEY
+      # set on the fantasy-yahoo-service.
+      - key: YAHOO_INTERNAL_API_KEY
+        sync: false
       # Set this to the deployed web URL after the static site exists, then redeploy.
       - key: WEB_ORIGIN
         sync: false
