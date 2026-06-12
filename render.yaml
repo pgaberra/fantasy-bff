@@ -30,3 +30,7 @@ services:
       # Set this to the deployed web URL after the static site exists, then redeploy.
       - key: WEB_ORIGIN
         sync: false
+      # Public Google OAuth Client ID for "Sign in with Google" (not a secret —
+      # it is shipped to the browser by design).
+      - key: GOOGLE_CLIENT_ID
+        value: 404846934195-2840u7mkdapmstllgsiaft2gdgjb2c0g.apps.googleusercontent.com

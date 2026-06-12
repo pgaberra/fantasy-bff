@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
@@ -48,6 +49,17 @@ public class AuthController {
     })
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         return ResponseEntity.ok(authService.refresh(request));
+    }
+
+    @PostMapping("/google")
+    @Operation(summary = "Login with Google", description = "Verify a Google ID token and log the user in, registering a new account on first login")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid Google ID token or unverified email"),
+            @ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(authService.googleLogin(request));
     }
 
     @PostMapping("/register")

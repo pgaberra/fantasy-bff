@@ -76,6 +76,18 @@ class HttpDatabaseServiceClientTest {
     }
 
     @Test
+    void findOrCreateGoogleUser_postsIdentity_andReturnsResolvedUser() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/google"))
+                .willReturn(okJson("{\"id\":\"u-5\",\"email\":\"g@b.com\",\"passwordHash\":null}")));
+
+        User resolved = client.findOrCreateGoogleUser("g@b.com", "google-sub-5");
+
+        assertThat(resolved).isEqualTo(new User("u-5", "g@b.com", null));
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/google"))
+                .withRequestBody(equalToJson("{\"email\":\"g@b.com\",\"googleSub\":\"google-sub-5\"}")));
+    }
+
+    @Test
     void createUser_postsEmailAndHash_andReturnsCreatedUser() {
         server.stubFor(post(urlPathEqualTo("/api/v1/users"))
                 .willReturn(okJson("{\"id\":\"u-9\",\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")
