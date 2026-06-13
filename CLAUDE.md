@@ -69,9 +69,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   JWT settings, `server.port=${PORT:8080}`, permitted URLs,
   `services.nhl.season` (NHL season id the projections are based on).
 - **`dev`**: permits Swagger + CORS from `http://localhost:4200`.
-- **`staging`**: CORS via `${WEB_ORIGIN}`; used on Render.
+- **`staging`**: the **deployed** profile (used by both prod and staging on Coolify);
+  permits Swagger and adds CORS via `${WEB_ORIGIN}`. No downstream timeout overrides —
+  the services are co-located on the Docker network, so the base timeouts apply.
 
-`JWT_SECRET` must be ≥32 chars (HS256). On staging it is a Render `generateValue`.
+`JWT_SECRET` must be ≥32 chars (HS256) and is supplied per environment as a Coolify env var.
 
 ## Conventions
 
@@ -186,9 +188,11 @@ No attribution trailers (`attribution.commit` / `attribution.pr` are `""` in
 
 ## Deployment
 
-- Dockerized (multi-stage `Dockerfile`), deployed to Render as a web service
-  (`SPRING_PROFILES_ACTIVE=staging`). See `DEPLOYMENT.md`. Requires
-  `NHL_SERVICE_URL` + `NHL_INTERNAL_API_KEY` (nhl-service) and
-  `DATABASE_SERVICE_URL` + `DB_INTERNAL_API_KEY` (db-service). Each `*_INTERNAL_API_KEY`
-  is the value the matching downstream service exposes as its own `INTERNAL_API_KEY`.
+- Dockerized (multi-stage `Dockerfile`), deployed via **Coolify** (Hetzner) as a web
+  service (`SPRING_PROFILES_ACTIVE=staging`) on both prod (`api.slapstat.com`) and staging
+  (`api.staging.slapstat.com`). See `DEPLOYMENT.md`. Requires `NHL_SERVICE_URL` +
+  `NHL_INTERNAL_API_KEY` (nhl-service) and `DATABASE_SERVICE_URL` + `DB_INTERNAL_API_KEY`
+  (db-service) — the internal URLs use the services' Docker network aliases
+  (`http://db-service:8086`, `http://nhl-service:8087`). Each `*_INTERNAL_API_KEY` is the
+  value the matching downstream service exposes as its own `INTERNAL_API_KEY`.
 - Health check: `/actuator/health`.

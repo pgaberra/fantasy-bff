@@ -1,41 +1,55 @@
-# Deployment — fantasy-bff (Render staging)
+# Deployment — fantasy-bff
 
-The BFF is deployed to Render as a **Docker web service** defined by
-[`render.yaml`](./render.yaml). It talks to the real downstream services:
-`fantasy-db-service` (users) and `fantasy-nhl-service` (player stats).
+The BFF is deployed via **Coolify** (self-hosted on Hetzner) as a **Docker web service**
+built from the multi-stage [`Dockerfile`](./Dockerfile). It talks to the real downstream
+services over the internal Docker network: `fantasy-db-service` (users) and
+`fantasy-nhl-service` (player stats).
+
+| Environment | Public URL | Web origin (CORS) |
+|---|---|---|
+| production | `https://api.slapstat.com` | `https://slapstat.com` |
+| staging | `https://api.staging.slapstat.com` | `https://staging.slapstat.com` |
 
 ## How it runs
 
 | Aspect | Value |
 |---|---|
 | Build | `Dockerfile` — multi-stage, JDK 25 builds the boot jar, JRE 25 runs it |
-| Profiles | `SPRING_PROFILES_ACTIVE=staging` |
-| Port | App binds to `${PORT}` (Render injects it); defaults to 8080 locally |
+| Profiles | `SPRING_PROFILES_ACTIVE=staging` (the deployed profile, used by **both** prod and staging) |
+| Port | App binds to `${PORT}` (defaults to 8080); Coolify routes the domain → 8080 |
 | Health check | `GET /actuator/health` |
-| Auto-deploy | On every push to `master` |
+| TLS | Coolify provisions Let's Encrypt for the domain (Cloudflare DNS must be **DNS-only / grey cloud**) |
 
-## Environment variables
+## Environment variables (set in Coolify, per environment)
 
-| Key | Set by | Notes |
-|---|---|---|
-| `SPRING_PROFILES_ACTIVE` | `render.yaml` | `staging` |
-| `JWT_SECRET` | `render.yaml` (`generateValue`) | Random, ≥256-bit. Must be ≥32 chars for HS256. |
-| `DATABASE_SERVICE_URL` | `render.yaml` | URL of the deployed `fantasy-db-service`. |
-| `DB_INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → db-service auth. Same value as `INTERNAL_API_KEY` on `fantasy-db-service`. Generate with `openssl rand -hex 32`. |
-| `NHL_SERVICE_URL` | **You, in the dashboard** | URL of the deployed `fantasy-nhl-service`. |
-| `NHL_INTERNAL_API_KEY` | **You, in the dashboard** | Shared secret for BFF → nhl-service auth. Same value as `INTERNAL_API_KEY` on `fantasy-nhl-service`. |
-| `WEB_ORIGIN` | **You, in the dashboard** | The deployed web URL, used for CORS. Set after the web site exists, then redeploy. |
+| Key | Notes |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `staging` |
+| `JWT_SECRET` | Random, ≥256-bit (≥32 chars for HS256). Generate with `openssl rand -hex 32`. |
+| `DATABASE_SERVICE_URL` | Internal URL of db-service — `http://db-service:8086` (its stable network alias). |
+| `DB_INTERNAL_API_KEY` | Shared secret for BFF → db-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-db-service`. |
+| `NHL_SERVICE_URL` | Internal URL of nhl-service — `http://nhl-service:8087`. |
+| `NHL_INTERNAL_API_KEY` | Shared secret for BFF → nhl-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-nhl-service`. |
+| `WEB_ORIGIN` | The deployed web origin, used for CORS (e.g. `https://staging.slapstat.com`). |
+| `GOOGLE_CLIENT_ID` | Public Google OAuth Client ID (not a secret); when unset, `/api/v1/auth/google` rejects all requests. |
+
+> Each `*_INTERNAL_API_KEY` and `JWT_SECRET` is environment-specific — staging and prod
+> use **independent** secrets, never shared.
 
 ## First-time setup
 
-**Deploy `fantasy-db-service` first** (see its `DEPLOYMENT.md`), then:
+**Deploy `fantasy-db-service` and `fantasy-nhl-service` first** (see their `DEPLOYMENT.md`),
+then in Coolify:
 
-1. Render → **New → Blueprint** → connect this repo. It reads `render.yaml` and
-   creates the `fantasy-bff-staging` service. Deploy it.
-2. Set `DB_INTERNAL_API_KEY` to the same value as `INTERNAL_API_KEY` on `fantasy-db-service`,
-   and `NHL_INTERNAL_API_KEY` to the same value as `INTERNAL_API_KEY` on `fantasy-nhl-service`.
-3. Set `WEB_ORIGIN` to the deployed web URL after the static site is deployed.
-4. Redeploy. Verify: register a user, log in, receive a JWT.
+1. Create an application from this repo (GitHub App source, **Dockerfile** build pack) in
+   the target environment, on the target server.
+2. Set the env vars above. Use the downstream services' stable network aliases
+   (`db-service` / `nhl-service`) for the internal URLs, and match each `*_INTERNAL_API_KEY`
+   to the downstream's `INTERNAL_API_KEY`.
+3. Set the **Domains** (e.g. `https://api.staging.slapstat.com`) and deploy.
+4. Add a Cloudflare **A record (DNS only / grey cloud)** for the domain → the server IP so
+   TLS can provision.
+5. Verify: `GET /actuator/health` is `UP`, then register a user, log in, receive a JWT.
 
 ## Local development
 

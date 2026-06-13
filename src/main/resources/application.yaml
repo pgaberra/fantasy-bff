@@ -9,9 +9,9 @@ server:
   port: ${PORT:8080}
 
 services:
-  # These timeouts suit local dev, where downstream services run on localhost and
-  # respond immediately. The staging profile raises them substantially to absorb
-  # Render free-tier wake-up latency (see application-staging.yaml).
+  # Per-downstream read/connect timeouts (ms). These apply in every environment:
+  # locally the services run on localhost, and on the deployed Coolify environments
+  # they are co-located on the same Docker network — both respond quickly.
   nhl:
     base-url: ${NHL_SERVICE_URL:http://localhost:8087}
     timeout-ms: 5000
