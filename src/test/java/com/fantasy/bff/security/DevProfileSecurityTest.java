@@ -35,6 +35,12 @@ public class DevProfileSecurityTest extends BaseIntegrationTest {
     }
 
     @Test
+    void versionsUrl_isPermitted() throws Exception {
+        mockMvc.perform(get("/api/v1/versions"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void corsPreflightFromLocalhostOrigin_isAllowed() throws Exception {
         mockMvc.perform(options("/api/v1/auth/login")
                         .header(HttpHeaders.ORIGIN, "http://localhost:4200")
