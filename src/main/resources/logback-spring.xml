@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging config. Keeps Spring Boot's default console output (stdout, for Docker/Coolify)
+  and adds a Sentry appender that forwards ERROR-level logs (with stack traces) to Sentry
+  for alerting. Sentry reads its config from the environment (SENTRY_DSN, SENTRY_ENVIRONMENT,
+  SENTRY_RELEASE); when SENTRY_DSN is unset (local dev / CI / tests) the appender is inert.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+        <minimumEventLevel>ERROR</minimumEventLevel>
+        <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="SENTRY"/>
+    </root>
+</configuration>
