@@ -1,0 +1,61 @@
+name: Promote to production
+
+# Manual, version-pinned promotion of THIS service to production. Resolves the chosen
+# release tag to its commit and triggers the deploy on the prod server over a RESTRICTED
+# SSH key whose only allowed action is /root/promote_forced.sh (no shell, no other commands).
+# The prod server then pins git_commit_sha, sets SENTRY_RELEASE, and deploys.
+# Requires the secret PROD_PROMOTE_SSH_KEY (the restricted key's PRIVATE half).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to promote to prod (e.g. v0.2.1)"
+        required: true
+        type: string
+
+concurrency: promote-prod
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Resolve tag -> commit
+        id: r
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          V="$VERSION_INPUT"
+          if [[ ! "$V" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must look like vX.Y.Z"; exit 1
+          fi
+          if ! obj=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$V" 2>/tmp/gherr); then
+            echo "::error::tag $V not found in this repo"; cat /tmp/gherr; exit 1
+          fi
+          sha=$(echo "$obj" | jq -r '.object.sha')
+          typ=$(echo "$obj" | jq -r '.object.type')
+          if [ "$typ" = "tag" ]; then
+            sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/$sha" --jq '.object.sha')
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Promoting ${GITHUB_REPOSITORY##*/} $V ($sha) to production"
+
+      - name: Promote on prod (restricted SSH forced command)
+        env:
+          PROMOTE_KEY: ${{ secrets.PROD_PROMOTE_SSH_KEY }}
+          SHA: ${{ steps.r.outputs.sha }}
+          VERSION: ${{ steps.r.outputs.version }}
+        run: |
+          if [ -z "$PROMOTE_KEY" ]; then
+            echo "::error::Secret PROD_PROMOTE_SSH_KEY is not set."; exit 1
+          fi
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PROMOTE_KEY" > ~/.ssh/id_promote
+          chmod 600 ~/.ssh/id_promote
+          printf '%s\n' '157.180.126.72 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOt5tXmokoBw2Y5mUWlZSOzkgS/XU13hl4PeatHR4TB5' > ~/.ssh/known_hosts
+          echo "Connecting to prod to promote $REPO_NAME $VERSION ($SHA)..."
+          ssh -i ~/.ssh/id_promote -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/known_hosts \
+            root@157.180.126.72 "$REPO_NAME $SHA $VERSION"
