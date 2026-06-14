@@ -57,6 +57,22 @@ jobs:
             exit 1
           fi
 
+      - name: Verify pinned yahoo-service spec is in sync
+        if: github.actor != 'dependabot[bot]'
+        env:
+          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+        run: |
+          if ! gh api repos/pgaberra/fantasy-yahoo-service/contents/specs/openapi.yaml \
+                -H "Accept: application/vnd.github.raw" > /tmp/yahoo-openapi.yaml 2> /tmp/gh-err.txt; then
+            echo "::error::Could not fetch the yahoo-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-yahoo-service. (This is an auth failure, not a spec mismatch.)"
+            cat /tmp/gh-err.txt
+            exit 1
+          fi
+          if ! diff -u specs/fantasy-yahoo-service-openapi.yaml /tmp/yahoo-openapi.yaml; then
+            echo "::error::Pinned yahoo-service spec is stale. Copy fantasy-yahoo-service/specs/openapi.yaml into specs/fantasy-yahoo-service-openapi.yaml, run ./gradlew generateYahooClient, and fix any compile errors."
+            exit 1
+          fi
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:

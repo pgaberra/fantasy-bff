@@ -30,6 +30,8 @@ services over the internal Docker network: `fantasy-db-service` (users) and
 | `DB_INTERNAL_API_KEY` | Shared secret for BFF → db-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-db-service`. |
 | `NHL_SERVICE_URL` | Internal URL of nhl-service — `http://nhl-service:8087`. |
 | `NHL_INTERNAL_API_KEY` | Shared secret for BFF → nhl-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-nhl-service`. |
+| `YAHOO_SERVICE_URL` | Internal URL of yahoo-service — `http://yahoo-service:8088`. |
+| `YAHOO_INTERNAL_API_KEY` | Shared secret for BFF → yahoo-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-yahoo-service`. |
 | `WEB_ORIGIN` | The deployed web origin, used for CORS (e.g. `https://staging.slapstat.com`). |
 | `GOOGLE_CLIENT_ID` | Public Google OAuth Client ID (not a secret); when unset, `/api/v1/auth/google` rejects all requests. |
 

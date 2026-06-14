@@ -10,6 +10,8 @@ security:
 tags:
 - name: Authentication
   description: Register and login endpoints
+- name: Yahoo
+  description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
   description: NHL player stats endpoints
 - name: Projections
@@ -101,6 +103,21 @@ paths:
           description: Projection deleted
         "404":
           description: No such projection for this user
+  /api/v1/yahoo/connect:
+    post:
+      tags:
+      - Yahoo
+      summary: Start connecting the user's Yahoo account
+      description: Returns the Yahoo consent URL the web app should redirect the browser
+        to.
+      operationId: connect
+      responses:
+        "200":
+          description: Authorization URL created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizeUrlResponse"
   /api/v1/projections:
     get:
       tags:
@@ -270,6 +287,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/yahoo/leagues:
+    get:
+      tags:
+      - Yahoo
+      summary: List the user's NHL fantasy leagues
+      operationId: leagues
+      responses:
+        "200":
+          description: Leagues returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaguesResponse"
+        "404":
+          description: User has not connected Yahoo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaguesResponse"
+  /api/v1/yahoo/leagues/{leagueKey}/settings:
+    get:
+      tags:
+      - Yahoo
+      summary: Get a league's scoring + roster settings
+      operationId: settings
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Settings returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueSettingsResponse"
+        "404":
+          description: User has not connected Yahoo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueSettingsResponse"
+  /api/v1/yahoo/connection:
+    get:
+      tags:
+      - Yahoo
+      summary: Whether the user has connected their Yahoo account
+      operationId: connection
+      responses:
+        "200":
+          description: Connection status returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
   /api/v1/players/skaters:
     get:
       tags:
@@ -481,6 +555,13 @@ components:
       - name
       - season
       - updatedAt
+    AuthorizeUrlResponse:
+      type: object
+      properties:
+        authorizeUrl:
+          type: string
+      required:
+      - authorizeUrl
     CreateProjectionRequest:
       type: object
       properties:
@@ -560,6 +641,94 @@ components:
           minLength: 0
       required:
       - idToken
+    LeagueSummary:
+      type: object
+      properties:
+        leagueKey:
+          type: string
+        name:
+          type: string
+        season:
+          type: integer
+          format: int32
+        numTeams:
+          type: integer
+          format: int32
+        scoringType:
+          type: string
+      required:
+      - leagueKey
+      - name
+    LeaguesResponse:
+      type: object
+      properties:
+        leagues:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueSummary"
+      required:
+      - leagues
+    LeagueSettingsResponse:
+      type: object
+      properties:
+        leagueKey:
+          type: string
+        name:
+          type: string
+        scoringType:
+          type: string
+        statCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatCategory"
+        rosterPositions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RosterSlot"
+      required:
+      - leagueKey
+      - name
+      - rosterPositions
+      - scoringType
+      - statCategories
+    RosterSlot:
+      type: object
+      properties:
+        position:
+          type: string
+        count:
+          type: integer
+          format: int32
+        positionType:
+          type: string
+      required:
+      - count
+      - position
+    StatCategory:
+      type: object
+      properties:
+        statId:
+          type: integer
+          format: int32
+        name:
+          type: string
+        displayName:
+          type: string
+        positionType:
+          type: string
+        pointValue:
+          type: number
+          format: double
+      required:
+      - name
+      - statId
+    ConnectionResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+      required:
+      - connected
     ProjectionSummaryResponse:
       type: object
       properties:
