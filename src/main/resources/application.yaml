@@ -30,6 +30,7 @@ services:
 security:
   permitted-urls:
     - "/api/v1/auth/**"
+    - "/api/v1/versions"
     - "/actuator/health"
   google:
     # Public OAuth Client ID for "Sign in with Google" (not a secret). When unset,
@@ -52,3 +53,11 @@ management:
     web:
       exposure:
         include: health,info
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: fantasy-bff
+    version: ${APP_VERSION:dev}

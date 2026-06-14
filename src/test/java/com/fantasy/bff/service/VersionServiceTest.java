@@ -1,0 +1,89 @@
+package com.fantasy.bff.service;
+
+import com.fantasy.bff.dto.response.ServiceVersion;
+import com.fantasy.bff.dto.response.VersionsResponse;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class VersionServiceTest {
+
+    private WireMockServer dbServer;
+    private WireMockServer nhlServer;
+    private WireMockServer yahooServer;
+
+    @BeforeEach
+    void setUp() {
+        dbServer = startServer("1.0.0");
+        nhlServer = startServer("2.0.0");
+        yahooServer = startServer("3.0.0");
+    }
+
+    @AfterEach
+    void tearDown() {
+        dbServer.stop();
+        nhlServer.stop();
+        yahooServer.stop();
+    }
+
+    private WireMockServer startServer(String version) {
+        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        server.start();
+        server.stubFor(get(urlPathEqualTo("/actuator/info"))
+                .willReturn(okJson("{\"app\":{\"name\":\"svc\",\"version\":\"" + version + "\"}}")));
+        return server;
+    }
+
+    private RestClient client(WireMockServer server) {
+        return RestClient.builder()
+                .baseUrl(server.baseUrl())
+                .requestFactory(new JdkClientHttpRequestFactory())
+                .build();
+    }
+
+    @Test
+    void reportsOwnVersionAndEachDownstreamVersionInOrder() {
+        VersionService service = new VersionService("1.2.3-bff",
+                client(dbServer), client(nhlServer), client(yahooServer));
+
+        VersionsResponse response = service.getVersions();
+
+        assertThat(response.services())
+                .extracting(ServiceVersion::name)
+                .containsExactly("fantasy-bff", "fantasy-db-service", "fantasy-nhl-service", "fantasy-yahoo-service");
+        assertThat(response.services())
+                .extracting(ServiceVersion::version)
+                .containsExactly("1.2.3-bff", "1.0.0", "2.0.0", "3.0.0");
+        assertThat(response.services()).allSatisfy(version -> assertThat(version.up()).isTrue());
+    }
+
+    @Test
+    void marksUnreachableServiceDownWithNoVersion() {
+        WireMockServer dead = new WireMockServer(wireMockConfig().dynamicPort());
+        dead.start();
+        dead.stubFor(get(urlPathEqualTo("/actuator/info")).willReturn(aResponse().withStatus(500)));
+
+        VersionService service = new VersionService("1.2.3-bff",
+                client(dead), client(nhlServer), client(yahooServer));
+
+        VersionsResponse response = service.getVersions();
+        dead.stop();
+
+        ServiceVersion database = response.services().stream()
+                .filter(version -> version.name().equals("fantasy-db-service"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(database.up()).isFalse();
+        assertThat(database.version()).isNull();
+    }
+}

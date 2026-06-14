@@ -16,6 +16,8 @@ tags:
   description: NHL player stats endpoints
 - name: Projections
   description: The authenticated user's saved player projections
+- name: Versions
+  description: Deployed version and reachability of every service
 paths:
   /api/v1/projections/{id}:
     get:
@@ -344,6 +346,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectionResponse"
+  /api/v1/versions:
+    get:
+      tags:
+      - Versions
+      summary: Get service versions
+      description: Returns the deployed version and reachability of the BFF and each
+        downstream service
+      operationId: getVersions
+      responses:
+        "200":
+          description: Versions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionsResponse"
   /api/v1/players/skaters:
     get:
       tags:
@@ -729,6 +746,28 @@ components:
           type: boolean
       required:
       - connected
+    ServiceVersion:
+      type: object
+      properties:
+        name:
+          type: string
+        up:
+          type: boolean
+        version:
+          type: string
+          description: Deployed version; absent when the service is unreachable
+      required:
+      - name
+      - up
+    VersionsResponse:
+      type: object
+      properties:
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceVersion"
+      required:
+      - services
     ProjectionSummaryResponse:
       type: object
       properties:
