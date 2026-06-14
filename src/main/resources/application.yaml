@@ -19,7 +19,7 @@ services:
     # Season whose stats the projections are based on (NHL season id, e.g. 20252026).
     season: ${NHL_SEASON:20252026}
   yahoo-fantasy:
-    base-url: ${YAHOO_SERVICE_URL:http://localhost:8084}
+    base-url: ${YAHOO_SERVICE_URL:http://localhost:8088}
     timeout-ms: 7000
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
