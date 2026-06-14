@@ -39,6 +39,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorDto> handleDownstream(IllegalStateException ex) {
+        // A 502/gateway fault on our side — log it so it surfaces (and reaches alerting).
+        // Services that wrap a downstream failure as IllegalStateException land here, so
+        // without this log the fault would be silently swallowed.
+        log.error("Downstream unavailable", ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", ex.getMessage()));
     }
