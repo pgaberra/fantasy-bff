@@ -356,6 +356,13 @@ components:
             format: int32
         useDefaultDecimals:
           type: boolean
+        leagueSize:
+          type: integer
+          format: int32
+          description: Number of teams in the league; drives the ranking pool size.
+            Optional — older projections without it default to 12.
+          maximum: 30
+          minimum: 2
       required:
       - activeScoringColumns
       - activeUtilityColumns

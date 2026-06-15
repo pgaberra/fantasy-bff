@@ -511,6 +511,11 @@ components:
             format: int32
         useDefaultDecimals:
           type: boolean
+        leagueSize:
+          type: integer
+          format: int32
+          maximum: 30
+          minimum: 2
       required:
       - activeScoringColumns
       - activeUtilityColumns
