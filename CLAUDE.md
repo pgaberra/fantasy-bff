@@ -77,6 +77,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 
 ## Conventions
 
+- **No code comments unless asked.** Don't write code comments or documentation unless
+  specifically asked to — prefer self-explanatory names. (Same AI guideline as the
+  `fantasy-web` repo.)
 - Downstream clients are an interface + an http implementation. Tests never hit
   real downstream services: integration tests replace the client interfaces with
   `@MockitoBean`; http clients are tested in isolation with WireMock.
