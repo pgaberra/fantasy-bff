@@ -40,3 +40,25 @@ jobs:
         run: |
           printf '%s\n' "$CHANGELOG" > "$RUNNER_TEMP/notes.md"
           gh release create "$NEW_TAG" --title "$NEW_TAG" --notes-file "$RUNNER_TEMP/notes.md"
+
+      # Tell the prod server (Coolify control plane) to stamp this tag as APP_VERSION on the
+      # staging app and redeploy it, over a restricted SSH key whose only action is
+      # /root/set_staging_version_forced.sh. Safe no-op until STAGING_VERSION_SSH_KEY is set.
+      - name: Stamp staging version & redeploy
+        if: steps.tag.outputs.new_tag != ''
+        env:
+          DEPLOY_KEY: ${{ secrets.STAGING_VERSION_SSH_KEY }}
+          NEW_TAG: ${{ steps.tag.outputs.new_tag }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::notice::STAGING_VERSION_SSH_KEY not set — skipping staging version stamp."
+            exit 0
+          fi
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_stagingver
+          chmod 600 ~/.ssh/id_stagingver
+          printf '%s\n' '157.180.126.72 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOt5tXmokoBw2Y5mUWlZSOzkgS/XU13hl4PeatHR4TB5' > ~/.ssh/known_hosts
+          echo "Stamping staging $REPO_NAME version to $NEW_TAG"
+          ssh -i ~/.ssh/id_stagingver -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/known_hosts \
+            root@157.180.126.72 "$REPO_NAME $NEW_TAG"
