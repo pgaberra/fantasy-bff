@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -20,6 +22,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HttpDatabaseServiceClientTest {
 
@@ -98,5 +101,47 @@ class HttpDatabaseServiceClientTest {
         assertThat(created).isEqualTo(new User("u-9", "new@b.com", "hashed"));
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users"))
                 .withRequestBody(equalToJson("{\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")));
+    }
+
+    @Test
+    void createPasswordResetToken_returnsToken_on200() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/password-reset/tokens"))
+                .willReturn(okJson("{\"token\":\"raw-token\",\"expiresAt\":\"2026-06-17T12:00:00Z\"}")));
+
+        Optional<PasswordResetToken> result = client.createPasswordResetToken("a@b.com");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().token()).isEqualTo("raw-token");
+        assertThat(result.get().expiresAt()).isEqualTo(Instant.parse("2026-06-17T12:00:00Z"));
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/password-reset/tokens"))
+                .withRequestBody(equalToJson("{\"email\":\"a@b.com\"}")));
+    }
+
+    @Test
+    void createPasswordResetToken_returnsEmpty_on204() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/password-reset/tokens"))
+                .willReturn(aResponse().withStatus(204)));
+
+        assertThat(client.createPasswordResetToken("none@b.com")).isEmpty();
+    }
+
+    @Test
+    void resetPassword_postsTokenAndHash_on204() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/password-reset"))
+                .willReturn(aResponse().withStatus(204)));
+
+        client.resetPassword("raw-token", "hashed");
+
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/password-reset"))
+                .withRequestBody(equalToJson("{\"token\":\"raw-token\",\"passwordHash\":\"hashed\"}")));
+    }
+
+    @Test
+    void resetPassword_throwsIllegalArgument_on404() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/password-reset"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertThatThrownBy(() -> client.resetPassword("bad", "hashed"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

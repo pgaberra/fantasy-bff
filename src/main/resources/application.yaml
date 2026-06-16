@@ -8,6 +8,21 @@ spring:
 server:
   port: ${PORT:8080}
 
+app:
+  # Public base URL of the web app, used to build links in emails (e.g. the password
+  # reset link). Reuses WEB_ORIGIN (also the CORS origin) so it points at the right env.
+  web-base-url: ${WEB_ORIGIN:http://localhost:4200}
+
+email:
+  # Sender identity for transactional email (non-secret).
+  from: ${EMAIL_FROM:SlapStat <no-reply@slapstat.com>}
+  resend:
+    # Resend API key. Secret; when unset the app logs reset links instead of sending
+    # (local dev / CI / tests), mirroring the Sentry "inert when unconfigured" pattern.
+    api-key: ${RESEND_API_KEY:}
+    base-url: ${RESEND_BASE_URL:https://api.resend.com}
+    timeout-ms: 5000
+
 services:
   # Per-downstream read/connect timeouts (ms). These apply in every environment:
   # locally the services run on localhost, and on the deployed Coolify environments
