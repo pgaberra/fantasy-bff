@@ -516,6 +516,8 @@ components:
           format: int32
           maximum: 30
           minimum: 2
+        rosterSlots:
+          $ref: "#/components/schemas/RosterSlots"
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -524,6 +526,52 @@ components:
       - scoringType
       - statWeights
       - useDefaultDecimals
+    RosterSlots:
+      type: object
+      properties:
+        c:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        lw:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        rw:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        d:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        util:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        bn:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        g:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+      required:
+      - bn
+      - c
+      - d
+      - g
+      - lw
+      - rw
+      - util
     ScaleConfig:
       type: object
       properties:
