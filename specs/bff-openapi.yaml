@@ -518,6 +518,11 @@ components:
           minimum: 2
         rosterSlots:
           $ref: "#/components/schemas/RosterSlots"
+        minGoalieGames:
+          type: integer
+          format: int32
+          maximum: 82
+          minimum: 0
       required:
       - activeScoringColumns
       - activeUtilityColumns
