@@ -356,6 +356,14 @@ components:
             format: int32
         useDefaultDecimals:
           type: boolean
+        leagueSize:
+          type: integer
+          format: int32
+          description: "Number of teams in the league; drives the category-league\
+            \ ranking pool size. Only relevant for category leagues — points leagues\
+            \ do not use it, so it is absent for them."
+          maximum: 30
+          minimum: 2
       required:
       - activeScoringColumns
       - activeUtilityColumns
