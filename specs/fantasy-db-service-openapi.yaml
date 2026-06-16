@@ -364,6 +364,11 @@ components:
             \ do not use it, so it is absent for them."
           maximum: 30
           minimum: 2
+        rosterSlots:
+          $ref: "#/components/schemas/RosterSlots"
+          description: "Roster slots per team, used with leagueSize to size the category-league\
+            \ ranking pool (pool = teams × slots). Bench (bn) and utility (util) count\
+            \ as skater slots. Category leagues only — absent for points leagues."
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -372,6 +377,52 @@ components:
       - scoringType
       - statWeights
       - useDefaultDecimals
+    RosterSlots:
+      type: object
+      properties:
+        c:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        lw:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        rw:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        d:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        util:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        bn:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+        g:
+          type: integer
+          format: int32
+          maximum: 50
+          minimum: 0
+      required:
+      - bn
+      - c
+      - d
+      - g
+      - lw
+      - rw
+      - util
     ScaleConfig:
       type: object
       properties:
