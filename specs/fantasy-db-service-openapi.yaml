@@ -369,6 +369,14 @@ components:
           description: "Roster slots per team, used with leagueSize to size the category-league\
             \ ranking pool (pool = teams × slots). Bench (bn) and utility (util) count\
             \ as skater slots. Category leagues only — absent for points leagues."
+        minGoalieGames:
+          type: integer
+          format: int32
+          description: Minimum projected games a goalie must reach to qualify for
+            category ranking; goalies below it are ranked last to avoid small-sample
+            rate-stat inflation. Category leagues only — absent for points leagues.
+          maximum: 82
+          minimum: 0
       required:
       - activeScoringColumns
       - activeUtilityColumns
