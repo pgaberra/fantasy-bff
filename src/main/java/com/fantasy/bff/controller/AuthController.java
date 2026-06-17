@@ -1,9 +1,11 @@
 package com.fantasy.bff.controller;
 
+import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.dto.request.ResetPasswordRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,5 +72,30 @@ public class AuthController {
     })
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    }
+
+    @PostMapping("/password/forgot")
+    @Operation(summary = "Request a password reset email",
+            description = "Always returns 200. To avoid revealing whether an account exists, the response "
+                    + "is identical whether or not a reset email was sent.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Request accepted (an email is sent only if a matching password account exists)"),
+            @ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/password/reset")
+    @Operation(summary = "Reset password with a token",
+            description = "Consumes a single-use reset token from the email link and sets a new password.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Password updated"),
+            @ApiResponse(responseCode = "400", description = "Invalid or expired token, or validation error")
+    })
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok().build();
     }
 }

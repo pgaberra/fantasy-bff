@@ -2,10 +2,14 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.dto.request.ResetPasswordRequest;
+import com.fantasy.bff.email.PasswordResetEmailSender;
+import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,12 +24,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.fantasy.bff.model.downstream.User;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -48,6 +58,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean
     private GoogleTokenVerifier googleTokenVerifier;
+
+    @MockitoBean
+    private PasswordResetEmailSender passwordResetEmailSender;
 
     @Test
     void login_withInvalidCredentials_returns401() throws Exception {
@@ -201,5 +214,71 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest(accessToken))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void forgotPassword_sendsEmail_whenAccountResettable() throws Exception {
+        when(databaseServiceClient.createPasswordResetToken("user@example.com"))
+                .thenReturn(Optional.of(new PasswordResetToken("raw-token", Instant.now().plusSeconds(1800))));
+
+        mockMvc.perform(post("/api/v1/auth/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ForgotPasswordRequest("user@example.com"))))
+                .andExpect(status().isOk());
+
+        verify(passwordResetEmailSender)
+                .send(eq("user@example.com"), contains("/reset-password?token=raw-token"), any());
+    }
+
+    @Test
+    void forgotPassword_returns200_andSendsNothing_whenNoResettableAccount() throws Exception {
+        when(databaseServiceClient.createPasswordResetToken("ghost@example.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/auth/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ForgotPasswordRequest("ghost@example.com"))))
+                .andExpect(status().isOk());
+
+        verifyNoInteractions(passwordResetEmailSender);
+    }
+
+    @Test
+    void forgotPassword_withInvalidEmail_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"not-an-email\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void resetPassword_withValidToken_returns200() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("raw-token", "newsecret"))))
+                .andExpect(status().isOk());
+
+        verify(databaseServiceClient).resetPassword(eq("raw-token"), anyString());
+    }
+
+    @Test
+    void resetPassword_withInvalidToken_returns400() throws Exception {
+        doThrow(new IllegalArgumentException("Invalid or expired password reset token"))
+                .when(databaseServiceClient).resetPassword(eq("bad-token"), anyString());
+
+        mockMvc.perform(post("/api/v1/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("bad-token", "newsecret"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void resetPassword_withShortPassword_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"raw-token\",\"newPassword\":\"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 }

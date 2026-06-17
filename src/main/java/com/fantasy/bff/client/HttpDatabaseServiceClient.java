@@ -1,16 +1,21 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
 import com.fantasy.bff.generated.db.model.GoogleUserRequest;
+import com.fantasy.bff.generated.db.model.PasswordResetRequest;
+import com.fantasy.bff.generated.db.model.PasswordResetTokenResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UserResponse;
+import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -92,6 +97,40 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
             throw new IllegalStateException("db-service returned no body when resolving the Google user");
         }
         return new User(response.getId(), response.getEmail(), response.getPasswordHash());
+    }
+
+    @Override
+    public Optional<PasswordResetToken> createPasswordResetToken(String email) {
+        CreatePasswordResetTokenRequest request = new CreatePasswordResetTokenRequest().email(email);
+        ResponseEntity<PasswordResetTokenResponse> response = restClient.post()
+                .uri("/api/v1/users/password-reset/tokens")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .toEntity(PasswordResetTokenResponse.class);
+        PasswordResetTokenResponse body = response.getBody();
+        if (response.getStatusCode().value() == 204 || body == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new PasswordResetToken(body.getToken(), body.getExpiresAt().toInstant()));
+    }
+
+    @Override
+    public void resetPassword(String token, String passwordHash) {
+        PasswordResetRequest request = new PasswordResetRequest().token(token).passwordHash(passwordHash);
+        try {
+            restClient.post()
+                    .uri("/api/v1/users/password-reset")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                throw new IllegalArgumentException("Invalid or expired password reset token");
+            }
+            throw e;
+        }
     }
 
     @Override

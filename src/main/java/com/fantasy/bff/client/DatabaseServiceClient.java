@@ -4,6 +4,7 @@ import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 
 import java.util.List;
@@ -23,6 +24,18 @@ public interface DatabaseServiceClient {
      * links it to an existing same-email account, or creates a password-less user.
      */
     User findOrCreateGoogleUser(String email, String googleSub);
+
+    /**
+     * Issues a single-use password reset token for the account with this email, or empty
+     * when there is no resettable account (unknown email or a Google-only account).
+     */
+    Optional<PasswordResetToken> createPasswordResetToken(String email);
+
+    /**
+     * Consumes a reset token and sets the account's new password hash. Throws
+     * {@link IllegalArgumentException} when the token is invalid, expired, or already used.
+     */
+    void resetPassword(String token, String passwordHash);
 
     List<ProjectionSummaryResponse> listProjections(UUID userId);
 

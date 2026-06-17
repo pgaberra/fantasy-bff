@@ -6,6 +6,8 @@ info:
 servers:
 - url: /
 tags:
+- name: Password reset
+  description: Single-use password reset token issuance and consumption
 - name: User projections
   description: "Saved player projections, scoped to a user"
 - name: Users
@@ -230,6 +232,60 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/users/password-reset:
+    post:
+      tags:
+      - Password reset
+      summary: Consume a password reset token and set the account's new password hash
+      operationId: resetPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+        required: true
+      responses:
+        "204":
+          description: Password updated
+        "400":
+          description: Validation failed (blank token / password hash)
+        "404":
+          description: "Token is invalid, expired, or already used"
+  /api/v1/users/password-reset/tokens:
+    post:
+      tags:
+      - Password reset
+      summary: Issue a single-use password reset token for the account with this email
+      description: "Returns 200 with a raw token when the email maps to a password\
+        \ account. Returns 204 when no resettable account exists (unknown email, or\
+        \ a Google-only password-less account). The caller must treat both outcomes\
+        \ identically so that account existence is never revealed to end users."
+      operationId: issueToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePasswordResetTokenRequest"
+        required: true
+      responses:
+        "200":
+          description: Token issued
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PasswordResetTokenResponse"
+        "204":
+          description: No resettable account; nothing issued
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PasswordResetTokenResponse"
+        "400":
+          description: Validation failed (blank/invalid email)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PasswordResetTokenResponse"
   /api/v1/users/google:
     post:
       tags:
@@ -527,6 +583,41 @@ components:
       required:
       - data
       - name
+    PasswordResetRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 128
+          minLength: 0
+        passwordHash:
+          type: string
+          maxLength: 100
+          minLength: 0
+      required:
+      - passwordHash
+      - token
+    CreatePasswordResetTokenRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          minLength: 0
+      required:
+      - email
+    PasswordResetTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - expiresAt
+      - token
     GoogleUserRequest:
       type: object
       properties:
