@@ -16,18 +16,6 @@ import java.time.Duration;
 public class RestClientConfig {
 
     @Bean
-    public RestClient playerServiceClient(
-            @Value("${services.player.base-url}") String baseUrl,
-            @Value("${services.player.timeout-ms}") int timeoutMs,
-            @Value("${services.player.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
-    }
-
-    @Bean
     public RestClient yahooFantasyServiceClient(
             @Value("${services.yahoo-fantasy.base-url}") String baseUrl,
             @Value("${services.yahoo-fantasy.timeout-ms}") int timeoutMs,

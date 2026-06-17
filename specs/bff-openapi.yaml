@@ -349,8 +349,8 @@ paths:
     post:
       tags:
       - Admin
-      summary: Trigger a player-service sync
-      description: Refreshes the merged player data (NHL stats + Yahoo positions).
+      summary: Trigger a player sync
+      description: Refreshes the cached player read model from Yahoo.
       operationId: triggerPlayerSync
       responses:
         "200":
@@ -516,9 +516,9 @@ paths:
     get:
       tags:
       - Admin
-      summary: Recent player-service sync runs
-      description: Outcome (counts + match rate) and the diff (players added/removed)
-        of the most recent syncs.
+      summary: Recent player sync runs
+      description: Outcome (counts) and the diff (players added/removed) of the most
+        recent syncs.
       operationId: playerSyncRuns
       parameters:
       - name: limit
@@ -1214,13 +1214,7 @@ components:
         skaters:
           type: integer
           format: int32
-        skatersMatched:
-          type: integer
-          format: int32
         goalies:
-          type: integer
-          format: int32
-        goaliesMatched:
           type: integer
           format: int32
         addedCount:
@@ -1237,13 +1231,6 @@ components:
           type: array
           items:
             type: string
-        unmatchedCount:
-          type: integer
-          format: int32
-        unmatched:
-          type: array
-          items:
-            type: string
         error:
           type: string
       required:
@@ -1254,8 +1241,6 @@ components:
       - removedCount
       - startedAt
       - status
-      - unmatched
-      - unmatchedCount
   securitySchemes:
     bearerAuth:
       type: http

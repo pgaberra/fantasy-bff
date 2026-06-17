@@ -3,8 +3,8 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
-import com.fantasy.bff.generated.player.model.SyncAcceptedResponse;
-import com.fantasy.bff.generated.player.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
+import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -32,14 +32,14 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
 
     private final RestClient restClient;
 
-    public HttpPlayerServiceClient(@Qualifier("playerServiceClient") RestClient restClient) {
+    public HttpPlayerServiceClient(@Qualifier("yahooFantasyServiceClient") RestClient restClient) {
         this.restClient = restClient;
     }
 
-    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.player.model.SkaterResponse>>
+    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.yahoo.model.SkaterResponse>>
             SKATER_LIST = new ParameterizedTypeReference<>() {
     };
-    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.player.model.GoalieResponse>>
+    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.yahoo.model.GoalieResponse>>
             GOALIE_LIST = new ParameterizedTypeReference<>() {
     };
     private static final ParameterizedTypeReference<List<SyncRunResponse>> SYNC_RUN_LIST =
@@ -48,7 +48,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
 
     @Override
     public List<SkaterResponse> getSkaters() {
-        List<com.fantasy.bff.generated.player.model.SkaterResponse> response = restClient.get()
+        List<com.fantasy.bff.generated.yahoo.model.SkaterResponse> response = restClient.get()
                 .uri("/api/v1/players/skaters")
                 .retrieve()
                 .body(SKATER_LIST);
@@ -57,7 +57,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
 
     @Override
     public List<GoalieResponse> getGoalies() {
-        List<com.fantasy.bff.generated.player.model.GoalieResponse> response = restClient.get()
+        List<com.fantasy.bff.generated.yahoo.model.GoalieResponse> response = restClient.get()
                 .uri("/api/v1/players/goalies")
                 .retrieve()
                 .body(GOALIE_LIST);
@@ -81,7 +81,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
         return runs == null ? List.of() : runs;
     }
 
-    private static SkaterResponse toSkater(com.fantasy.bff.generated.player.model.SkaterResponse s) {
+    private static SkaterResponse toSkater(com.fantasy.bff.generated.yahoo.model.SkaterResponse s) {
         int ppg = zero(s.getPowerPlayGoals());
         int ppp = zero(s.getPowerPlayPoints());
         int shg = zero(s.getShorthandedGoals());
@@ -120,7 +120,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                                 zero(s.getBlockedShots()))));
     }
 
-    private static GoalieResponse toGoalie(com.fantasy.bff.generated.player.model.GoalieResponse g) {
+    private static GoalieResponse toGoalie(com.fantasy.bff.generated.yahoo.model.GoalieResponse g) {
         return new GoalieResponse(
                 (int) (long) g.getId(),
                 g.getFirstName() + " " + g.getLastName(),

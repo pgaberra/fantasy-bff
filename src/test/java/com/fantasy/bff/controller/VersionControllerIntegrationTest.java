@@ -25,6 +25,6 @@ class VersionControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.services[0].name").value("fantasy-bff"))
                 .andExpect(jsonPath("$.services[0].up").value(true))
                 .andExpect(jsonPath("$.services[0].version").value("dev"))
-                .andExpect(jsonPath("$.services.length()").value(4));
+                .andExpect(jsonPath("$.services.length()").value(3));
     }
 }

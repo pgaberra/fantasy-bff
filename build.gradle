@@ -106,27 +106,6 @@ openApiGenerate {
 	]
 }
 
-// Same pattern for the player-service spec (the merged player read model the BFF
-// now reads). Re-run after updating specs/fantasy-player-service-openapi.yaml.
-tasks.register('generatePlayerClient', org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
-	generatorName = 'java'
-	library = 'native'
-	inputSpec = file("specs/fantasy-player-service-openapi.yaml").toURI().toString()
-	outputDir = "${buildDir}/generated/openapi/player-service".toString()
-	modelPackage = 'com.fantasy.bff.generated.player.model'
-	apiPackage = 'com.fantasy.bff.generated.player.api'
-	invokerPackage = 'com.fantasy.bff.generated.player'
-	generateApiTests = false
-	generateModelTests = false
-	generateApiDocumentation = false
-	generateModelDocumentation = false
-	configOptions = [
-		openApiNullable: 'false',
-		useJakartaEe: 'true',
-		useBeanValidation: 'true',
-	]
-}
-
 // Same pattern for the yahoo-service spec. Re-run after updating
 // specs/fantasy-yahoo-service-openapi.yaml.
 tasks.register('generateYahooClient', org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
@@ -152,12 +131,10 @@ sourceSets {
 	main {
 		java {
 			srcDir "${buildDir}/generated/openapi/db-service/src/main/java"
-			srcDir "${buildDir}/generated/openapi/player-service/src/main/java"
 			srcDir "${buildDir}/generated/openapi/yahoo-service/src/main/java"
 		}
 	}
 }
 
 compileJava.dependsOn tasks.openApiGenerate
-compileJava.dependsOn tasks.generatePlayerClient
 compileJava.dependsOn tasks.generateYahooClient
