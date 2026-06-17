@@ -10,6 +10,8 @@ security:
 tags:
 - name: Authentication
   description: Register and login endpoints
+- name: Admin
+  description: "Admin-only: Yahoo service account + player sync"
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
@@ -328,6 +330,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/admin/yahoo/connect:
+    post:
+      tags:
+      - Admin
+      summary: Start connecting the Yahoo service account
+      description: Returns the Yahoo consent URL to send the admin's browser to. The
+        resulting token is stored under the reserved service-account id.
+      operationId: connectYahooServiceAccount
+      responses:
+        "200":
+          description: Authorization URL created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizeUrlResponse"
+  /api/v1/admin/player/sync:
+    post:
+      tags:
+      - Admin
+      summary: Trigger a player-service sync
+      description: Refreshes the merged player data (NHL stats + Yahoo positions).
+      operationId: triggerPlayerSync
+      responses:
+        "200":
+          description: Sync triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncAcceptedResponse"
   /api/v1/yahoo/leagues:
     get:
       tags:
@@ -468,6 +499,19 @@ paths:
                   $ref: "#/components/schemas/GoalieResponse"
       security:
       - bearerAuth: []
+  /api/v1/admin/yahoo/connection:
+    get:
+      tags:
+      - Admin
+      summary: Whether the Yahoo service account is connected
+      operationId: yahooServiceConnection
+      responses:
+        "200":
+          description: Connection status returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
 components:
   schemas:
     PlayerProjection:
@@ -782,6 +826,13 @@ components:
           minLength: 0
       required:
       - idToken
+    SyncAcceptedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
     LeagueSummary:
       type: object
       properties:
