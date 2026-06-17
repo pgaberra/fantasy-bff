@@ -3,68 +3,63 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
-import com.fantasy.bff.generated.nhl.model.GoalieStatsLeaderResponse;
-import com.fantasy.bff.generated.nhl.model.GoalieStatsLeadersResponse;
-import com.fantasy.bff.generated.nhl.model.SkaterStatsLeaderResponse;
-import com.fantasy.bff.generated.nhl.model.SkaterStatsLeadersResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
- * {@link NhlServiceClient} that talks to fantasy-nhl-service over HTTP.
+ * {@link PlayerServiceClient} that talks to fantasy-player-service over HTTP.
  *
- * The nhl-service serves data in NHL-native shape (NHL API field names); this client
- * owns the reshaping into the frontend-facing {@link SkaterResponse}/{@link GoalieResponse}.
- * Stat fields are nullable upstream (rookies have no stats row) and default to zero here,
- * so the frontend always gets complete stat blocks.
+ * player-service serves the merged read model — NHL-native stat lines plus Yahoo
+ * eligible positions. This client owns the reshaping into the frontend-facing
+ * {@link SkaterResponse}/{@link GoalieResponse}: NHL-native stat fields default to zero
+ * (complete blocks for the UI), and positions come from the Yahoo eligibility set
+ * (falling back to the NHL position when a player had no Yahoo match).
  *
- * Uses model classes generated from specs/fantasy-nhl-service-openapi.yaml —
- * if the nhl-service API changes, update the spec and re-run ./gradlew generateNhlClient.
+ * Uses model classes generated from specs/fantasy-player-service-openapi.yaml —
+ * if the player-service API changes, update the spec and re-run ./gradlew generatePlayerClient.
  */
 @Component
-public class HttpNhlServiceClient implements NhlServiceClient {
+public class HttpPlayerServiceClient implements PlayerServiceClient {
 
     private final RestClient restClient;
-    private final int season;
 
-    public HttpNhlServiceClient(@Qualifier("nhlServiceClient") RestClient restClient,
-                                @Value("${services.nhl.season}") int season) {
+    public HttpPlayerServiceClient(@Qualifier("playerServiceClient") RestClient restClient) {
         this.restClient = restClient;
-        this.season = season;
     }
+
+    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.player.model.SkaterResponse>>
+            SKATER_LIST = new ParameterizedTypeReference<>() {
+    };
+    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.player.model.GoalieResponse>>
+            GOALIE_LIST = new ParameterizedTypeReference<>() {
+    };
 
     @Override
     public List<SkaterResponse> getSkaters() {
-        SkaterStatsLeadersResponse response = restClient.get()
-                .uri("/api/v1/skater-stats-leaders/{season}/{gameType}", season, REGULAR_SEASON)
+        List<com.fantasy.bff.generated.player.model.SkaterResponse> response = restClient.get()
+                .uri("/api/v1/players/skaters")
                 .retrieve()
-                .body(SkaterStatsLeadersResponse.class);
-        if (response == null || response.getSkaters() == null) {
-            return List.of();
-        }
-        return response.getSkaters().stream().map(HttpNhlServiceClient::toSkater).toList();
+                .body(SKATER_LIST);
+        return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toSkater).toList();
     }
 
     @Override
     public List<GoalieResponse> getGoalies() {
-        GoalieStatsLeadersResponse response = restClient.get()
-                .uri("/api/v1/goalie-stats-leaders/{season}/{gameType}", season, REGULAR_SEASON)
+        List<com.fantasy.bff.generated.player.model.GoalieResponse> response = restClient.get()
+                .uri("/api/v1/players/goalies")
                 .retrieve()
-                .body(GoalieStatsLeadersResponse.class);
-        if (response == null || response.getGoalies() == null) {
-            return List.of();
-        }
-        return response.getGoalies().stream().map(HttpNhlServiceClient::toGoalie).toList();
+                .body(GOALIE_LIST);
+        return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toGoalie).toList();
     }
 
-    private static final int REGULAR_SEASON = 2;
-
-    private static SkaterResponse toSkater(SkaterStatsLeaderResponse s) {
+    private static SkaterResponse toSkater(com.fantasy.bff.generated.player.model.SkaterResponse s) {
         int ppg = zero(s.getPowerPlayGoals());
         int ppp = zero(s.getPowerPlayPoints());
         int shg = zero(s.getShorthandedGoals());
@@ -74,7 +69,7 @@ public class HttpNhlServiceClient implements NhlServiceClient {
                 s.getFirstName() + " " + s.getLastName(),
                 s.getTeamAbbrev(),
                 s.getHeadshot(),
-                Set.of(toPosition(s.getPosition())),
+                toPositions(s.getEligiblePositions(), s.getPosition()),
                 new SkaterResponse.Stats(
                         new SkaterResponse.UtilityStats(
                                 zero(s.getGamesPlayed()),
@@ -103,7 +98,7 @@ public class HttpNhlServiceClient implements NhlServiceClient {
                                 zero(s.getBlockedShots()))));
     }
 
-    private static GoalieResponse toGoalie(GoalieStatsLeaderResponse g) {
+    private static GoalieResponse toGoalie(com.fantasy.bff.generated.player.model.GoalieResponse g) {
         return new GoalieResponse(
                 (int) (long) g.getId(),
                 g.getFirstName() + " " + g.getLastName(),
@@ -124,9 +119,36 @@ public class HttpNhlServiceClient implements NhlServiceClient {
                                 round3(zero(g.getSavePctg())))));
     }
 
+    /** Yahoo eligible positions → frontend enum; falls back to the NHL position if none map. */
+    private static Set<SkaterPosition> toPositions(List<String> eligiblePositions, String nhlPosition) {
+        Set<SkaterPosition> positions = new LinkedHashSet<>();
+        if (eligiblePositions != null) {
+            for (String position : eligiblePositions) {
+                SkaterPosition mapped = mapFantasyPosition(position);
+                if (mapped != null) {
+                    positions.add(mapped);
+                }
+            }
+        }
+        if (positions.isEmpty()) {
+            positions.add(mapNhlPosition(nhlPosition));
+        }
+        return positions;
+    }
+
+    private static SkaterPosition mapFantasyPosition(String position) {
+        return switch (position == null ? "" : position.toUpperCase(Locale.ROOT)) {
+            case "C" -> SkaterPosition.C;
+            case "LW", "L" -> SkaterPosition.LW;
+            case "RW", "R" -> SkaterPosition.RW;
+            case "D" -> SkaterPosition.D;
+            default -> null;
+        };
+    }
+
     /** NHL position codes are C/L/R/D; the frontend uses C/LW/RW/D. */
-    private static SkaterPosition toPosition(String positionCode) {
-        return switch (positionCode) {
+    private static SkaterPosition mapNhlPosition(String positionCode) {
+        return switch (positionCode == null ? "" : positionCode) {
             case "L" -> SkaterPosition.LW;
             case "R" -> SkaterPosition.RW;
             case "D" -> SkaterPosition.D;

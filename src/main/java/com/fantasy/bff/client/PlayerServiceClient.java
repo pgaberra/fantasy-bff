@@ -5,7 +5,7 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 
 import java.util.List;
 
-public interface NhlServiceClient {
+public interface PlayerServiceClient {
 
     List<SkaterResponse> getSkaters();
 

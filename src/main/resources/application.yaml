@@ -33,6 +33,12 @@ services:
     api-key: ${NHL_INTERNAL_API_KEY:}
     # Season whose stats the projections are based on (NHL season id, e.g. 20252026).
     season: ${NHL_SEASON:20252026}
+  # player-service is the merged player read model (NHL stats + Yahoo positions); the
+  # BFF reads all player data from here. timeout is generous (it returns ~700 players).
+  player:
+    base-url: ${PLAYER_SERVICE_URL:http://localhost:8089}
+    timeout-ms: 10000
+    api-key: ${PLAYER_INTERNAL_API_KEY:}
   yahoo-fantasy:
     base-url: ${YAHOO_SERVICE_URL:http://localhost:8088}
     timeout-ms: 7000

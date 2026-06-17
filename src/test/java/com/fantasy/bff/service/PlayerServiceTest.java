@@ -1,6 +1,6 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.NhlServiceClient;
+import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class PlayerServiceTest {
 
     @Mock
-    private NhlServiceClient nhlServiceClient;
+    private PlayerServiceClient playerServiceClient;
 
     @InjectMocks
     private PlayerService playerService;
@@ -36,7 +36,7 @@ class PlayerServiceTest {
                                 new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348, 18.4, 812, 623, 42, 28)
                         ))
         );
-        when(nhlServiceClient.getSkaters()).thenReturn(expected);
+        when(playerServiceClient.getSkaters()).thenReturn(expected);
 
         List<SkaterResponse> result = playerService.getSkaters();
 
@@ -47,11 +47,11 @@ class PlayerServiceTest {
 
     @Test
     void getSkaters_whenClientThrows_throwsIllegalStateException() {
-        when(nhlServiceClient.getSkaters()).thenThrow(new RuntimeException("Connection refused"));
+        when(playerServiceClient.getSkaters()).thenThrow(new RuntimeException("Connection refused"));
 
         assertThatThrownBy(() -> playerService.getSkaters())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Failed to retrieve skaters from NHL service");
+                .hasMessageContaining("Failed to retrieve skaters from player service");
     }
 
     @Test
@@ -64,7 +64,7 @@ class PlayerServiceTest {
                                 new GoalieResponse.ScoringStats(58, 36, 17, 3, 1720, 1565, 155, 2.67, 0.910)
                         ))
         );
-        when(nhlServiceClient.getGoalies()).thenReturn(expected);
+        when(playerServiceClient.getGoalies()).thenReturn(expected);
 
         List<GoalieResponse> result = playerService.getGoalies();
 
@@ -74,10 +74,10 @@ class PlayerServiceTest {
 
     @Test
     void getGoalies_whenClientThrows_throwsIllegalStateException() {
-        when(nhlServiceClient.getGoalies()).thenThrow(new RuntimeException("Connection refused"));
+        when(playerServiceClient.getGoalies()).thenThrow(new RuntimeException("Connection refused"));
 
         assertThatThrownBy(() -> playerService.getGoalies())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Failed to retrieve goalies from NHL service");
+                .hasMessageContaining("Failed to retrieve goalies from player service");
     }
 }
