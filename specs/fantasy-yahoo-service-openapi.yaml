@@ -7,6 +7,9 @@ info:
 servers:
 - url: /
 tags:
+- name: Yahoo Players
+  description: League-wide Yahoo player list with fantasy eligible positions (uses
+    the app-owned service account)
 - name: Yahoo OAuth
   description: Per-user Yahoo account connection flow
 - name: Yahoo Leagues
@@ -33,6 +36,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthorizeUrlResponse"
+  /api/v1/yahoo/players:
+    get:
+      tags:
+      - Yahoo Players
+      summary: List every Yahoo player for a game with eligible positions
+      description: Paginates the Yahoo game player collection using the service account
+        token. Defaults to the NHL game.
+      operationId: players
+      parameters:
+      - name: gameKey
+        in: query
+        required: false
+        schema:
+          type: string
+          default: nhl
+      responses:
+        "200":
+          description: Players returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YahooPlayerResponse"
+        "404":
+          description: The Yahoo service account is not connected
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YahooPlayerResponse"
   /api/v1/yahoo/oauth/connection:
     get:
       tags:
@@ -142,6 +177,27 @@ components:
           description: The Yahoo consent URL the browser should be redirected to.
       required:
       - authorizeUrl
+    YahooPlayerResponse:
+      type: object
+      properties:
+        yahooId:
+          type: string
+          description: Yahoo's player id
+        fullName:
+          type: string
+          description: Player full name
+        teamAbbrev:
+          type: string
+          description: Yahoo's editorial team abbreviation
+        eligiblePositions:
+          type: array
+          description: "Yahoo fantasy eligible positions (e.g. [\"C\",\"LW\"])"
+          items:
+            type: string
+      required:
+      - eligiblePositions
+      - fullName
+      - yahooId
     ConnectionResponse:
       type: object
       properties:

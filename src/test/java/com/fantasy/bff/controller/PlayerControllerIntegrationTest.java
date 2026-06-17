@@ -1,7 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
-import com.fantasy.bff.client.NhlServiceClient;
+import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -32,11 +32,11 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     private JwtTokenValidator jwtTokenValidator;
 
     @MockitoBean
-    private NhlServiceClient nhlServiceClient;
+    private PlayerServiceClient playerServiceClient;
 
     @Test
     void getSkaters_withValidToken_returns200() throws Exception {
-        when(nhlServiceClient.getSkaters()).thenReturn(List.of(
+        when(playerServiceClient.getSkaters()).thenReturn(List.of(
                 new SkaterResponse(1, "Connor McDavid", "EDM",
                         "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png", Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
@@ -71,7 +71,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getGoalies_withValidToken_returns200() throws Exception {
-        when(nhlServiceClient.getGoalies()).thenReturn(List.of(
+        when(playerServiceClient.getGoalies()).thenReturn(List.of(
                 new GoalieResponse(101, "Igor Shesterkin", "NYR",
                         "https://assets.nhle.com/mugs/nhl/20242025/NYR/8478048.png",
                         new GoalieResponse.Stats(
@@ -96,7 +96,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSkaters_whenServiceFails_returns502() throws Exception {
-        when(nhlServiceClient.getSkaters()).thenThrow(new RuntimeException("NHL service down"));
+        when(playerServiceClient.getSkaters()).thenThrow(new RuntimeException("player service down"));
 
         String token = jwtTokenValidator.generateToken("user-1", "test@example.com");
 

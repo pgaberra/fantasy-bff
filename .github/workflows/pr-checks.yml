@@ -41,19 +41,19 @@ jobs:
             exit 1
           fi
 
-      - name: Verify pinned nhl-service spec is in sync
+      - name: Verify pinned player-service spec is in sync
         if: github.actor != 'dependabot[bot]'
         env:
           GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
         run: |
-          if ! gh api repos/pgaberra/fantasy-nhl-service/contents/specs/openapi.yaml \
-                -H "Accept: application/vnd.github.raw" > /tmp/nhl-openapi.yaml 2> /tmp/gh-err.txt; then
-            echo "::error::Could not fetch the nhl-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-nhl-service. (This is an auth failure, not a spec mismatch.)"
+          if ! gh api repos/pgaberra/fantasy-player-service/contents/specs/openapi.yaml \
+                -H "Accept: application/vnd.github.raw" > /tmp/player-openapi.yaml 2> /tmp/gh-err.txt; then
+            echo "::error::Could not fetch the player-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-player-service. (This is an auth failure, not a spec mismatch.)"
             cat /tmp/gh-err.txt
             exit 1
           fi
-          if ! diff -u specs/fantasy-nhl-service-openapi.yaml /tmp/nhl-openapi.yaml; then
-            echo "::error::Pinned nhl-service spec is stale. Copy fantasy-nhl-service/specs/openapi.yaml into specs/fantasy-nhl-service-openapi.yaml, run ./gradlew generateNhlClient, and fix any compile errors."
+          if ! diff -u specs/fantasy-player-service-openapi.yaml /tmp/player-openapi.yaml; then
+            echo "::error::Pinned player-service spec is stale. Copy fantasy-player-service/specs/openapi.yaml into specs/fantasy-player-service-openapi.yaml, run ./gradlew generatePlayerClient, and fix any compile errors."
             exit 1
           fi
 
