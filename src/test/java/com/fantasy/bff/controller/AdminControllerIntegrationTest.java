@@ -54,6 +54,9 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/admin/player/sync")
                         .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/admin/player/sync/runs")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk());
     }
 
     @Test

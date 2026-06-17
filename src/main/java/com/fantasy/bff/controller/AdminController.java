@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.generated.player.model.SyncAcceptedResponse;
+import com.fantasy.bff.generated.player.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,7 +12,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Admin-only operations (gated by ROLE_ADMIN in SecurityConfig). Manages the app-owned
@@ -56,5 +60,14 @@ public class AdminController {
     @PostMapping("/player/sync")
     public SyncAcceptedResponse triggerPlayerSync() {
         return playerServiceClient.triggerSync();
+    }
+
+    @Operation(summary = "Recent player-service sync runs",
+            description = "Outcome (counts + match rate) and the diff (players added/removed) "
+                    + "of the most recent syncs.")
+    @ApiResponse(responseCode = "200", description = "Runs returned")
+    @GetMapping("/player/sync/runs")
+    public List<SyncRunResponse> playerSyncRuns(@RequestParam(defaultValue = "10") int limit) {
+        return playerServiceClient.getSyncRuns(limit);
     }
 }
