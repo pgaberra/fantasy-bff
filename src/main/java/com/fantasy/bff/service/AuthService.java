@@ -8,6 +8,7 @@ import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
 import com.fantasy.bff.dto.request.ResetPasswordRequest;
 import io.jsonwebtoken.Claims;
+import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.User;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.Locale;
+
 @Service
 public class AuthService {
 
@@ -31,6 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final PasswordResetEmailSender passwordResetEmailSender;
+    private final SecurityProperties securityProperties;
     private final String webBaseUrl;
 
     public AuthService(DatabaseServiceClient databaseServiceClient,
@@ -38,12 +42,14 @@ public class AuthService {
                        PasswordEncoder passwordEncoder,
                        GoogleTokenVerifier googleTokenVerifier,
                        PasswordResetEmailSender passwordResetEmailSender,
+                       SecurityProperties securityProperties,
                        @Value("${app.web-base-url:http://localhost:4200}") String webBaseUrl) {
         this.databaseServiceClient = databaseServiceClient;
         this.jwtTokenValidator = jwtTokenValidator;
         this.passwordEncoder = passwordEncoder;
         this.googleTokenVerifier = googleTokenVerifier;
         this.passwordResetEmailSender = passwordResetEmailSender;
+        this.securityProperties = securityProperties;
         this.webBaseUrl = webBaseUrl;
     }
 
@@ -114,10 +120,16 @@ public class AuthService {
     }
 
     private AuthResponse issueTokens(String userId, String email) {
-        String token = jwtTokenValidator.generateToken(userId, email);
+        boolean admin = isAdmin(email);
+        String token = jwtTokenValidator.generateToken(userId, email, admin);
         String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email);
         long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
         long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
-        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn);
+        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn, admin);
+    }
+
+    private boolean isAdmin(String email) {
+        return email != null
+                && securityProperties.adminEmails().contains(email.toLowerCase(Locale.ROOT));
     }
 }

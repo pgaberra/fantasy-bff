@@ -112,7 +112,8 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.expiresInSeconds").isNumber())
                 .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
-                .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
+                .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber())
+                .andExpect(jsonPath("$.admin").value(false));
     }
 
     @Test
