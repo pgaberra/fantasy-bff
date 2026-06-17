@@ -10,8 +10,13 @@ tags:
 - name: Yahoo Players
   description: League-wide Yahoo player list with fantasy eligible positions (uses
     the app-owned service account)
+- name: Players
+  description: Cached player read model (identity + Yahoo eligible positions + season
+    stats)
 - name: Yahoo OAuth
   description: Per-user Yahoo account connection flow
+- name: Sync
+  description: Refresh the cached player read model from Yahoo
 - name: Yahoo Leagues
   description: A user's Yahoo fantasy leagues and their settings
 paths:
@@ -36,6 +41,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthorizeUrlResponse"
+  /api/v1/sync:
+    post:
+      tags:
+      - Sync
+      summary: Trigger a player sync
+      description: Refreshes the cached player read model from Yahoo. Runs asynchronously.
+      operationId: triggerSync
+      responses:
+        "202":
+          description: Sync started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncAcceptedResponse"
+        "409":
+          description: A sync is already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncAcceptedResponse"
   /api/v1/yahoo/players:
     get:
       tags:
@@ -175,6 +200,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueSettingsResponse"
+  /api/v1/sync/runs:
+    get:
+      tags:
+      - Sync
+      summary: Recent sync runs
+      description: Outcome (counts) and the diff (players added/removed) of the most
+        recent syncs.
+      operationId: runs
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "200":
+          description: Runs returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncRunResponse"
+  /api/v1/players/skaters:
+    get:
+      tags:
+      - Players
+      summary: All skaters with eligible positions and season stats
+      operationId: skaters
+      responses:
+        "200":
+          description: Skaters returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+  /api/v1/players/goalies:
+    get:
+      tags:
+      - Players
+      summary: All goalies with eligible positions and season stats
+      operationId: goalies
+      responses:
+        "200":
+          description: Goalies returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
 components:
   schemas:
     AuthorizeUrlResponse:
@@ -185,6 +265,13 @@ components:
           description: The Yahoo consent URL the browser should be redirected to.
       required:
       - authorizeUrl
+    SyncAcceptedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
     YahooGoalieStats:
       type: object
       properties:
@@ -416,3 +503,193 @@ components:
       required:
       - name
       - statId
+    SyncRunResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        skaters:
+          type: integer
+          format: int32
+        goalies:
+          type: integer
+          format: int32
+        addedCount:
+          type: integer
+          format: int32
+        removedCount:
+          type: integer
+          format: int32
+        added:
+          type: array
+          items:
+            type: string
+        removed:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
+      required:
+      - added
+      - addedCount
+      - id
+      - removed
+      - removedCount
+      - startedAt
+      - status
+    SkaterResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        firstName:
+          type: string
+        lastName:
+          type: string
+        position:
+          type: string
+        eligiblePositions:
+          type: array
+          description: "Yahoo fantasy eligible positions (e.g. [\"C\",\"LW\"])"
+          items:
+            type: string
+        sweaterNumber:
+          type: integer
+          format: int32
+        teamAbbrev:
+          type: string
+        headshot:
+          type: string
+        gamesPlayed:
+          type: integer
+          format: int32
+        goals:
+          type: integer
+          format: int32
+        assists:
+          type: integer
+          format: int32
+        points:
+          type: integer
+          format: int32
+        plusMinus:
+          type: integer
+          format: int32
+        pim:
+          type: integer
+          format: int32
+        powerPlayGoals:
+          type: integer
+          format: int32
+        powerPlayPoints:
+          type: integer
+          format: int32
+        shorthandedGoals:
+          type: integer
+          format: int32
+        shorthandedPoints:
+          type: integer
+          format: int32
+        gameWinningGoals:
+          type: integer
+          format: int32
+        shots:
+          type: integer
+          format: int32
+        shootingPctg:
+          type: number
+          format: double
+        avgToi:
+          type: string
+        faceoffWinningPctg:
+          type: number
+          format: double
+        hits:
+          type: integer
+          format: int32
+        blockedShots:
+          type: integer
+          format: int32
+        totalFaceoffWins:
+          type: integer
+          format: int32
+        totalFaceoffLosses:
+          type: integer
+          format: int32
+      required:
+      - eligiblePositions
+      - firstName
+      - id
+      - lastName
+      - position
+    GoalieResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        firstName:
+          type: string
+        lastName:
+          type: string
+        position:
+          type: string
+        eligiblePositions:
+          type: array
+          description: "Yahoo fantasy eligible positions (e.g. [\"G\"])"
+          items:
+            type: string
+        sweaterNumber:
+          type: integer
+          format: int32
+        teamAbbrev:
+          type: string
+        headshot:
+          type: string
+        gamesPlayed:
+          type: integer
+          format: int32
+        gamesStarted:
+          type: integer
+          format: int32
+        wins:
+          type: integer
+          format: int32
+        losses:
+          type: integer
+          format: int32
+        shutouts:
+          type: integer
+          format: int32
+        shotsAgainst:
+          type: integer
+          format: int32
+        saves:
+          type: integer
+          format: int32
+        goalsAgainst:
+          type: integer
+          format: int32
+        goalsAgainstAvg:
+          type: number
+          format: double
+        savePctg:
+          type: number
+          format: double
+      required:
+      - eligiblePositions
+      - firstName
+      - id
+      - lastName
+      - position

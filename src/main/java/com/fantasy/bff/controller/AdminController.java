@@ -2,8 +2,8 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
-import com.fantasy.bff.generated.player.model.SyncAcceptedResponse;
-import com.fantasy.bff.generated.player.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
+import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,17 +54,16 @@ public class AdminController {
         return yahooServiceClient.connection(SERVICE_ACCOUNT_ID);
     }
 
-    @Operation(summary = "Trigger a player-service sync",
-            description = "Refreshes the merged player data (NHL stats + Yahoo positions).")
+    @Operation(summary = "Trigger a player sync",
+            description = "Refreshes the cached player read model from Yahoo.")
     @ApiResponse(responseCode = "200", description = "Sync triggered")
     @PostMapping("/player/sync")
     public SyncAcceptedResponse triggerPlayerSync() {
         return playerServiceClient.triggerSync();
     }
 
-    @Operation(summary = "Recent player-service sync runs",
-            description = "Outcome (counts + match rate) and the diff (players added/removed) "
-                    + "of the most recent syncs.")
+    @Operation(summary = "Recent player sync runs",
+            description = "Outcome (counts) and the diff (players added/removed) of the most recent syncs.")
     @ApiResponse(responseCode = "200", description = "Runs returned")
     @GetMapping("/player/sync/runs")
     public List<SyncRunResponse> playerSyncRuns(@RequestParam(defaultValue = "10") int limit) {

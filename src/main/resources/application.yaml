@@ -27,15 +27,10 @@ services:
   # Per-downstream read/connect timeouts (ms). These apply in every environment:
   # locally the services run on localhost, and on the deployed Coolify environments
   # they are co-located on the same Docker network — both respond quickly.
-  # player-service is the player read model (sourced entirely from Yahoo); the BFF reads
-  # all player data from here. timeout is generous (it returns ~1600 players).
-  player:
-    base-url: ${PLAYER_SERVICE_URL:http://localhost:8089}
-    timeout-ms: 10000
-    api-key: ${PLAYER_INTERNAL_API_KEY:}
+  # yahoo-service serves OAuth + the cached player read model (~1600 players); generous timeout.
   yahoo-fantasy:
     base-url: ${YAHOO_SERVICE_URL:http://localhost:8088}
-    timeout-ms: 7000
+    timeout-ms: 10000
     api-key: ${YAHOO_INTERNAL_API_KEY:}
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
