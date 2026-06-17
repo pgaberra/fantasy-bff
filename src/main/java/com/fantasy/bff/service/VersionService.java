@@ -22,29 +22,29 @@ public class VersionService {
 
     private final String ownVersion;
     private final RestClient databaseServiceClient;
-    private final RestClient nhlServiceClient;
+    private final RestClient playerServiceClient;
     private final RestClient yahooFantasyServiceClient;
 
     public VersionService(
             @Value("${info.app.version:dev}") String ownVersion,
             RestClient databaseServiceClient,
-            RestClient nhlServiceClient,
+            RestClient playerServiceClient,
             RestClient yahooFantasyServiceClient) {
         this.ownVersion = ownVersion;
         this.databaseServiceClient = databaseServiceClient;
-        this.nhlServiceClient = nhlServiceClient;
+        this.playerServiceClient = playerServiceClient;
         this.yahooFantasyServiceClient = yahooFantasyServiceClient;
     }
 
     public VersionsResponse getVersions() {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<ServiceVersion> db = executor.submit(probe("fantasy-db-service", databaseServiceClient));
-            Future<ServiceVersion> nhl = executor.submit(probe("fantasy-nhl-service", nhlServiceClient));
+            Future<ServiceVersion> player = executor.submit(probe("fantasy-player-service", playerServiceClient));
             Future<ServiceVersion> yahoo = executor.submit(probe("fantasy-yahoo-service", yahooFantasyServiceClient));
             return new VersionsResponse(List.of(
                     new ServiceVersion("fantasy-bff", true, ownVersion),
                     awaitResult(db),
-                    awaitResult(nhl),
+                    awaitResult(player),
                     awaitResult(yahoo)));
         }
     }
