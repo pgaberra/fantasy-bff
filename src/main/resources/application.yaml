@@ -47,6 +47,9 @@ security:
     - "/api/v1/auth/**"
     - "/api/v1/versions"
     - "/actuator/health"
+  # Comma-separated allowlist of admin emails (e.g. ADMIN_EMAILS="me@x.com,you@y.com").
+  # Logins by these addresses get an `admin` claim in their JWT (ROLE_ADMIN). Empty = no admins.
+  admin-emails: ${ADMIN_EMAILS:}
   google:
     # Public OAuth Client ID for "Sign in with Google" (not a secret). When unset,
     # /api/v1/auth/google rejects all requests and the web hides the Google button.

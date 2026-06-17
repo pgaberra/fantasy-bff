@@ -52,6 +52,22 @@ class JwtAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
         assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isEqualTo("user-123");
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                .extracting("authority").containsExactly("ROLE_USER");
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void doFilterInternal_withAdminClaim_grantsAdminAuthority() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer admin.token");
+        when(jwtTokenValidator.validateAndExtractAccessTokenClaims("admin.token")).thenReturn(claims);
+        when(claims.getSubject()).thenReturn("admin-1");
+        when(claims.get("admin", Boolean.class)).thenReturn(true);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                .extracting("authority").containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
         verify(filterChain).doFilter(request, response);
     }
 

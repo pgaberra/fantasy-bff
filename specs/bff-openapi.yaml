@@ -716,7 +716,10 @@ components:
         refreshExpiresInSeconds:
           type: integer
           format: int64
+        admin:
+          type: boolean
       required:
+      - admin
       - expiresInSeconds
       - refreshExpiresInSeconds
       - refreshToken

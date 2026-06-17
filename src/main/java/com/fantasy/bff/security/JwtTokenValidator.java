@@ -23,28 +23,35 @@ public class JwtTokenValidator {
     }
 
     private static final String CLAIM_TYPE = "type";
+    private static final String CLAIM_ADMIN = "admin";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
 
     public String generateToken(String userId, String email) {
-        return buildToken(userId, email, TYPE_ACCESS, jwtProperties.expirationMs());
+        return generateToken(userId, email, false);
+    }
+
+    public String generateToken(String userId, String email, boolean admin) {
+        return buildToken(userId, email, TYPE_ACCESS, jwtProperties.expirationMs(), admin);
     }
 
     public String generateRefreshToken(String userId, String email) {
-        return buildToken(userId, email, TYPE_REFRESH, jwtProperties.refreshExpirationMs());
+        return buildToken(userId, email, TYPE_REFRESH, jwtProperties.refreshExpirationMs(), false);
     }
 
-    private String buildToken(String userId, String email, String type, long expirationMs) {
+    private String buildToken(String userId, String email, String type, long expirationMs, boolean admin) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(userId)
                 .claim("email", email)
                 .claim(CLAIM_TYPE, type)
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(signingKey)
-                .compact();
+                .expiration(expiry);
+        if (admin) {
+            builder.claim(CLAIM_ADMIN, true);
+        }
+        return builder.signWith(signingKey).compact();
     }
 
     public Claims validateAndExtractAccessTokenClaims(String token) {
