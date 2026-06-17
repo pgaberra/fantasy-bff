@@ -19,20 +19,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VersionServiceTest {
 
     private WireMockServer dbServer;
-    private WireMockServer nhlServer;
+    private WireMockServer playerServer;
     private WireMockServer yahooServer;
 
     @BeforeEach
     void setUp() {
         dbServer = startServer("1.0.0");
-        nhlServer = startServer("2.0.0");
+        playerServer = startServer("2.0.0");
         yahooServer = startServer("3.0.0");
     }
 
     @AfterEach
     void tearDown() {
         dbServer.stop();
-        nhlServer.stop();
+        playerServer.stop();
         yahooServer.stop();
     }
 
@@ -54,13 +54,13 @@ class VersionServiceTest {
     @Test
     void reportsOwnVersionAndEachDownstreamVersionInOrder() {
         VersionService service = new VersionService("1.2.3-bff",
-                client(dbServer), client(nhlServer), client(yahooServer));
+                client(dbServer), client(playerServer), client(yahooServer));
 
         VersionsResponse response = service.getVersions();
 
         assertThat(response.services())
                 .extracting(ServiceVersion::name)
-                .containsExactly("fantasy-bff", "fantasy-db-service", "fantasy-nhl-service", "fantasy-yahoo-service");
+                .containsExactly("fantasy-bff", "fantasy-db-service", "fantasy-player-service", "fantasy-yahoo-service");
         assertThat(response.services())
                 .extracting(ServiceVersion::version)
                 .containsExactly("1.2.3-bff", "1.0.0", "2.0.0", "3.0.0");
@@ -74,7 +74,7 @@ class VersionServiceTest {
         dead.stubFor(get(urlPathEqualTo("/actuator/info")).willReturn(aResponse().withStatus(500)));
 
         VersionService service = new VersionService("1.2.3-bff",
-                client(dead), client(nhlServer), client(yahooServer));
+                client(dead), client(playerServer), client(yahooServer));
 
         VersionsResponse response = service.getVersions();
         dead.stop();
