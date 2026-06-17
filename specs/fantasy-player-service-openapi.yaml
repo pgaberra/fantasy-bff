@@ -33,6 +33,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncAcceptedResponse"
+  /api/v1/sync/runs:
+    get:
+      tags:
+      - Sync
+      summary: Recent sync runs
+      description: The most recent sync runs with their outcome (counts + match rate)
+        and the diff vs the previous run (players added/removed).
+      operationId: runs
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "200":
+          description: Runs returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncRunResponse"
   /api/v1/players/skaters:
     get:
       tags:
@@ -71,6 +96,59 @@ components:
         status:
           type: string
       required:
+      - status
+    SyncRunResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: success | failed
+        skaters:
+          type: integer
+          format: int32
+        skatersMatched:
+          type: integer
+          format: int32
+        goalies:
+          type: integer
+          format: int32
+        goaliesMatched:
+          type: integer
+          format: int32
+        addedCount:
+          type: integer
+          format: int32
+        removedCount:
+          type: integer
+          format: int32
+        added:
+          type: array
+          description: "Players added since the previous run, as \"Name (TEAM)\""
+          items:
+            type: string
+        removed:
+          type: array
+          description: "Players removed since the previous run, as \"Name (TEAM)\""
+          items:
+            type: string
+        error:
+          type: string
+      required:
+      - added
+      - addedCount
+      - id
+      - removed
+      - removedCount
+      - startedAt
       - status
     SkaterResponse:
       type: object

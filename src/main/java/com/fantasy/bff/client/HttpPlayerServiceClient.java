@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.player.model.SyncAcceptedResponse;
+import com.fantasy.bff.generated.player.model.SyncRunResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,9 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
     private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.player.model.GoalieResponse>>
             GOALIE_LIST = new ParameterizedTypeReference<>() {
     };
+    private static final ParameterizedTypeReference<List<SyncRunResponse>> SYNC_RUN_LIST =
+            new ParameterizedTypeReference<>() {
+            };
 
     @Override
     public List<SkaterResponse> getSkaters() {
@@ -66,6 +70,15 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 .uri("/api/v1/sync")
                 .retrieve()
                 .body(SyncAcceptedResponse.class);
+    }
+
+    @Override
+    public List<SyncRunResponse> getSyncRuns(int limit) {
+        List<SyncRunResponse> runs = restClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/v1/sync/runs").queryParam("limit", limit).build())
+                .retrieve()
+                .body(SYNC_RUN_LIST);
+        return runs == null ? List.of() : runs;
     }
 
     private static SkaterResponse toSkater(com.fantasy.bff.generated.player.model.SkaterResponse s) {

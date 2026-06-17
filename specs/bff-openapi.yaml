@@ -512,6 +512,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectionResponse"
+  /api/v1/admin/player/sync/runs:
+    get:
+      tags:
+      - Admin
+      summary: Recent player-service sync runs
+      description: Outcome (counts + match rate) and the diff (players added/removed)
+        of the most recent syncs.
+      operationId: playerSyncRuns
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "200":
+          description: Runs returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncRunResponse"
 components:
   schemas:
     PlayerProjection:
@@ -1172,6 +1197,56 @@ components:
           format: int32
       required:
       - gp
+    SyncRunResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        skaters:
+          type: integer
+          format: int32
+        skatersMatched:
+          type: integer
+          format: int32
+        goalies:
+          type: integer
+          format: int32
+        goaliesMatched:
+          type: integer
+          format: int32
+        addedCount:
+          type: integer
+          format: int32
+        removedCount:
+          type: integer
+          format: int32
+        added:
+          type: array
+          items:
+            type: string
+        removed:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
+      required:
+      - added
+      - addedCount
+      - id
+      - removed
+      - removedCount
+      - startedAt
+      - status
   securitySchemes:
     bearerAuth:
       type: http
