@@ -40,9 +40,12 @@ paths:
     get:
       tags:
       - Yahoo Players
-      summary: List every Yahoo player for a game with eligible positions
-      description: Paginates the Yahoo game player collection using the service account
-        token. Defaults to the NHL game.
+      summary: List every Yahoo player for a game with eligible positions and season
+        stats
+      description: "Paginates the Yahoo game player collection using the service account\
+        \ token, returning each player's identity, headshot, eligible positions and\
+        \ the requested season's stat line. Defaults to the NHL game; a blank season\
+        \ means the current season."
       operationId: players
       parameters:
       - name: gameKey
@@ -51,6 +54,11 @@ paths:
         schema:
           type: string
           default: nhl
+      - name: season
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: Players returned
@@ -177,6 +185,41 @@ components:
           description: The Yahoo consent URL the browser should be redirected to.
       required:
       - authorizeUrl
+    YahooGoalieStats:
+      type: object
+      properties:
+        gamesPlayed:
+          type: integer
+          format: int32
+        gamesStarted:
+          type: integer
+          format: int32
+        wins:
+          type: integer
+          format: int32
+        losses:
+          type: integer
+          format: int32
+        shutouts:
+          type: integer
+          format: int32
+        shotsAgainst:
+          type: integer
+          format: int32
+        saves:
+          type: integer
+          format: int32
+        goalsAgainst:
+          type: integer
+          format: int32
+        goalsAgainstAvg:
+          type: number
+          format: double
+          description: Goals against average
+        savePct:
+          type: number
+          format: double
+          description: Save percentage as a fraction (e.g. 0.911)
     YahooPlayerResponse:
       type: object
       properties:
@@ -186,18 +229,104 @@ components:
         fullName:
           type: string
           description: Player full name
+        firstName:
+          type: string
+          description: Player first name
+        lastName:
+          type: string
+          description: Player last name
         teamAbbrev:
           type: string
           description: Yahoo's editorial team abbreviation
+        position:
+          type: string
+          description: "Primary position (single, e.g. \"C\")"
+        uniformNumber:
+          type: integer
+          format: int32
+          description: Uniform / sweater number
+        imageUrl:
+          type: string
+          description: Full-resolution headshot image URL
+        goalie:
+          type: boolean
+          description: Whether the player is a goalie
         eligiblePositions:
           type: array
           description: "Yahoo fantasy eligible positions (e.g. [\"C\",\"LW\"])"
           items:
             type: string
+        skaterStats:
+          $ref: "#/components/schemas/YahooSkaterStats"
+          description: Season skater stat line; null for goalies
+        goalieStats:
+          $ref: "#/components/schemas/YahooGoalieStats"
+          description: Season goalie stat line; null for skaters
       required:
       - eligiblePositions
+      - firstName
       - fullName
+      - goalie
+      - lastName
       - yahooId
+    YahooSkaterStats:
+      type: object
+      properties:
+        gamesPlayed:
+          type: integer
+          format: int32
+        goals:
+          type: integer
+          format: int32
+        assists:
+          type: integer
+          format: int32
+        points:
+          type: integer
+          format: int32
+        plusMinus:
+          type: integer
+          format: int32
+        pim:
+          type: integer
+          format: int32
+        powerPlayGoals:
+          type: integer
+          format: int32
+        powerPlayPoints:
+          type: integer
+          format: int32
+        shorthandedGoals:
+          type: integer
+          format: int32
+        shorthandedPoints:
+          type: integer
+          format: int32
+        gameWinningGoals:
+          type: integer
+          format: int32
+        shotsOnGoal:
+          type: integer
+          format: int32
+        shootingPct:
+          type: number
+          format: double
+          description: Shooting percentage as a fraction (e.g. 0.151)
+        faceoffsWon:
+          type: integer
+          format: int32
+        faceoffsLost:
+          type: integer
+          format: int32
+        hits:
+          type: integer
+          format: int32
+        blocks:
+          type: integer
+          format: int32
+        avgTimeOnIce:
+          type: string
+          description: "Average time on ice per game, formatted \"MM:SS\""
     ConnectionResponse:
       type: object
       properties:
