@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import com.fantasy.bff.generated.player.model.SyncAcceptedResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -57,6 +58,14 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 .retrieve()
                 .body(GOALIE_LIST);
         return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toGoalie).toList();
+    }
+
+    @Override
+    public SyncAcceptedResponse triggerSync() {
+        return restClient.post()
+                .uri("/api/v1/sync")
+                .retrieve()
+                .body(SyncAcceptedResponse.class);
     }
 
     private static SkaterResponse toSkater(com.fantasy.bff.generated.player.model.SkaterResponse s) {

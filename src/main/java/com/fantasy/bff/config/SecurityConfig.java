@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").authenticated()
                         .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
                         .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
+                        .requestMatchers("/api/v1/admin", "/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(ex -> ex
