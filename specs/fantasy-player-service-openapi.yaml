@@ -140,6 +140,15 @@ components:
           description: "Players removed since the previous run, as \"Name (TEAM)\""
           items:
             type: string
+        unmatchedCount:
+          type: integer
+          format: int32
+        unmatched:
+          type: array
+          description: "Players with no Yahoo match this run (NHL-fallback position),\
+            \ as \"Name (TEAM)\""
+          items:
+            type: string
         error:
           type: string
       required:
@@ -150,6 +159,8 @@ components:
       - removedCount
       - startedAt
       - status
+      - unmatched
+      - unmatchedCount
     SkaterResponse:
       type: object
       properties:

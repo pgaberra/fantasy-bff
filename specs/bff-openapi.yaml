@@ -1237,6 +1237,13 @@ components:
           type: array
           items:
             type: string
+        unmatchedCount:
+          type: integer
+          format: int32
+        unmatched:
+          type: array
+          items:
+            type: string
         error:
           type: string
       required:
@@ -1247,6 +1254,8 @@ components:
       - removedCount
       - startedAt
       - status
+      - unmatched
+      - unmatchedCount
   securitySchemes:
     bearerAuth:
       type: http
