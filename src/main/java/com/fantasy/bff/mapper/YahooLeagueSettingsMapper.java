@@ -9,6 +9,7 @@ import com.fantasy.bff.generated.yahoo.model.StatCategory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,34 +29,32 @@ import java.util.Set;
 @Component
 public class YahooLeagueSettingsMapper {
 
-    private static final Map<Integer, String> STAT_ID_TO_KEY = Map.ofEntries(
-            Map.entry(0, "gp"), Map.entry(29, "gp"), Map.entry(30, "gp"),
-            Map.entry(1, "goals"), Map.entry(2, "assists"), Map.entry(3, "points"),
-            Map.entry(4, "plusMinus"), Map.entry(5, "pim"), Map.entry(6, "ppg"),
-            Map.entry(7, "ppa"), Map.entry(8, "ppp"), Map.entry(9, "shg"),
-            Map.entry(10, "sha"), Map.entry(11, "shp"), Map.entry(12, "gwg"),
-            Map.entry(14, "sog"), Map.entry(15, "shPct"), Map.entry(16, "fw"),
-            Map.entry(17, "fl"), Map.entry(18, "gs"), Map.entry(19, "w"),
-            Map.entry(20, "l"), Map.entry(22, "ga"), Map.entry(23, "gaa"),
-            Map.entry(24, "sa"), Map.entry(25, "sv"), Map.entry(26, "svPct"),
-            Map.entry(27, "sho"), Map.entry(31, "hits"), Map.entry(32, "blocks"),
-            Map.entry(34, "toiPerGame")
+    private static final Map<Integer, StatKey> STAT_ID_TO_KEY = Map.ofEntries(
+            Map.entry(0, StatKey.GP), Map.entry(29, StatKey.GP), Map.entry(30, StatKey.GP),
+            Map.entry(1, StatKey.GOALS), Map.entry(2, StatKey.ASSISTS), Map.entry(3, StatKey.POINTS),
+            Map.entry(4, StatKey.PLUS_MINUS), Map.entry(5, StatKey.PIM), Map.entry(6, StatKey.PPG),
+            Map.entry(7, StatKey.PPA), Map.entry(8, StatKey.PPP), Map.entry(9, StatKey.SHG),
+            Map.entry(10, StatKey.SHA), Map.entry(11, StatKey.SHP), Map.entry(12, StatKey.GWG),
+            Map.entry(14, StatKey.SOG), Map.entry(15, StatKey.SH_PCT), Map.entry(16, StatKey.FW),
+            Map.entry(17, StatKey.FL), Map.entry(18, StatKey.GS), Map.entry(19, StatKey.W),
+            Map.entry(20, StatKey.L), Map.entry(22, StatKey.GA), Map.entry(23, StatKey.GAA),
+            Map.entry(24, StatKey.SA), Map.entry(25, StatKey.SV), Map.entry(26, StatKey.SV_PCT),
+            Map.entry(27, StatKey.SHO), Map.entry(31, StatKey.HITS), Map.entry(32, StatKey.BLOCKS),
+            Map.entry(34, StatKey.TOI_PER_GAME)
     );
 
-    private static final Map<String, String> POSITION_TO_SLOT = Map.of(
-            "C", "c", "LW", "lw", "RW", "rw", "D", "d", "G", "g", "BN", "bn",
-            "UTIL", "util", "W", "util", "F", "util"
+    /** Yahoo roster position code -> projection roster slot. W/F are flex slots we approximate as util. */
+    private static final Map<String, Slot> POSITION_TO_SLOT = Map.of(
+            "C", Slot.C, "LW", Slot.LW, "RW", Slot.RW, "D", Slot.D, "G", Slot.G,
+            "BN", Slot.BN, "UTIL", Slot.UTIL, "W", Slot.UTIL, "F", Slot.UTIL
     );
 
+    /** Non-active Yahoo slots that don't belong in a draft roster. */
     private static final Set<String> IGNORED_POSITION_CODES = Set.of("IR", "IR+", "IR-LT", "NA");
 
-    private static final Set<String> UTILITY_KEYS = Set.of("gp", "toiPerGame");
-
-    private static final List<String> SCORING_STAT_KEYS = List.of(
-            "goals", "assists", "points", "plusMinus", "pim", "ppg", "ppa", "ppp",
-            "shg", "sha", "shp", "gwg", "sog", "shPct", "fw", "fl", "hits", "blocks",
-            "gs", "w", "l", "sho", "sa", "sv", "ga", "gaa", "svPct"
-    );
+    private enum Slot {
+        C, LW, RW, D, UTIL, BN, G
+    }
 
     public LeagueProjectionSettingsResponse toProjectionSettings(
             LeagueSettingsResponse settings, Integer numTeams) {
@@ -67,13 +66,14 @@ public class YahooLeagueSettingsMapper {
         Map<String, Double> scoredWeights = new LinkedHashMap<>();
 
         for (StatCategory category : settings.getStatCategories()) {
-            String key = STAT_ID_TO_KEY.get(category.getStatId());
-            if (key == null) {
+            StatKey statKey = STAT_ID_TO_KEY.get(category.getStatId());
+            if (statKey == null) {
                 String label = category.getDisplayName() != null ? category.getDisplayName() : category.getName();
                 unsupportedStats.add(label);
                 continue;
             }
-            if (UTILITY_KEYS.contains(key)) {
+            String key = statKey.key();
+            if (statKey.isUtility()) {
                 if (!activeUtilityColumns.contains(key)) {
                     activeUtilityColumns.add(key);
                 }
@@ -87,8 +87,8 @@ public class YahooLeagueSettingsMapper {
             }
         }
 
-        if (!activeUtilityColumns.contains("gp")) {
-            activeUtilityColumns.add(0, "gp");
+        if (!activeUtilityColumns.contains(StatKey.GP.key())) {
+            activeUtilityColumns.add(0, StatKey.GP.key());
         }
 
         RosterMapping roster = mapRoster(settings.getRosterPositions());
@@ -124,44 +124,42 @@ public class YahooLeagueSettingsMapper {
     }
 
     private RosterMapping mapRoster(List<RosterSlot> positions) {
-        int c = 0, lw = 0, rw = 0, d = 0, util = 0, bn = 0, g = 0;
+        Map<Slot, Integer> counts = new EnumMap<>(Slot.class);
+        for (Slot slot : Slot.values()) {
+            counts.put(slot, 0);
+        }
         List<String> unsupported = new ArrayList<>();
-        for (RosterSlot slot : positions) {
-            String raw = slot.getPosition() == null ? "" : slot.getPosition();
+        for (RosterSlot position : positions) {
+            String raw = position.getPosition() == null ? "" : position.getPosition();
             String code = raw.toUpperCase();
-            int count = slot.getCount() == null ? 0 : slot.getCount();
+            int count = position.getCount() == null ? 0 : position.getCount();
             if (IGNORED_POSITION_CODES.contains(code)) {
                 unsupported.add(raw);
                 continue;
             }
-            String bucket = POSITION_TO_SLOT.get(code);
-            if (bucket == null) {
-                util += count;
+            Slot slot = POSITION_TO_SLOT.get(code);
+            if (slot == null) {
+                counts.merge(Slot.UTIL, count, Integer::sum);
                 unsupported.add(raw);
                 continue;
             }
-            switch (bucket) {
-                case "c" -> c += count;
-                case "lw" -> lw += count;
-                case "rw" -> rw += count;
-                case "d" -> d += count;
-                case "util" -> util += count;
-                case "bn" -> bn += count;
-                case "g" -> g += count;
-                default -> { }
-            }
+            counts.merge(slot, count, Integer::sum);
             if (code.equals("W") || code.equals("F")) {
                 unsupported.add(raw);
             }
         }
-        RosterSlots slots = new RosterSlots().c(c).lw(lw).rw(rw).d(d).util(util).bn(bn).g(g);
+        RosterSlots slots = new RosterSlots()
+                .c(counts.get(Slot.C)).lw(counts.get(Slot.LW)).rw(counts.get(Slot.RW))
+                .d(counts.get(Slot.D)).util(counts.get(Slot.UTIL)).bn(counts.get(Slot.BN)).g(counts.get(Slot.G));
         return new RosterMapping(slots, unsupported);
     }
 
     private Map<String, Double> buildWeights(Map<String, Double> scored) {
         Map<String, Double> weights = new LinkedHashMap<>();
-        for (String key : SCORING_STAT_KEYS) {
-            weights.put(key, scored.getOrDefault(key, 0.0));
+        for (StatKey statKey : StatKey.values()) {
+            if (!statKey.isUtility()) {
+                weights.put(statKey.key(), scored.getOrDefault(statKey.key(), 0.0));
+            }
         }
         return weights;
     }
