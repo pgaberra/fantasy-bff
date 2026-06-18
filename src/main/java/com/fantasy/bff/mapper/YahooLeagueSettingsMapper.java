@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -101,7 +102,7 @@ public final class YahooLeagueSettingsMapper {
                 activeUtilityColumns,
                 statWeights,
                 roster.rosterSlots(),
-                clampLeagueSize(numTeams),
+                clampLeagueSize(numTeams).orElse(null),
                 unsupportedStats,
                 roster.unsupported()
         );
@@ -166,10 +167,7 @@ public final class YahooLeagueSettingsMapper {
         return weights;
     }
 
-    private static Integer clampLeagueSize(Integer numTeams) {
-        if (numTeams == null) {
-            return null;
-        }
-        return Math.min(30, Math.max(2, numTeams));
+    private static Optional<Integer> clampLeagueSize(Integer numTeams) {
+        return Optional.ofNullable(numTeams).map(teams -> Math.min(30, Math.max(2, teams)));
     }
 }
