@@ -6,6 +6,7 @@ import com.fantasy.bff.generated.db.model.RosterSlots;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.RosterSlot;
 import com.fantasy.bff.generated.yahoo.model.StatCategory;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,10 +25,8 @@ import java.util.Set;
  * dimension is ignored and the result collapses to points vs category. Unrecognised codes
  * fall back to per-stat pointValue presence (points leagues carry one, category/roto don't).
  */
-public final class YahooLeagueSettingsMapper {
-
-    private YahooLeagueSettingsMapper() {
-    }
+@Component
+public class YahooLeagueSettingsMapper {
 
     private static final Map<Integer, String> STAT_ID_TO_KEY = Map.ofEntries(
             Map.entry(0, "gp"), Map.entry(29, "gp"), Map.entry(30, "gp"),
@@ -58,7 +57,7 @@ public final class YahooLeagueSettingsMapper {
             "gs", "w", "l", "sho", "sa", "sv", "ga", "gaa", "svPct"
     );
 
-    public static LeagueProjectionSettingsResponse toProjectionSettings(
+    public LeagueProjectionSettingsResponse toProjectionSettings(
             LeagueSettingsResponse settings, Integer numTeams) {
         ScoringBasis scoringType = scoringBasis(settings);
 
@@ -108,7 +107,7 @@ public final class YahooLeagueSettingsMapper {
         );
     }
 
-    private static ScoringBasis scoringBasis(LeagueSettingsResponse settings) {
+    private ScoringBasis scoringBasis(LeagueSettingsResponse settings) {
         String code = settings.getScoringType() == null ? "" : settings.getScoringType().trim().toLowerCase();
         if (code.equals("point") || code.equals("headpoint")) {
             return ScoringBasis.POINTS;
@@ -124,7 +123,7 @@ public final class YahooLeagueSettingsMapper {
     private record RosterMapping(RosterSlots rosterSlots, List<String> unsupported) {
     }
 
-    private static RosterMapping mapRoster(List<RosterSlot> positions) {
+    private RosterMapping mapRoster(List<RosterSlot> positions) {
         int c = 0, lw = 0, rw = 0, d = 0, util = 0, bn = 0, g = 0;
         List<String> unsupported = new ArrayList<>();
         for (RosterSlot slot : positions) {
@@ -159,7 +158,7 @@ public final class YahooLeagueSettingsMapper {
         return new RosterMapping(slots, unsupported);
     }
 
-    private static Map<String, Double> buildWeights(Map<String, Double> scored) {
+    private Map<String, Double> buildWeights(Map<String, Double> scored) {
         Map<String, Double> weights = new LinkedHashMap<>();
         for (String key : SCORING_STAT_KEYS) {
             weights.put(key, scored.getOrDefault(key, 0.0));
@@ -167,7 +166,7 @@ public final class YahooLeagueSettingsMapper {
         return weights;
     }
 
-    private static Optional<Integer> clampLeagueSize(Integer numTeams) {
+    private Optional<Integer> clampLeagueSize(Integer numTeams) {
         return Optional.ofNullable(numTeams).map(teams -> Math.min(30, Math.max(2, teams)));
     }
 }

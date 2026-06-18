@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
 public class YahooLeagueService {
 
     private final YahooServiceClient yahooServiceClient;
+    private final YahooLeagueSettingsMapper mapper;
 
-    public YahooLeagueService(YahooServiceClient yahooServiceClient) {
+    public YahooLeagueService(YahooServiceClient yahooServiceClient, YahooLeagueSettingsMapper mapper) {
         this.yahooServiceClient = yahooServiceClient;
+        this.mapper = mapper;
     }
 
     public LeagueProjectionSettingsResponse projectionSettings(String appUserId, String leagueKey) {
@@ -23,6 +25,6 @@ public class YahooLeagueService {
                 .map(LeagueSummary::getNumTeams)
                 .findFirst()
                 .orElse(null);
-        return YahooLeagueSettingsMapper.toProjectionSettings(settings, numTeams);
+        return mapper.toProjectionSettings(settings, numTeams);
     }
 }

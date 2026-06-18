@@ -13,6 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class YahooLeagueSettingsMapperTest {
 
+    private final YahooLeagueSettingsMapper mapper = new YahooLeagueSettingsMapper();
+
     private static StatCategory cat(int statId, String name) {
         return new StatCategory().statId(statId).name(name).displayName(name);
     }
@@ -38,7 +40,7 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void mapsHeadToHeadPointsLeagueDerivingWeightsAndZeroingTheRest() {
-        LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("headpoint",
                         List.of(cat(1, "Goals", 3), cat(2, "Assists", 2), cat(25, "Saves", 0.2)),
                         List.of(slot("C", 2), slot("G", 2), slot("BN", 4))),
@@ -57,7 +59,7 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void mapsHeadToHeadCategoriesLeagueWithNullWeights() {
-        LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("head",
                         List.of(cat(1, "Goals"), cat(2, "Assists"), cat(19, "Wins"), cat(26, "Save %")),
                         List.of()),
@@ -71,7 +73,7 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void mapsRotisserieLeagueAsCategory() {
-        LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("roto", List.of(cat(1, "Goals"), cat(2, "Assists")), List.of()), null);
 
         assertThat(mapped.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
@@ -80,7 +82,7 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void mapsSeasonLongPointsLeagueAsPoints() {
-        LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("point", List.of(cat(1, "Goals", 1.5)), List.of()), null);
 
         assertThat(mapped.scoringType()).isEqualTo(ScoringBasis.POINTS);
@@ -89,18 +91,18 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void fallsBackToPointValuePresenceForUnrecognisedScoringType() {
-        LeagueProjectionSettingsResponse withWeights = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse withWeights = mapper.toProjectionSettings(
                 league("mystery", List.of(cat(1, "Goals", 2)), List.of()), null);
         assertThat(withWeights.scoringType()).isEqualTo(ScoringBasis.POINTS);
 
-        LeagueProjectionSettingsResponse withoutWeights = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse withoutWeights = mapper.toProjectionSettings(
                 league("mystery", List.of(cat(1, "Goals")), List.of()), null);
         assertThat(withoutWeights.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
     }
 
     @Test
     void flagsStatsWithNoProjectionEquivalentAsUnsupported() {
-        LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("head", List.of(cat(1, "Goals"), cat(13, "Game-Tying Goals")), List.of()), null);
 
         assertThat(mapped.activeScoringColumns()).containsExactly("goals");
@@ -109,18 +111,18 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void routesGpAndToiCategoriesToUtilityAndAlwaysKeepsGp() {
-        LeagueProjectionSettingsResponse withToi = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse withToi = mapper.toProjectionSettings(
                 league("head", List.of(cat(34, "Time on Ice/G"), cat(1, "Goals")), List.of()), null);
         assertThat(withToi.activeUtilityColumns()).containsExactly("gp", "toiPerGame");
 
-        LeagueProjectionSettingsResponse noUtil = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse noUtil = mapper.toProjectionSettings(
                 league("head", List.of(cat(1, "Goals")), List.of()), null);
         assertThat(noUtil.activeUtilityColumns()).containsExactly("gp");
     }
 
     @Test
     void mapsRosterSlotsIgnoresIrAndApproximatesWingToUtil() {
-        LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("head", List.of(),
                         List.of(slot("C", 2), slot("LW", 2), slot("RW", 2), slot("D", 4),
                                 slot("Util", 1), slot("G", 2), slot("BN", 4), slot("IR", 2), slot("W", 1))),
@@ -138,13 +140,13 @@ class YahooLeagueSettingsMapperTest {
 
     @Test
     void clampsLeagueSizeAndLeavesItNullWhenUnknown() {
-        assertThat(YahooLeagueSettingsMapper.toProjectionSettings(league("head", List.of(), List.of()), null)
+        assertThat(mapper.toProjectionSettings(league("head", List.of(), List.of()), null)
                 .leagueSize()).isNull();
-        assertThat(YahooLeagueSettingsMapper.toProjectionSettings(league("head", List.of(), List.of()), 40)
+        assertThat(mapper.toProjectionSettings(league("head", List.of(), List.of()), 40)
                 .leagueSize()).isEqualTo(30);
-        assertThat(YahooLeagueSettingsMapper.toProjectionSettings(league("head", List.of(), List.of()), 1)
+        assertThat(mapper.toProjectionSettings(league("head", List.of(), List.of()), 1)
                 .leagueSize()).isEqualTo(2);
-        assertThat(YahooLeagueSettingsMapper.toProjectionSettings(league("head", List.of(), List.of()), 14)
+        assertThat(mapper.toProjectionSettings(league("head", List.of(), List.of()), 14)
                 .leagueSize()).isEqualTo(14);
     }
 }
