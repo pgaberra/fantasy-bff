@@ -57,14 +57,14 @@ security:
     # Per-client-IP limits on the public auth endpoints (brute-force / reset-email abuse).
     # Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds = fixed window length.
     enabled: ${RATE_LIMIT_ENABLED:true}
-    # Applied to a rate-limited endpoint that has no explicit rule below.
-    fallback: { limit: 20, window-seconds: 300 }
-    rules:
-      login: { limit: 10, window-seconds: 300 }
-      register: { limit: 5, window-seconds: 3600 }
-      google: { limit: 20, window-seconds: 300 }
-      password-forgot: { limit: 5, window-seconds: 900 }
-      password-reset: { limit: 10, window-seconds: 900 }
+    # Protected endpoints (keyed by request path) and their per-IP limits.
+    # Add or remove an endpoint here — no code change needed.
+    endpoints:
+      "/api/v1/auth/login": { limit: 10, window-seconds: 300 }
+      "/api/v1/auth/register": { limit: 5, window-seconds: 3600 }
+      "/api/v1/auth/google": { limit: 20, window-seconds: 300 }
+      "/api/v1/auth/password/forgot": { limit: 5, window-seconds: 900 }
+      "/api/v1/auth/password/reset": { limit: 10, window-seconds: 900 }
 
 springdoc:
   api-docs:

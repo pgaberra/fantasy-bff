@@ -23,8 +23,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "security.jwt.secret=test-secret-key-that-is-long-enough-for-hmac-sha256-algorithm",
         "security.rate-limit.enabled=true",
-        "security.rate-limit.rules.login.limit=2",
-        "security.rate-limit.rules.login.window-seconds=60"
+        "security.rate-limit.endpoints[/api/v1/auth/login].limit=2",
+        "security.rate-limit.endpoints[/api/v1/auth/login].window-seconds=60"
 })
 class RateLimitFilterTest {
 
