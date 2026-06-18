@@ -57,6 +57,8 @@ security:
     # Per-client-IP limits on the public auth endpoints (brute-force / reset-email abuse).
     # Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds = fixed window length.
     enabled: ${RATE_LIMIT_ENABLED:true}
+    # Applied to a rate-limited endpoint that has no explicit rule below.
+    fallback: { limit: 20, window-seconds: 300 }
     rules:
       login: { limit: 10, window-seconds: 300 }
       register: { limit: 5, window-seconds: 3600 }

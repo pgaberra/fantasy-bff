@@ -26,8 +26,6 @@ import java.util.Map;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final RateLimitProperties.Rule FALLBACK = new RateLimitProperties.Rule(20, 300);
-
     private static final Map<String, String> PATH_RULES = Map.of(
             "/api/v1/auth/login", "login",
             "/api/v1/auth/register", "register",
@@ -58,7 +56,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
         String ruleKey = PATH_RULES.get(request.getRequestURI());
-        RateLimitProperties.Rule rule = properties.rules().getOrDefault(ruleKey, FALLBACK);
+        RateLimitProperties.Rule rule = properties.rules().getOrDefault(ruleKey, properties.fallback());
         String key = ruleKey + ":" + clientIp(request);
 
         if (rateLimiter.tryAcquire(key, rule.limit(), Duration.ofSeconds(rule.windowSeconds()))) {
