@@ -22,8 +22,8 @@ public class YahooLeagueService {
         LeagueSettingsResponse settings = yahooServiceClient.settings(appUserId, leagueKey);
         Integer numTeams = yahooServiceClient.leagues(appUserId).getLeagues().stream()
                 .filter(league -> leagueKey.equals(league.getLeagueKey()))
-                .map(LeagueSummary::getNumTeams)
                 .findFirst()
+                .map(LeagueSummary::getNumTeams)
                 .orElse(null);
         return mapper.toProjectionSettings(settings, numTeams);
     }

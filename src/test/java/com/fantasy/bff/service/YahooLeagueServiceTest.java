@@ -60,4 +60,15 @@ class YahooLeagueServiceTest {
         assertThat(service.projectionSettings(USER_ID, LEAGUE_KEY)).isSameAs(mapped);
         verify(mapper).toProjectionSettings(settings, null);
     }
+
+    @Test
+    void passesNullNumTeamsWhenTheMatchedLeagueHasNoTeamCount() {
+        when(client.settings(USER_ID, LEAGUE_KEY)).thenReturn(settings);
+        when(client.leagues(USER_ID)).thenReturn(new LeaguesResponse().leagues(List.of(
+                new LeagueSummary().leagueKey(LEAGUE_KEY).name("VNHLFL"))));
+        when(mapper.toProjectionSettings(settings, null)).thenReturn(mapped);
+
+        assertThat(service.projectionSettings(USER_ID, LEAGUE_KEY)).isSameAs(mapped);
+        verify(mapper).toProjectionSettings(settings, null);
+    }
 }
