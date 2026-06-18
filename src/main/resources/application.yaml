@@ -53,6 +53,16 @@ security:
     secret: ${JWT_SECRET:}
     expiration-ms: 900000 # 15 minutes
     refresh-expiration-ms: 2592000000  # 30 days
+  rate-limit:
+    # Per-client-IP limits on the public auth endpoints (brute-force / reset-email abuse).
+    # Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds = fixed window length.
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    rules:
+      login: { limit: 10, window-seconds: 300 }
+      register: { limit: 5, window-seconds: 3600 }
+      google: { limit: 20, window-seconds: 300 }
+      password-forgot: { limit: 5, window-seconds: 900 }
+      password-reset: { limit: 10, window-seconds: 900 }
 
 springdoc:
   api-docs:
