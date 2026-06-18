@@ -1,6 +1,7 @@
 package com.fantasy.bff.mapper;
 
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
+import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.RosterSlot;
 import com.fantasy.bff.generated.yahoo.model.StatCategory;
@@ -43,7 +44,7 @@ class YahooLeagueSettingsMapperTest {
                         List.of(slot("C", 2), slot("G", 2), slot("BN", 4))),
                 12);
 
-        assertThat(mapped.scoringType()).isEqualTo("points");
+        assertThat(mapped.scoringType()).isEqualTo(ScoringBasis.POINTS);
         assertThat(mapped.activeScoringColumns()).containsExactly("goals", "assists", "sv");
         assertThat(mapped.statWeights()).containsEntry("goals", 3.0).containsEntry("assists", 2.0)
                 .containsEntry("sv", 0.2).containsEntry("hits", 0.0);
@@ -62,7 +63,7 @@ class YahooLeagueSettingsMapperTest {
                         List.of()),
                 10);
 
-        assertThat(mapped.scoringType()).isEqualTo("category");
+        assertThat(mapped.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
         assertThat(mapped.statWeights()).isNull();
         assertThat(mapped.activeScoringColumns()).containsExactly("goals", "assists", "w", "svPct");
         assertThat(mapped.leagueSize()).isEqualTo(10);
@@ -73,7 +74,7 @@ class YahooLeagueSettingsMapperTest {
         LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
                 league("roto", List.of(cat(1, "Goals"), cat(2, "Assists")), List.of()), null);
 
-        assertThat(mapped.scoringType()).isEqualTo("category");
+        assertThat(mapped.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
         assertThat(mapped.statWeights()).isNull();
     }
 
@@ -82,7 +83,7 @@ class YahooLeagueSettingsMapperTest {
         LeagueProjectionSettingsResponse mapped = YahooLeagueSettingsMapper.toProjectionSettings(
                 league("point", List.of(cat(1, "Goals", 1.5)), List.of()), null);
 
-        assertThat(mapped.scoringType()).isEqualTo("points");
+        assertThat(mapped.scoringType()).isEqualTo(ScoringBasis.POINTS);
         assertThat(mapped.statWeights()).containsEntry("goals", 1.5);
     }
 
@@ -90,11 +91,11 @@ class YahooLeagueSettingsMapperTest {
     void fallsBackToPointValuePresenceForUnrecognisedScoringType() {
         LeagueProjectionSettingsResponse withWeights = YahooLeagueSettingsMapper.toProjectionSettings(
                 league("mystery", List.of(cat(1, "Goals", 2)), List.of()), null);
-        assertThat(withWeights.scoringType()).isEqualTo("points");
+        assertThat(withWeights.scoringType()).isEqualTo(ScoringBasis.POINTS);
 
         LeagueProjectionSettingsResponse withoutWeights = YahooLeagueSettingsMapper.toProjectionSettings(
                 league("mystery", List.of(cat(1, "Goals")), List.of()), null);
-        assertThat(withoutWeights.scoringType()).isEqualTo("category");
+        assertThat(withoutWeights.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
     }
 
     @Test

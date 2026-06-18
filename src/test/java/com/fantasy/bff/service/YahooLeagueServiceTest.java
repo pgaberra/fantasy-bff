@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
+import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSummary;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
@@ -41,7 +42,7 @@ class YahooLeagueServiceTest {
 
         LeagueProjectionSettingsResponse result = service.projectionSettings(USER_ID, LEAGUE_KEY);
 
-        assertThat(result.scoringType()).isEqualTo("points");
+        assertThat(result.scoringType()).isEqualTo(ScoringBasis.POINTS);
         assertThat(result.leagueSize()).isEqualTo(14);
         assertThat(result.statWeights()).containsEntry("goals", 4.5);
     }

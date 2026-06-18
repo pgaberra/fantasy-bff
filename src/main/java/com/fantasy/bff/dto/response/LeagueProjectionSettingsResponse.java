@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 public record LeagueProjectionSettingsResponse(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"points", "category"})
-        String scoringType,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ScoringBasis scoringType,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> activeScoringColumns,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> activeUtilityColumns,
         @Schema(description = "Per-stat point weights for points leagues; null for category leagues.")

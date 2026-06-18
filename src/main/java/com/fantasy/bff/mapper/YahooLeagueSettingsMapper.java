@@ -1,6 +1,7 @@
 package com.fantasy.bff.mapper;
 
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
+import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.generated.db.model.RosterSlots;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.RosterSlot;
@@ -58,7 +59,7 @@ public final class YahooLeagueSettingsMapper {
 
     public static LeagueProjectionSettingsResponse toProjectionSettings(
             LeagueSettingsResponse settings, Integer numTeams) {
-        String scoringType = scoringBasis(settings);
+        ScoringBasis scoringType = scoringBasis(settings);
 
         List<String> activeScoringColumns = new ArrayList<>();
         List<String> activeUtilityColumns = new ArrayList<>();
@@ -81,7 +82,7 @@ public final class YahooLeagueSettingsMapper {
             if (!activeScoringColumns.contains(key)) {
                 activeScoringColumns.add(key);
             }
-            if (scoringType.equals("points") && category.getPointValue() != null) {
+            if (scoringType == ScoringBasis.POINTS && category.getPointValue() != null) {
                 scoredWeights.put(key, category.getPointValue());
             }
         }
@@ -92,7 +93,7 @@ public final class YahooLeagueSettingsMapper {
 
         RosterMapping roster = mapRoster(settings.getRosterPositions());
 
-        Map<String, Double> statWeights = scoringType.equals("points") ? buildWeights(scoredWeights) : null;
+        Map<String, Double> statWeights = scoringType == ScoringBasis.POINTS ? buildWeights(scoredWeights) : null;
 
         return new LeagueProjectionSettingsResponse(
                 scoringType,
@@ -106,17 +107,17 @@ public final class YahooLeagueSettingsMapper {
         );
     }
 
-    private static String scoringBasis(LeagueSettingsResponse settings) {
+    private static ScoringBasis scoringBasis(LeagueSettingsResponse settings) {
         String code = settings.getScoringType() == null ? "" : settings.getScoringType().trim().toLowerCase();
         if (code.equals("point") || code.equals("headpoint")) {
-            return "points";
+            return ScoringBasis.POINTS;
         }
         if (code.equals("head") || code.equals("roto") || code.equals("headone")) {
-            return "category";
+            return ScoringBasis.CATEGORY;
         }
         boolean hasWeights = settings.getStatCategories().stream()
                 .anyMatch(category -> category.getPointValue() != null);
-        return hasWeights ? "points" : "category";
+        return hasWeights ? ScoringBasis.POINTS : ScoringBasis.CATEGORY;
     }
 
     private record RosterMapping(RosterSlots rosterSlots, List<String> unsupported) {
