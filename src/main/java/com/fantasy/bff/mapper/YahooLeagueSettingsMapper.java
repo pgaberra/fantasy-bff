@@ -19,7 +19,7 @@ import java.util.Set;
 /**
  * Translates a Yahoo league's settings into the projection-domain shape the web applies.
  *
- * Yahoo bundles the matchup format (head-to-head vs season-long) and the scoring basis
+ * <p>Yahoo bundles the matchup format (head-to-head vs season-long) and the scoring basis
  * (points vs categories) into a single scoring_type string: head/headpoint/headone are
  * head-to-head, roto/point are season-long; head/roto/headone are categories, point/
  * headpoint are points. Only the scoring basis affects player valuation, so the matchup
@@ -88,7 +88,7 @@ public class YahooLeagueSettingsMapper {
         }
 
         if (!activeUtilityColumns.contains(StatKey.GP.key())) {
-            activeUtilityColumns.add(0, StatKey.GP.key());
+            activeUtilityColumns.addFirst(StatKey.GP.key());
         }
 
         RosterMapping roster = mapRoster(settings.getRosterPositions());
@@ -108,7 +108,7 @@ public class YahooLeagueSettingsMapper {
     }
 
     private ScoringBasis scoringBasis(LeagueSettingsResponse settings) {
-        String code = settings.getScoringType() == null ? "" : settings.getScoringType().trim().toLowerCase();
+        String code = settings.getScoringType().trim().toLowerCase();
         if (code.equals("point") || code.equals("headpoint")) {
             return ScoringBasis.POINTS;
         }
@@ -130,9 +130,9 @@ public class YahooLeagueSettingsMapper {
         }
         List<String> unsupported = new ArrayList<>();
         for (RosterSlot position : positions) {
-            String raw = position.getPosition() == null ? "" : position.getPosition();
+            String raw = position.getPosition();
             String code = raw.toUpperCase();
-            int count = position.getCount() == null ? 0 : position.getCount();
+            int count = position.getCount();
             if (IGNORED_POSITION_CODES.contains(code)) {
                 unsupported.add(raw);
                 continue;
@@ -165,6 +165,6 @@ public class YahooLeagueSettingsMapper {
     }
 
     private Optional<Integer> clampLeagueSize(Integer numTeams) {
-        return Optional.ofNullable(numTeams).map(teams -> Math.min(30, Math.max(2, teams)));
+        return Optional.ofNullable(numTeams).map(teams -> Math.clamp(teams, 2, 30));
     }
 }
