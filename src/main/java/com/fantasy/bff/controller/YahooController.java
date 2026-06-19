@@ -1,10 +1,11 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
-import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
+import com.fantasy.bff.service.YahooLeagueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -26,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class YahooController {
 
     private final YahooServiceClient yahooServiceClient;
+    private final YahooLeagueService yahooLeagueService;
 
-    public YahooController(YahooServiceClient yahooServiceClient) {
+    public YahooController(YahooServiceClient yahooServiceClient, YahooLeagueService yahooLeagueService) {
         this.yahooServiceClient = yahooServiceClient;
+        this.yahooLeagueService = yahooLeagueService;
     }
 
     @Operation(summary = "Start connecting the user's Yahoo account",
@@ -56,14 +59,16 @@ public class YahooController {
         return yahooServiceClient.leagues(userId);
     }
 
-    @Operation(summary = "Get a league's scoring + roster settings")
+    @Operation(summary = "Get a league's settings mapped to projection settings",
+            description = "Maps the Yahoo league's scoring basis (points vs category), active stat "
+                    + "columns, point weights, roster slots and size into the projection's own shape.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Settings returned"),
+            @ApiResponse(responseCode = "200", description = "Mapped settings returned"),
             @ApiResponse(responseCode = "404", description = "User has not connected Yahoo")
     })
-    @GetMapping("/leagues/{leagueKey}/settings")
-    public LeagueSettingsResponse settings(@AuthenticationPrincipal String userId,
-                                           @PathVariable String leagueKey) {
-        return yahooServiceClient.settings(userId, leagueKey);
+    @GetMapping("/leagues/{leagueKey}/projection-settings")
+    public LeagueProjectionSettingsResponse projectionSettings(@AuthenticationPrincipal String userId,
+                                                               @PathVariable String leagueKey) {
+        return yahooLeagueService.projectionSettings(userId, leagueKey);
     }
 }

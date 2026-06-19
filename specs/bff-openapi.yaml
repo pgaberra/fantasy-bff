@@ -378,12 +378,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaguesResponse"
-  /api/v1/yahoo/leagues/{leagueKey}/settings:
+  /api/v1/yahoo/leagues/{leagueKey}/projection-settings:
     get:
       tags:
       - Yahoo
-      summary: Get a league's scoring + roster settings
-      operationId: settings
+      summary: Get a league's settings mapped to projection settings
+      description: "Maps the Yahoo league's scoring basis (points vs category), active\
+        \ stat columns, point weights, roster slots and size into the projection's\
+        \ own shape."
+      operationId: projectionSettings
       parameters:
       - name: leagueKey
         in: path
@@ -392,17 +395,17 @@ paths:
           type: string
       responses:
         "200":
-          description: Settings returned
+          description: Mapped settings returned
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LeagueSettingsResponse"
+                $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
         "404":
           description: User has not connected Yahoo
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LeagueSettingsResponse"
+                $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
   /api/v1/yahoo/connection:
     get:
       tags:
@@ -885,60 +888,50 @@ components:
             $ref: "#/components/schemas/LeagueSummary"
       required:
       - leagues
-    LeagueSettingsResponse:
+    LeagueProjectionSettingsResponse:
       type: object
       properties:
-        leagueKey:
-          type: string
-        name:
-          type: string
         scoringType:
           type: string
-        statCategories:
+          enum:
+          - points
+          - category
+        activeScoringColumns:
           type: array
           items:
-            $ref: "#/components/schemas/StatCategory"
-        rosterPositions:
+            type: string
+        activeUtilityColumns:
           type: array
           items:
-            $ref: "#/components/schemas/RosterSlot"
+            type: string
+        statWeights:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: Per-stat point weights for points leagues; null for category
+            leagues.
+        rosterSlots:
+          $ref: "#/components/schemas/RosterSlots"
+        leagueSize:
+          type: integer
+          format: int32
+          description: League size from the Yahoo league's team count; null when unknown.
+        unsupportedStats:
+          type: array
+          items:
+            type: string
+        unsupportedRosterCodes:
+          type: array
+          items:
+            type: string
       required:
-      - leagueKey
-      - name
-      - rosterPositions
+      - activeScoringColumns
+      - activeUtilityColumns
+      - rosterSlots
       - scoringType
-      - statCategories
-    RosterSlot:
-      type: object
-      properties:
-        position:
-          type: string
-        count:
-          type: integer
-          format: int32
-        positionType:
-          type: string
-      required:
-      - count
-      - position
-    StatCategory:
-      type: object
-      properties:
-        statId:
-          type: integer
-          format: int32
-        name:
-          type: string
-        displayName:
-          type: string
-        positionType:
-          type: string
-        pointValue:
-          type: number
-          format: double
-      required:
-      - name
-      - statId
+      - unsupportedRosterCodes
+      - unsupportedStats
     ConnectionResponse:
       type: object
       properties:
