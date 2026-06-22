@@ -497,10 +497,15 @@ components:
           type: string
         positionType:
           type: string
+        displayOnly:
+          type: boolean
+          description: True when Yahoo marks the stat display-only (shown but not
+            scored).
         pointValue:
           type: number
           format: double
       required:
+      - displayOnly
       - name
       - statId
     SyncRunResponse:
