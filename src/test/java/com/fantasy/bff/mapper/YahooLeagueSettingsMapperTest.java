@@ -23,6 +23,10 @@ class YahooLeagueSettingsMapperTest {
         return new StatCategory().statId(statId).name(name).displayName(name).pointValue(pointValue);
     }
 
+    private static StatCategory displayOnlyCat(int statId, String name) {
+        return new StatCategory().statId(statId).name(name).displayName(name).displayOnly(true);
+    }
+
     private static RosterSlot slot(String position, int count) {
         return new RosterSlot().position(position).count(count);
     }
@@ -148,5 +152,18 @@ class YahooLeagueSettingsMapperTest {
                 .leagueSize()).isEqualTo(2);
         assertThat(mapper.toProjectionSettings(league("head", List.of(), List.of()), 14)
                 .leagueSize()).isEqualTo(14);
+    }
+
+    @Test
+    void skipsDisplayOnlyStatsFromScoringColumns() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("head",
+                        List.of(cat(19, "Wins"), cat(23, "Goals Against Average"), cat(26, "Save %"),
+                                displayOnlyCat(24, "Shots Against"), displayOnlyCat(25, "Saves"),
+                                displayOnlyCat(22, "Goals Against")),
+                        List.of()),
+                null);
+
+        assertThat(mapped.activeScoringColumns()).containsExactly("w", "gaa", "svPct");
     }
 }

@@ -79,6 +79,9 @@ public class YahooLeagueSettingsMapper {
                 }
                 continue;
             }
+            if (Boolean.TRUE.equals(category.getDisplayOnly())) {
+                continue;
+            }
             if (!activeScoringColumns.contains(key)) {
                 activeScoringColumns.add(key);
             }
