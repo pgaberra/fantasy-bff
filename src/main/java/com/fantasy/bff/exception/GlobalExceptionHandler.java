@@ -67,11 +67,11 @@ public class GlobalExceptionHandler {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
         if (status == HttpStatus.NOT_FOUND || status == HttpStatus.CONFLICT
                 || status == HttpStatus.BAD_REQUEST) {
-            log.warn("Relaying downstream {}: {}", status, ex.getResponseBodyAsString());
+            log.warn("Relaying downstream {}: {}", status, ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"));
             return ResponseEntity.status(status).body(ErrorDto.of(status.name(), ex.getMessage()));
         }
         log.error("Downstream service returned {}: {}", ex.getStatusCode(),
-                ex.getResponseBodyAsString(), ex);
+                ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable"));
     }

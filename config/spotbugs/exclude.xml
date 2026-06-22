@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Generated OpenAPI clients (db-service + yahoo-service) — not our code. -->
+    <Match>
+        <Class name="~com\.fantasy\.bff\.generated\..*"/>
+    </Match>
+
+    <!-- Noise in a Spring/record codebase, not actionable defects:
+         SPRING_ENDPOINT flags every @RequestMapping method; EI_EXPOSE_REP(2)
+         flags components storing injected beans and records holding lists. -->
+    <Match>
+        <Bug pattern="SPRING_ENDPOINT,EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- SERVLET_HEADER: reading a request header is the whole point of the auth
+         and rate-limit filters (Authorization, client IP), not a vulnerability.
+         IMPROPER_UNICODE: fires on any case-fold-before-compare even with
+         Locale.ROOT; our conversions normalise known ASCII position/stat codes,
+         never security-sensitive user input compared case-insensitively. -->
+    <Match>
+        <Bug pattern="SERVLET_HEADER,IMPROPER_UNICODE"/>
+    </Match>
+
+    <!-- CRLF_INJECTION_LOGS: these three log sites strip CR/LF from the interpolated
+         value with String.replace at the call site, but FindSecBugs taint analysis
+         doesn't follow String transforms so it still flags them. Scoped to these
+         classes so genuine unsanitised log sinks elsewhere are still caught. -->
+    <Match>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+        <Or>
+            <Class name="com.fantasy.bff.exception.GlobalExceptionHandler"/>
+            <Class name="com.fantasy.bff.service.VersionService"/>
+            <Class name="com.fantasy.bff.email.ResendPasswordResetEmailSender"/>
+        </Or>
+    </Match>
+</FindBugsFilter>
