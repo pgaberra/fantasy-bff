@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
-public class JwtTokenValidator {
+public final class JwtTokenValidator {
 
     private final SecretKey signingKey;
     private final JwtProperties jwtProperties;

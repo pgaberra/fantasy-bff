@@ -51,7 +51,8 @@ public class VersionService {
                 String version = info != null && info.app() != null ? info.app().version() : null;
                 return new ServiceVersion(name, true, version);
             } catch (Exception exception) {
-                log.warn("Could not read version from {}: {}", name, exception.toString());
+                log.warn("Could not read version from {}: {}", name,
+                        exception.toString().replace("\r", "_").replace("\n", "_"));
                 return new ServiceVersion(name, false, null);
             }
         };

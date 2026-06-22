@@ -55,7 +55,7 @@ public class ResendPasswordResetEmailSender implements PasswordResetEmailSender 
     public void send(String toEmail, String resetLink, Instant expiresAt) {
         if (!StringUtils.hasText(apiKey)) {
             log.info("Email sending disabled (RESEND_API_KEY unset); password reset link for {}: {}",
-                    toEmail, resetLink);
+                    toEmail.replace("\r", "_").replace("\n", "_"), resetLink);
             return;
         }
         long minutes = Math.max(1, Duration.between(Instant.now(), expiresAt).toMinutes());

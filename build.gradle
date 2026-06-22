@@ -4,6 +4,7 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
 	id 'org.openapi.generator' version '7.13.0'
+	id 'com.github.spotbugs' version '6.5.8'
 }
 
 group = 'com.fantasy'
@@ -50,6 +51,9 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.wiremock:wiremock-standalone:3.12.1'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Static analysis: SpotBugs bug patterns + FindSecBugs security rules.
+	spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0'
 }
 
 tasks.named('test') {
@@ -138,3 +142,25 @@ sourceSets {
 
 compileJava.dependsOn tasks.openApiGenerate
 compileJava.dependsOn tasks.generateYahooClient
+
+// Static analysis (SpotBugs + FindSecBugs). Generated OpenAPI clients and a few
+// non-actionable patterns are excluded (see config/spotbugs/exclude.xml); the build
+// fails on any remaining finding, so new issues must be fixed or explicitly excluded.
+spotbugs {
+	toolVersion = '4.10.2'
+	effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
+	reportLevel = com.github.spotbugs.snom.Confidence.valueOf('LOW')
+	excludeFilter = file('config/spotbugs/exclude.xml')
+	ignoreFailures = false
+}
+
+tasks.named('spotbugsMain') {
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+tasks.named('spotbugsTest') {
+	enabled = false
+}

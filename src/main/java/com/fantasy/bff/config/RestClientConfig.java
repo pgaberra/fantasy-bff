@@ -39,10 +39,6 @@ public class RestClientConfig {
         return builder.build();
     }
 
-    private RestClient buildRestClient(String baseUrl, int timeoutMs) {
-        return buildRestClientBuilder(baseUrl, timeoutMs).build();
-    }
-
     private RestClient.Builder buildRestClientBuilder(String baseUrl, int timeoutMs) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(timeoutMs))

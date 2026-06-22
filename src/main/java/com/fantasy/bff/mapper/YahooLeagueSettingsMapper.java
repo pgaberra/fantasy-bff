@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -111,7 +112,7 @@ public class YahooLeagueSettingsMapper {
     }
 
     private ScoringBasis scoringBasis(LeagueSettingsResponse settings) {
-        String code = settings.getScoringType().trim().toLowerCase();
+        String code = settings.getScoringType().trim().toLowerCase(Locale.ROOT);
         if (code.equals("point") || code.equals("headpoint")) {
             return ScoringBasis.POINTS;
         }
@@ -134,7 +135,7 @@ public class YahooLeagueSettingsMapper {
         List<String> unsupported = new ArrayList<>();
         for (RosterSlot position : positions) {
             String raw = position.getPosition();
-            String code = raw.toUpperCase();
+            String code = raw.toUpperCase(Locale.ROOT);
             int count = position.getCount();
             if (IGNORED_POSITION_CODES.contains(code)) {
                 unsupported.add(raw);
