@@ -1,0 +1,10 @@
+version: "1.0"
+linter: jetbrains/qodana-jvm-community:2026.1
+projectJDK: "25"
+profile:
+  name: qodana.recommended
+exclude:
+  # Spring Framework 7 marks its API @NullMarked, so every filter/override that
+  # doesn't annotate its parameters trips this — annotation hygiene, not a
+  # simplification/optimization, and pervasive. Out of scope for this scan.
+  - name: NullableProblems

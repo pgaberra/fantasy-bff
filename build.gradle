@@ -5,6 +5,7 @@ plugins {
 	id 'jacoco'
 	id 'org.openapi.generator' version '7.13.0'
 	id 'com.github.spotbugs' version '6.5.8'
+	id 'idea'
 }
 
 group = 'com.fantasy'
@@ -137,6 +138,15 @@ sourceSets {
 			srcDir "${buildDir}/generated/openapi/db-service/src/main/java"
 			srcDir "${buildDir}/generated/openapi/yahoo-service/src/main/java"
 		}
+	}
+}
+
+// Mark the generated OpenAPI clients as generated source roots so IntelliJ-based
+// tooling (Qodana headless) resolves com.fantasy.bff.generated.* during analysis.
+idea {
+	module {
+		generatedSourceDirs += file("${buildDir}/generated/openapi/db-service/src/main/java")
+		generatedSourceDirs += file("${buildDir}/generated/openapi/yahoo-service/src/main/java")
 	}
 }
 
