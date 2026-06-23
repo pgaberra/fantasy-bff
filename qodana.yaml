@@ -6,8 +6,3 @@ projectJDK: "25"
 bootstrap: ./gradlew openApiGenerate generateYahooClient --no-daemon
 profile:
   name: qodana.recommended
-exclude:
-  - name: All
-    paths:
-      - build
-      - "**/generated/**"
