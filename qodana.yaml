@@ -1,8 +1,5 @@
 version: "1.0"
 linter: jetbrains/qodana-jvm-community:2026.1
 projectJDK: "25"
-# Generate the OpenAPI client sources before analysis so files referencing
-# com.fantasy.bff.generated.* resolve (otherwise Qodana degrades to sanity errors).
-bootstrap: ./gradlew openApiGenerate generateYahooClient --no-daemon
 profile:
   name: qodana.recommended
