@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1'
-  # Temporary while validating; removed before merge (final state is weekly + manual).
-  pull_request:
-    branches: [master]
 
 permissions:
   contents: read
@@ -35,6 +32,10 @@ jobs:
       - name: Generate OpenAPI clients
         run: ./gradlew openApiGenerate generateYahooClient --no-daemon
 
+      # Report-only: surfaces simplification/optimization findings in the run summary +
+      # SARIF artifact for human review. Never fails the run — several of these
+      # inspections (e.g. Boolean.TRUE.equals on a nominally-@Nonnull value that can still
+      # be null at runtime) are false positives that must not block.
       - name: Qodana Scan
         uses: JetBrains/qodana-action@v2026.1
         continue-on-error: true
