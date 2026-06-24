@@ -433,6 +433,11 @@ components:
             rate-stat inflation. Category leagues only — absent for points leagues.
           maximum: 82
           minimum: 0
+        yahooSync:
+          $ref: "#/components/schemas/YahooSync"
+          description: Where these settings were last synced from — the Yahoo league
+            name/key and the timestamp. Absent if the projection was never synced
+            from a Yahoo league.
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -511,6 +516,24 @@ components:
       required:
       - data
       - name
+    YahooSync:
+      type: object
+      properties:
+        leagueName:
+          type: string
+          maxLength: 200
+          minLength: 0
+        leagueKey:
+          type: string
+          maxLength: 100
+          minLength: 0
+        syncedAt:
+          type: string
+          format: date-time
+      required:
+      - leagueKey
+      - leagueName
+      - syncedAt
     ProjectionResponse:
       type: object
       properties:

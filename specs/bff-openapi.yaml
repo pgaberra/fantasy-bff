@@ -634,6 +634,8 @@ components:
           format: int32
           maximum: 82
           minimum: 0
+        yahooSync:
+          $ref: "#/components/schemas/YahooSync"
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -712,6 +714,24 @@ components:
       required:
       - data
       - name
+    YahooSync:
+      type: object
+      properties:
+        leagueName:
+          type: string
+          maxLength: 200
+          minLength: 0
+        leagueKey:
+          type: string
+          maxLength: 100
+          minLength: 0
+        syncedAt:
+          type: string
+          format: date-time
+      required:
+      - leagueKey
+      - leagueName
+      - syncedAt
     ProjectionResponse:
       type: object
       properties:
