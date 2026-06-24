@@ -542,6 +542,29 @@ paths:
                   $ref: "#/components/schemas/SyncRunResponse"
 components:
   schemas:
+    DraftPick:
+      type: object
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        by:
+          type: string
+          enum:
+          - me
+          - others
+      required:
+      - by
+      - playerId
+    DraftState:
+      type: object
+      properties:
+        picks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DraftPick"
+      required:
+      - picks
     PlayerProjection:
       type: object
       properties:
@@ -584,6 +607,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlayerProjection"
+        draft:
+          $ref: "#/components/schemas/DraftState"
         tings:
           $ref: "#/components/schemas/ProjectionData"
           writeOnly: true

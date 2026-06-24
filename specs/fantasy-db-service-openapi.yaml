@@ -335,6 +335,29 @@ paths:
                 $ref: "#/components/schemas/ExistsResponse"
 components:
   schemas:
+    DraftPick:
+      type: object
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        by:
+          type: string
+          enum:
+          - me
+          - others
+      required:
+      - by
+      - playerId
+    DraftState:
+      type: object
+      properties:
+        picks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DraftPick"
+      required:
+      - picks
     PlayerProjection:
       type: object
       properties:
@@ -377,6 +400,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlayerProjection"
+        draft:
+          $ref: "#/components/schemas/DraftState"
+          description: "In-draft state for this projection — which players have been\
+            \ drafted, by you or by other teams, in pick order. Absent until a draft\
+            \ is started."
       required:
       - players
       - settings
