@@ -341,23 +341,55 @@ components:
         playerId:
           type: integer
           format: int32
-        by:
+        teamId:
           type: string
-          enum:
-          - me
-          - others
+          maxLength: 64
+          minLength: 0
       required:
-      - by
       - playerId
+      - teamId
     DraftState:
       type: object
       properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/DraftTeam"
+          maxItems: 32
+          minItems: 0
+        order:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+            minLength: 0
+          maxItems: 32
+          minItems: 0
         picks:
           type: array
           items:
             $ref: "#/components/schemas/DraftPick"
       required:
+      - order
       - picks
+      - teams
+    DraftTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          minLength: 0
+        name:
+          type: string
+          maxLength: 64
+          minLength: 0
+        mine:
+          type: boolean
+      required:
+      - id
+      - mine
+      - name
     PlayerProjection:
       type: object
       properties:
@@ -402,9 +434,9 @@ components:
             $ref: "#/components/schemas/PlayerProjection"
         draft:
           $ref: "#/components/schemas/DraftState"
-          description: "In-draft state for this projection — which players have been\
-            \ drafted, by you or by other teams, in pick order. Absent until a draft\
-            \ is started."
+          description: "In-draft state for this projection — the league's teams, the\
+            \ snake draft order, and the picks made so far (each attributed to a team)\
+            \ in pick order. Absent until a draft is configured."
       required:
       - players
       - settings
