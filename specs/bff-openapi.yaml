@@ -548,23 +548,55 @@ components:
         playerId:
           type: integer
           format: int32
-        by:
+        teamId:
           type: string
-          enum:
-          - me
-          - others
+          maxLength: 64
+          minLength: 0
       required:
-      - by
       - playerId
+      - teamId
     DraftState:
       type: object
       properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/DraftTeam"
+          maxItems: 32
+          minItems: 0
+        order:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+            minLength: 0
+          maxItems: 32
+          minItems: 0
         picks:
           type: array
           items:
             $ref: "#/components/schemas/DraftPick"
       required:
+      - order
       - picks
+      - teams
+    DraftTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          minLength: 0
+        name:
+          type: string
+          maxLength: 64
+          minLength: 0
+        mine:
+          type: boolean
+      required:
+      - id
+      - mine
+      - name
     PlayerProjection:
       type: object
       properties:
