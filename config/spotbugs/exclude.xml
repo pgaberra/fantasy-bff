@@ -32,6 +32,7 @@
             <Class name="com.fantasy.bff.service.VersionService"/>
             <Class name="com.fantasy.bff.email.ResendPasswordResetEmailSender"/>
             <Class name="com.fantasy.bff.security.GraphFacebookTokenVerifier"/>
+            <Class name="com.fantasy.bff.config.DownstreamKeyVerifier"/>
         </Or>
     </Match>
 </FindBugsFilter>
