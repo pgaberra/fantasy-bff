@@ -74,6 +74,22 @@ class GraphFacebookTokenVerifierTest {
     }
 
     @Test
+    void verify_trimsConfiguredCredentials() {
+        GraphFacebookTokenVerifier padded =
+                new GraphFacebookTokenVerifier(" app-123\n", " app-secret \n", server.baseUrl());
+        stubDebugToken(okJson(
+                "{\"data\":{\"app_id\":\"app-123\",\"is_valid\":true,\"user_id\":\"fb-1\"}}"));
+        server.stubFor(get(urlPathEqualTo("/me"))
+                .willReturn(okJson("{\"id\":\"fb-1\",\"email\":\"user@example.com\"}")));
+
+        FacebookIdentity identity = padded.verify("user-token");
+
+        assertThat(identity.sub()).isEqualTo("fb-1");
+        server.verify(getRequestedFor(urlPathEqualTo("/debug_token"))
+                .withQueryParam("access_token", equalTo("app-123|app-secret")));
+    }
+
+    @Test
     void verify_withInvalidToken_throwsSecurity() {
         stubDebugToken(okJson(
                 "{\"data\":{\"app_id\":\"app-123\",\"is_valid\":false,\"user_id\":\"fb-1\"}}"));

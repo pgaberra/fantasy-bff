@@ -1,10 +1,13 @@
 package com.fantasy.bff.security;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * {@link FacebookTokenVerifier} backed by the Facebook Graph API: it validates the user
@@ -16,6 +19,8 @@ import org.springframework.web.client.RestClientException;
 @Component
 public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
 
+    private static final Logger log = LoggerFactory.getLogger(GraphFacebookTokenVerifier.class);
+
     private final String appId;
     private final String appSecret;
     private final RestClient restClient;
@@ -24,8 +29,8 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
             @Value("${security.facebook.app-id:}") String appId,
             @Value("${security.facebook.app-secret:}") String appSecret,
             @Value("${security.facebook.graph-base-url:https://graph.facebook.com}") String graphBaseUrl) {
-        this.appId = appId;
-        this.appSecret = appSecret;
+        this.appId = appId.trim();
+        this.appSecret = appSecret.trim();
         this.restClient = RestClient.create(graphBaseUrl);
     }
 
@@ -38,10 +43,13 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
         DebugTokenResponse debug = debugToken(accessToken);
         DebugTokenResponse.Data data = debug == null ? null : debug.data();
         if (data == null || !data.isValid() || !appId.equals(data.appId())) {
+            log.warn("Facebook token rejected: isValid={}, token app id={}, configured app id={}",
+                    data != null && data.isValid(), data == null ? null : data.appId(), appId);
             throw new SecurityException("Invalid Facebook access token");
         }
         GraphUser user = fetchProfile(accessToken);
         if (user == null || user.email() == null || user.email().isBlank()) {
+            log.warn("Facebook profile has no accessible email for token user id {}", data.userId());
             throw new SecurityException("Facebook account has no accessible email");
         }
         return new FacebookIdentity(user.id(), user.email());
@@ -56,7 +64,12 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
                             .build())
                     .retrieve()
                     .body(DebugTokenResponse.class);
+        } catch (RestClientResponseException e) {
+            log.error("Facebook /debug_token failed: status={} body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new SecurityException("Could not verify the Facebook access token", e);
         } catch (RestClientException e) {
+            log.error("Facebook /debug_token unreachable", e);
             throw new SecurityException("Could not verify the Facebook access token", e);
         }
     }
@@ -70,7 +83,12 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
                             .build())
                     .retrieve()
                     .body(GraphUser.class);
+        } catch (RestClientResponseException e) {
+            log.error("Facebook /me failed: status={} body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new SecurityException("Could not read the Facebook profile", e);
         } catch (RestClientException e) {
+            log.error("Facebook /me unreachable", e);
             throw new SecurityException("Could not read the Facebook profile", e);
         }
     }
