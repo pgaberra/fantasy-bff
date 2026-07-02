@@ -70,7 +70,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   `services.nhl.season` (NHL season id the projections are based on).
 - **`dev`**: permits Swagger + CORS from `http://localhost:4200`.
 - **`staging`**: the **deployed** profile (used by both prod and staging on Coolify);
-  permits Swagger and adds CORS via `${WEB_ORIGIN}`. No downstream timeout overrides —
+  adds CORS via `${WEB_ORIGIN}`. Swagger UI / OpenAPI docs are **env-gated**
+  (`SWAGGER_ENABLED`, default off → production hardened; set `SWAGGER_ENABLED=true` on
+  staging to keep them for QA). No downstream timeout overrides —
   the services are co-located on the Docker network, so the base timeouts apply.
 
 `JWT_SECRET` must be ≥32 chars (HS256) and is supplied per environment as a Coolify env var.
