@@ -1,6 +1,7 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
@@ -12,6 +13,8 @@ import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.User;
+import com.fantasy.bff.security.FacebookIdentity;
+import com.fantasy.bff.security.FacebookTokenVerifier;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -33,6 +36,7 @@ public class AuthService {
     private final JwtTokenValidator jwtTokenValidator;
     private final PasswordEncoder passwordEncoder;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final FacebookTokenVerifier facebookTokenVerifier;
     private final PasswordResetEmailSender passwordResetEmailSender;
     private final SecurityProperties securityProperties;
     private final String webBaseUrl;
@@ -41,6 +45,7 @@ public class AuthService {
                        JwtTokenValidator jwtTokenValidator,
                        PasswordEncoder passwordEncoder,
                        GoogleTokenVerifier googleTokenVerifier,
+                       FacebookTokenVerifier facebookTokenVerifier,
                        PasswordResetEmailSender passwordResetEmailSender,
                        SecurityProperties securityProperties,
                        @Value("${app.web-base-url:http://localhost:4200}") String webBaseUrl) {
@@ -48,6 +53,7 @@ public class AuthService {
         this.jwtTokenValidator = jwtTokenValidator;
         this.passwordEncoder = passwordEncoder;
         this.googleTokenVerifier = googleTokenVerifier;
+        this.facebookTokenVerifier = facebookTokenVerifier;
         this.passwordResetEmailSender = passwordResetEmailSender;
         this.securityProperties = securityProperties;
         this.webBaseUrl = webBaseUrl;
@@ -91,6 +97,18 @@ public class AuthService {
     public AuthResponse googleLogin(GoogleLoginRequest request) {
         GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
         User user = databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub());
+        return issueTokens(user.id(), user.email());
+    }
+
+    /**
+     * Logs in (or registers) via a Facebook access token. The verifier guarantees the token
+     * is valid and was issued for our app and yields a verified email; db-service resolves
+     * the account by Facebook subject, links it to an existing same-email account, or
+     * creates a new password-less user.
+     */
+    public AuthResponse facebookLogin(FacebookLoginRequest request) {
+        FacebookIdentity identity = facebookTokenVerifier.verify(request.accessToken());
+        User user = databaseServiceClient.findOrCreateFacebookUser(identity.email(), identity.sub());
         return issueTokens(user.id(), user.email());
     }
 

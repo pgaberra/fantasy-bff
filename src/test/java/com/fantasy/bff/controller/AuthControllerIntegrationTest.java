@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
@@ -10,6 +11,8 @@ import com.fantasy.bff.dto.request.RegisterRequest;
 import com.fantasy.bff.dto.request.ResetPasswordRequest;
 import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
+import com.fantasy.bff.security.FacebookIdentity;
+import com.fantasy.bff.security.FacebookTokenVerifier;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +61,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean
     private GoogleTokenVerifier googleTokenVerifier;
+
+    @MockitoBean
+    private FacebookTokenVerifier facebookTokenVerifier;
 
     @MockitoBean
     private PasswordResetEmailSender passwordResetEmailSender;
@@ -167,6 +173,44 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new GoogleLoginRequest(""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void facebookLogin_withValidToken_returnsBothTokens() throws Exception {
+        when(facebookTokenVerifier.verify("valid-fb-token"))
+                .thenReturn(new FacebookIdentity("fb-sub-1", "f@example.com"));
+        when(databaseServiceClient.findOrCreateFacebookUser("f@example.com", "fb-sub-1"))
+                .thenReturn(new User("user-4", "f@example.com", null));
+
+        mockMvc.perform(post("/api/v1/auth/facebook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FacebookLoginRequest("valid-fb-token"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.expiresInSeconds").isNumber())
+                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
+    }
+
+    @Test
+    void facebookLogin_withInvalidToken_returns401() throws Exception {
+        when(facebookTokenVerifier.verify("bad-token"))
+                .thenThrow(new SecurityException("Invalid Facebook access token"));
+
+        mockMvc.perform(post("/api/v1/auth/facebook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FacebookLoginRequest("bad-token"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void facebookLogin_withBlankToken_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/facebook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FacebookLoginRequest(""))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }

@@ -314,6 +314,34 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/facebook:
+    post:
+      tags:
+      - Users
+      summary: Resolve the account for a verified Facebook identity
+      description: "Returns the user linked to this Facebook subject, linking it to\
+        \ an existing account with the same email or creating a new password-less\
+        \ user."
+      operationId: findOrCreateFacebookUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacebookUserRequest"
+        required: true
+      responses:
+        "200":
+          description: "User resolved (found, linked, or created)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: Validation failed (blank email / subject)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
   /api/v1/users/exists:
     get:
       tags:
@@ -647,10 +675,13 @@ components:
           type: string
         passwordHash:
           type: string
-          description: Null for users who only authenticate via Google
+          description: Null for users who only authenticate via a social provider
         googleSub:
           type: string
-          description: Google subject id; null for password-only users
+          description: Google subject id; null otherwise
+        facebookSub:
+          type: string
+          description: Facebook subject id; null otherwise
       required:
       - email
       - id
@@ -716,6 +747,21 @@ components:
       required:
       - email
       - googleSub
+    FacebookUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          minLength: 0
+        facebookSub:
+          type: string
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+      - facebookSub
     ProjectionSummaryResponse:
       type: object
       properties:
