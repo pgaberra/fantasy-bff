@@ -44,12 +44,14 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
         DebugTokenResponse.Data data = debug == null ? null : debug.data();
         if (data == null || !data.isValid() || !appId.equals(data.appId())) {
             log.warn("Facebook token rejected: isValid={}, token app id={}, configured app id={}",
-                    data != null && data.isValid(), data == null ? null : data.appId(), appId);
+                    data != null && data.isValid(),
+                    data == null ? null : sanitize(data.appId()), appId);
             throw new SecurityException("Invalid Facebook access token");
         }
         GraphUser user = fetchProfile(accessToken);
         if (user == null || user.email() == null || user.email().isBlank()) {
-            log.warn("Facebook profile has no accessible email for token user id {}", data.userId());
+            log.warn("Facebook profile has no accessible email for token user id {}",
+                    sanitize(data.userId()));
             throw new SecurityException("Facebook account has no accessible email");
         }
         return new FacebookIdentity(user.id(), user.email());
@@ -66,7 +68,7 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
                     .body(DebugTokenResponse.class);
         } catch (RestClientResponseException e) {
             log.error("Facebook /debug_token failed: status={} body={}",
-                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+                    e.getStatusCode(), sanitize(e.getResponseBodyAsString()), e);
             throw new SecurityException("Could not verify the Facebook access token", e);
         } catch (RestClientException e) {
             log.error("Facebook /debug_token unreachable", e);
@@ -85,12 +87,16 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
                     .body(GraphUser.class);
         } catch (RestClientResponseException e) {
             log.error("Facebook /me failed: status={} body={}",
-                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+                    e.getStatusCode(), sanitize(e.getResponseBodyAsString()), e);
             throw new SecurityException("Could not read the Facebook profile", e);
         } catch (RestClientException e) {
             log.error("Facebook /me unreachable", e);
             throw new SecurityException("Could not read the Facebook profile", e);
         }
+    }
+
+    private static String sanitize(String value) {
+        return value == null ? null : value.replace("\r", "_").replace("\n", "_");
     }
 
     record DebugTokenResponse(Data data) {
