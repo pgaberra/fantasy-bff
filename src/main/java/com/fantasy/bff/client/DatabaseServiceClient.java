@@ -26,6 +26,12 @@ public interface DatabaseServiceClient {
     User findOrCreateGoogleUser(String email, String googleSub);
 
     /**
+     * Resolves the account for a verified Facebook identity — finds it by subject,
+     * links it to an existing same-email account, or creates a password-less user.
+     */
+    User findOrCreateFacebookUser(String email, String facebookSub);
+
+    /**
      * Issues a single-use password reset token for the account with this email, or empty
      * when there is no resettable account (unknown email or a Google-only account).
      */

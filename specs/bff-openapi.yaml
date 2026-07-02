@@ -330,6 +330,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/facebook:
+    post:
+      tags:
+      - Authentication
+      summary: Login with Facebook
+      description: "Verify a Facebook access token and log the user in, registering\
+        \ a new account on first login"
+      operationId: facebookLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacebookLoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid Facebook access token or missing email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
   /api/v1/admin/yahoo/connect:
     post:
       tags:
@@ -931,6 +964,16 @@ components:
           minLength: 0
       required:
       - idToken
+    FacebookLoginRequest:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: Facebook user access token from the Facebook Login SDK
+          maxLength: 4096
+          minLength: 0
+      required:
+      - accessToken
     SyncAcceptedResponse:
       type: object
       properties:

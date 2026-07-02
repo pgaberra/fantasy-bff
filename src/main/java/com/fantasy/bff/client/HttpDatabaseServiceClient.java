@@ -4,6 +4,7 @@ import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
+import com.fantasy.bff.generated.db.model.FacebookUserRequest;
 import com.fantasy.bff.generated.db.model.GoogleUserRequest;
 import com.fantasy.bff.generated.db.model.PasswordResetRequest;
 import com.fantasy.bff.generated.db.model.PasswordResetTokenResponse;
@@ -95,6 +96,23 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(UserResponse.class);
         if (response == null) {
             throw new IllegalStateException("db-service returned no body when resolving the Google user");
+        }
+        return new User(response.getId(), response.getEmail(), response.getPasswordHash());
+    }
+
+    @Override
+    public User findOrCreateFacebookUser(String email, String facebookSub) {
+        FacebookUserRequest request = new FacebookUserRequest()
+                .email(email)
+                .facebookSub(facebookSub);
+        UserResponse response = restClient.post()
+                .uri("/api/v1/users/facebook")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(UserResponse.class);
+        if (response == null) {
+            throw new IllegalStateException("db-service returned no body when resolving the Facebook user");
         }
         return new User(response.getId(), response.getEmail(), response.getPasswordHash());
     }

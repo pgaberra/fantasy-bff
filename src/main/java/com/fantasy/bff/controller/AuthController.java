@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
@@ -62,6 +63,17 @@ public class AuthController {
     })
     public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(authService.googleLogin(request));
+    }
+
+    @PostMapping("/facebook")
+    @Operation(summary = "Login with Facebook", description = "Verify a Facebook access token and log the user in, registering a new account on first login")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid Facebook access token or missing email"),
+            @ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    public ResponseEntity<AuthResponse> facebookLogin(@Valid @RequestBody FacebookLoginRequest request) {
+        return ResponseEntity.ok(authService.facebookLogin(request));
     }
 
     @PostMapping("/register")
