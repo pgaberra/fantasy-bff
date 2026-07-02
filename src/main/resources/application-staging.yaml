@@ -1,3 +1,14 @@
+# Swagger UI / OpenAPI docs are env-gated: off by default in deployed environments
+# (SWAGGER_ENABLED unset -> false) so production is hardened; staging sets
+# SWAGGER_ENABLED=true to keep them for QA. Local dev (base profile) keeps them on.
+# Safe: the web generates its client from the committed specs/bff-openapi.yaml, and
+# OpenApiSpecSnapshotTest runs in the test profile — nothing depends on the live prod docs.
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
 security:
   permitted-urls:
     - "/api/v1/auth/**"
