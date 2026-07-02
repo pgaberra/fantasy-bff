@@ -57,12 +57,12 @@ class GraphFacebookTokenVerifierTest {
     }
 
     @Test
-    void verify_withValidToken_returnsIdentity() {
-        stubDebugToken(okJson(
-                "{\"data\":{\"app_id\":\"app-123\",\"is_valid\":true,\"user_id\":\"fb-1\"}}"));
+    void verify_withValidToken_returnsIdentity_despiteTextJavascriptContentType() {
+        stubDebugToken(textJavascript(
+                "{\"data\":{\"app_id\":\"app-123\",\"is_valid\":true,\"user_id\":\"fb-1\",\"scopes\":[\"email\"]}}"));
         server.stubFor(get(urlPathEqualTo("/me"))
                 .withQueryParam("access_token", equalTo("user-token"))
-                .willReturn(okJson("{\"id\":\"fb-1\",\"email\":\"user@example.com\"}")));
+                .willReturn(textJavascript("{\"id\":\"fb-1\",\"email\":\"user@example.com\"}")));
 
         FacebookIdentity identity = verifier.verify("user-token");
 
@@ -134,5 +134,12 @@ class GraphFacebookTokenVerifierTest {
         server.stubFor(get(urlPathEqualTo("/debug_token"))
                 .withQueryParam("input_token", equalTo("user-token"))
                 .willReturn(response));
+    }
+
+    private static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder textJavascript(String body) {
+        return aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "text/javascript; charset=UTF-8")
+                .withBody(body);
     }
 }
