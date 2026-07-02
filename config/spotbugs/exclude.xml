@@ -21,7 +21,7 @@
         <Bug pattern="SERVLET_HEADER,IMPROPER_UNICODE"/>
     </Match>
 
-    <!-- CRLF_INJECTION_LOGS: these three log sites strip CR/LF from the interpolated
+    <!-- CRLF_INJECTION_LOGS: these log sites strip CR/LF from the interpolated
          value with String.replace at the call site, but FindSecBugs taint analysis
          doesn't follow String transforms so it still flags them. Scoped to these
          classes so genuine unsanitised log sinks elsewhere are still caught. -->
@@ -31,6 +31,7 @@
             <Class name="com.fantasy.bff.exception.GlobalExceptionHandler"/>
             <Class name="com.fantasy.bff.service.VersionService"/>
             <Class name="com.fantasy.bff.email.ResendPasswordResetEmailSender"/>
+            <Class name="com.fantasy.bff.security.GraphFacebookTokenVerifier"/>
         </Or>
     </Match>
 </FindBugsFilter>
