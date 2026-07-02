@@ -8,18 +8,27 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@link FacebookTokenVerifier} backed by the Facebook Graph API: it validates the user
  * access token via {@code /debug_token} (checking validity and that the token was issued
  * for our app) using the app access token ({@code app-id|app-secret}), then reads the id
  * and email via {@code /me}. No network happens at construction, so the app boots and
- * tests run without Facebook configured.
+ * tests run without Facebook configured. Responses are read as strings and parsed
+ * manually because the Graph API serves JSON with {@code Content-Type: text/javascript},
+ * which Spring's message converters refuse.
  */
 @Component
 public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
 
     private static final Logger log = LoggerFactory.getLogger(GraphFacebookTokenVerifier.class);
+
+    private static final JsonMapper JSON = JsonMapper.builder()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .build();
 
     private final String appId;
     private final String appSecret;
@@ -59,38 +68,40 @@ public class GraphFacebookTokenVerifier implements FacebookTokenVerifier {
 
     private DebugTokenResponse debugToken(String accessToken) {
         try {
-            return restClient.get()
+            String body = restClient.get()
                     .uri(uriBuilder -> uriBuilder.path("/debug_token")
                             .queryParam("input_token", accessToken)
                             .queryParam("access_token", appId + "|" + appSecret)
                             .build())
                     .retrieve()
-                    .body(DebugTokenResponse.class);
+                    .body(String.class);
+            return body == null ? null : JSON.readValue(body, DebugTokenResponse.class);
         } catch (RestClientResponseException e) {
             log.error("Facebook /debug_token failed: status={} body={}",
                     e.getStatusCode(), sanitize(e.getResponseBodyAsString()), e);
             throw new SecurityException("Could not verify the Facebook access token", e);
-        } catch (RestClientException e) {
-            log.error("Facebook /debug_token unreachable", e);
+        } catch (RestClientException | JacksonException e) {
+            log.error("Facebook /debug_token unreachable or unparsable", e);
             throw new SecurityException("Could not verify the Facebook access token", e);
         }
     }
 
     private GraphUser fetchProfile(String accessToken) {
         try {
-            return restClient.get()
+            String body = restClient.get()
                     .uri(uriBuilder -> uriBuilder.path("/me")
                             .queryParam("fields", "id,email")
                             .queryParam("access_token", accessToken)
                             .build())
                     .retrieve()
-                    .body(GraphUser.class);
+                    .body(String.class);
+            return body == null ? null : JSON.readValue(body, GraphUser.class);
         } catch (RestClientResponseException e) {
             log.error("Facebook /me failed: status={} body={}",
                     e.getStatusCode(), sanitize(e.getResponseBodyAsString()), e);
             throw new SecurityException("Could not read the Facebook profile", e);
-        } catch (RestClientException e) {
-            log.error("Facebook /me unreachable", e);
+        } catch (RestClientException | JacksonException e) {
+            log.error("Facebook /me unreachable or unparsable", e);
             throw new SecurityException("Could not read the Facebook profile", e);
         }
     }
