@@ -34,6 +34,8 @@ services over the internal Docker network: `fantasy-db-service` (users) and
 | `YAHOO_INTERNAL_API_KEY` | Shared secret for BFF → yahoo-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-yahoo-service`. |
 | `WEB_ORIGIN` | The deployed web origin, used for CORS (e.g. `https://staging.slapstat.com`). |
 | `GOOGLE_CLIENT_ID` | Public Google OAuth Client ID (not a secret); when unset, `/api/v1/auth/google` rejects all requests. |
+| `FACEBOOK_APP_ID` | Public Facebook App ID (not a secret) — the same value the web app ships. |
+| `FACEBOOK_APP_SECRET` | Facebook App Secret (a **real secret**). When either Facebook var is unset, `/api/v1/auth/facebook` rejects all requests. |
 
 > Each `*_INTERNAL_API_KEY` and `JWT_SECRET` is environment-specific — staging and prod
 > use **independent** secrets, never shared.
