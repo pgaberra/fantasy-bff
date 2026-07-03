@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '4.0.5'
+	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
 	id 'org.openapi.generator' version '7.23.0'
@@ -43,7 +43,7 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-oauth2-jose'
 
 	// OpenAPI / Swagger UI
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
