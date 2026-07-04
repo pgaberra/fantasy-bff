@@ -85,8 +85,15 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 - Downstream clients are an interface + an http implementation. Tests never hit
   real downstream services: integration tests replace the client interfaces with
   `@MockitoBean`; http clients are tested in isolation with WireMock.
-- Keep new endpoints under `/api/v1`. Add the path to `security.permitted-urls`
-  only if it should be public (default is authenticated).
+- Keep new endpoints under `/api/v1`. Default is authenticated. To make something
+  public, pick the mechanism by what it is:
+  - **Infra/plumbing** (health, auth flow, swagger): add to `security.permitted-urls`.
+    Note the list is redefined **wholesale per profile** (base + `-dev` + `-staging` —
+    Spring does not merge list properties), so keep all three in sync.
+  - **Domain endpoints** (e.g. the public player reads): add an explicit,
+    **method-scoped** matcher in `SecurityConfig` (`.requestMatchers(HttpMethod.GET,
+    "…").permitAll()`) so the whole API's authorization posture stays reviewable in
+    one place and any new method on the path falls back to `denyAll`.
 
 ### Logging & error handling
 
