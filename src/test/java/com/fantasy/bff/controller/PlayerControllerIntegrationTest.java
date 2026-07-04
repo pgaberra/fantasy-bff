@@ -57,16 +57,20 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getSkaters_withoutToken_returns401() throws Exception {
+    void getSkaters_withoutToken_returns200() throws Exception {
+        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+
         mockMvc.perform(get("/api/v1/players/skaters"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk());
     }
 
     @Test
-    void getSkaters_withInvalidToken_returns401() throws Exception {
+    void getSkaters_withInvalidToken_returns200() throws Exception {
+        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+
         mockMvc.perform(get("/api/v1/players/skaters")
                         .header("Authorization", "Bearer invalid.token.here"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -89,9 +93,11 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getGoalies_withoutToken_returns401() throws Exception {
+    void getGoalies_withoutToken_returns200() throws Exception {
+        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+
         mockMvc.perform(get("/api/v1/players/goalies"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk());
     }
 
     @Test

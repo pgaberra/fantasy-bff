@@ -15,7 +15,7 @@ tags:
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
-  description: NHL player stats endpoints
+  description: "NHL player stats endpoints (public, read-only)"
 - name: Projections
   description: The authenticated user's saved player projections
 - name: Versions
@@ -483,14 +483,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SkaterResponse"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/SkaterResponse"
         "502":
           description: NHL service unavailable
           content:
@@ -499,8 +491,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SkaterResponse"
-      security:
-      - bearerAuth: []
   /api/v1/players/goalies:
     get:
       tags:
@@ -517,14 +507,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/GoalieResponse"
         "502":
           description: NHL service unavailable
           content:
@@ -533,8 +515,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
-      security:
-      - bearerAuth: []
   /api/v1/admin/yahoo/connection:
     get:
       tags:

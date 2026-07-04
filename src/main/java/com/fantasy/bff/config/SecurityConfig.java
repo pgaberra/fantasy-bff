@@ -44,8 +44,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
                         .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
                         .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
                         .requestMatchers("/api/v1/admin", "/api/v1/admin/**").hasRole("ADMIN")
