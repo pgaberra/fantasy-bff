@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
+import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -59,5 +60,14 @@ public class HttpYahooServiceClient implements YahooServiceClient {
                         .queryParam("appUserId", appUserId).build(leagueKey))
                 .retrieve()
                 .body(LeagueSettingsResponse.class);
+    }
+
+    @Override
+    public LeagueTeamsResponse teams(String appUserId, String leagueKey) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/teams")
+                        .queryParam("appUserId", appUserId).build(leagueKey))
+                .retrieve()
+                .body(LeagueTeamsResponse.class);
     }
 }
