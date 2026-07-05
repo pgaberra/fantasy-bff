@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
+import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 
 public interface YahooServiceClient {
@@ -14,4 +15,6 @@ public interface YahooServiceClient {
     LeaguesResponse leagues(String appUserId);
 
     LeagueSettingsResponse settings(String appUserId, String leagueKey);
+
+    LeagueTeamsResponse teams(String appUserId, String leagueKey);
 }

@@ -170,6 +170,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaguesResponse"
+  /api/v1/yahoo/leagues/{leagueKey}/teams:
+    get:
+      tags:
+      - Yahoo Leagues
+      summary: List a league's teams (names + which is the user's own)
+      operationId: teams
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Teams returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeamsResponse"
+        "404":
+          description: User has not connected Yahoo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeamsResponse"
   /api/v1/yahoo/leagues/{leagueKey}/settings:
     get:
       tags:
@@ -449,6 +479,26 @@ components:
             $ref: "#/components/schemas/LeagueSummary"
       required:
       - leagues
+    LeagueTeam:
+      type: object
+      properties:
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team.
+      required:
+      - mine
+      - name
+    LeagueTeamsResponse:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueTeam"
+      required:
+      - teams
     LeagueSettingsResponse:
       type: object
       properties:
