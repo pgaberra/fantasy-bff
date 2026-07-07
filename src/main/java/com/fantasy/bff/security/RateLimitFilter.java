@@ -64,9 +64,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest request) {
+        // Behind our single trusted proxy (Traefik) the real client IP is the LAST entry of
+        // X-Forwarded-For — the one Traefik appends from the actual TCP peer. A client can prepend
+        // spoofed entries but cannot forge that last hop, so keying on the first entry (as before)
+        // let an attacker rotate it to get a fresh bucket per request and dodge the limit entirely.
         String forwarded = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(forwarded)) {
-            return forwarded.split(",")[0].trim();
+            String[] hops = forwarded.split(",");
+            return hops[hops.length - 1].trim();
         }
         return request.getRemoteAddr();
     }
