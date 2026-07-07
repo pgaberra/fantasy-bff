@@ -23,9 +23,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -40,6 +42,7 @@ public class AuthService {
     private final PasswordResetEmailSender passwordResetEmailSender;
     private final SecurityProperties securityProperties;
     private final String webBaseUrl;
+    private final String dummyPasswordHash;
 
     public AuthService(DatabaseServiceClient databaseServiceClient,
                        JwtTokenValidator jwtTokenValidator,
@@ -57,17 +60,27 @@ public class AuthService {
         this.passwordResetEmailSender = passwordResetEmailSender;
         this.securityProperties = securityProperties;
         this.webBaseUrl = webBaseUrl;
+        // A precomputed hash to compare against when an account is missing or password-less, so
+        // login always runs one bcrypt regardless (see login()).
+        this.dummyPasswordHash = passwordEncoder.encode("password-timing-equalizer");
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = databaseServiceClient.findUserByEmail(request.email())
-                .orElseThrow(() -> new SecurityException("Invalid email or password"));
+        Optional<User> maybeUser = databaseServiceClient.findUserByEmail(request.email());
+        // Always run exactly one bcrypt comparison — against the user's hash, or a dummy hash when
+        // the account is missing or password-less (social login) — so an unknown email and a wrong
+        // password take the same time. Otherwise the early return for an unknown email is a timing
+        // oracle that reveals which emails are registered.
+        String hashToCheck = maybeUser
+                .map(User::passwordHash)
+                .filter(StringUtils::hasText)
+                .orElse(dummyPasswordHash);
+        boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
 
-        if (!passwordEncoder.matches(request.password(), user.passwordHash())) {
+        if (maybeUser.isEmpty() || !passwordMatches) {
             throw new SecurityException("Invalid email or password");
         }
-
-        return issueTokens(user.id(), user.email());
+        return issueTokens(maybeUser.get().id(), maybeUser.get().email());
     }
 
     public AuthResponse refresh(RefreshRequest request) {

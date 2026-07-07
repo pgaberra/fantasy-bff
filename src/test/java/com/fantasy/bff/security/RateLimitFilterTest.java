@@ -48,4 +48,23 @@ class RateLimitFilterTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
     }
+
+    @Test
+    void rateLimitKeyUsesTrustedLastForwardedForHop_notTheSpoofableFirst() throws Exception {
+        when(databaseServiceClient.findUserByEmail(anyString())).thenReturn(Optional.empty());
+        String body = "{\"email\":\"attacker@example.com\",\"password\":\"guess123\"}";
+
+        // The attacker rotates the FIRST X-Forwarded-For entry each request; the real client IP is
+        // the constant last hop (appended by the trusted proxy). All three share one bucket, so the
+        // third is blocked — rotating the leading entry no longer buys a fresh bucket.
+        mockMvc.perform(post("/api/v1/auth/login").header("X-Forwarded-For", "1.1.1.1, 203.0.113.7")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/login").header("X-Forwarded-For", "2.2.2.2, 203.0.113.7")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/login").header("X-Forwarded-For", "3.3.3.3, 203.0.113.7")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isTooManyRequests());
+    }
 }
