@@ -134,12 +134,17 @@ paths:
       parameters:
       - name: code
         in: query
-        required: true
+        required: false
         schema:
           type: string
       - name: state
         in: query
-        required: true
+        required: false
+        schema:
+          type: string
+      - name: error
+        in: query
+        required: false
         schema:
           type: string
       responses:
