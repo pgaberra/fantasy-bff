@@ -87,12 +87,15 @@ public class AuthService {
         Claims claims = jwtTokenValidator.validateAndExtractRefreshTokenClaims(request.refreshToken());
         User user = databaseServiceClient.findUserByEmail(claims.get("email", String.class))
                 .orElseThrow(() -> new SecurityException("Invalid refresh token"));
-        Integer tokenVersion = jwtTokenValidator.getTokenVersion(claims);
-        if (tokenVersion == null || tokenVersion != user.tokenVersion()) {
+        int currentVersion = user.tokenVersion();
+        boolean tokenIsCurrent = jwtTokenValidator.getTokenVersion(claims)
+                .map(version -> version == currentVersion)
+                .orElse(false);
+        if (!tokenIsCurrent) {
             // The refresh token was revoked — e.g. a password reset bumped the user's token version.
             throw new SecurityException("Refresh token has been revoked");
         }
-        return issueTokens(user.id(), user.email(), user.tokenVersion());
+        return issueTokens(user.id(), user.email(), currentVersion);
     }
 
     /**

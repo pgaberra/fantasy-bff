@@ -83,7 +83,7 @@ class AuthServiceTest {
         Claims claims = mock(Claims.class);
         when(claims.get("email", String.class)).thenReturn("user@example.com");
         when(jwtTokenValidator.validateAndExtractRefreshTokenClaims("stale-refresh")).thenReturn(claims);
-        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(0);
+        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.of(0));
         when(databaseServiceClient.findUserByEmail("user@example.com"))
                 .thenReturn(Optional.of(new User("user-1", "user@example.com", "hash", 1)));
 
@@ -96,7 +96,7 @@ class AuthServiceTest {
         Claims claims = mock(Claims.class);
         when(claims.get("email", String.class)).thenReturn("user@example.com");
         when(jwtTokenValidator.validateAndExtractRefreshTokenClaims("good-refresh")).thenReturn(claims);
-        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(3);
+        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.of(3));
         when(databaseServiceClient.findUserByEmail("user@example.com"))
                 .thenReturn(Optional.of(new User("user-1", "user@example.com", "hash", 3)));
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("new-access");

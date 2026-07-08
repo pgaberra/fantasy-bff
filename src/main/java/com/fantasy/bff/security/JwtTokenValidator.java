@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Optional;
 
 @Component
 public final class JwtTokenValidator {
@@ -40,9 +41,9 @@ public final class JwtTokenValidator {
         return buildToken(userId, email, TYPE_REFRESH, jwtProperties.refreshExpirationMs(), false, tokenVersion);
     }
 
-    /** The session-invalidation version stamped into a refresh token (null if the claim is absent). */
-    public Integer getTokenVersion(Claims claims) {
-        return claims.get(CLAIM_TOKEN_VERSION, Integer.class);
+    /** The session-invalidation version stamped into a refresh token; empty if the claim is absent. */
+    public Optional<Integer> getTokenVersion(Claims claims) {
+        return Optional.ofNullable(claims.get(CLAIM_TOKEN_VERSION, Integer.class));
     }
 
     private String buildToken(String userId, String email, String type, long expirationMs,
