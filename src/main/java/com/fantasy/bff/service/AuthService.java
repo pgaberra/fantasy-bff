@@ -80,12 +80,22 @@ public class AuthService {
         if (maybeUser.isEmpty() || !passwordMatches) {
             throw new SecurityException("Invalid email or password");
         }
-        return issueTokens(maybeUser.get().id(), maybeUser.get().email());
+        return issueTokens(maybeUser.get().id(), maybeUser.get().email(), maybeUser.get().tokenVersion());
     }
 
     public AuthResponse refresh(RefreshRequest request) {
         Claims claims = jwtTokenValidator.validateAndExtractRefreshTokenClaims(request.refreshToken());
-        return issueTokens(claims.getSubject(), claims.get("email", String.class));
+        User user = databaseServiceClient.findUserByEmail(claims.get("email", String.class))
+                .orElseThrow(() -> new SecurityException("Invalid refresh token"));
+        int currentVersion = user.tokenVersion();
+        boolean tokenIsCurrent = jwtTokenValidator.getTokenVersion(claims)
+                .map(version -> version == currentVersion)
+                .orElse(false);
+        if (!tokenIsCurrent) {
+            // The refresh token was revoked — e.g. a password reset bumped the user's token version.
+            throw new SecurityException("Refresh token has been revoked");
+        }
+        return issueTokens(user.id(), user.email(), currentVersion);
     }
 
     /**
@@ -99,7 +109,7 @@ public class AuthService {
 
         String passwordHash = passwordEncoder.encode(request.password());
         User user = databaseServiceClient.createUser(request.email(), passwordHash);
-        return issueTokens(user.id(), user.email());
+        return issueTokens(user.id(), user.email(), user.tokenVersion());
     }
 
     /**
@@ -110,7 +120,7 @@ public class AuthService {
     public AuthResponse googleLogin(GoogleLoginRequest request) {
         GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
         User user = databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub());
-        return issueTokens(user.id(), user.email());
+        return issueTokens(user.id(), user.email(), user.tokenVersion());
     }
 
     /**
@@ -122,7 +132,7 @@ public class AuthService {
     public AuthResponse facebookLogin(FacebookLoginRequest request) {
         FacebookIdentity identity = facebookTokenVerifier.verify(request.accessToken());
         User user = databaseServiceClient.findOrCreateFacebookUser(identity.email(), identity.sub());
-        return issueTokens(user.id(), user.email());
+        return issueTokens(user.id(), user.email(), user.tokenVersion());
     }
 
     /**
@@ -150,10 +160,10 @@ public class AuthService {
                 .toUriString();
     }
 
-    private AuthResponse issueTokens(String userId, String email) {
+    private AuthResponse issueTokens(String userId, String email, int tokenVersion) {
         boolean admin = isAdmin(email);
         String token = jwtTokenValidator.generateToken(userId, email, admin);
-        String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email);
+        String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email, tokenVersion);
         long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
         long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
         return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn, admin);

@@ -682,9 +682,15 @@ components:
         facebookSub:
           type: string
           description: Facebook subject id; null otherwise
+        tokenVersion:
+          type: integer
+          format: int32
+          description: Session-invalidation counter; the BFF stamps it into refresh
+            tokens and rejects a refresh whose value is stale
       required:
       - email
       - id
+      - tokenVersion
     CreateProjectionRequest:
       type: object
       properties:

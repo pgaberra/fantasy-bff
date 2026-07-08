@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Optional;
 
 @Component
 public final class JwtTokenValidator {
@@ -24,6 +25,7 @@ public final class JwtTokenValidator {
 
     private static final String CLAIM_TYPE = "type";
     private static final String CLAIM_ADMIN = "admin";
+    private static final String CLAIM_TOKEN_VERSION = "tv";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
 
@@ -32,14 +34,20 @@ public final class JwtTokenValidator {
     }
 
     public String generateToken(String userId, String email, boolean admin) {
-        return buildToken(userId, email, TYPE_ACCESS, jwtProperties.expirationMs(), admin);
+        return buildToken(userId, email, TYPE_ACCESS, jwtProperties.expirationMs(), admin, null);
     }
 
-    public String generateRefreshToken(String userId, String email) {
-        return buildToken(userId, email, TYPE_REFRESH, jwtProperties.refreshExpirationMs(), false);
+    public String generateRefreshToken(String userId, String email, int tokenVersion) {
+        return buildToken(userId, email, TYPE_REFRESH, jwtProperties.refreshExpirationMs(), false, tokenVersion);
     }
 
-    private String buildToken(String userId, String email, String type, long expirationMs, boolean admin) {
+    /** The session-invalidation version stamped into a refresh token; empty if the claim is absent. */
+    public Optional<Integer> getTokenVersion(Claims claims) {
+        return Optional.ofNullable(claims.get(CLAIM_TOKEN_VERSION, Integer.class));
+    }
+
+    private String buildToken(String userId, String email, String type, long expirationMs,
+                              boolean admin, Integer tokenVersion) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
         var builder = Jwts.builder()
@@ -50,6 +58,9 @@ public final class JwtTokenValidator {
                 .expiration(expiry);
         if (admin) {
             builder.claim(CLAIM_ADMIN, true);
+        }
+        if (tokenVersion != null) {
+            builder.claim(CLAIM_TOKEN_VERSION, tokenVersion);
         }
         return builder.signWith(signingKey).compact();
     }
