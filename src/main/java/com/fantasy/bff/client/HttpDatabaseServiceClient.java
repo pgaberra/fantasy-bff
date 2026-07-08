@@ -52,7 +52,8 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                     .retrieve()
                     .body(UserResponse.class);
             return Optional.ofNullable(response)
-                    .map(r -> new User(r.getId(), r.getEmail(), r.getPasswordHash(), r.getTokenVersion()));
+                    .map(r -> new User(r.getId(), r.getEmail(), r.getPasswordHash(),
+                            r.getTokenVersion(), r.getEmailVerified()));
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 404) {
                 return Optional.empty();
@@ -76,7 +77,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
             throw new IllegalStateException("db-service returned no body when creating the user");
         }
         return new User(response.getId(), response.getEmail(), response.getPasswordHash(),
-                response.getTokenVersion());
+                response.getTokenVersion(), response.getEmailVerified());
     }
 
     @Override
@@ -103,7 +104,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
             throw new IllegalStateException("db-service returned no body when resolving the Google user");
         }
         return new User(response.getId(), response.getEmail(), response.getPasswordHash(),
-                response.getTokenVersion());
+                response.getTokenVersion(), response.getEmailVerified());
     }
 
     @Override
@@ -121,7 +122,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
             throw new IllegalStateException("db-service returned no body when resolving the Facebook user");
         }
         return new User(response.getId(), response.getEmail(), response.getPasswordHash(),
-                response.getTokenVersion());
+                response.getTokenVersion(), response.getEmailVerified());
     }
 
     @Override

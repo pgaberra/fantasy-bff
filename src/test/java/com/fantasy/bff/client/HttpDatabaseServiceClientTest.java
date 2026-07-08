@@ -52,7 +52,7 @@ class HttpDatabaseServiceClientTest {
     void findUserByEmail_returnsUser_on200() {
         server.stubFor(get(urlPathEqualTo("/api/v1/users"))
                 .withQueryParam("email", equalTo("a@b.com"))
-                .willReturn(okJson("{\"id\":\"u-1\",\"email\":\"a@b.com\",\"passwordHash\":\"hash\",\"tokenVersion\":2}")));
+                .willReturn(okJson("{\"id\":\"u-1\",\"email\":\"a@b.com\",\"passwordHash\":\"hash\",\"tokenVersion\":2,\"emailVerified\":true}")));
 
         Optional<User> result = client.findUserByEmail("a@b.com");
 
@@ -61,6 +61,7 @@ class HttpDatabaseServiceClientTest {
         assertThat(result.get().email()).isEqualTo("a@b.com");
         assertThat(result.get().passwordHash()).isEqualTo("hash");
         assertThat(result.get().tokenVersion()).isEqualTo(2);
+        assertThat(result.get().emailVerified()).isTrue();
     }
 
     @Test
@@ -83,11 +84,11 @@ class HttpDatabaseServiceClientTest {
     @Test
     void findOrCreateGoogleUser_postsIdentity_andReturnsResolvedUser() {
         server.stubFor(post(urlPathEqualTo("/api/v1/users/google"))
-                .willReturn(okJson("{\"id\":\"u-5\",\"email\":\"g@b.com\",\"passwordHash\":null,\"tokenVersion\":0}")));
+                .willReturn(okJson("{\"id\":\"u-5\",\"email\":\"g@b.com\",\"passwordHash\":null,\"tokenVersion\":0,\"emailVerified\":true}")));
 
         User resolved = client.findOrCreateGoogleUser("g@b.com", "google-sub-5");
 
-        assertThat(resolved).isEqualTo(new User("u-5", "g@b.com", null, 0));
+        assertThat(resolved).isEqualTo(new User("u-5", "g@b.com", null, 0, true));
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/google"))
                 .withRequestBody(equalToJson("{\"email\":\"g@b.com\",\"googleSub\":\"google-sub-5\"}")));
     }
@@ -95,12 +96,12 @@ class HttpDatabaseServiceClientTest {
     @Test
     void createUser_postsEmailAndHash_andReturnsCreatedUser() {
         server.stubFor(post(urlPathEqualTo("/api/v1/users"))
-                .willReturn(okJson("{\"id\":\"u-9\",\"email\":\"new@b.com\",\"passwordHash\":\"hashed\",\"tokenVersion\":0}")
+                .willReturn(okJson("{\"id\":\"u-9\",\"email\":\"new@b.com\",\"passwordHash\":\"hashed\",\"tokenVersion\":0,\"emailVerified\":false}")
                         .withStatus(201)));
 
         User created = client.createUser("new@b.com", "hashed");
 
-        assertThat(created).isEqualTo(new User("u-9", "new@b.com", "hashed", 0));
+        assertThat(created).isEqualTo(new User("u-9", "new@b.com", "hashed", 0, false));
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users"))
                 .withRequestBody(equalToJson("{\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")));
     }

@@ -963,8 +963,12 @@ components:
           format: int64
         admin:
           type: boolean
+        emailVerified:
+          type: boolean
+          description: Whether the account's email address has been verified
       required:
       - admin
+      - emailVerified
       - expiresInSeconds
       - refreshExpiresInSeconds
       - refreshToken
