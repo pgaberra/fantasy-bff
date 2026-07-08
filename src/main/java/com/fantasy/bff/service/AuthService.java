@@ -86,7 +86,8 @@ public class AuthService {
         if (maybeUser.isEmpty() || !passwordMatches) {
             throw new SecurityException("Invalid email or password");
         }
-        return issueTokens(maybeUser.get().id(), maybeUser.get().email(), maybeUser.get().tokenVersion());
+        return issueTokens(maybeUser.get().id(), maybeUser.get().email(),
+                maybeUser.get().tokenVersion(), maybeUser.get().emailVerified());
     }
 
     public AuthResponse refresh(RefreshRequest request) {
@@ -101,7 +102,7 @@ public class AuthService {
             // The refresh token was revoked — e.g. a password reset bumped the user's token version.
             throw new SecurityException("Refresh token has been revoked");
         }
-        return issueTokens(user.id(), user.email(), currentVersion);
+        return issueTokens(user.id(), user.email(), currentVersion, user.emailVerified());
     }
 
     /**
@@ -123,7 +124,7 @@ public class AuthService {
         } catch (RuntimeException e) {
             log.error("Failed to issue a verification email for a newly registered account", e);
         }
-        return issueTokens(user.id(), user.email(), user.tokenVersion());
+        return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
     }
 
     /**
@@ -134,7 +135,7 @@ public class AuthService {
     public AuthResponse googleLogin(GoogleLoginRequest request) {
         GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
         User user = databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub());
-        return issueTokens(user.id(), user.email(), user.tokenVersion());
+        return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
     }
 
     /**
@@ -146,7 +147,7 @@ public class AuthService {
     public AuthResponse facebookLogin(FacebookLoginRequest request) {
         FacebookIdentity identity = facebookTokenVerifier.verify(request.accessToken());
         User user = databaseServiceClient.findOrCreateFacebookUser(identity.email(), identity.sub());
-        return issueTokens(user.id(), user.email(), user.tokenVersion());
+        return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
     }
 
     /**
@@ -204,13 +205,13 @@ public class AuthService {
                 .toUriString();
     }
 
-    private AuthResponse issueTokens(String userId, String email, int tokenVersion) {
+    private AuthResponse issueTokens(String userId, String email, int tokenVersion, boolean emailVerified) {
         boolean admin = isAdmin(email);
         String token = jwtTokenValidator.generateToken(userId, email, admin);
         String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email, tokenVersion);
         long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
         long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
-        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn, admin);
+        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn, admin, emailVerified);
     }
 
     private boolean isAdmin(String email) {

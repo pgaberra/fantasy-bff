@@ -4,5 +4,6 @@ public record User(
         String id,
         String email,
         String passwordHash,
-        int tokenVersion
+        int tokenVersion,
+        boolean emailVerified
 ) {}
