@@ -1,8 +1,10 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.db.model.CreateEmailVerificationTokenRequest;
 import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
+import com.fantasy.bff.generated.db.model.EmailVerificationTokenResponse;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
 import com.fantasy.bff.generated.db.model.FacebookUserRequest;
 import com.fantasy.bff.generated.db.model.GoogleUserRequest;
@@ -12,6 +14,8 @@ import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UserResponse;
+import com.fantasy.bff.generated.db.model.VerifyEmailRequest;
+import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -149,6 +153,40 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 404) {
                 throw new IllegalArgumentException("Invalid or expired password reset token");
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public Optional<EmailVerificationToken> createEmailVerificationToken(String email) {
+        CreateEmailVerificationTokenRequest request = new CreateEmailVerificationTokenRequest().email(email);
+        ResponseEntity<EmailVerificationTokenResponse> response = restClient.post()
+                .uri("/api/v1/users/email-verification/tokens")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .toEntity(EmailVerificationTokenResponse.class);
+        EmailVerificationTokenResponse body = response.getBody();
+        if (response.getStatusCode().value() == 204 || body == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new EmailVerificationToken(body.getToken(), body.getExpiresAt().toInstant()));
+    }
+
+    @Override
+    public void verifyEmail(String token) {
+        VerifyEmailRequest request = new VerifyEmailRequest().token(token);
+        try {
+            restClient.post()
+                    .uri("/api/v1/users/email-verification")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                throw new IllegalArgumentException("Invalid or expired email verification token");
             }
             throw e;
         }
