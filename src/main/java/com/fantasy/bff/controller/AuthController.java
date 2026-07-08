@@ -6,7 +6,9 @@ import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.dto.request.ResendVerificationRequest;
 import com.fantasy.bff.dto.request.ResetPasswordRequest;
+import com.fantasy.bff.dto.request.VerifyEmailRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -108,6 +110,32 @@ public class AuthController {
     })
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/verify")
+    @Operation(summary = "Verify an email address with a token",
+            description = "Consumes a single-use verification token from the email link and marks "
+                    + "the account's email verified.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Email verified"),
+            @ApiResponse(responseCode = "400", description = "Invalid or expired token, or validation error")
+    })
+    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        authService.verifyEmail(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/verify/resend")
+    @Operation(summary = "Resend the verification email",
+            description = "Always returns 200. To avoid revealing whether an account exists, the "
+                    + "response is identical whether or not a verification email was sent.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Request accepted (an email is sent only if a matching unverified account exists)"),
+            @ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        authService.resendVerificationEmail(request);
         return ResponseEntity.ok().build();
     }
 }

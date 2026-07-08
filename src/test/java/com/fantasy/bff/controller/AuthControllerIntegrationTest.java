@@ -8,8 +8,12 @@ import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.dto.request.ResendVerificationRequest;
 import com.fantasy.bff.dto.request.ResetPasswordRequest;
+import com.fantasy.bff.dto.request.VerifyEmailRequest;
+import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
+import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.security.FacebookIdentity;
 import com.fantasy.bff.security.FacebookTokenVerifier;
@@ -67,6 +71,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean
     private PasswordResetEmailSender passwordResetEmailSender;
+
+    @MockitoBean
+    private EmailVerificationEmailSender emailVerificationEmailSender;
 
     @Test
     void login_withInvalidCredentials_returns401() throws Exception {
@@ -325,5 +332,71 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                         .content("{\"token\":\"raw-token\",\"newPassword\":\"short\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void register_sendsVerificationEmail() throws Exception {
+        String email = "verify@example.com";
+        when(databaseServiceClient.existsByEmail(email)).thenReturn(false);
+        when(databaseServiceClient.createUser(eq(email), anyString()))
+                .thenReturn(new User("user-9", email, "stored-hash", 0));
+        when(databaseServiceClient.createEmailVerificationToken(email))
+                .thenReturn(Optional.of(new EmailVerificationToken("verify-token", Instant.now().plusSeconds(86400))));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RegisterRequest(email, "password"))))
+                .andExpect(status().isCreated());
+
+        verify(emailVerificationEmailSender)
+                .send(eq(email), contains("/verify-email?token=verify-token"), any());
+    }
+
+    @Test
+    void verifyEmail_withValidToken_returns200() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyEmailRequest("good-token"))))
+                .andExpect(status().isOk());
+
+        verify(databaseServiceClient).verifyEmail("good-token");
+    }
+
+    @Test
+    void verifyEmail_withInvalidToken_returns400() throws Exception {
+        doThrow(new IllegalArgumentException("Invalid or expired email verification token"))
+                .when(databaseServiceClient).verifyEmail("bad-token");
+
+        mockMvc.perform(post("/api/v1/auth/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyEmailRequest("bad-token"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void resendVerification_sendsEmail_whenAccountUnverified() throws Exception {
+        when(databaseServiceClient.createEmailVerificationToken("user@example.com"))
+                .thenReturn(Optional.of(new EmailVerificationToken("raw-token", Instant.now().plusSeconds(86400))));
+
+        mockMvc.perform(post("/api/v1/auth/verify/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendVerificationRequest("user@example.com"))))
+                .andExpect(status().isOk());
+
+        verify(emailVerificationEmailSender)
+                .send(eq("user@example.com"), contains("/verify-email?token=raw-token"), any());
+    }
+
+    @Test
+    void resendVerification_returns200_andSendsNothing_whenNothingToVerify() throws Exception {
+        when(databaseServiceClient.createEmailVerificationToken("ghost@example.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/auth/verify/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendVerificationRequest("ghost@example.com"))))
+                .andExpect(status().isOk());
+
+        verifyNoInteractions(emailVerificationEmailSender);
     }
 }

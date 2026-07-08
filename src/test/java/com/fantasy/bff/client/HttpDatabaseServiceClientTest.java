@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -143,6 +144,48 @@ class HttpDatabaseServiceClientTest {
                 .willReturn(aResponse().withStatus(404)));
 
         assertThatThrownBy(() -> client.resetPassword("bad", "hashed"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void createEmailVerificationToken_returnsToken_on200() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/email-verification/tokens"))
+                .willReturn(okJson("{\"token\":\"raw-token\",\"expiresAt\":\"2026-06-18T12:00:00Z\"}")));
+
+        Optional<EmailVerificationToken> result = client.createEmailVerificationToken("a@b.com");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().token()).isEqualTo("raw-token");
+        assertThat(result.get().expiresAt()).isEqualTo(Instant.parse("2026-06-18T12:00:00Z"));
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/email-verification/tokens"))
+                .withRequestBody(equalToJson("{\"email\":\"a@b.com\"}")));
+    }
+
+    @Test
+    void createEmailVerificationToken_returnsEmpty_on204() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/email-verification/tokens"))
+                .willReturn(aResponse().withStatus(204)));
+
+        assertThat(client.createEmailVerificationToken("none@b.com")).isEmpty();
+    }
+
+    @Test
+    void verifyEmail_posts_on204() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/email-verification"))
+                .willReturn(aResponse().withStatus(204)));
+
+        client.verifyEmail("raw-token");
+
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/email-verification"))
+                .withRequestBody(equalToJson("{\"token\":\"raw-token\"}")));
+    }
+
+    @Test
+    void verifyEmail_throwsIllegalArgument_on404() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/email-verification"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertThatThrownBy(() -> client.verifyEmail("bad"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

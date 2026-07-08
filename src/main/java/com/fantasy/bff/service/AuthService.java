@@ -7,10 +7,13 @@ import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.dto.request.ResendVerificationRequest;
 import com.fantasy.bff.dto.request.ResetPasswordRequest;
+import com.fantasy.bff.dto.request.VerifyEmailRequest;
 import io.jsonwebtoken.Claims;
 import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.response.AuthResponse;
+import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.security.FacebookIdentity;
@@ -40,6 +43,7 @@ public class AuthService {
     private final GoogleTokenVerifier googleTokenVerifier;
     private final FacebookTokenVerifier facebookTokenVerifier;
     private final PasswordResetEmailSender passwordResetEmailSender;
+    private final EmailVerificationEmailSender emailVerificationEmailSender;
     private final SecurityProperties securityProperties;
     private final String webBaseUrl;
     private final String dummyPasswordHash;
@@ -50,6 +54,7 @@ public class AuthService {
                        GoogleTokenVerifier googleTokenVerifier,
                        FacebookTokenVerifier facebookTokenVerifier,
                        PasswordResetEmailSender passwordResetEmailSender,
+                       EmailVerificationEmailSender emailVerificationEmailSender,
                        SecurityProperties securityProperties,
                        @Value("${app.web-base-url:http://localhost:4200}") String webBaseUrl) {
         this.databaseServiceClient = databaseServiceClient;
@@ -58,6 +63,7 @@ public class AuthService {
         this.googleTokenVerifier = googleTokenVerifier;
         this.facebookTokenVerifier = facebookTokenVerifier;
         this.passwordResetEmailSender = passwordResetEmailSender;
+        this.emailVerificationEmailSender = emailVerificationEmailSender;
         this.securityProperties = securityProperties;
         this.webBaseUrl = webBaseUrl;
         // A precomputed hash to compare against when an account is missing or password-less, so
@@ -109,6 +115,14 @@ public class AuthService {
 
         String passwordHash = passwordEncoder.encode(request.password());
         User user = databaseServiceClient.createUser(request.email(), passwordHash);
+        // Send a verification email, but never let its failure fail the registration: the account
+        // already exists and the user can request a fresh link later (soft gate — they can still log
+        // in while unverified).
+        try {
+            sendVerificationEmail(user.email());
+        } catch (RuntimeException e) {
+            log.error("Failed to issue a verification email for a newly registered account", e);
+        }
         return issueTokens(user.id(), user.email(), user.tokenVersion());
     }
 
@@ -152,9 +166,39 @@ public class AuthService {
         databaseServiceClient.resetPassword(request.token(), passwordHash);
     }
 
+    /**
+     * Re-sends the verification email for an account, or does nothing when there is nothing to
+     * verify (unknown email or an already-verified account). The caller responds identically in
+     * both cases so a request never reveals whether an account exists.
+     */
+    public void resendVerificationEmail(ResendVerificationRequest request) {
+        sendVerificationEmail(request.email());
+    }
+
+    /** Consumes a verification link's token and marks the account's email verified. */
+    public void verifyEmail(VerifyEmailRequest request) {
+        databaseServiceClient.verifyEmail(request.token());
+    }
+
+    private void sendVerificationEmail(String email) {
+        databaseServiceClient.createEmailVerificationToken(email).ifPresentOrElse(
+                token -> emailVerificationEmailSender.send(
+                        email, buildVerifyLink(token.token()), token.expiresAt()),
+                () -> log.info("Email verification requested for an unknown or already-verified "
+                        + "account; no email sent"));
+    }
+
     private String buildResetLink(String token) {
         return UriComponentsBuilder.fromUriString(webBaseUrl)
                 .path("/reset-password")
+                .queryParam("token", token)
+                .build()
+                .toUriString();
+    }
+
+    private String buildVerifyLink(String token) {
+        return UriComponentsBuilder.fromUriString(webBaseUrl)
+                .path("/verify-email")
                 .queryParam("token", token)
                 .build()
                 .toUriString();

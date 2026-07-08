@@ -4,6 +4,7 @@ import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 
@@ -42,6 +43,18 @@ public interface DatabaseServiceClient {
      * {@link IllegalArgumentException} when the token is invalid, expired, or already used.
      */
     void resetPassword(String token, String passwordHash);
+
+    /**
+     * Issues a single-use email-verification token for the account with this email, or empty
+     * when there is nothing to verify (unknown email or an already-verified account).
+     */
+    Optional<EmailVerificationToken> createEmailVerificationToken(String email);
+
+    /**
+     * Consumes a verification token and marks the account's email verified. Throws
+     * {@link IllegalArgumentException} when the token is invalid, expired, or already used.
+     */
+    void verifyEmail(String token);
 
     List<ProjectionSummaryResponse> listProjections(UUID userId);
 

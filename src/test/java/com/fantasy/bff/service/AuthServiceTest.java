@@ -5,6 +5,7 @@ import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
+import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.security.FacebookTokenVerifier;
@@ -48,6 +49,7 @@ class AuthServiceTest {
                 mock(GoogleTokenVerifier.class),
                 mock(FacebookTokenVerifier.class),
                 mock(PasswordResetEmailSender.class),
+                mock(EmailVerificationEmailSender.class),
                 new SecurityProperties(List.of(), List.of(), List.of()),
                 "http://localhost:4200");
     }

@@ -6,6 +6,8 @@ info:
 servers:
 - url: /
 tags:
+- name: Email verification
+  description: Single-use email-verification token issuance and consumption
 - name: Password reset
   description: Single-use password reset token issuance and consumption
 - name: User projections
@@ -342,6 +344,61 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/email-verification:
+    post:
+      tags:
+      - Email verification
+      summary: Consume an email-verification token and mark the account's email verified
+      operationId: verify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEmailRequest"
+        required: true
+      responses:
+        "204":
+          description: Email verified
+        "400":
+          description: Validation failed (blank token)
+        "404":
+          description: "Token is invalid, expired, or already used"
+  /api/v1/users/email-verification/tokens:
+    post:
+      tags:
+      - Email verification
+      summary: Issue a single-use email-verification token for the account with this
+        email
+      description: "Returns 200 with a raw token when the email maps to an unverified\
+        \ account. Returns 204 when there is nothing to verify (unknown email, or\
+        \ an already-verified account). The caller must treat both outcomes identically\
+        \ so that account existence is never revealed to end users."
+      operationId: issueToken_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmailVerificationTokenRequest"
+        required: true
+      responses:
+        "200":
+          description: Token issued
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EmailVerificationTokenResponse"
+        "204":
+          description: Nothing to verify; nothing issued
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EmailVerificationTokenResponse"
+        "400":
+          description: Validation failed (blank/invalid email)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EmailVerificationTokenResponse"
   /api/v1/users/exists:
     get:
       tags:
@@ -687,8 +744,12 @@ components:
           format: int32
           description: Session-invalidation counter; the BFF stamps it into refresh
             tokens and rejects a refresh whose value is stale
+        emailVerified:
+          type: boolean
+          description: Whether the account's email address has been verified
       required:
       - email
+      - emailVerified
       - id
       - tokenVersion
     CreateProjectionRequest:
@@ -768,6 +829,36 @@ components:
       required:
       - email
       - facebookSub
+    VerifyEmailRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 128
+          minLength: 0
+      required:
+      - token
+    CreateEmailVerificationTokenRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          minLength: 0
+      required:
+      - email
+    EmailVerificationTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - expiresAt
+      - token
     ProjectionSummaryResponse:
       type: object
       properties:
