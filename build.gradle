@@ -29,7 +29,7 @@ dependencies {
 
 	// Error tracking: ERROR-level logs are forwarded to Sentry (see logback-spring.xml).
 	// Active only when SENTRY_DSN is set (prod/staging); inert locally and in CI/tests.
-	implementation 'io.sentry:sentry-logback:8.47.0'
+	implementation 'io.sentry:sentry-logback:8.48.0'
 
 	// Configuration Properties Metadata
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
