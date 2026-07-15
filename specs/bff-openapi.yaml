@@ -653,6 +653,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DraftPick"
+        finishedAt:
+          type: string
+          format: date-time
       required:
       - order
       - picks
@@ -1187,8 +1190,15 @@ components:
         updatedAt:
           type: string
           format: date-time
+        draftStatus:
+          type: string
+          enum:
+          - none
+          - in_progress
+          - finished
       required:
       - createdAt
+      - draftStatus
       - id
       - name
       - season
