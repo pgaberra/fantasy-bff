@@ -43,7 +43,9 @@ jobs:
 
       # Tell the prod server (Coolify control plane) to stamp this tag as APP_VERSION on the
       # staging app and redeploy it, over a restricted SSH key whose only action is
-      # /root/set_staging_version_forced.sh. Safe no-op until STAGING_VERSION_SSH_KEY is set.
+      # /root/set_staging_version_forced.sh. This is staging's only deploy path once Coolify's
+      # own auto-deploy is off, so a missing key fails the job instead of skipping quietly —
+      # a silent skip would stop staging deploying with nothing but a notice to show for it.
       - name: Stamp staging version & redeploy
         if: steps.tag.outputs.new_tag != ''
         env:
@@ -51,8 +53,8 @@ jobs:
           NEW_TAG: ${{ steps.tag.outputs.new_tag }}
         run: |
           if [ -z "$DEPLOY_KEY" ]; then
-            echo "::notice::STAGING_VERSION_SSH_KEY not set — skipping staging version stamp."
-            exit 0
+            echo "::error::STAGING_VERSION_SSH_KEY is not set — staging cannot be stamped or deployed."
+            exit 1
           fi
           REPO_NAME="${GITHUB_REPOSITORY##*/}"
           install -m 700 -d ~/.ssh
