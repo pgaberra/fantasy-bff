@@ -37,7 +37,7 @@ jobs:
       # inspections (e.g. Boolean.TRUE.equals on a nominally-@Nonnull value that can still
       # be null at runtime) are false positives that must not block.
       - name: Qodana Scan
-        uses: JetBrains/qodana-action@v2026.1
+        uses: JetBrains/qodana-action@v2026.2
         continue-on-error: true
         with:
           pr-mode: false
