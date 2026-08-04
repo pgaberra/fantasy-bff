@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.SecurityProperties;
+import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
@@ -9,6 +10,8 @@ import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.security.FacebookTokenVerifier;
+import com.fantasy.bff.security.GoogleCodeExchanger;
+import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fantasy.bff.security.JwtTokenValidator;
 import io.jsonwebtoken.Claims;
@@ -34,6 +37,8 @@ class AuthServiceTest {
     private DatabaseServiceClient databaseServiceClient;
     private JwtTokenValidator jwtTokenValidator;
     private PasswordEncoder passwordEncoder;
+    private GoogleTokenVerifier googleTokenVerifier;
+    private GoogleCodeExchanger googleCodeExchanger;
     private AuthService authService;
 
     @BeforeEach
@@ -41,12 +46,15 @@ class AuthServiceTest {
         databaseServiceClient = mock(DatabaseServiceClient.class);
         jwtTokenValidator = mock(JwtTokenValidator.class);
         passwordEncoder = mock(PasswordEncoder.class);
+        googleTokenVerifier = mock(GoogleTokenVerifier.class);
+        googleCodeExchanger = mock(GoogleCodeExchanger.class);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$dummyDummyDummyDummyDummyDummyDummyDummyDummyDummyDu");
         authService = new AuthService(
                 databaseServiceClient,
                 jwtTokenValidator,
                 passwordEncoder,
-                mock(GoogleTokenVerifier.class),
+                googleTokenVerifier,
+                googleCodeExchanger,
                 mock(FacebookTokenVerifier.class),
                 mock(PasswordResetEmailSender.class),
                 mock(EmailVerificationEmailSender.class),
@@ -110,5 +118,24 @@ class AuthServiceTest {
         assertThat(response.refreshToken()).isEqualTo("new-refresh");
         // The new refresh token is re-stamped with the account's current version.
         verify(jwtTokenValidator).generateRefreshToken("user-1", "user@example.com", 3);
+    }
+
+    @Test
+    void googleLoginWithCode_exchangesCodeVerifiesIdTokenThenIssuesTokens() {
+        String redirectUri = "https://slapstat.com/auth/google/callback";
+        when(googleCodeExchanger.exchange("auth-code", redirectUri)).thenReturn("google-id-token");
+        when(googleTokenVerifier.verify("google-id-token"))
+                .thenReturn(new GoogleIdentity("google-sub-9", "g@example.com"));
+        when(databaseServiceClient.findOrCreateGoogleUser("g@example.com", "google-sub-9"))
+                .thenReturn(new User("user-9", "g@example.com", null, 0, true));
+        when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("access");
+        when(jwtTokenValidator.generateRefreshToken(anyString(), anyString(), anyInt())).thenReturn("refresh");
+
+        AuthResponse response =
+                authService.googleLoginWithCode(new GoogleCodeLoginRequest("auth-code", redirectUri));
+
+        assertThat(response.token()).isEqualTo("access");
+        assertThat(response.refreshToken()).isEqualTo("refresh");
+        verify(databaseServiceClient).findOrCreateGoogleUser("g@example.com", "google-sub-9");
     }
 }
