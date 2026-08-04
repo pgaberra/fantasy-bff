@@ -94,7 +94,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void register_withExistingEmail_returns400() throws Exception {
-        RegisterRequest request = new RegisterRequest("test@example.com", "password");
+        RegisterRequest request = new RegisterRequest("test@example.com", "Password1");
         when(databaseServiceClient.existsByEmail("test@example.com")).thenReturn(true);
 
         mockMvc.perform(post("/api/v1/auth/register")
@@ -116,9 +116,22 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void register_withWeakPassword_returns400_andNeverTouchesTheDatabase() throws Exception {
+        RegisterRequest request = new RegisterRequest("weak@example.com", "alllowercase");
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
     void register_withNewEmail_returns201WithTokens() throws Exception {
         String email = "new@example.com";
-        RegisterRequest request = new RegisterRequest(email, "password");
+        RegisterRequest request = new RegisterRequest(email, "Password1");
         when(databaseServiceClient.existsByEmail(email)).thenReturn(false);
         when(databaseServiceClient.createUser(eq(email), anyString()))
                 .thenReturn(new User("user-7", email, "stored-hash", 0, false));
@@ -367,7 +380,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void resetPassword_withValidToken_returns200() throws Exception {
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("raw-token", "newsecret"))))
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("raw-token", "Newsecret1"))))
                 .andExpect(status().isOk());
 
         verify(databaseServiceClient).resetPassword(eq("raw-token"), anyString());
@@ -380,7 +393,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("bad-token", "newsecret"))))
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("bad-token", "Newsecret1"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }
@@ -395,6 +408,17 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void resetPassword_withWeakPassword_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("raw-token", "alllowercase"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
     void register_sendsVerificationEmail() throws Exception {
         String email = "verify@example.com";
         when(databaseServiceClient.existsByEmail(email)).thenReturn(false);
@@ -405,7 +429,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new RegisterRequest(email, "password"))))
+                        .content(objectMapper.writeValueAsString(new RegisterRequest(email, "Password1"))))
                 .andExpect(status().isCreated());
 
         verify(emailVerificationEmailSender)
