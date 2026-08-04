@@ -369,6 +369,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/google/code:
+    post:
+      tags:
+      - Authentication
+      summary: Login with a Google authorization code
+      description: "Exchange a Google OAuth authorization code (from the top-level\
+        \ redirect flow) for an ID token server-side and log the user in, registering\
+        \ a new account on first login. Used by browsers that block the embedded Google\
+        \ Sign-In button, such as iOS Safari."
+      operationId: googleCodeLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleCodeLoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: "Invalid or expired authorization code, or unverified email"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Unrecognized redirect URI or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
   /api/v1/auth/facebook:
     post:
       tags:
@@ -1034,6 +1069,23 @@ components:
           minLength: 0
       required:
       - idToken
+    GoogleCodeLoginRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Authorization code returned by Google's OAuth redirect
+          maxLength: 2048
+          minLength: 0
+        redirectUri:
+          type: string
+          description: Redirect URI used in the authorization request; must match
+            one the BFF allows
+          maxLength: 512
+          minLength: 0
+      required:
+      - code
+      - redirectUri
     FacebookLoginRequest:
       type: object
       properties:

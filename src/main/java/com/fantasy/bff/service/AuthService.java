@@ -3,6 +3,7 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
+import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
@@ -18,6 +19,7 @@ import com.fantasy.bff.email.PasswordResetEmailSender;
 import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.security.FacebookIdentity;
 import com.fantasy.bff.security.FacebookTokenVerifier;
+import com.fantasy.bff.security.GoogleCodeExchanger;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -41,6 +43,7 @@ public class AuthService {
     private final JwtTokenValidator jwtTokenValidator;
     private final PasswordEncoder passwordEncoder;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final GoogleCodeExchanger googleCodeExchanger;
     private final FacebookTokenVerifier facebookTokenVerifier;
     private final PasswordResetEmailSender passwordResetEmailSender;
     private final EmailVerificationEmailSender emailVerificationEmailSender;
@@ -52,6 +55,7 @@ public class AuthService {
                        JwtTokenValidator jwtTokenValidator,
                        PasswordEncoder passwordEncoder,
                        GoogleTokenVerifier googleTokenVerifier,
+                       GoogleCodeExchanger googleCodeExchanger,
                        FacebookTokenVerifier facebookTokenVerifier,
                        PasswordResetEmailSender passwordResetEmailSender,
                        EmailVerificationEmailSender emailVerificationEmailSender,
@@ -61,6 +65,7 @@ public class AuthService {
         this.jwtTokenValidator = jwtTokenValidator;
         this.passwordEncoder = passwordEncoder;
         this.googleTokenVerifier = googleTokenVerifier;
+        this.googleCodeExchanger = googleCodeExchanger;
         this.facebookTokenVerifier = facebookTokenVerifier;
         this.passwordResetEmailSender = passwordResetEmailSender;
         this.emailVerificationEmailSender = emailVerificationEmailSender;
@@ -128,12 +133,30 @@ public class AuthService {
     }
 
     /**
-     * Logs in (or registers) via a Google ID token. The verifier guarantees signature,
-     * audience and a verified email; db-service resolves the account by Google subject,
-     * links it to an existing same-email account, or creates a new password-less user.
+     * Logs in (or registers) via a Google ID token obtained client-side (the embedded GSI
+     * button). The verifier guarantees signature, audience and a verified email.
      */
     public AuthResponse googleLogin(GoogleLoginRequest request) {
-        GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
+        return loginWithGoogleIdentity(googleTokenVerifier.verify(request.idToken()));
+    }
+
+    /**
+     * Logs in (or registers) via the Google OAuth authorization-code flow: exchanges the code
+     * for an ID token server-side, then proceeds as {@link #googleLogin}. This backs the
+     * top-level-redirect Sign-In the web uses so Google login works on browsers that block the
+     * embedded GSI button (notably iOS Safari under Intelligent Tracking Prevention).
+     */
+    public AuthResponse googleLoginWithCode(GoogleCodeLoginRequest request) {
+        String idToken = googleCodeExchanger.exchange(request.code(), request.redirectUri());
+        return loginWithGoogleIdentity(googleTokenVerifier.verify(idToken));
+    }
+
+    /**
+     * Resolves the account for a verified Google identity and issues our token pair. db-service
+     * resolves the account by Google subject, links it to an existing same-email account, or
+     * creates a new password-less user.
+     */
+    private AuthResponse loginWithGoogleIdentity(GoogleIdentity identity) {
         User user = databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub());
         return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
     }

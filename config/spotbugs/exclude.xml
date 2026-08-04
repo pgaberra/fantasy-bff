@@ -33,6 +33,7 @@
             <Class name="com.fantasy.bff.email.ResendPasswordResetEmailSender"/>
             <Class name="com.fantasy.bff.email.ResendEmailVerificationEmailSender"/>
             <Class name="com.fantasy.bff.security.GraphFacebookTokenVerifier"/>
+            <Class name="com.fantasy.bff.security.GoogleCodeExchanger"/>
             <Class name="com.fantasy.bff.config.DownstreamKeyVerifier"/>
         </Or>
     </Match>

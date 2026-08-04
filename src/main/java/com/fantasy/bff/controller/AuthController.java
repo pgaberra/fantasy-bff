@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
+import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
@@ -65,6 +66,20 @@ public class AuthController {
     })
     public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(authService.googleLogin(request));
+    }
+
+    @PostMapping("/google/code")
+    @Operation(summary = "Login with a Google authorization code",
+            description = "Exchange a Google OAuth authorization code (from the top-level redirect flow) "
+                    + "for an ID token server-side and log the user in, registering a new account on first login. "
+                    + "Used by browsers that block the embedded Google Sign-In button, such as iOS Safari.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired authorization code, or unverified email"),
+            @ApiResponse(responseCode = "400", description = "Unrecognized redirect URI or validation error")
+    })
+    public ResponseEntity<AuthResponse> googleCodeLogin(@Valid @RequestBody GoogleCodeLoginRequest request) {
+        return ResponseEntity.ok(authService.googleLoginWithCode(request));
     }
 
     @PostMapping("/facebook")

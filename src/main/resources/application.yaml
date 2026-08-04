@@ -49,6 +49,17 @@ security:
     # Public OAuth Client ID for "Sign in with Google" (not a secret). When unset,
     # /api/v1/auth/google rejects all requests and the web hides the Google button.
     client-id: ${GOOGLE_CLIENT_ID:}
+    # OAuth Client Secret (SECRET), used server-side to exchange the authorization code from
+    # the top-level-redirect flow (/api/v1/auth/google/code). When unset that endpoint rejects
+    # all requests; the embedded-button endpoint (/api/v1/auth/google) does not need it.
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    # Google's OAuth 2.0 token endpoint (non-secret; overridable for tests).
+    token-uri: ${GOOGLE_TOKEN_URI:https://oauth2.googleapis.com/token}
+    # Comma-separated allowlist of redirect URIs accepted for the code flow. Defaults to
+    # <WEB_ORIGIN>/auth/google/callback so the common single-origin case needs no extra config;
+    # set GOOGLE_REDIRECT_URIS to list several (e.g. apex + www) when needed. Each value must
+    # also be registered as an authorized redirect URI on the Google OAuth client.
+    allowed-redirect-uris: ${GOOGLE_REDIRECT_URIS:${WEB_ORIGIN:http://localhost:4200}/auth/google/callback}
   facebook:
     # Public Facebook App ID (not a secret) + the App Secret (secret), used server-side to
     # verify the user's access token via the Graph API. When either is unset,
@@ -70,6 +81,7 @@ security:
       "/api/v1/auth/login": { limit: 10, window-seconds: 300 }
       "/api/v1/auth/register": { limit: 5, window-seconds: 3600 }
       "/api/v1/auth/google": { limit: 20, window-seconds: 300 }
+      "/api/v1/auth/google/code": { limit: 20, window-seconds: 300 }
       "/api/v1/auth/facebook": { limit: 20, window-seconds: 300 }
       "/api/v1/auth/password/forgot": { limit: 5, window-seconds: 900 }
       "/api/v1/auth/password/reset": { limit: 10, window-seconds: 900 }

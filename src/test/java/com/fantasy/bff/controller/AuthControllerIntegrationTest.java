@@ -4,6 +4,7 @@ import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
+import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
 import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
@@ -17,6 +18,7 @@ import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.security.FacebookIdentity;
 import com.fantasy.bff.security.FacebookTokenVerifier;
+import com.fantasy.bff.security.GoogleCodeExchanger;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,6 +67,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean
     private GoogleTokenVerifier googleTokenVerifier;
+
+    @MockitoBean
+    private GoogleCodeExchanger googleCodeExchanger;
 
     @MockitoBean
     private FacebookTokenVerifier facebookTokenVerifier;
@@ -181,6 +186,60 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new GoogleLoginRequest(""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void googleCodeLogin_withValidCode_returnsBothTokens() throws Exception {
+        String redirectUri = "http://localhost:4200/auth/google/callback";
+        when(googleCodeExchanger.exchange("auth-code", redirectUri)).thenReturn("google-id-token");
+        when(googleTokenVerifier.verify("google-id-token"))
+                .thenReturn(new GoogleIdentity("google-sub-2", "gc@example.com"));
+        when(databaseServiceClient.findOrCreateGoogleUser("gc@example.com", "google-sub-2"))
+                .thenReturn(new User("user-4", "gc@example.com", null, 0, true));
+
+        mockMvc.perform(post("/api/v1/auth/google/code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new GoogleCodeLoginRequest("auth-code", redirectUri))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.emailVerified").value(true));
+    }
+
+    @Test
+    void googleCodeLogin_withUnrecognizedRedirectUri_returns400() throws Exception {
+        when(googleCodeExchanger.exchange(anyString(), eq("https://evil.example/callback")))
+                .thenThrow(new IllegalArgumentException("Unrecognized redirect URI"));
+
+        mockMvc.perform(post("/api/v1/auth/google/code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new GoogleCodeLoginRequest("auth-code", "https://evil.example/callback"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void googleCodeLogin_withInvalidCode_returns401() throws Exception {
+        when(googleCodeExchanger.exchange(anyString(), anyString()))
+                .thenThrow(new SecurityException("Could not exchange the Google authorization code"));
+
+        mockMvc.perform(post("/api/v1/auth/google/code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new GoogleCodeLoginRequest("bad-code", "http://localhost:4200/auth/google/callback"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void googleCodeLogin_withBlankCode_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google/code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new GoogleCodeLoginRequest("", "http://localhost:4200/auth/google/callback"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
