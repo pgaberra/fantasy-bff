@@ -30,7 +30,7 @@ class DownstreamKeyVerifierTest {
                 .baseUrl(server.baseUrl())
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
-        verifier = new DownstreamKeyVerifier(client, client, "configured", "configured");
+        verifier = new DownstreamKeyVerifier(client, client, client, "configured", "configured", "configured");
     }
 
     @AfterEach

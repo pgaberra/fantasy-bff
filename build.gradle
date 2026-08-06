@@ -132,11 +132,33 @@ tasks.register('generateYahooClient', org.openapitools.generator.gradle.plugin.t
 	]
 }
 
+// Same pattern for the espn-service spec. Re-run after updating
+// specs/fantasy-espn-service-openapi.yaml.
+tasks.register('generateEspnClient', org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
+	generatorName = 'java'
+	library = 'native'
+	inputSpec = file("specs/fantasy-espn-service-openapi.yaml").toURI().toString()
+	outputDir = "${buildDir}/generated/openapi/espn-service".toString()
+	modelPackage = 'com.fantasy.bff.generated.espn.model'
+	apiPackage = 'com.fantasy.bff.generated.espn.api'
+	invokerPackage = 'com.fantasy.bff.generated.espn'
+	generateApiTests = false
+	generateModelTests = false
+	generateApiDocumentation = false
+	generateModelDocumentation = false
+	configOptions = [
+		openApiNullable: 'false',
+		useJakartaEe: 'true',
+		useBeanValidation: 'true',
+	]
+}
+
 sourceSets {
 	main {
 		java {
 			srcDir "${buildDir}/generated/openapi/db-service/src/main/java"
 			srcDir "${buildDir}/generated/openapi/yahoo-service/src/main/java"
+			srcDir "${buildDir}/generated/openapi/espn-service/src/main/java"
 		}
 	}
 }
@@ -147,11 +169,13 @@ idea {
 	module {
 		generatedSourceDirs += file("${buildDir}/generated/openapi/db-service/src/main/java")
 		generatedSourceDirs += file("${buildDir}/generated/openapi/yahoo-service/src/main/java")
+		generatedSourceDirs += file("${buildDir}/generated/openapi/espn-service/src/main/java")
 	}
 }
 
 compileJava.dependsOn tasks.openApiGenerate
 compileJava.dependsOn tasks.generateYahooClient
+compileJava.dependsOn tasks.generateEspnClient
 
 // Static analysis (SpotBugs + FindSecBugs). Generated OpenAPI clients and a few
 // non-actionable patterns are excluded (see config/spotbugs/exclude.xml); the build

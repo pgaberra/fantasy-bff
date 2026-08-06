@@ -1,0 +1,255 @@
+openapi: 3.1.0
+info:
+  title: Fantasy ESPN Service API
+  description: "Integrates with the ESPN Fantasy v3 API: reads a user's fantasy hockey\
+    \ league settings (and stores the espn_s2 / SWID cookies needed for private leagues)\
+    \ for the BFF."
+  version: v1
+servers:
+- url: /
+tags:
+- name: ESPN Leagues
+  description: A user's ESPN fantasy hockey league settings and teams
+- name: ESPN Credentials
+  description: "A user's stored ESPN cookies (espn_s2 + SWID), needed to read private\
+    \ leagues"
+paths:
+  /api/v1/espn/credentials:
+    get:
+      tags:
+      - ESPN Credentials
+      summary: Whether the user has stored ESPN cookies
+      operationId: status
+      parameters:
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Status returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialStatusResponse"
+    put:
+      tags:
+      - ESPN Credentials
+      summary: Store (or replace) the user's ESPN cookies
+      operationId: save
+      parameters:
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveCredentialsRequest"
+        required: true
+      responses:
+        "204":
+          description: Cookies stored
+        "400":
+          description: Missing or invalid cookie values
+    delete:
+      tags:
+      - ESPN Credentials
+      summary: Delete the user's stored ESPN cookies
+      operationId: delete
+      parameters:
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Cookies deleted (or none existed)
+  /api/v1/espn/leagues/{leagueId}/teams:
+    get:
+      tags:
+      - ESPN Leagues
+      summary: List a league's teams (names + which is the user's own)
+      operationId: teams
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: season
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Teams returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeamsResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id/season
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeamsResponse"
+        "404":
+          description: No such ESPN league for the id and season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeamsResponse"
+  /api/v1/espn/leagues/{leagueId}/settings:
+    get:
+      tags:
+      - ESPN Leagues
+      summary: Get a league's scoring + roster settings
+      operationId: settings
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: season
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Settings returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueSettingsResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id/season
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueSettingsResponse"
+        "404":
+          description: No such ESPN league for the id and season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueSettingsResponse"
+components:
+  schemas:
+    SaveCredentialsRequest:
+      type: object
+      properties:
+        espnS2:
+          type: string
+          description: The user's espn_s2 cookie value.
+          maxLength: 1024
+          minLength: 0
+        swid:
+          type: string
+          description: The user's SWID cookie value (including the braces).
+          maxLength: 128
+          minLength: 0
+      required:
+      - espnS2
+      - swid
+    LeagueTeam:
+      type: object
+      properties:
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team (matched via their
+            SWID; always false for public leagues read without cookies).
+      required:
+      - mine
+      - name
+    LeagueTeamsResponse:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueTeam"
+      required:
+      - teams
+    LeagueSettingsResponse:
+      type: object
+      properties:
+        leagueId:
+          type: string
+        name:
+          type: string
+        scoringType:
+          type: string
+          description: "ESPN scoring type, e.g. H2H_POINTS, H2H_CATEGORY, ROTO."
+        size:
+          type: integer
+          format: int32
+          description: Number of teams in the league.
+        statCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatCategory"
+        rosterPositions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RosterSlot"
+      required:
+      - leagueId
+      - rosterPositions
+      - statCategories
+    RosterSlot:
+      type: object
+      properties:
+        position:
+          type: string
+        count:
+          type: integer
+          format: int32
+      required:
+      - count
+      - position
+    StatCategory:
+      type: object
+      properties:
+        statId:
+          type: integer
+          format: int32
+        name:
+          type: string
+        pointValue:
+          type: number
+          format: double
+      required:
+      - name
+      - statId
+    CredentialStatusResponse:
+      type: object
+      properties:
+        hasCredentials:
+          type: boolean
+          description: Whether the user has stored ESPN cookies (for private leagues).
+      required:
+      - hasCredentials

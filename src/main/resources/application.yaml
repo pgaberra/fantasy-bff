@@ -32,6 +32,12 @@ services:
     base-url: ${YAHOO_SERVICE_URL:http://localhost:8088}
     timeout-ms: 10000
     api-key: ${YAHOO_INTERNAL_API_KEY:}
+  # espn-service reads a user's ESPN league (public leagues need only an id; private ones
+  # use the stored espn_s2 + SWID cookies). Internal-only — no OAuth callback.
+  espn-fantasy:
+    base-url: ${ESPN_SERVICE_URL:http://localhost:8090}
+    timeout-ms: 10000
+    api-key: ${ESPN_INTERNAL_API_KEY:}
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000
