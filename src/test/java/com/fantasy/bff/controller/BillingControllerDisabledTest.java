@@ -51,4 +51,9 @@ class BillingControllerDisabledTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.premium").value(false))
                 .andExpect(jsonPath("$.status").value("none"));
     }
+
+    @Test
+    void mockStubPages_whenDisabled_return404() throws Exception {
+        mockMvc.perform(get("/api/v1/billing/mock/checkout")).andExpect(status().isNotFound());
+    }
 }
