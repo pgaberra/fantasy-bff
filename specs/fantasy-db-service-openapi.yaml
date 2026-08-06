@@ -10,17 +10,83 @@ tags:
   description: Single-use email-verification token issuance and consumption
 - name: Password reset
   description: Single-use password reset token issuance and consumption
+- name: Subscriptions
+  description: "A user's billing subscription, at most one per user"
 - name: User projections
   description: "Saved player projections, scoped to a user"
 - name: Users
   description: User management
 paths:
+  /api/v1/users/{userId}/subscription:
+    get:
+      tags:
+      - Subscriptions
+      summary: Fetch a user's subscription
+      operationId: get
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Subscription found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+        "404":
+          description: The user has no subscription
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+    put:
+      tags:
+      - Subscriptions
+      summary: Create or update a user's subscription (idempotent upsert from a provider
+        event)
+      operationId: upsert
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertSubscriptionRequest"
+        required: true
+      responses:
+        "200":
+          description: Subscription created or updated
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+        "400":
+          description: Validation failed
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+        "409":
+          description: Concurrent create race for the same user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
   /api/v1/users/{userId}/projections/{id}:
     get:
       tags:
       - User projections
       summary: "Fetch a single saved projection, including its data"
-      operationId: get
+      operationId: get_1
       parameters:
       - name: userId
         in: path
@@ -420,6 +486,93 @@ paths:
                 $ref: "#/components/schemas/ExistsResponse"
 components:
   schemas:
+    UpsertSubscriptionRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: "Payment provider id, e.g. \"mock\" or \"stripe\""
+          maxLength: 32
+          minLength: 0
+        providerCustomerId:
+          type: string
+          description: Provider-side customer id; null before the provider assigns
+            one
+          maxLength: 255
+          minLength: 0
+        providerSubscriptionId:
+          type: string
+          description: Provider-side subscription id; null before the provider assigns
+            one
+          maxLength: 255
+          minLength: 0
+        priceId:
+          type: string
+          description: Provider-side price/plan id; null if not applicable
+          maxLength: 255
+          minLength: 0
+        status:
+          type: string
+          enum:
+          - active
+          - trialing
+          - past_due
+          - canceled
+          - unpaid
+          - incomplete
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          description: When the current paid period ends; null for open-ended or incomplete
+            states
+        cancelAtPeriodEnd:
+          type: boolean
+          description: Whether the subscription is set to cancel at period end
+        eventAt:
+          type: string
+          format: date-time
+          description: Provider event timestamp; an event older than the stored one
+            is ignored
+      required:
+      - cancelAtPeriodEnd
+      - eventAt
+      - provider
+      - status
+    SubscriptionResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - active
+          - trialing
+          - past_due
+          - canceled
+          - unpaid
+          - incomplete
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          description: When the current paid period ends; null for open-ended or incomplete
+            states
+        cancelAtPeriodEnd:
+          type: boolean
+          description: Whether the subscription is set to cancel at period end
+        premium:
+          type: boolean
+          description: Whether the subscription currently grants premium access
+        provider:
+          type: string
+          description: Payment provider id
+        providerCustomerId:
+          type: string
+          description: Provider-side customer id; null before the provider assigns
+            one
+      required:
+      - cancelAtPeriodEnd
+      - premium
+      - provider
+      - status
     DraftPick:
       type: object
       properties:
