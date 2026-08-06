@@ -37,6 +37,20 @@ services:
     timeout-ms: 3000
     api-key: ${DB_INTERNAL_API_KEY:}
 
+payments:
+  # Subscription billing. Off by default (dark launch); enable per environment when going live.
+  enabled: ${PAYMENTS_ENABLED:false}
+  # Which provider implementation serves checkout/portal/webhooks: "mock" (in-repo test double,
+  # the default) or a real provider added later. Selecting a provider is a config change only.
+  provider: ${PAYMENTS_PROVIDER:mock}
+  mock:
+    # Secret the mock uses to sign its checkout/portal tokens and webhook payloads. No default
+    # (env only); the mock flow fails when unset, like other secrets.
+    webhook-secret: ${PAYMENTS_MOCK_WEBHOOK_SECRET:}
+    # Base URL the mock uses to build its stub URLs and to self-POST the webhook. Locally the
+    # BFF's own origin; on Coolify the bff service's Docker network alias.
+    self-base-url: ${PAYMENTS_MOCK_SELF_BASE_URL:http://localhost:8080}
+
 security:
   permitted-urls:
     - "/api/v1/auth/**"
@@ -85,6 +99,8 @@ security:
       "/api/v1/auth/facebook": { limit: 20, window-seconds: 300 }
       "/api/v1/auth/password/forgot": { limit: 5, window-seconds: 900 }
       "/api/v1/auth/password/reset": { limit: 10, window-seconds: 900 }
+      "/api/v1/billing/checkout-session": { limit: 10, window-seconds: 300 }
+      "/api/v1/billing/portal-session": { limit: 10, window-seconds: 300 }
 
 springdoc:
   api-docs:
