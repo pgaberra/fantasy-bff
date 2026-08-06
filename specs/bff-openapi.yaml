@@ -20,6 +20,8 @@ tags:
   description: The authenticated user's saved player projections
 - name: Versions
   description: Deployed version and reachability of every service
+- name: ESPN
+  description: The authenticated user's ESPN fantasy leagues
 - name: Billing
   description: "Subscription checkout, customer portal and premium entitlements"
 paths:
@@ -109,6 +111,43 @@ paths:
           description: Projection deleted
         "404":
           description: No such projection for this user
+  /api/v1/espn/credentials:
+    get:
+      tags:
+      - ESPN
+      summary: Whether the user has stored ESPN cookies (for private leagues)
+      operationId: credentialStatus
+      responses:
+        "200":
+          description: Status returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialStatusResponse"
+    put:
+      tags:
+      - ESPN
+      summary: Store (or replace) the user's ESPN cookies
+      operationId: saveCredentials
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EspnCredentialsRequest"
+        required: true
+      responses:
+        "204":
+          description: Cookies stored
+        "400":
+          description: Missing or invalid cookie values
+    delete:
+      tags:
+      - ESPN
+      summary: Delete the user's stored ESPN cookies
+      operationId: deleteCredentials
+      responses:
+        "204":
+          description: Cookies deleted (or none existed)
   /api/v1/yahoo/connect:
     post:
       tags:
@@ -658,6 +697,85 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
+  /api/v1/espn/leagues/{leagueId}/teams:
+    get:
+      tags:
+      - ESPN
+      summary: List an ESPN league's teams (names + which is the user's own)
+      operationId: teams_1
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: season
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Teams returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspnLeagueTeamsResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id/season
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspnLeagueTeamsResponse"
+        "404":
+          description: No such ESPN league for the id and season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspnLeagueTeamsResponse"
+  /api/v1/espn/leagues/{leagueId}/projection-settings:
+    get:
+      tags:
+      - ESPN
+      summary: Get an ESPN league's settings mapped to projection settings
+      description: "Maps the ESPN league's scoring basis (points vs category), active\
+        \ stat columns, point weights, roster slots and size into the projection's\
+        \ own shape."
+      operationId: projectionSettings_1
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: season
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Mapped settings returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id/season
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
+        "404":
+          description: No such ESPN league for the id and season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
   /api/v1/billing/entitlements:
     get:
       tags:
@@ -992,6 +1110,22 @@ components:
       - name
       - season
       - updatedAt
+    EspnCredentialsRequest:
+      type: object
+      properties:
+        espnS2:
+          type: string
+          description: The user's espn_s2 cookie value.
+          maxLength: 1024
+          minLength: 0
+        swid:
+          type: string
+          description: The user's SWID cookie value (including the braces).
+          maxLength: 128
+          minLength: 0
+      required:
+      - espnS2
+      - swid
     AuthorizeUrlResponse:
       type: object
       properties:
@@ -1534,6 +1668,34 @@ components:
           format: int32
       required:
       - gp
+    EspnLeagueTeam:
+      type: object
+      properties:
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team (matched via their
+            SWID; always false for public leagues read without cookies).
+      required:
+      - mine
+      - name
+    EspnLeagueTeamsResponse:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/EspnLeagueTeam"
+      required:
+      - teams
+    CredentialStatusResponse:
+      type: object
+      properties:
+        hasCredentials:
+          type: boolean
+      required:
+      - hasCredentials
     EntitlementsResponse:
       type: object
       properties:

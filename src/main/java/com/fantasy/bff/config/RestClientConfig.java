@@ -28,6 +28,18 @@ public class RestClientConfig {
     }
 
     @Bean
+    public RestClient espnFantasyServiceClient(
+            @Value("${services.espn-fantasy.base-url}") String baseUrl,
+            @Value("${services.espn-fantasy.timeout-ms}") int timeoutMs,
+            @Value("${services.espn-fantasy.api-key:}") String apiKey) {
+        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader("X-Internal-Api-Key", apiKey);
+        }
+        return builder.build();
+    }
+
+    @Bean
     public RestClient databaseServiceClient(
             @Value("${services.database.base-url}") String baseUrl,
             @Value("${services.database.timeout-ms}") int timeoutMs,

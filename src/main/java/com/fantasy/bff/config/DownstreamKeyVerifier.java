@@ -26,18 +26,24 @@ public class DownstreamKeyVerifier {
 
     private final RestClient databaseServiceClient;
     private final RestClient yahooFantasyServiceClient;
+    private final RestClient espnFantasyServiceClient;
     private final boolean dbKeyConfigured;
     private final boolean yahooKeyConfigured;
+    private final boolean espnKeyConfigured;
 
     public DownstreamKeyVerifier(
             RestClient databaseServiceClient,
             RestClient yahooFantasyServiceClient,
+            RestClient espnFantasyServiceClient,
             @Value("${services.database.api-key:}") String dbApiKey,
-            @Value("${services.yahoo-fantasy.api-key:}") String yahooApiKey) {
+            @Value("${services.yahoo-fantasy.api-key:}") String yahooApiKey,
+            @Value("${services.espn-fantasy.api-key:}") String espnApiKey) {
         this.databaseServiceClient = databaseServiceClient;
         this.yahooFantasyServiceClient = yahooFantasyServiceClient;
+        this.espnFantasyServiceClient = espnFantasyServiceClient;
         this.dbKeyConfigured = StringUtils.hasText(dbApiKey);
         this.yahooKeyConfigured = StringUtils.hasText(yahooApiKey);
+        this.espnKeyConfigured = StringUtils.hasText(espnApiKey);
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -48,6 +54,9 @@ public class DownstreamKeyVerifier {
         Thread.ofVirtual().name("yahoo-key-check").start(() -> verify(
                 "fantasy-yahoo-service", "YAHOO_INTERNAL_API_KEY", yahooKeyConfigured,
                 yahooFantasyServiceClient, "/api/v1/yahoo/oauth/connection", "appUserId"));
+        Thread.ofVirtual().name("espn-key-check").start(() -> verify(
+                "fantasy-espn-service", "ESPN_INTERNAL_API_KEY", espnKeyConfigured,
+                espnFantasyServiceClient, "/api/v1/espn/credentials", "appUserId"));
     }
 
     Result verify(String service, String bffEnvVar, boolean keyConfigured,
