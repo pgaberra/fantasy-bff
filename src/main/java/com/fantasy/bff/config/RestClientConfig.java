@@ -51,6 +51,18 @@ public class RestClientConfig {
         return builder.build();
     }
 
+    @Bean
+    public RestClient projectionServiceClient(
+            @Value("${services.projection.base-url}") String baseUrl,
+            @Value("${services.projection.timeout-ms}") int timeoutMs,
+            @Value("${services.projection.api-key:}") String apiKey) {
+        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader("X-Internal-Api-Key", apiKey);
+        }
+        return builder.build();
+    }
+
     private RestClient.Builder buildRestClientBuilder(String baseUrl, int timeoutMs) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(timeoutMs))

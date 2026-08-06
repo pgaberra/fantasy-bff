@@ -73,6 +73,22 @@ jobs:
             exit 1
           fi
 
+      - name: Verify pinned projection-service spec is in sync
+        if: github.actor != 'dependabot[bot]'
+        env:
+          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+        run: |
+          if ! gh api repos/pgaberra/fantasy-projection-service/contents/specs/openapi.json \
+                -H "Accept: application/vnd.github.raw" > /tmp/projection-openapi.json 2> /tmp/gh-err.txt; then
+            echo "::error::Could not fetch the projection-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-projection-service. (This is an auth failure, not a spec mismatch.)"
+            cat /tmp/gh-err.txt
+            exit 1
+          fi
+          if ! diff -u specs/fantasy-projection-service-openapi.json /tmp/projection-openapi.json; then
+            echo "::error::Pinned projection-service spec is stale. Copy fantasy-projection-service/specs/openapi.json into specs/fantasy-projection-service-openapi.json, run ./gradlew generateProjectionClient, and fix any compile errors."
+            exit 1
+          fi
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:

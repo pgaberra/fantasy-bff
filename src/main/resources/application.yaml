@@ -42,6 +42,12 @@ services:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000
     api-key: ${DB_INTERNAL_API_KEY:}
+  # projection-service serves AI-generated player projections (NHL-id-keyed, league-agnostic).
+  # Internal-only. Not deployed yet — the BFF client is wired ahead of the seeding slice.
+  projection:
+    base-url: ${PROJECTION_SERVICE_URL:http://localhost:8092}
+    timeout-ms: 5000
+    api-key: ${PROJECTION_INTERNAL_API_KEY:}
 
 payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.
