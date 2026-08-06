@@ -3,7 +3,9 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
+import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
@@ -65,4 +67,8 @@ public interface DatabaseServiceClient {
     ProjectionResponse updateProjection(UUID userId, UUID projectionId, UpdateProjectionRequest request);
 
     void deleteProjection(UUID userId, UUID projectionId);
+
+    Optional<SubscriptionResponse> getSubscription(UUID userId);
+
+    SubscriptionResponse upsertSubscription(UUID userId, UpsertSubscriptionRequest request);
 }

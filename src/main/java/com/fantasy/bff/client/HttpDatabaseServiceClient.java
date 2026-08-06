@@ -12,7 +12,9 @@ import com.fantasy.bff.generated.db.model.PasswordResetRequest;
 import com.fantasy.bff.generated.db.model.PasswordResetTokenResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
+import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
 import com.fantasy.bff.generated.db.model.UserResponse;
 import com.fantasy.bff.generated.db.model.VerifyEmailRequest;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
@@ -236,5 +238,31 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    @Override
+    public Optional<SubscriptionResponse> getSubscription(UUID userId) {
+        try {
+            SubscriptionResponse response = restClient.get()
+                    .uri("/api/v1/users/{userId}/subscription", userId)
+                    .retrieve()
+                    .body(SubscriptionResponse.class);
+            return Optional.ofNullable(response);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public SubscriptionResponse upsertSubscription(UUID userId, UpsertSubscriptionRequest request) {
+        return restClient.put()
+                .uri("/api/v1/users/{userId}/subscription", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(SubscriptionResponse.class);
     }
 }

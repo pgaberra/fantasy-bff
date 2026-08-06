@@ -50,6 +50,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
                         .requestMatchers("/api/v1/espn", "/api/v1/espn/**").authenticated()
                         .requestMatchers("/api/v1/admin", "/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook").permitAll()
+                        .requestMatchers("/api/v1/billing/mock/**").permitAll()
+                        .requestMatchers("/api/v1/billing", "/api/v1/billing/**").authenticated()
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(ex -> ex
