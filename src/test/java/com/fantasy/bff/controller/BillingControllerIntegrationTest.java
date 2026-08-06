@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -74,6 +75,13 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.checkoutUrl").value(containsString("/api/v1/billing/mock/checkout")));
+    }
+
+    @Test
+    void mockCheckoutStub_whenEnabled_servesTheStubPage() throws Exception {
+        mockMvc.perform(get("/api/v1/billing/mock/checkout"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Mock checkout")));
     }
 
     @Test

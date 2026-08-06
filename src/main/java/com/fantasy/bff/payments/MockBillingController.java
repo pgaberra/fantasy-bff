@@ -19,6 +19,7 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 /**
@@ -26,8 +27,9 @@ import java.util.UUID;
  * the whole subscription lifecycle works locally in test mode. The confirm/cancel actions self-POST
  * a signed webhook to {@code /api/v1/billing/webhook}, then 302 back to the web app. The stub pages
  * are constant HTML — the token travels via the browser URL and is wired into the action links by
- * inline JS, so no request data is reflected server-side. Hidden from the OpenAPI spec and only
- * wired when the mock provider is active.
+ * inline JS, so no request data is reflected server-side. Hidden from the OpenAPI spec, and every
+ * handler returns 404 unless {@code payments.enabled} — so while payments are off (e.g. prod today)
+ * nothing under {@code /api/v1/billing/mock/**} does anything or serves a stub page.
  */
 @Hidden
 @RestController
@@ -80,6 +82,7 @@ public class MockBillingController {
 
     private final MockBillingCodec codec;
     private final ObjectMapper objectMapper;
+    private final PaymentsProperties paymentsProperties;
     private final RestClient selfClient;
     private final String webBaseUrl;
 
@@ -88,6 +91,7 @@ public class MockBillingController {
                                  @Value("${app.web-base-url}") String webBaseUrl) {
         this.codec = codec;
         this.objectMapper = objectMapper;
+        this.paymentsProperties = properties;
         this.webBaseUrl = webBaseUrl;
         HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
@@ -100,36 +104,48 @@ public class MockBillingController {
 
     @GetMapping(value = "/checkout", produces = MediaType.TEXT_HTML_VALUE)
     public String checkoutPage() {
+        requireEnabled();
         return CHECKOUT_PAGE;
     }
 
     @GetMapping(value = "/portal", produces = MediaType.TEXT_HTML_VALUE)
     public String portalPage() {
+        requireEnabled();
         return PORTAL_PAGE;
     }
 
     @GetMapping("/checkout/confirm")
     public ResponseEntity<Void> confirmCheckout(@RequestParam String token) {
+        requireEnabled();
         return emitAndRedirect(codec.decodeToken(token), WebhookEventType.SUBSCRIPTION_CREATED, "active", false,
                 "/account?checkout=success");
     }
 
     @GetMapping("/checkout/cancel")
     public ResponseEntity<Void> cancelCheckout(@RequestParam String token) {
+        requireEnabled();
         codec.decodeToken(token);
         return redirect("/pricing?checkout=cancel");
     }
 
     @GetMapping("/portal/cancel")
     public ResponseEntity<Void> cancelSubscription(@RequestParam String token) {
+        requireEnabled();
         return emitAndRedirect(codec.decodeToken(token), WebhookEventType.SUBSCRIPTION_UPDATED, "active", true,
                 "/account?portal=return");
     }
 
     @GetMapping("/portal/reactivate")
     public ResponseEntity<Void> reactivateSubscription(@RequestParam String token) {
+        requireEnabled();
         return emitAndRedirect(codec.decodeToken(token), WebhookEventType.SUBSCRIPTION_UPDATED, "active", false,
                 "/account?portal=return");
+    }
+
+    private void requireEnabled() {
+        if (!paymentsProperties.enabled()) {
+            throw new NoSuchElementException("Payments are not enabled");
+        }
     }
 
     private ResponseEntity<Void> emitAndRedirect(String userId, WebhookEventType type, String status,
