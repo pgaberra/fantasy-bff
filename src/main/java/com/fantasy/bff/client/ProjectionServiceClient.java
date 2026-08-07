@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import java.util.List;
@@ -7,6 +8,8 @@ import java.util.List;
 public interface ProjectionServiceClient {
 
     List<SkaterProjectionResponse> skaterProjections(int season, String modelVersion);
+
+    List<GoalieProjectionResponse> goalieProjections(int season, String modelVersion);
 
     /**
      * Player identity — name, team, sweater number — for every player the NHL still lists as
