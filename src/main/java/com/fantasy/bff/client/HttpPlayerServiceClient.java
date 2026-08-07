@@ -91,6 +91,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 s.getFirstName() + " " + s.getLastName(),
                 s.getTeamAbbrev(),
                 s.getHeadshot(),
+                s.getSweaterNumber(),
                 toPositions(s.getEligiblePositions(), s.getPosition()),
                 new SkaterResponse.Stats(
                         new SkaterResponse.UtilityStats(
@@ -126,6 +127,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 g.getFirstName() + " " + g.getLastName(),
                 g.getTeamAbbrev(),
                 g.getHeadshot(),
+                g.getSweaterNumber(),
                 new GoalieResponse.Stats(
                         new GoalieResponse.UtilityStats(zero(g.getGamesPlayed())),
                         new GoalieResponse.ScoringStats(

@@ -51,7 +51,7 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
         mcdavid.setIsActive(true);
         when(projectionServiceClient.activePlayers()).thenReturn(List.of(mcdavid));
         when(playerServiceClient.getSkaters())
-                .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, Set.of(), null)));
+                .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, 97, Set.of(), null)));
         when(playerServiceClient.getGoalies()).thenReturn(List.of());
 
         SkaterProjectionResponse projection = new SkaterProjectionResponse();

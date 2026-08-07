@@ -7,6 +7,8 @@ public record GoalieResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
         String teamAbbrev,
         String headshot,
+        @Schema(description = "Jersey number; absent for players the platform has not assigned one")
+                Integer sweaterNumber,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
     @Schema(name = "GoalieStats")

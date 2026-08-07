@@ -30,7 +30,7 @@ class PlayerServiceTest {
     void getSkaters_returnsSkatersFromClient() {
         List<SkaterResponse> expected = List.of(
                 new SkaterResponse(1, "Connor McDavid", "EDM",
-                        "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png", Set.of(SkaterPosition.C),
+                        "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png", 97, Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
                                 new SkaterResponse.UtilityStats(82, 1320),
                                 new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348, 18.4, 812, 623, 42, 28)
@@ -58,7 +58,7 @@ class PlayerServiceTest {
     void getGoalies_returnsGoaliesFromClient() {
         List<GoalieResponse> expected = List.of(
                 new GoalieResponse(101, "Igor Shesterkin", "NYR",
-                        "https://assets.nhle.com/mugs/nhl/20242025/NYR/8478048.png",
+                        "https://assets.nhle.com/mugs/nhl/20242025/NYR/8478048.png", 31,
                         new GoalieResponse.Stats(
                                 new GoalieResponse.UtilityStats(58),
                                 new GoalieResponse.ScoringStats(58, 36, 17, 3, 1720, 1565, 155, 2.67, 0.910)

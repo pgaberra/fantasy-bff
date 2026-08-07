@@ -121,10 +121,12 @@ public class ProjectionSeedService {
     private List<Candidate> platformCandidates() {
         List<Candidate> candidates = new ArrayList<>();
         for (SkaterResponse skater : playerServiceClient.getSkaters()) {
-            candidates.add(new Candidate(skater.id(), skater.name(), skater.teamAbbrev(), null));
+            candidates.add(new Candidate(
+                    skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
         }
         for (GoalieResponse goalie : playerServiceClient.getGoalies()) {
-            candidates.add(new Candidate(goalie.id(), goalie.name(), goalie.teamAbbrev(), null));
+            candidates.add(new Candidate(
+                    goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
         return candidates;
     }
