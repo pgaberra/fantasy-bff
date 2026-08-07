@@ -26,6 +26,260 @@
         "title": "BacktestSummaryResponse",
         "type": "object"
       },
+      "GoalieProjectionResponse": {
+        "properties": {
+          "games_played": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Played"
+          },
+          "games_started": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Started"
+          },
+          "goals_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against"
+          },
+          "goals_against_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against Avg"
+          },
+          "losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losses"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "save_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save Pct"
+          },
+          "saves": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saves"
+          },
+          "shots_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots Against"
+          },
+          "shutouts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shutouts"
+          },
+          "target_season": {
+            "title": "Target Season",
+            "type": "integer"
+          },
+          "wins": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wins"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "target_season",
+          "model_version",
+          "games_played",
+          "games_started",
+          "wins",
+          "losses",
+          "shutouts",
+          "shots_against",
+          "saves",
+          "goals_against",
+          "goals_against_avg",
+          "save_pct"
+        ],
+        "title": "GoalieProjectionResponse",
+        "type": "object"
+      },
+      "GoalieSplitResponse": {
+        "properties": {
+          "first_team_game": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Team Game"
+          },
+          "games": {
+            "title": "Games",
+            "type": "integer"
+          },
+          "games_started": {
+            "title": "Games Started",
+            "type": "integer"
+          },
+          "goals_against": {
+            "title": "Goals Against",
+            "type": "integer"
+          },
+          "goals_against_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against Avg"
+          },
+          "last_team_game": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Team Game"
+          },
+          "losses": {
+            "title": "Losses",
+            "type": "integer"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "save_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save Pct"
+          },
+          "saves": {
+            "title": "Saves",
+            "type": "integer"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          },
+          "shots_against": {
+            "title": "Shots Against",
+            "type": "integer"
+          },
+          "shutouts": {
+            "title": "Shutouts",
+            "type": "integer"
+          },
+          "toi_seconds": {
+            "title": "Toi Seconds",
+            "type": "integer"
+          },
+          "wins": {
+            "title": "Wins",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "season",
+          "games",
+          "games_started",
+          "first_team_game",
+          "last_team_game",
+          "wins",
+          "losses",
+          "shutouts",
+          "shots_against",
+          "goals_against",
+          "saves",
+          "save_pct",
+          "goals_against_avg",
+          "toi_seconds"
+        ],
+        "title": "GoalieSplitResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -37,6 +291,78 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "PlayerResponse": {
+        "properties": {
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "current_team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Team"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "primary_position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Position"
+          },
+          "sweater_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sweater Number"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "full_name",
+          "primary_position",
+          "current_team",
+          "sweater_number",
+          "birth_date",
+          "is_active"
+        ],
+        "title": "PlayerResponse",
         "type": "object"
       },
       "SkaterProjectionResponse": {
@@ -302,6 +628,113 @@
         "title": "SkaterProjectionResponse",
         "type": "object"
       },
+      "SkaterSplitResponse": {
+        "properties": {
+          "assists": {
+            "title": "Assists",
+            "type": "integer"
+          },
+          "first_team_game": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Team Game"
+          },
+          "games": {
+            "title": "Games",
+            "type": "integer"
+          },
+          "goals": {
+            "title": "Goals",
+            "type": "integer"
+          },
+          "gw_goals": {
+            "title": "Gw Goals",
+            "type": "integer"
+          },
+          "last_team_game": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Team Game"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "pim": {
+            "title": "Pim",
+            "type": "integer"
+          },
+          "plus_minus": {
+            "title": "Plus Minus",
+            "type": "integer"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "pp_goals": {
+            "title": "Pp Goals",
+            "type": "integer"
+          },
+          "pp_points": {
+            "title": "Pp Points",
+            "type": "integer"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          },
+          "sh_goals": {
+            "title": "Sh Goals",
+            "type": "integer"
+          },
+          "sh_points": {
+            "title": "Sh Points",
+            "type": "integer"
+          },
+          "shots": {
+            "title": "Shots",
+            "type": "integer"
+          },
+          "toi_seconds": {
+            "title": "Toi Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "season",
+          "games",
+          "first_team_game",
+          "last_team_game",
+          "goals",
+          "assists",
+          "points",
+          "plus_minus",
+          "pim",
+          "pp_goals",
+          "pp_points",
+          "sh_goals",
+          "sh_points",
+          "gw_goals",
+          "shots",
+          "toi_seconds"
+        ],
+        "title": "SkaterSplitResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -400,6 +833,304 @@
         ]
       }
     },
+    "/api/v1/players": {
+      "get": {
+        "operationId": "list_players_api_v1_players_get",
+        "parameters": [
+          {
+            "description": "Only players the NHL still lists as active (the default)",
+            "in": "query",
+            "name": "active",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Only players the NHL still lists as active (the default)",
+              "title": "Active",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Filter to a position: C, L, R, D or G",
+            "in": "query",
+            "name": "position",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to a position: C, L, R, D or G",
+              "title": "Position"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlayerResponse"
+                  },
+                  "title": "Response List Players Api V1 Players Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Players",
+        "tags": [
+          "players"
+        ]
+      }
+    },
+    "/api/v1/players/{nhl_id}": {
+      "get": {
+        "operationId": "get_player_api_v1_players__nhl_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "nhl_id",
+            "required": true,
+            "schema": {
+              "title": "Nhl Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Player",
+        "tags": [
+          "players"
+        ]
+      }
+    },
+    "/api/v1/projections/goalies": {
+      "get": {
+        "operationId": "list_goalie_projections_api_v1_projections_goalies_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Projection model version",
+            "in": "query",
+            "name": "model_version",
+            "required": false,
+            "schema": {
+              "default": "marcel-v2",
+              "description": "Projection model version",
+              "title": "Model Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoalieProjectionResponse"
+                  },
+                  "title": "Response List Goalie Projections Api V1 Projections Goalies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Goalie Projections",
+        "tags": [
+          "projections"
+        ]
+      }
+    },
+    "/api/v1/projections/goalies/{nhl_id}": {
+      "get": {
+        "operationId": "get_goalie_projection_api_v1_projections_goalies__nhl_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "nhl_id",
+            "required": true,
+            "schema": {
+              "title": "Nhl Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Projection model version",
+            "in": "query",
+            "name": "model_version",
+            "required": false,
+            "schema": {
+              "default": "marcel-v2",
+              "description": "Projection model version",
+              "title": "Model Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalieProjectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Goalie Projection",
+        "tags": [
+          "projections"
+        ]
+      }
+    },
     "/api/v1/projections/skaters": {
       "get": {
         "operationId": "list_skater_projections_api_v1_projections_skaters_get",
@@ -421,7 +1152,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v1",
+              "default": "marcel-v2",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -506,7 +1237,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v1",
+              "default": "marcel-v2",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -554,6 +1285,282 @@
         "summary": "Get Skater Projection",
         "tags": [
           "projections"
+        ]
+      }
+    },
+    "/api/v1/splits/goalies": {
+      "get": {
+        "operationId": "goalie_splits_api_v1_splits_goalies_get",
+        "parameters": [
+          {
+            "description": "Season start year, e.g. 2025",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Season start year, e.g. 2025",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "First team game in the range (1-based)",
+            "in": "query",
+            "name": "from_game",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 84,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First team game in the range (1-based)",
+              "title": "From Game"
+            }
+          },
+          {
+            "description": "Last team game in the range, inclusive",
+            "in": "query",
+            "name": "to_game",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 84,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last team game in the range, inclusive",
+              "title": "To Game"
+            }
+          },
+          {
+            "description": "Shorthand for the final N team games of the season",
+            "in": "query",
+            "name": "last_games",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 84,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Shorthand for the final N team games of the season",
+              "title": "Last Games"
+            }
+          },
+          {
+            "description": "Max rows to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "description": "Max rows to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoalieSplitResponse"
+                  },
+                  "title": "Response Goalie Splits Api V1 Splits Goalies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Goalie Splits",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/v1/splits/skaters": {
+      "get": {
+        "operationId": "skater_splits_api_v1_splits_skaters_get",
+        "parameters": [
+          {
+            "description": "Season start year, e.g. 2025",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Season start year, e.g. 2025",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "First team game in the range (1-based)",
+            "in": "query",
+            "name": "from_game",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 84,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First team game in the range (1-based)",
+              "title": "From Game"
+            }
+          },
+          {
+            "description": "Last team game in the range, inclusive",
+            "in": "query",
+            "name": "to_game",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 84,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last team game in the range, inclusive",
+              "title": "To Game"
+            }
+          },
+          {
+            "description": "Shorthand for the final N team games of the season",
+            "in": "query",
+            "name": "last_games",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 84,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Shorthand for the final N team games of the season",
+              "title": "Last Games"
+            }
+          },
+          {
+            "description": "Max rows to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "description": "Max rows to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SkaterSplitResponse"
+                  },
+                  "title": "Response Skater Splits Api V1 Splits Skaters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skater Splits",
+        "tags": [
+          "splits"
         ]
       }
     },
