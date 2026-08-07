@@ -48,6 +48,10 @@ services:
     base-url: ${PROJECTION_SERVICE_URL:http://localhost:8092}
     timeout-ms: 5000
     api-key: ${PROJECTION_INTERNAL_API_KEY:}
+    # Season the model projects, as a start year: 2026 is the 2026-27 season. Game-range
+    # splits default to the season before it, since that is the one with games played.
+    season: ${PROJECTION_SEASON:2026}
+    model-version: ${PROJECTION_MODEL_VERSION:marcel-v2}
 
 payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.
