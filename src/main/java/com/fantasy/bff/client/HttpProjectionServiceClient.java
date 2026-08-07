@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import java.util.List;
@@ -24,6 +25,9 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     private static final ParameterizedTypeReference<List<SkaterProjectionResponse>> SKATER_LIST =
             new ParameterizedTypeReference<>() {};
 
+    private static final ParameterizedTypeReference<List<GoalieProjectionResponse>> GOALIE_LIST =
+            new ParameterizedTypeReference<>() {};
+
     private static final ParameterizedTypeReference<List<PlayerResponse>> PLAYER_LIST =
             new ParameterizedTypeReference<>() {};
 
@@ -42,6 +46,17 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                         .build())
                 .retrieve()
                 .body(SKATER_LIST);
+    }
+
+    @Override
+    public List<GoalieProjectionResponse> goalieProjections(int season, String modelVersion) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/projections/goalies")
+                        .queryParam("season", season)
+                        .queryParam("model_version", modelVersion)
+                        .build())
+                .retrieve()
+                .body(GOALIE_LIST);
     }
 
     @Override
