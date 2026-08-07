@@ -9,6 +9,7 @@ import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
+import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import com.fantasy.bff.service.mapping.PlayerIdResolver.Candidate;
 import java.math.BigDecimal;
@@ -35,14 +36,17 @@ public class PlayerSplitService {
     private final ProjectionServiceClient projectionServiceClient;
     private final PlayerServiceClient playerServiceClient;
     private final PlayerIdResolver resolver;
+    private final PlayerIdOverrides overrides;
 
     public PlayerSplitService(
             ProjectionServiceClient projectionServiceClient,
             PlayerServiceClient playerServiceClient,
-            PlayerIdResolver resolver) {
+            PlayerIdResolver resolver,
+            PlayerIdOverrides overrides) {
         this.projectionServiceClient = projectionServiceClient;
         this.playerServiceClient = playerServiceClient;
         this.resolver = resolver;
+        this.overrides = overrides;
     }
 
     public List<PlayerSplitResponse> skaterSplits(int season, int lastGames, int limit) {
@@ -149,7 +153,7 @@ public class PlayerSplitService {
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
 
-        return new Context(resolver.resolve(nhlCandidates, platform, Map.of()), identities);
+        return new Context(resolver.resolve(nhlCandidates, platform, overrides.asMap()), identities);
     }
 
     private static void put(Map<String, Double> target, String key, BigDecimal value) {
