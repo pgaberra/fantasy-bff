@@ -52,6 +52,11 @@ services:
     # splits default to the season before it, since that is the one with games played.
     season: ${PROJECTION_SEASON:2026}
     model-version: ${PROJECTION_MODEL_VERSION:marcel-v2}
+    # Manual NHL id → platform id pairs ("8480012:5432,8471234:9876"), for the handful of
+    # players name matching cannot reach: shared name + team + jersey number, unrecognisable
+    # transliterations, or an ambiguous last-name-and-initial. Non-secret, and normally empty —
+    # it exists so a bad match is an env var and a restart rather than a release.
+    player-id-overrides: ${PROJECTION_PLAYER_ID_OVERRIDES:}
 
 payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.

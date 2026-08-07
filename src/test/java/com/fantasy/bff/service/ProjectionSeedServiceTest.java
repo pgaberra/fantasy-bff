@@ -13,6 +13,7 @@ import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
+import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import java.math.BigDecimal;
 import java.util.List;
@@ -38,7 +39,10 @@ class ProjectionSeedServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProjectionSeedService(
-                projectionServiceClient, playerServiceClient, new PlayerIdResolver());
+                projectionServiceClient,
+                playerServiceClient,
+                new PlayerIdResolver(),
+                new PlayerIdOverrides(""));
     }
 
     private static PlayerResponse nhlPlayer(int nhlId, String name, String team, Integer sweater) {

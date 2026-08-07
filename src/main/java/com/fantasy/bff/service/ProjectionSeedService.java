@@ -10,6 +10,7 @@ import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
+import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import com.fantasy.bff.service.mapping.PlayerIdResolver.Candidate;
 import java.math.BigDecimal;
@@ -40,14 +41,17 @@ public class ProjectionSeedService {
     private final ProjectionServiceClient projectionServiceClient;
     private final PlayerServiceClient playerServiceClient;
     private final PlayerIdResolver resolver;
+    private final PlayerIdOverrides overrides;
 
     public ProjectionSeedService(
             ProjectionServiceClient projectionServiceClient,
             PlayerServiceClient playerServiceClient,
-            PlayerIdResolver resolver) {
+            PlayerIdResolver resolver,
+            PlayerIdOverrides overrides) {
         this.projectionServiceClient = projectionServiceClient;
         this.playerServiceClient = playerServiceClient;
         this.resolver = resolver;
+        this.overrides = overrides;
     }
 
     /**
@@ -72,7 +76,7 @@ public class ProjectionSeedService {
         PlayerIdMapping mapping = resolver.resolve(
                 nhlPlayers.stream().map(ProjectionSeedService::nhlCandidate).toList(),
                 platformCandidates(),
-                Map.of());
+                overrides.asMap());
 
         List<PlayerProjection> seeded = new ArrayList<>();
         int unmapped = 0;
