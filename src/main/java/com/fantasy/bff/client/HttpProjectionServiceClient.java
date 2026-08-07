@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,6 +24,9 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     private static final ParameterizedTypeReference<List<SkaterProjectionResponse>> SKATER_LIST =
             new ParameterizedTypeReference<>() {};
 
+    private static final ParameterizedTypeReference<List<PlayerResponse>> PLAYER_LIST =
+            new ParameterizedTypeReference<>() {};
+
     private final RestClient restClient;
 
     public HttpProjectionServiceClient(@Qualifier("projectionServiceClient") RestClient restClient) {
@@ -38,5 +42,13 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                         .build())
                 .retrieve()
                 .body(SKATER_LIST);
+    }
+
+    @Override
+    public List<PlayerResponse> activePlayers() {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/players").queryParam("active", true).build())
+                .retrieve()
+                .body(PLAYER_LIST);
     }
 }
