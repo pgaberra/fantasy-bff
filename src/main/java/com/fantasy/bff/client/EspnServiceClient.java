@@ -12,7 +12,7 @@ public interface EspnServiceClient {
 
     void deleteCredentials(String appUserId);
 
-    LeagueSettingsResponse settings(String appUserId, String leagueId, int season);
+    LeagueSettingsResponse settings(String appUserId, String leagueId);
 
-    LeagueTeamsResponse teams(String appUserId, String leagueId, int season);
+    LeagueTeamsResponse teams(String appUserId, String leagueId);
 }

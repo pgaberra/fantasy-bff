@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The authenticated user's ESPN fantasy integration. ESPN has no OAuth, so instead of a
- * connect flow the user supplies a league id (+ season) and, for private leagues, their
+ * connect flow the user supplies a league id and, for private leagues, their
  * espn_s2 + SWID cookies. The app user id (JWT subject) is forwarded to fantasy-espn-service,
  * which stores the cookies and reads the league.
  */
@@ -75,27 +75,25 @@ public class EspnController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mapped settings returned"),
             @ApiResponse(responseCode = "400", description = "League is private (cookies missing/invalid) "
-                    + "or the league id/season is malformed"),
-            @ApiResponse(responseCode = "404", description = "No such ESPN league for the id and season")
+                    + "or the league id is malformed"),
+            @ApiResponse(responseCode = "404", description = "No such ESPN league for that id in the current or previous season")
     })
     @GetMapping("/leagues/{leagueId}/projection-settings")
     public LeagueProjectionSettingsResponse projectionSettings(@AuthenticationPrincipal String userId,
-                                                               @PathVariable String leagueId,
-                                                               @RequestParam int season) {
-        return espnLeagueService.projectionSettings(userId, leagueId, season);
+                                                               @PathVariable String leagueId) {
+        return espnLeagueService.projectionSettings(userId, leagueId);
     }
 
     @Operation(summary = "List an ESPN league's teams (names + which is the user's own)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Teams returned"),
             @ApiResponse(responseCode = "400", description = "League is private (cookies missing/invalid) "
-                    + "or the league id/season is malformed"),
-            @ApiResponse(responseCode = "404", description = "No such ESPN league for the id and season")
+                    + "or the league id is malformed"),
+            @ApiResponse(responseCode = "404", description = "No such ESPN league for that id in the current or previous season")
     })
     @GetMapping("/leagues/{leagueId}/teams")
     public EspnLeagueTeamsResponse teams(@AuthenticationPrincipal String userId,
-                                         @PathVariable String leagueId,
-                                         @RequestParam int season) {
-        return espnLeagueService.teams(userId, leagueId, season);
+                                         @PathVariable String leagueId) {
+        return espnLeagueService.teams(userId, leagueId);
     }
 }

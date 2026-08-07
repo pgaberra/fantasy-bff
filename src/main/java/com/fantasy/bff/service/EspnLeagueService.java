@@ -21,12 +21,12 @@ public class EspnLeagueService {
         this.mapper = mapper;
     }
 
-    public LeagueProjectionSettingsResponse projectionSettings(String appUserId, String leagueId, int season) {
-        return mapper.toProjectionSettings(espnServiceClient.settings(appUserId, leagueId, season));
+    public LeagueProjectionSettingsResponse projectionSettings(String appUserId, String leagueId) {
+        return mapper.toProjectionSettings(espnServiceClient.settings(appUserId, leagueId));
     }
 
-    public EspnLeagueTeamsResponse teams(String appUserId, String leagueId, int season) {
-        List<EspnLeagueTeam> teams = espnServiceClient.teams(appUserId, leagueId, season).getTeams().stream()
+    public EspnLeagueTeamsResponse teams(String appUserId, String leagueId) {
+        List<EspnLeagueTeam> teams = espnServiceClient.teams(appUserId, leagueId).getTeams().stream()
                 .map(team -> new EspnLeagueTeam(team.getName(), Boolean.TRUE.equals(team.getMine())))
                 .toList();
         return new EspnLeagueTeamsResponse(teams);
