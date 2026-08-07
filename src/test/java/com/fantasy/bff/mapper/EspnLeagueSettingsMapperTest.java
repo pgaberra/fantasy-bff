@@ -108,6 +108,30 @@ class EspnLeagueSettingsMapperTest {
     }
 
     @Test
+    void mapsPowerPlayAndShortHandedPointsWhichEspnScoresSeparately() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_POINTS", null, List.of(cat(38, "PPP", 2), cat(39, "SHP", 3)), List.of()));
+
+        assertThat(mapped.activeScoringColumns()).containsExactly("ppp", "shp");
+        assertThat(mapped.statWeights()).containsEntry("ppp", 2.0).containsEntry("shp", 3.0);
+        assertThat(mapped.unsupportedStats()).isEmpty();
+    }
+
+    @Test
+    void reportsEspnOnlyStatsSuchAsHatTricksAsUnsupported() {
+        // ESPN scores some stats the projection domain has no equivalent for (hat tricks,
+        // overtime losses, shootout points). They must surface as unsupported, never be dropped
+        // silently or mapped onto the wrong stat.
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_CATEGORY", null,
+                        List.of(cat(13, "G"), cat(28, "HAT"), cat(9, "OTL"), cat(37, "STP")),
+                        List.of()));
+
+        assertThat(mapped.activeScoringColumns()).containsExactly("goals");
+        assertThat(mapped.unsupportedStats()).containsExactly("HAT", "OTL", "STP");
+    }
+
+    @Test
     void routesGpAndToiToUtilityAndAlwaysKeepsGp() {
         LeagueProjectionSettingsResponse withToi = mapper.toProjectionSettings(
                 league("H2H_CATEGORY", null, List.of(cat(27, "ATOI"), cat(13, "G")), List.of()));
