@@ -18,6 +18,9 @@ tags:
   description: "NHL player stats endpoints (public, read-only)"
 - name: Projections
   description: The authenticated user's saved player projections
+- name: Projection model
+  description: "Model-generated projection lines, and measured totals over a range\
+    \ of games. Data © MoneyPuck.com, used under its non-commercial terms."
 - name: Versions
   description: Deployed version and reachability of every service
 - name: ESPN
@@ -649,6 +652,116 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VersionsResponse"
+  /api/v1/projection-model/splits/skaters:
+    get:
+      tags:
+      - Projection model
+      summary: Skaters' measured totals over the closing games of a season
+      description: "What players actually produced over a stretch of their team's\
+        \ schedule — measured, not projected. Ranges are in team game numbers, so\
+        \ the same range covers the same stretch for every player; one who missed\
+        \ some of them shows fewer games."
+      operationId: skaterSplits
+      parameters:
+      - name: season
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: lastGames
+        in: query
+        description: How many of the team's final games to cover
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          maximum: 84
+          minimum: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+          maximum: 500
+          minimum: 1
+      responses:
+        "200":
+          description: "Totals over the range, highest scoring first"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSplitResponse"
+  /api/v1/projection-model/splits/goalies:
+    get:
+      tags:
+      - Projection model
+      summary: Goalies' measured totals over the closing games of a season
+      operationId: goalieSplits
+      parameters:
+      - name: season
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: lastGames
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          maximum: 84
+          minimum: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+          maximum: 500
+          minimum: 1
+      responses:
+        "200":
+          description: Totals over the range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSplitResponse"
+  /api/v1/projection-model/seed:
+    get:
+      tags:
+      - Projection model
+      summary: Generate projection lines for every mapped player
+      description: "Returns the model's projected stat lines keyed by this platform's\
+        \ player id, ready to be saved as a new projection. Scoring settings are not\
+        \ included — those belong to the user's league, so the client supplies them\
+        \ when saving."
+      operationId: seed
+      parameters:
+      - name: season
+        in: query
+        description: Season to project; defaults to the configured one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Generated lines plus a summary of what was skipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeededProjectionResponse"
   /api/v1/players/skaters:
     get:
       tags:
@@ -1465,6 +1578,86 @@ components:
       - name
       - season
       - updatedAt
+    PlayerSplitResponse:
+      type: object
+      description: A player's measured totals over a range of their team's games
+      properties:
+        playerId:
+          type: integer
+          format: int32
+          description: The platform's player id
+        name:
+          type: string
+        teamAbbrev:
+          type: string
+        type:
+          type: string
+          description: skater or goalie
+        games:
+          type: integer
+          format: int32
+          description: Games the player appeared in within the range
+        firstTeamGame:
+          type: integer
+          format: int32
+          description: First team game number covered
+        lastTeamGame:
+          type: integer
+          format: int32
+          description: Last team game number covered
+        stats:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: Totals over the range
+      required:
+      - games
+      - name
+      - playerId
+      - stats
+      - type
+    SeededProjectionResponse:
+      type: object
+      description: "Projection lines generated by the model, keyed by the platform's\
+        \ player id"
+      properties:
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerProjection"
+        season:
+          type: integer
+          format: int32
+          description: Season the lines project
+        modelVersion:
+          type: string
+          description: Model version behind them
+        skaters:
+          type: integer
+          format: int32
+        goalies:
+          type: integer
+          format: int32
+        unmapped:
+          type: integer
+          format: int32
+          description: Projected players with no counterpart on this platform. Mostly
+            fringe and long-term absent players the platform doesn't carry.
+        goaliesWithoutWorkload:
+          type: integer
+          format: int32
+          description: "Goalies the model projects no starts for. Left out rather\
+            \ than seeded with a zero save percentage, which would read as the worst\
+            \ goalie in the league."
+      required:
+      - goalies
+      - goaliesWithoutWorkload
+      - modelVersion
+      - players
+      - season
+      - skaters
+      - unmapped
     SkaterResponse:
       type: object
       properties:

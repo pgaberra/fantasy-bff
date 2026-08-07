@@ -1,8 +1,10 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
+import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
+import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
@@ -29,6 +31,12 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
             new ParameterizedTypeReference<>() {};
 
     private static final ParameterizedTypeReference<List<PlayerResponse>> PLAYER_LIST =
+            new ParameterizedTypeReference<>() {};
+
+    private static final ParameterizedTypeReference<List<SkaterSplitResponse>> SKATER_SPLITS =
+            new ParameterizedTypeReference<>() {};
+
+    private static final ParameterizedTypeReference<List<GoalieSplitResponse>> GOALIE_SPLITS =
             new ParameterizedTypeReference<>() {};
 
     private final RestClient restClient;
@@ -65,5 +73,34 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                 .uri(b -> b.path("/api/v1/players").queryParam("active", true).build())
                 .retrieve()
                 .body(PLAYER_LIST);
+    }
+
+    @Override
+    public List<SkaterSplitResponse> skaterSplits(int season, int lastGames, int limit) {
+        return restClient.get()
+                .uri(b -> splits(b, "/api/v1/splits/skaters", season, lastGames, limit))
+                .retrieve()
+                .body(SKATER_SPLITS);
+    }
+
+    @Override
+    public List<GoalieSplitResponse> goalieSplits(int season, int lastGames, int limit) {
+        return restClient.get()
+                .uri(b -> splits(b, "/api/v1/splits/goalies", season, lastGames, limit))
+                .retrieve()
+                .body(GOALIE_SPLITS);
+    }
+
+    private static java.net.URI splits(
+            org.springframework.web.util.UriBuilder builder,
+            String path,
+            int season,
+            int lastGames,
+            int limit) {
+        return builder.path(path)
+                .queryParam("season", season)
+                .queryParam("last_games", lastGames)
+                .queryParam("limit", limit)
+                .build();
     }
 }

@@ -1,5 +1,6 @@
 package com.fantasy.bff.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import com.fantasy.bff.dto.response.ErrorDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorDto> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorDto.of("VALIDATION_ERROR", message));
+    }
+
+    /**
+     * Bean Validation on a request parameter or path variable (a {@code @Validated} controller),
+     * as opposed to {@code @Valid} on a body. Without this the violation reaches the catch-all
+     * and a caller passing an out-of-range parameter gets a 500 for what is plainly their own
+     * bad request.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorDto> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorDto.of("VALIDATION_ERROR", message));
