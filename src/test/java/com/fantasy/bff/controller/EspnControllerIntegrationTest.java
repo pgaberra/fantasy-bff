@@ -19,8 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -94,7 +92,7 @@ class EspnControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void projectionSettings_mapsEspnSettingsToProjectionShape() throws Exception {
-        when(espnServiceClient.settings(USER_ID, "123", 2025)).thenReturn(
+        when(espnServiceClient.settings(USER_ID, "123")).thenReturn(
                 new LeagueSettingsResponse()
                         .leagueId("123")
                         .name("HHL")
@@ -103,7 +101,7 @@ class EspnControllerIntegrationTest extends BaseIntegrationTest {
                         .statCategories(List.of(new StatCategory().statId(13).name("G")))
                         .rosterPositions(List.of(new RosterSlot().position("C").count(2))));
 
-        mockMvc.perform(get("/api/v1/espn/leagues/123/projection-settings?season=2025")
+        mockMvc.perform(get("/api/v1/espn/leagues/123/projection-settings")
                         .header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scoringType").value("category"))
@@ -115,12 +113,12 @@ class EspnControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void teams_returnsMappedTeamsWithMineFlag() throws Exception {
-        when(espnServiceClient.teams(eq(USER_ID), eq("123"), any(Integer.class))).thenReturn(
+        when(espnServiceClient.teams(USER_ID, "123")).thenReturn(
                 new LeagueTeamsResponse().teams(List.of(
                         new LeagueTeam().name("Alpha").mine(false),
                         new LeagueTeam().name("Beta Squad").mine(true))));
 
-        mockMvc.perform(get("/api/v1/espn/leagues/123/teams?season=2025")
+        mockMvc.perform(get("/api/v1/espn/leagues/123/teams")
                         .header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.teams[0].name").value("Alpha"))

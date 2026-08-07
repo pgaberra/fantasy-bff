@@ -53,19 +53,19 @@ public class HttpEspnServiceClient implements EspnServiceClient {
     }
 
     @Override
-    public LeagueSettingsResponse settings(String appUserId, String leagueId, int season) {
+    public LeagueSettingsResponse settings(String appUserId, String leagueId) {
         return restClient.get()
                 .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/settings")
-                        .queryParam("appUserId", appUserId).queryParam("season", season).build(leagueId))
+                        .queryParam("appUserId", appUserId).build(leagueId))
                 .retrieve()
                 .body(LeagueSettingsResponse.class);
     }
 
     @Override
-    public LeagueTeamsResponse teams(String appUserId, String leagueId, int season) {
+    public LeagueTeamsResponse teams(String appUserId, String leagueId) {
         return restClient.get()
                 .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/teams")
-                        .queryParam("appUserId", appUserId).queryParam("season", season).build(leagueId))
+                        .queryParam("appUserId", appUserId).build(leagueId))
                 .retrieve()
                 .body(LeagueTeamsResponse.class);
     }

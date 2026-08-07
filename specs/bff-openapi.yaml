@@ -822,12 +822,6 @@ paths:
         required: true
         schema:
           type: string
-      - name: season
-        in: query
-        required: true
-        schema:
-          type: integer
-          format: int32
       responses:
         "200":
           description: Teams returned
@@ -836,14 +830,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/EspnLeagueTeamsResponse"
         "400":
-          description: League is private (cookies missing/invalid) or the league id/season
+          description: League is private (cookies missing/invalid) or the league id
             is malformed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/EspnLeagueTeamsResponse"
         "404":
-          description: No such ESPN league for the id and season
+          description: No such ESPN league for that id in the current or previous
+            season
           content:
             application/json:
               schema:
@@ -863,12 +858,6 @@ paths:
         required: true
         schema:
           type: string
-      - name: season
-        in: query
-        required: true
-        schema:
-          type: integer
-          format: int32
       responses:
         "200":
           description: Mapped settings returned
@@ -877,14 +866,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
         "400":
-          description: League is private (cookies missing/invalid) or the league id/season
+          description: League is private (cookies missing/invalid) or the league id
             is malformed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
         "404":
-          description: No such ESPN league for the id and season
+          description: No such ESPN league for that id in the current or previous
+            season
           content:
             application/json:
               schema:
