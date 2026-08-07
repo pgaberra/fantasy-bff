@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
                         .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
+                        .requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**").authenticated()
                         .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
                         .requestMatchers("/api/v1/espn", "/api/v1/espn/**").authenticated()
                         .requestMatchers("/api/v1/admin", "/api/v1/admin/**").hasRole("ADMIN")
