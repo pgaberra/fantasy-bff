@@ -1660,6 +1660,11 @@ components:
           type: string
         headshot:
           type: string
+        sweaterNumber:
+          type: integer
+          format: int32
+          description: Jersey number; absent for players the platform has not assigned
+            one
         positions:
           type: array
           items:
@@ -1787,6 +1792,11 @@ components:
           type: string
         headshot:
           type: string
+        sweaterNumber:
+          type: integer
+          format: int32
+          description: Jersey number; absent for players the platform has not assigned
+            one
         stats:
           $ref: "#/components/schemas/GoalieStats"
       required:

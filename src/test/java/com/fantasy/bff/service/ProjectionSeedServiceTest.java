@@ -78,11 +78,15 @@ class ProjectionSeedServiceTest {
     }
 
     private static SkaterResponse platformSkater(int id, String name, String team) {
-        return new SkaterResponse(id, name, team, null, Set.of(), null);
+        return platformSkater(id, name, team, null);
+    }
+
+    private static SkaterResponse platformSkater(int id, String name, String team, Integer sweater) {
+        return new SkaterResponse(id, name, team, null, sweater, Set.of(), null);
     }
 
     private static GoalieResponse platformGoalie(int id, String name, String team) {
-        return new GoalieResponse(id, name, team, null, null);
+        return new GoalieResponse(id, name, team, null, null, null);
     }
 
     @Test
@@ -172,6 +176,33 @@ class ProjectionSeedServiceTest {
 
         assertThat(seed.skatersSeeded()).isEqualTo(1);
         assertThat(seed.unmapped()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a jersey number separates two players who share a name and a team")
+    void sweaterSeparatesNamesakes() {
+        // Vancouver carries two Elias Petterssons (the real ids and numbers). Their team cannot
+        // tell them apart, so without the jersey number both fall out as ambiguous and neither
+        // gets a projection at all.
+        when(projectionServiceClient.activePlayers())
+                .thenReturn(List.of(
+                        nhlPlayer(1, "Elias Pettersson", "VAN", 40),
+                        nhlPlayer(2, "Elias Pettersson", "VAN", 25)));
+        when(playerServiceClient.getSkaters())
+                .thenReturn(List.of(
+                        platformSkater(7520, "Elias Pettersson", "VAN", 40),
+                        platformSkater(32762, "Elias Pettersson", "VAN", 25)));
+        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(1), skater(2)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v2");
+
+        assertThat(seed.unmapped()).isZero();
+        assertThat(seed.players())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactlyInAnyOrder(7520, 32762);
     }
 
     @Test

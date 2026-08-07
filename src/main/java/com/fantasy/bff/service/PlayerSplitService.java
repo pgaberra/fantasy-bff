@@ -141,10 +141,12 @@ public class PlayerSplitService {
 
         List<Candidate> platform = new ArrayList<>();
         for (SkaterResponse skater : playerServiceClient.getSkaters()) {
-            platform.add(new Candidate(skater.id(), skater.name(), skater.teamAbbrev(), null));
+            platform.add(new Candidate(
+                    skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
         }
         for (GoalieResponse goalie : playerServiceClient.getGoalies()) {
-            platform.add(new Candidate(goalie.id(), goalie.name(), goalie.teamAbbrev(), null));
+            platform.add(new Candidate(
+                    goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
 
         return new Context(resolver.resolve(nhlCandidates, platform, Map.of()), identities);
