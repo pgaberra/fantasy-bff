@@ -37,6 +37,7 @@ public class EspnLeagueSettingsMapper {
             Map.entry(15, StatKey.PLUS_MINUS), Map.entry(17, StatKey.PIM),
             Map.entry(18, StatKey.PPG), Map.entry(19, StatKey.PPA),
             Map.entry(20, StatKey.SHG), Map.entry(21, StatKey.SHA), Map.entry(22, StatKey.GWG),
+            Map.entry(38, StatKey.PPP), Map.entry(39, StatKey.SHP),
             Map.entry(29, StatKey.SOG), Map.entry(23, StatKey.FW), Map.entry(24, StatKey.FL),
             Map.entry(31, StatKey.HITS), Map.entry(32, StatKey.BLOCKS),
             Map.entry(0, StatKey.GS), Map.entry(1, StatKey.W), Map.entry(2, StatKey.L),
