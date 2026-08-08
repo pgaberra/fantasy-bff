@@ -105,7 +105,7 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(skater(8478402)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
 
-        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v2");
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
 
         assertThat(seed.players()).singleElement().satisfies(p -> {
             assertThat(p.getPlayerId()).isEqualTo(5000);
@@ -126,7 +126,7 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(skater(1)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
 
-        var stats = service.seed(2026, "marcel-v2").players().get(0).getStats();
+        var stats = service.seed(2026, "marcel-v3").players().get(0).getStats();
 
         assertThat(stats.getUtility()).containsEntry("gp", 82.0).containsEntry("toiPerGame", 1320.0);
         assertThat(stats.getScoring()).containsEntry("goals", 40.0).containsEntry("sog", 250.0);
@@ -152,7 +152,7 @@ class ProjectionSeedServiceTest {
         when(projectionServiceClient.goalieProjections(anyInt(), anyString()))
                 .thenReturn(List.of(goalie(1, true), goalie(2, false)));
 
-        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v2");
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
 
         assertThat(seed.goaliesSeeded()).isEqualTo(1);
         assertThat(seed.withoutWorkload()).isEqualTo(1);
@@ -176,7 +176,7 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(skater(1), skater(2)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
 
-        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v2");
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
 
         assertThat(seed.skatersSeeded()).isEqualTo(1);
         assertThat(seed.unmapped()).isEqualTo(1);
@@ -201,7 +201,7 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(skater(1), skater(2)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
 
-        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v2");
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
 
         assertThat(seed.unmapped()).isZero();
         assertThat(seed.players())
@@ -222,7 +222,7 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(skater(1)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
 
-        var scoring = service.seed(2026, "marcel-v2").players().get(0).getStats().getScoring();
+        var scoring = service.seed(2026, "marcel-v3").players().get(0).getStats().getScoring();
 
         assertThat(scoring).doesNotContainKey("blocks");
     }

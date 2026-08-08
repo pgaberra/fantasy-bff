@@ -51,7 +51,7 @@ services:
     # Season the model projects, as a start year: 2026 is the 2026-27 season. Game-range
     # splits default to the season before it, since that is the one with games played.
     season: ${PROJECTION_SEASON:2026}
-    model-version: ${PROJECTION_MODEL_VERSION:marcel-v2}
+    model-version: ${PROJECTION_MODEL_VERSION:marcel-v3}
     # Manual NHL id → platform id pairs ("8480012:5432,8471234:9876"), for the handful of
     # players name matching cannot reach: shared name + team + jersey number, unrecognisable
     # transliterations, or an ambiguous last-name-and-initial. Non-secret, and normally empty —
