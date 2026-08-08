@@ -1,14 +1,14 @@
-# Swagger UI / OpenAPI docs are env-gated: off by default in deployed environments
-# (SWAGGER_ENABLED unset -> false) so production is hardened; staging sets
-# SWAGGER_ENABLED=true to keep them for QA. Local dev (base profile) keeps them on.
-# Safe: the web generates its client from the committed specs/bff-openapi.yaml, and
-# OpenApiSpecSnapshotTest runs in the test profile — nothing depends on the live prod docs.
-springdoc:
-  api-docs:
-    enabled: ${SWAGGER_ENABLED:false}
-  swagger-ui:
-    enabled: ${SWAGGER_ENABLED:false}
-
+# Profile: staging — QA conveniences layered on top of the base config.
+#
+# This profile is deliberately NOT load-bearing. Everything production depends on — the CORS
+# origin allowlist and the API-docs hardening — now lives in application.yaml and is driven by
+# env vars, so a deployed instance is configured correctly whether or not a profile is active.
+# Production therefore does not need to set SPRING_PROFILES_ACTIVE at all.
+#
+# All this adds is permitting the API-doc URLs, which staging exposes for QA by also setting
+# SWAGGER_ENABLED=true. Permitting them is harmless when the docs are disabled — springdoc
+# doesn't register the endpoints at all. Note that Spring does not merge list properties, so
+# permitted-urls is redefined wholesale here rather than appended to the base list.
 security:
   permitted-urls:
     - "/api/v1/auth/**"
@@ -17,11 +17,6 @@ security:
     - "/swagger-ui/**"
     - "/swagger-ui.html"
     - "/v3/api-docs/**"
-  cors-allowed-origins:
-    - ${WEB_ORIGIN:http://localhost:4200}
-    # Lets a developer run the web locally (npm run start:staging) against staging
-    # without booting the backend services.
-    - http://localhost:4200
 
 # No downstream timeout overrides: on the deployed Coolify environments the services
 # are co-located on the same Docker network and respond in milliseconds, so the modest

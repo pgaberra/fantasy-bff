@@ -15,7 +15,7 @@ services over the internal Docker network: `fantasy-db-service` (users) and
 | Aspect | Value |
 |---|---|
 | Build | `Dockerfile` — multi-stage, JDK 25 builds the boot jar, JRE 25 runs it |
-| Profiles | `SPRING_PROFILES_ACTIVE=staging` (the deployed profile, used by **both** prod and staging) |
+| Profiles | **None required.** Everything a deployed instance needs is in `application.yaml`, driven by env vars. Staging sets `SPRING_PROFILES_ACTIVE=staging` only to permit the API-doc URLs for QA; production sets no profile. |
 | Port | App binds to `${PORT}` (defaults to 8080); Coolify routes the domain → 8080 |
 | Health check | `GET /actuator/health` |
 | TLS | Coolify provisions Let's Encrypt for the domain (Cloudflare DNS must be **DNS-only / grey cloud**) |
@@ -24,7 +24,7 @@ services over the internal Docker network: `fantasy-db-service` (users) and
 
 | Key | Notes |
 |---|---|
-| `SPRING_PROFILES_ACTIVE` | `staging` |
+| `SPRING_PROFILES_ACTIVE` | Staging only: `staging` (permits the API-doc URLs; pair with `SWAGGER_ENABLED=true`). **Leave unset in production.** |
 | `JWT_SECRET` | Random, ≥256-bit (≥32 chars for HS256). Generate with `openssl rand -hex 32`. |
 | `DATABASE_SERVICE_URL` | Internal URL of db-service — `http://db-service:8086` (its stable network alias). |
 | `DB_INTERNAL_API_KEY` | Shared secret for BFF → db-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-db-service`. |
@@ -32,7 +32,9 @@ services over the internal Docker network: `fantasy-db-service` (users) and
 | `NHL_INTERNAL_API_KEY` | Shared secret for BFF → nhl-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-nhl-service`. |
 | `YAHOO_SERVICE_URL` | Internal URL of yahoo-service — `http://yahoo-service:8088`. |
 | `YAHOO_INTERNAL_API_KEY` | Shared secret for BFF → yahoo-service auth. **Same value** as `INTERNAL_API_KEY` on `fantasy-yahoo-service`. |
-| `WEB_ORIGIN` | The deployed web origin, used for CORS (e.g. `https://staging.slapstat.com`). |
+| `WEB_ORIGIN` | The deployed web origin (e.g. `https://staging.slapstat.com`). Doubles as the default CORS allowlist and as the base for the Google redirect URI. |
+| `CORS_ALLOWED_ORIGINS` | Optional. Comma-separated CORS allowlist, overriding `WEB_ORIGIN` when more than one origin is needed. Staging sets `https://staging.slapstat.com,http://localhost:4200` so `npm run start:staging` can reach it; **production leaves this unset** so only its own origin is allowed. |
+| `SWAGGER_ENABLED` | Optional, default `false`. `true` exposes Swagger UI / `/v3/api-docs` — staging only, never production. |
 | `GOOGLE_CLIENT_ID` | Public Google OAuth Client ID (not a secret); when unset, `/api/v1/auth/google` rejects all requests. |
 | `FACEBOOK_APP_ID` | Public Facebook App ID (not a secret) — the same value the web app ships. |
 | `FACEBOOK_APP_SECRET` | Facebook App Secret (a **real secret**). When either Facebook var is unset, `/api/v1/auth/facebook` rejects all requests. |
