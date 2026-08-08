@@ -67,13 +67,23 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 
 - **base** (`application.yaml`): downstream service URLs (env-overridable),
   JWT settings, `server.port=${PORT:8080}`, permitted URLs,
-  `services.nhl.season` (NHL season id the projections are based on).
-- **`dev`**: permits Swagger + CORS from `http://localhost:4200`.
-- **`staging`**: the **deployed** profile (used by both prod and staging on Coolify);
-  adds CORS via `${WEB_ORIGIN}`. Swagger UI / OpenAPI docs are **env-gated**
-  (`SWAGGER_ENABLED`, default off → production hardened; set `SWAGGER_ENABLED=true` on
-  staging to keep them for QA). No downstream timeout overrides —
-  the services are co-located on the Docker network, so the base timeouts apply.
+  `services.nhl.season` (NHL season id the projections are based on), **the CORS
+  allowlist** (`${CORS_ALLOWED_ORIGINS:${WEB_ORIGIN:}}`) and **the API-docs gate**
+  (`${SWAGGER_ENABLED:false}`).
+- **`dev`**: enables + permits Swagger and allows CORS from `http://localhost:4200`.
+- **`staging`**: a QA convenience only — it permits the API-doc URLs (staging pairs it with
+  `SWAGGER_ENABLED=true`). No downstream timeout overrides — the services are co-located on
+  the Docker network, so the base timeouts apply.
+
+**No profile is load-bearing.** Everything a deployed instance depends on lives in the base
+config and is driven by env vars, so prod is correct with no `SPRING_PROFILES_ACTIVE` at all.
+This is deliberate: CORS origins and the Swagger gate used to live *only* in the `staging`
+profile, which meant prod had to run a profile named "staging" (and inherited its
+`http://localhost:4200` CORS origin as a side effect). `NoProfileDeployedSecurityTest` fails if
+either setting moves back into a profile.
+
+Adding config that a deployed environment needs? Put it in `application.yaml` behind an env
+var — never in a profile.
 
 `JWT_SECRET` must be ≥32 chars (HS256) and is supplied per environment as a Coolify env var.
 

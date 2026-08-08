@@ -26,11 +26,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * then commit the updated specs/bff-openapi.yaml.
  *
- * The api-docs endpoints are denied by default, so this test permits them
- * explicitly. The JWT secret comes from {@link BaseIntegrationTest}.
+ * The api-docs endpoints are both disabled and denied by default, so this test enables and
+ * permits them explicitly. The JWT secret comes from {@link BaseIntegrationTest}.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = {
+        "SWAGGER_ENABLED=true",
         "security.permitted-urls[0]=/api/v1/auth/**",
         "security.permitted-urls[1]=/actuator/health",
         "security.permitted-urls[2]=/v3/api-docs/**",
