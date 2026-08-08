@@ -89,7 +89,7 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[0].type").value("skater"))
                 .andExpect(jsonPath("$.players[0].stats.scoring.goals").value(40.0))
                 .andExpect(jsonPath("$.skaters").value(1))
-                .andExpect(jsonPath("$.modelVersion").value("marcel-v2"));
+                .andExpect(jsonPath("$.modelVersion").value("marcel-v3"));
     }
 
     @Test
