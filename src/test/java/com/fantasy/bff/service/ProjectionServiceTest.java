@@ -11,7 +11,6 @@ import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -57,7 +57,7 @@ class ProjectionServiceTest {
 
     @BeforeEach
     void setUp() {
-        projectionService = new ProjectionService(databaseServiceClient, playerService, new ObjectMapper());
+        projectionService = new ProjectionService(databaseServiceClient, playerService, JsonMapper.builder().build());
     }
 
     @Test

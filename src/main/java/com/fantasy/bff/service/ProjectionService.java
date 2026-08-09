@@ -9,9 +9,9 @@ import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
