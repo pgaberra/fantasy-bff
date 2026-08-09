@@ -10,11 +10,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.io.EOFException;
@@ -147,9 +149,38 @@ public class GlobalExceptionHandler {
                 .body(ErrorDto.of("BAD_REQUEST", "The request body could not be read"));
     }
 
+    /**
+     * The response could not be written. The cause that matters here is the mirror image of an
+     * aborted request body: the client went away mid-response — a browser navigating off the
+     * player list, a phone losing signal — and the write failed with a broken pipe. Nothing is
+     * wrong on our side, and nothing can be sent either, since the connection the error would
+     * travel over is the one that just died. So: WARN, and no response at all.
+     *
+     * <p>A write failure that is <em>not</em> an abort is a genuine fault (a value we cannot
+     * serialize) and keeps the ERROR log the catch-all would have given it.
+     */
+    @ExceptionHandler({HttpMessageNotWritableException.class, AsyncRequestNotUsableException.class,
+            ClientAbortException.class})
+    public ResponseEntity<ErrorDto> handleUnwritableResponse(Exception ex, HttpServletRequest request) {
+        if (isClientAbort(ex)) {
+            log.warn("Client went away before the response was written: {} {}",
+                    request.getMethod(), request.getRequestURI());
+            return null;
+        }
+        log.error("Response could not be written: {} {}", request.getMethod(), request.getRequestURI(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ErrorDto.of("INTERNAL_ERROR", "An unexpected error occurred"));
+    }
+
+    /**
+     * {@code AsyncRequestNotUsableException} counts as an abort in its own right: Spring raises it
+     * once the response has already failed, so the connection is known to be unusable even when the
+     * original {@code IOException} is no longer in the chain.
+     */
     private static boolean isClientAbort(Throwable ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ClientAbortException || cause instanceof EOFException) {
+            if (cause instanceof ClientAbortException || cause instanceof EOFException
+                    || cause instanceof AsyncRequestNotUsableException) {
                 return true;
             }
             if (cause.getCause() == cause) {
