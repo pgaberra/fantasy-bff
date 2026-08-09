@@ -666,23 +666,6 @@ components:
       required:
       - scoring
       - utility
-    ProjectionData:
-      type: object
-      properties:
-        settings:
-          $ref: "#/components/schemas/ProjectionSettings"
-        players:
-          type: array
-          items:
-            $ref: "#/components/schemas/PlayerProjection"
-        draft:
-          $ref: "#/components/schemas/DraftState"
-          description: "In-draft state for this projection — the league's teams, the\
-            \ snake draft order, and the picks made so far (each attributed to a team)\
-            \ in pick order. Absent until a draft is configured."
-      required:
-      - players
-      - settings
     ProjectionSettings:
       type: object
       properties:
@@ -807,6 +790,23 @@ components:
       required:
       - scalableStats
       - scale
+    UpdateProjectionData:
+      type: object
+      properties:
+        settings:
+          $ref: "#/components/schemas/ProjectionSettings"
+        players:
+          type: array
+          description: "Omit to keep the stored player rows unchanged. Send them only\
+            \ when they actually change, e.g. after editing a player's projected stats."
+          items:
+            $ref: "#/components/schemas/PlayerProjection"
+        draft:
+          $ref: "#/components/schemas/DraftState"
+          description: In-draft state for this projection. Replaced on every update
+            — omit it to clear.
+      required:
+      - settings
     UpdateProjectionRequest:
       type: object
       properties:
@@ -815,7 +815,7 @@ components:
           maxLength: 100
           minLength: 0
         data:
-          $ref: "#/components/schemas/ProjectionData"
+          $ref: "#/components/schemas/UpdateProjectionData"
       required:
       - data
       - name
@@ -837,6 +837,23 @@ components:
       - leagueKey
       - leagueName
       - syncedAt
+    ProjectionData:
+      type: object
+      properties:
+        settings:
+          $ref: "#/components/schemas/ProjectionSettings"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerProjection"
+        draft:
+          $ref: "#/components/schemas/DraftState"
+          description: "In-draft state for this projection — the league's teams, the\
+            \ snake draft order, and the picks made so far (each attributed to a team)\
+            \ in pick order. Absent until a draft is configured."
+      required:
+      - players
+      - settings
     ProjectionResponse:
       type: object
       properties:
