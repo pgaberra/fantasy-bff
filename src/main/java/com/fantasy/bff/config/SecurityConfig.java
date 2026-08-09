@@ -42,20 +42,30 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
-                        .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
-                        .requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**").authenticated()
-                        .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
-                        .requestMatchers("/api/v1/espn", "/api/v1/espn/**").authenticated()
-                        .requestMatchers("/api/v1/admin", "/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook").permitAll()
-                        .requestMatchers("/api/v1/billing/mock/**").permitAll()
-                        .requestMatchers("/api/v1/billing", "/api/v1/billing/**").authenticated()
-                        .anyRequest().denyAll()
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth
+                            .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
+                            .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated();
+
+                    if (securityProperties.projectionModelEnabled()) {
+                        auth.requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**")
+                                .authenticated();
+                    } else {
+                        auth.requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**")
+                                .denyAll();
+                    }
+
+                    auth
+                            .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
+                            .requestMatchers("/api/v1/espn", "/api/v1/espn/**").authenticated()
+                            .requestMatchers("/api/v1/admin", "/api/v1/admin/**").hasRole("ADMIN")
+                            .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook").permitAll()
+                            .requestMatchers("/api/v1/billing/mock/**").permitAll()
+                            .requestMatchers("/api/v1/billing", "/api/v1/billing/**").authenticated()
+                            .anyRequest().denyAll();
+                })
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((_, response, _) ->
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))

@@ -86,6 +86,12 @@ security:
   # Comma-separated allowlist of admin emails (e.g. ADMIN_EMAILS="me@x.com,you@y.com").
   # Logins by these addresses get an `admin` claim in their JWT (ROLE_ADMIN). Empty = no admins.
   admin-emails: ${ADMIN_EMAILS:}
+  # /api/v1/projection-model/** serves the projection engine's raw output — the model itself,
+  # not a user's own saved projection. Off unless this says otherwise, so an environment that
+  # has not yet decided who may read the model denies the endpoints outright rather than
+  # leaning on the projection service happening to be unreachable. The web does not call them
+  # today; the seeding UI will. See fantasy-bff#105.
+  projection-model-enabled: ${PROJECTION_MODEL_ENABLED:false}
   google:
     # Public OAuth Client ID for "Sign in with Google" (not a secret). When unset,
     # /api/v1/auth/google rejects all requests and the web hides the Google button.

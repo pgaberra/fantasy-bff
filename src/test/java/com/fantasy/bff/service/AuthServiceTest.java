@@ -58,7 +58,7 @@ class AuthServiceTest {
                 mock(FacebookTokenVerifier.class),
                 mock(PasswordResetEmailSender.class),
                 mock(EmailVerificationEmailSender.class),
-                new SecurityProperties(List.of(), List.of(), List.of()),
+                new SecurityProperties(List.of(), List.of(), List.of(), false),
                 "http://localhost:4200");
     }
 
