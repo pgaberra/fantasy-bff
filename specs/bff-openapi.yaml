@@ -185,6 +185,10 @@ paths:
       tags:
       - Projections
       summary: Save a new projection for the current user
+      description: "Send `source` with an empty `data.players` to have the server\
+        \ fill the player rows in from its own read model, instead of uploading ~1600\
+        \ players the client just downloaded. Send `data.players` (and no `source`)\
+        \ when the rows are user-specific, e.g. copied or carried over from the demo."
       operationId: create
       requestBody:
         content:
@@ -1245,6 +1249,14 @@ components:
           minLength: 0
         data:
           $ref: "#/components/schemas/ProjectionData"
+        source:
+          type: string
+          description: Fill data.players from the server's player read model instead
+            of sending them. Requires data.players to be empty; omit it to send your
+            own rows.
+          enum:
+          - default
+          - blank
       required:
       - data
       - name
