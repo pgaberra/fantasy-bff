@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -101,6 +102,18 @@ public class GlobalExceptionHandler {
         log.error("Downstream service call failed", ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable"));
+    }
+
+    /**
+     * Nothing is mapped to the requested path — a 404 about the request, not a fault on our
+     * side. Without this the catch-all turns every probe of a non-existent path into a 500
+     * with an ERROR log, and an internet-facing API is probed constantly (this fired on
+     * {@code /v3/api-docs}, which is permitted but disabled outside dev/staging).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorDto> handleNoResource(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorDto.of("NOT_FOUND", "No resource found for the requested path"));
     }
 
     @ExceptionHandler(Exception.class)
