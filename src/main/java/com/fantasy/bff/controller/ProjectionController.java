@@ -1,10 +1,11 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
-import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.service.ProjectionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -31,9 +32,12 @@ import java.util.UUID;
 public class ProjectionController {
 
     private final DatabaseServiceClient databaseServiceClient;
+    private final ProjectionService projectionService;
 
-    public ProjectionController(DatabaseServiceClient databaseServiceClient) {
+    public ProjectionController(DatabaseServiceClient databaseServiceClient,
+                                ProjectionService projectionService) {
         this.databaseServiceClient = databaseServiceClient;
+        this.projectionService = projectionService;
     }
 
     @Operation(summary = "List the current user's saved projections (metadata only)")
@@ -53,7 +57,11 @@ public class ProjectionController {
         return databaseServiceClient.getProjection(UUID.fromString(userId), id);
     }
 
-    @Operation(summary = "Save a new projection for the current user")
+    @Operation(summary = "Save a new projection for the current user",
+            description = "Send `source` with an empty `data.players` to have the server fill the "
+                    + "player rows in from its own read model, instead of uploading ~1600 players "
+                    + "the client just downloaded. Send `data.players` (and no `source`) when the "
+                    + "rows are user-specific, e.g. copied or carried over from the demo.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Projection created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
@@ -63,7 +71,7 @@ public class ProjectionController {
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectionResponse create(@AuthenticationPrincipal String userId,
                                      @Valid @RequestBody CreateProjectionRequest request) {
-        return databaseServiceClient.createProjection(UUID.fromString(userId), request);
+        return projectionService.create(UUID.fromString(userId), request);
     }
 
     @Operation(summary = "Update one of the current user's saved projections")
