@@ -111,12 +111,27 @@ openApiGenerate {
 	]
 }
 
+// inputSpec is a plain String, so Gradle tracks the URI and not the file behind it: editing a
+// spec in place leaves the task UP-TO-DATE and the build then compiles happily against stale
+// models. Declaring the file as a task input makes Gradle hash its contents, so a repinned spec
+// actually regenerates. (This bit us once — a repin silently did nothing and the whole build,
+// CI included, went green.) The three tasks below configure it inline; this one cannot, because
+// `openApiGenerate { }` above configures the plugin's *extension*, which has no task inputs.
+tasks.named('openApiGenerate') {
+	inputs.file("specs/fantasy-db-service-openapi.yaml")
+			.withPropertyName('dbServiceSpec')
+			.withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 // Same pattern for the yahoo-service spec. Re-run after updating
 // specs/fantasy-yahoo-service-openapi.yaml.
 tasks.register('generateYahooClient', org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
 	generatorName = 'java'
 	library = 'native'
 	inputSpec = file("specs/fantasy-yahoo-service-openapi.yaml").toURI().toString()
+	inputs.file("specs/fantasy-yahoo-service-openapi.yaml")
+			.withPropertyName('yahooServiceSpec')
+			.withPathSensitivity(PathSensitivity.RELATIVE)
 	outputDir = "${buildDir}/generated/openapi/yahoo-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.yahoo.model'
 	apiPackage = 'com.fantasy.bff.generated.yahoo.api'
@@ -138,6 +153,9 @@ tasks.register('generateEspnClient', org.openapitools.generator.gradle.plugin.ta
 	generatorName = 'java'
 	library = 'native'
 	inputSpec = file("specs/fantasy-espn-service-openapi.yaml").toURI().toString()
+	inputs.file("specs/fantasy-espn-service-openapi.yaml")
+			.withPropertyName('espnServiceSpec')
+			.withPathSensitivity(PathSensitivity.RELATIVE)
 	outputDir = "${buildDir}/generated/openapi/espn-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.espn.model'
 	apiPackage = 'com.fantasy.bff.generated.espn.api'
@@ -159,6 +177,9 @@ tasks.register('generateProjectionClient', org.openapitools.generator.gradle.plu
 	generatorName = 'java'
 	library = 'native'
 	inputSpec = file("specs/fantasy-projection-service-openapi.json").toURI().toString()
+	inputs.file("specs/fantasy-projection-service-openapi.json")
+			.withPropertyName('projectionServiceSpec')
+			.withPathSensitivity(PathSensitivity.RELATIVE)
 	outputDir = "${buildDir}/generated/openapi/projection-service".toString()
 	modelPackage = 'com.fantasy.bff.generated.projection.model'
 	apiPackage = 'com.fantasy.bff.generated.projection.api'
