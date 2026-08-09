@@ -7,6 +7,9 @@ springdoc:
     enabled: true
 
 security:
+  # Local development works on the model endpoints, so they are on here. Deployed environments
+  # opt in with PROJECTION_MODEL_ENABLED.
+  projection-model-enabled: true
   permitted-urls:
     - "/api/v1/auth/**"
     - "/api/v1/versions"
