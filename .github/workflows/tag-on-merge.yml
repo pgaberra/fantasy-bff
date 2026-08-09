@@ -3,7 +3,9 @@ name: Tag & release on merge to master
 # Auto-tag every squash-merge to master with a SemVer tag derived from the
 # Conventional-Commit message (the squash commit is the PR title):
 #   feat: -> minor, fix:/chore:/others -> patch, BREAKING CHANGE or "!" -> major.
-# Also publishes a matching GitHub Release with the generated changelog.
+# The matching GitHub Release is created as a DRAFT with the generated changelog. Publishing
+# that draft is what promotes the version to production (see promote-to-prod.yml), so merging
+# only ever reaches staging — production never moves by itself.
 # Baseline tag is v0.1.0; the action bumps from the latest existing tag.
 on:
   push:
@@ -31,7 +33,7 @@ jobs:
           default_bump: patch
           tag_prefix: v
 
-      - name: Create GitHub Release
+      - name: Create draft GitHub Release
         if: steps.tag.outputs.new_tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -39,7 +41,7 @@ jobs:
           CHANGELOG: ${{ steps.tag.outputs.changelog }}
         run: |
           printf '%s\n' "$CHANGELOG" > "$RUNNER_TEMP/notes.md"
-          gh release create "$NEW_TAG" --title "$NEW_TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          gh release create "$NEW_TAG" --title "$NEW_TAG" --notes-file "$RUNNER_TEMP/notes.md" --draft
 
       # Tell the prod server (Coolify control plane) to stamp this tag as APP_VERSION on the
       # staging app and redeploy it, over a restricted SSH key whose only action is

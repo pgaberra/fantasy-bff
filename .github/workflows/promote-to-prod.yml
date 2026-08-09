@@ -1,15 +1,22 @@
 name: Promote to production
 
-# Manual, version-pinned promotion of THIS service to production. Resolves the chosen
-# release tag to its commit and triggers the deploy on the prod server over a RESTRICTED
-# SSH key whose only allowed action is /root/promote_forced.sh (no shell, no other commands).
-# The prod server then pins git_commit_sha, sets SENTRY_RELEASE, and deploys.
+# A promotion is a DELIBERATE act. tag-on-merge creates every version's GitHub Release as a
+# DRAFT; PUBLISHING that release is what promotes it to production. A merge therefore never
+# reaches prod on its own — it only reaches staging.
+#
+# Resolves the release tag to its commit and triggers the deploy on the prod server over a
+# RESTRICTED SSH key whose only allowed action is /root/promote_forced.sh (no shell, no other
+# commands). The prod server pins git_branch + git_commit_sha, stamps APP_VERSION and
+# SENTRY_RELEASE, deploys, and then VERIFIES that the commit which landed is the one asked for
+# — it fails loudly rather than leaving production on something nobody chose.
 # Requires the secret PROD_PROMOTE_SSH_KEY (the restricted key's PRIVATE half).
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: "Release tag to promote to prod (e.g. v0.2.1)"
+        description: "Release tag to promote to prod (e.g. v0.2.1) — also how you roll back"
         required: true
         type: string
 
@@ -17,6 +24,8 @@ concurrency: promote-prod
 
 jobs:
   promote:
+    # Draft releases never fire this event; a prerelease is deliberately not a promotion.
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -24,7 +33,7 @@ jobs:
         id: r
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION_INPUT: ${{ inputs.version }}
+          VERSION_INPUT: ${{ inputs.version || github.event.release.tag_name }}
         run: |
           V="$VERSION_INPUT"
           if [[ ! "$V" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
