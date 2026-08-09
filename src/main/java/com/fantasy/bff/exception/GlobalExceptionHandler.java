@@ -1,11 +1,15 @@
 package com.fantasy.bff.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import com.fantasy.bff.config.RequestBodyByteCountFilter;
 import com.fantasy.bff.dto.response.ErrorDto;
+import org.apache.catalina.connector.ClientAbortException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -13,6 +17,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.io.EOFException;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -114,6 +119,44 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorDto> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorDto.of("NOT_FOUND", "No resource found for the requested path"));
+    }
+
+    /**
+     * The request body could not be read. Two very different causes land here and the response
+     * is the same 400 for both — the caller sent something we could not use — but the log is
+     * not: a client abort means the body stopped arriving mid-stream, which is a transport
+     * problem worth measuring, not malformed JSON.
+     *
+     * <p>The abort branch logs how much of the body arrived against what was declared, because
+     * that is what distinguishes a body cut at a fixed size (a proxy cap) from one that simply
+     * stopped (a stalled or timed-out connection). Both are logged at WARN rather than ERROR:
+     * they are not faults in this service, but silence would hide a user whose save is failing.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorDto> handleUnreadableBody(HttpMessageNotReadableException ex,
+                                                         HttpServletRequest request) {
+        if (isClientAbort(ex)) {
+            log.warn("Request body stopped arriving: {} {} — read {} of {} declared bytes",
+                    request.getMethod(), request.getRequestURI(),
+                    RequestBodyByteCountFilter.bytesRead(request), request.getContentLengthLong());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ErrorDto.of("REQUEST_INCOMPLETE", "The request body was not received in full"));
+        }
+        log.warn("Unreadable request body: {} {}", request.getMethod(), request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorDto.of("BAD_REQUEST", "The request body could not be read"));
+    }
+
+    private static boolean isClientAbort(Throwable ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ClientAbortException || cause instanceof EOFException) {
+                return true;
+            }
+            if (cause.getCause() == cause) {
+                return false;
+            }
+        }
+        return false;
     }
 
     @ExceptionHandler(Exception.class)
