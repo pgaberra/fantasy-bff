@@ -802,9 +802,6 @@ components:
         authorAlias:
           type: string
           description: "The name the public page credits, if the owner set one."
-        viewCount:
-          type: integer
-          format: int64
         createdAt:
           type: string
           format: date-time
@@ -817,7 +814,6 @@ components:
       - projectionId
       - token
       - updatedAt
-      - viewCount
     DraftPick:
       type: object
       properties:
