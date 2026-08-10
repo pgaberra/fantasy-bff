@@ -12,6 +12,10 @@ import jakarta.validation.constraints.Size;
  * model, because {@code source} is a concern of this API only: db-service always stores a
  * complete projection.
  *
+ * <p>{@code kind} is likewise a concern of this API: db-service stores whichever kind it is
+ * told, while the app decides that a draft started from a preset gets a {@code PRESET_DRAFT}
+ * so it never shows up among the projections the user made.
+ *
  * <p>A projection covers every player in the league, which is ~0.5 MB of JSON the client had
  * just downloaded from {@code /api/v1/players/*}. Uploading it back was failing in production
  * for at least one user (JAVA-SPRING-BOOT-J), so a client that wants the standard starting
@@ -23,6 +27,9 @@ public record CreateProjectionRequest(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank @Size(max = 100) String name,
+
+        @Schema(description = "What the projection is for. Defaults to the user's own.")
+        ProjectionKind kind,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull @Valid ProjectionData data,
