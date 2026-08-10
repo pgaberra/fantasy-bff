@@ -634,6 +634,18 @@
             "title": "Assists",
             "type": "integer"
           },
+          "blocks": {
+            "title": "Blocks",
+            "type": "integer"
+          },
+          "faceoffs_lost": {
+            "title": "Faceoffs Lost",
+            "type": "integer"
+          },
+          "faceoffs_won": {
+            "title": "Faceoffs Won",
+            "type": "integer"
+          },
           "first_team_game": {
             "anyOf": [
               {
@@ -655,6 +667,10 @@
           },
           "gw_goals": {
             "title": "Gw Goals",
+            "type": "integer"
+          },
+          "hits": {
+            "title": "Hits",
             "type": "integer"
           },
           "last_team_game": {
@@ -730,7 +746,11 @@
           "sh_points",
           "gw_goals",
           "shots",
-          "toi_seconds"
+          "toi_seconds",
+          "hits",
+          "blocks",
+          "faceoffs_won",
+          "faceoffs_lost"
         ],
         "title": "SkaterSplitResponse",
         "type": "object"
