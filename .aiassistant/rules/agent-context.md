@@ -44,11 +44,12 @@ The BFF does **not** contain business logic or own any data. It:
                      │          │           │   REST/HTTP (OpenAPI)
           ┌──────────┘  ┌───────┘   ┌──────┘
           ▼             ▼           ▼
-   ┌─────────────┐ ┌──────────┐ ┌──────────────┐
-   │  NHL        │ │  Yahoo   │ │  Database    │  ... (more
-   │  Service    │ │  Fantasy │ │  Service     │   services
-   │  (future)   │ │  Service │ │  (future)    │   to come)
-   └─────────────┘ └──────────┘ └──────────────┘
+   ┌─────────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────┐
+   │  Yahoo      │ │  ESPN    │ │  Database    │ │ Projection │
+   │  Service    │ │  Service │ │  Service     │ │  Service   │
+   │ (players +  │ │ (leagues │ │ (users +     │ │  (model    │
+   │  leagues)   │ │  + stats)│ │  projections)│ │   output)  │
+   └─────────────┘ └──────────┘ └──────────────┘ └────────────┘
 ```
 
 ### Key Architectural Principles
@@ -99,7 +100,7 @@ src/
 │       │   ├── TeamService.java
 │       │   └── ...
 │       ├── client/
-│       │   ├── NhlServiceClient.java        # Typed downstream client
+│       │   ├── PlayerServiceClient.java     # Typed downstream client
 │       │   ├── YahooServiceClient.java
 │       │   ├── DatabaseServiceClient.java
 │       │   └── ...
@@ -130,27 +131,21 @@ src/
 - Request and response bodies are JSON
 - All endpoints (except `/api/v1/auth/**` and `/actuator/health`) require a valid JWT in the `Authorization: Bearer <token>` header
 
-### State of Downstream Services
+### The downstream services
 
-**The downstream microservices this BFF depends on do not exist yet.** They will be built incrementally as the project grows. Until a downstream service is available, the BFF must use an **internal mock** to serve realistic data to the Angular frontend so that frontend development is not blocked.
+All four exist and are deployed. There is no mocking strategy and no `mock` profile: tests
+replace the client interfaces with `@MockitoBean`, and clients are exercised against WireMock
+or `MockRestServiceServer`.
 
-#### Mocking Strategy
+| Service | Responsibility |
+|---|---|
+| `fantasy-db-service` | Users, accounts and saved projections (Postgres). |
+| `fantasy-yahoo-service` | Per-user Yahoo OAuth, league settings, **and the cached player read model** — identity, eligible positions and season stats for every player the app serves. |
+| `fantasy-espn-service` | ESPN leagues (no OAuth — public leagues need an id, private ones the user's cookies) and cached ESPN stat lines for the stats Yahoo does not report. |
+| `fantasy-projection-service` | The projection model's own output, keyed by NHL id. |
 
-Each downstream client interface should have two implementations:
-
-- A **`Mock{ServiceName}Client`** — returns hardcoded or in-memory data. This is the active implementation until the real service is built.
-- A **`Real{ServiceName}Client`** — calls the actual downstream service over HTTP via `RestClient`. Swapped in once the service exists.
-
-Switch between implementations using a Spring profile (`@Profile("mock")` / `@Profile("!mock")`), controlled by an environment variable. The Angular frontend's existing mock data (see `player.service.ts` below) should be used as the reference for what realistic mock responses look like.
-
-```
-# application.yml
-spring:
-  profiles:
-    active: ${SPRING_PROFILE:mock}   # default to mock until real services exist
-```
-
-> **Note for agent:** When implementing a new endpoint whose downstream service does not yet exist, always create the mock client first. Never leave an endpoint unimplemented or returning empty data — the frontend must always receive a usable response.
+A former `fantasy-nhl-service` and `fantasy-player-service` were **retired** once all player
+data came from Yahoo. Nothing in this repo talks to the NHL API.
 
 ---
 
@@ -196,8 +191,8 @@ The Angular `PlayerService` currently provides two data streams that will be rep
 
 | Method | Path | Auth Required | Description | Downstream Service |
 |---|---|---|---|---|
-| `GET` | `/api/v1/players/skaters` | ✅ | Returns all skaters with full stats | `nhl-service` *(not built — use mock)* |
-| `GET` | `/api/v1/players/goalies` | ✅ | Returns all goalies with full stats | `nhl-service` *(not built — use mock)* |
+| `GET` | `/api/v1/players/skaters` | ❌ public | Every skater with full stats | `yahoo-service` (read model) + `espn-service` (the stats Yahoo lacks) |
+| `GET` | `/api/v1/players/goalies` | ❌ public | Every goalie with full stats | same |
 
 **Skater response shape** (array of skaters):
 ```json
@@ -343,9 +338,9 @@ Each downstream service gets its own `RestClient` bean, configured with:
 ```java
 // Example: RestClientConfig.java
 @Bean
-public RestClient nhlServiceClient(
-        @Value("${services.nhl.base-url}") String baseUrl,
-        @Value("${services.nhl.timeout-ms}") int timeoutMs) {
+public RestClient yahooFantasyServiceClient(
+        @Value("${services.yahoo-fantasy.base-url}") String baseUrl,
+        @Value("${services.yahoo-fantasy.timeout-ms}") int timeoutMs) {
 
     HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(timeoutMs))
@@ -362,30 +357,34 @@ public RestClient nhlServiceClient(
 }
 ```
 
-### Downstream Services (Planned)
+### Adding a downstream service
 
-| Service | Responsibility | Status |
-|---|---|---|
-| `nhl-service` | Communicates with the official NHL API (`api-web.nhle.com`). Returns player stats, team rosters, schedules, standings. | 🔲 Not built |
-| `yahoo-fantasy-service` | Communicates with the Yahoo Fantasy Sports API. Returns fantasy league data, rosters, matchups, scoring. | 🔲 Not built |
-| `database-service` | Owns and serves application data (users, preferences, cached data). Wraps the application's primary database. | 🔲 Not built |
-
-> **Note for agent:** As new microservices are added, create a new `{ServiceName}Client.java` in the `client` package, add its base URL to `application.yml`, and register its `RestClient` bean in `RestClientConfig.java`. Document the new service in the table above.
+Create a `{Name}ServiceClient` interface plus an `Http{Name}ServiceClient` in `client/`, pin
+the service's spec in `specs/`, add a generate task in `build.gradle`, register a `RestClient`
+bean in `RestClientConfig`, and give `SPEC_READ_TOKEN` read access to the new repo so the
+drift check can reach it. See the espn-service wiring for a recent worked example.
 
 ### Application Configuration
 
 ```yaml
-# application.yml
+# application.yaml — one base-url / timeout / api-key per downstream
 services:
-  nhl:
-    base-url: ${NHL_SERVICE_URL:http://localhost:8081}
-    timeout-ms: 5000
   yahoo-fantasy:
-    base-url: ${YAHOO_SERVICE_URL:http://localhost:8082}
-    timeout-ms: 7000
+    base-url: ${YAHOO_SERVICE_URL:http://localhost:8088}
+    timeout-ms: 10000
+    api-key: ${YAHOO_INTERNAL_API_KEY:}
+  espn-fantasy:
+    base-url: ${ESPN_SERVICE_URL:http://localhost:8090}
+    timeout-ms: 10000
+    api-key: ${ESPN_INTERNAL_API_KEY:}
   database:
-    base-url: ${DATABASE_SERVICE_URL:http://localhost:8083}
+    base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000
+    api-key: ${DB_INTERNAL_API_KEY:}
+  projection:
+    base-url: ${PROJECTION_SERVICE_URL:http://localhost:8092}
+    timeout-ms: 5000
+    api-key: ${PROJECTION_INTERNAL_API_KEY:}
 
 security:
   jwt:
@@ -434,7 +433,7 @@ public record FantasyLeagueResponse(
 
 - **Prefer standard Java exceptions over custom ones.** Instead of creating custom exception classes, use built-in Java exceptions that semantically match the error condition.
 - The BFF should **never return a 500** due to a downstream service being unavailable if a graceful fallback is possible.
-- Use **partial responses** when feasible (e.g. if the Yahoo service is down, return NHL data with a warning that fantasy data is unavailable).
+- Use **partial responses** when feasible: `/players` serves the Yahoo line without the ESPN-only stats when espn-service is unreachable, rather than failing the request.
 - All unhandled exceptions are caught by `GlobalExceptionHandler`.
 
 ### Global Exception Handler
@@ -494,7 +493,7 @@ src/test/java/com/fantasyhockey/bff/
 │   ├── PlayerServiceTest.java
 │   └── LeagueServiceTest.java
 ├── client/
-│   └── NhlServiceClientTest.java
+│   └── HttpEspnServiceClientTest.java
 └── security/
     └── JwtAuthenticationFilterTest.java
 ```
