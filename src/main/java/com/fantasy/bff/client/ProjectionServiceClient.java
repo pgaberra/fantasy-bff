@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
@@ -22,9 +23,9 @@ public interface ProjectionServiceClient {
 
     /**
      * Measured totals over a stretch of a team's schedule — what a player actually did over
-     * the last N games, not a forecast.
+     * that stretch, not a forecast.
      */
-    List<SkaterSplitResponse> skaterSplits(int season, int lastGames, int limit);
+    List<SkaterSplitResponse> skaterSplits(int season, GameRange range, int limit);
 
-    List<GoalieSplitResponse> goalieSplits(int season, int lastGames, int limit);
+    List<GoalieSplitResponse> goalieSplits(int season, GameRange range, int limit);
 }
