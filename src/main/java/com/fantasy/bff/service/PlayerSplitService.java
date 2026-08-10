@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
+import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -49,10 +50,10 @@ public class PlayerSplitService {
         this.overrides = overrides;
     }
 
-    public List<PlayerSplitResponse> skaterSplits(int season, int lastGames, int limit) {
+    public List<PlayerSplitResponse> skaterSplits(int season, GameRange range, int limit) {
         Context context = context();
         List<PlayerSplitResponse> splits = new ArrayList<>();
-        for (SkaterSplitResponse split : projectionServiceClient.skaterSplits(season, lastGames, limit)) {
+        for (SkaterSplitResponse split : projectionServiceClient.skaterSplits(season, range, limit)) {
             Integer playerId = context.platformId(split.getNhlId());
             if (playerId == null) {
                 continue;
@@ -69,17 +70,26 @@ public class PlayerSplitService {
             put(stats, "shp", split.getShPoints());
             put(stats, "gwg", split.getGwGoals());
             put(stats, "sog", split.getShots());
-            put(stats, "toi", split.getToiSeconds());
+            put(stats, "hits", split.getHits());
+            put(stats, "blocks", split.getBlocks());
+            put(stats, "fw", split.getFaceoffsWon());
+            put(stats, "fl", split.getFaceoffsLost());
+            // The service reports the totals it measured; the assist and rate splits below are
+            // arithmetic on those, and are derived here so every client doesn't redo it.
+            putDifference(stats, "ppa", split.getPpPoints(), split.getPpGoals());
+            putDifference(stats, "sha", split.getShPoints(), split.getShGoals());
+            putRatio(stats, "shPct", split.getGoals(), split.getShots(), 100.0);
+            putRatio(stats, "toiPerGame", split.getToiSeconds(), split.getGames(), 1.0);
             splits.add(response(playerId, context, split.getNhlId(), "skater",
                     split.getGames(), split.getFirstTeamGame(), split.getLastTeamGame(), stats));
         }
         return splits;
     }
 
-    public List<PlayerSplitResponse> goalieSplits(int season, int lastGames, int limit) {
+    public List<PlayerSplitResponse> goalieSplits(int season, GameRange range, int limit) {
         Context context = context();
         List<PlayerSplitResponse> splits = new ArrayList<>();
-        for (GoalieSplitResponse split : projectionServiceClient.goalieSplits(season, lastGames, limit)) {
+        for (GoalieSplitResponse split : projectionServiceClient.goalieSplits(season, range, limit)) {
             Integer playerId = context.platformId(split.getNhlId());
             if (playerId == null) {
                 continue;
@@ -96,7 +106,6 @@ public class PlayerSplitService {
             // not the same as a zero one.
             put(stats, "gaa", split.getGoalsAgainstAvg());
             put(stats, "svPct", split.getSavePct());
-            put(stats, "toi", split.getToiSeconds());
             splits.add(response(playerId, context, split.getNhlId(), "goalie",
                     split.getGames(), split.getFirstTeamGame(), split.getLastTeamGame(), stats));
         }
@@ -165,6 +174,25 @@ public class PlayerSplitService {
     private static void put(Map<String, Double> target, String key, Integer value) {
         if (value != null) {
             target.put(key, value.doubleValue());
+        }
+    }
+
+    private static void putDifference(
+            Map<String, Double> target, String key, Integer total, Integer part) {
+        if (total != null && part != null) {
+            target.put(key, (double) (total - part));
+        }
+    }
+
+    /**
+     * A rate is left out when there is nothing to divide by — a skater who took no shots has no
+     * shooting percentage, and reporting it as zero would rank them alongside someone who
+     * missed every shot they took.
+     */
+    private static void putRatio(
+            Map<String, Double> target, String key, Integer numerator, Integer denominator, double scale) {
+        if (numerator != null && denominator != null && denominator != 0) {
+            target.put(key, numerator.doubleValue() / denominator * scale);
         }
     }
 }

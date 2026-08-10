@@ -775,11 +775,12 @@ paths:
     get:
       tags:
       - Projection model
-      summary: Skaters' measured totals over the closing games of a season
+      summary: Skaters' measured totals over a range of a season's games
       description: "What players actually produced over a stretch of their team's\
         \ schedule — measured, not projected. Ranges are in team game numbers, so\
         \ the same range covers the same stretch for every player; one who missed\
-        \ some of them shows fewer games."
+        \ some of them shows fewer games. Give either fromGame/toGame or lastGames;\
+        \ with neither, the whole season is covered."
       operationId: skaterSplits
       parameters:
       - name: season
@@ -788,14 +789,31 @@ paths:
         schema:
           type: integer
           format: int32
-      - name: lastGames
+      - name: fromGame
         in: query
-        description: How many of the team's final games to cover
+        description: First team game in the range (1-based)
         required: false
         schema:
           type: integer
           format: int32
-          default: 20
+          maximum: 84
+          minimum: 1
+      - name: toGame
+        in: query
+        description: "Last team game in the range, inclusive"
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 84
+          minimum: 1
+      - name: lastGames
+        in: query
+        description: Shorthand for the team's final N games
+        required: false
+        schema:
+          type: integer
+          format: int32
           maximum: 84
           minimum: 1
       - name: limit
@@ -805,7 +823,7 @@ paths:
           type: integer
           format: int32
           default: 100
-          maximum: 500
+          maximum: 1000
           minimum: 1
       responses:
         "200":
@@ -820,7 +838,7 @@ paths:
     get:
       tags:
       - Projection model
-      summary: Goalies' measured totals over the closing games of a season
+      summary: Goalies' measured totals over a range of a season's games
       operationId: goalieSplits
       parameters:
       - name: season
@@ -829,13 +847,28 @@ paths:
         schema:
           type: integer
           format: int32
+      - name: fromGame
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 84
+          minimum: 1
+      - name: toGame
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 84
+          minimum: 1
       - name: lastGames
         in: query
         required: false
         schema:
           type: integer
           format: int32
-          default: 20
           maximum: 84
           minimum: 1
       - name: limit
@@ -845,7 +878,7 @@ paths:
           type: integer
           format: int32
           default: 100
-          maximum: 500
+          maximum: 1000
           minimum: 1
       responses:
         "200":

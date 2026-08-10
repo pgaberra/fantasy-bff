@@ -1,7 +1,9 @@
 package com.fantasy.bff.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,6 +13,7 @@ import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
+import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
@@ -73,10 +76,22 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
         split.setGames(20);
         split.setGoals(13);
         split.setPoints(33);
+        split.setShots(65);
+        split.setPpGoals(4);
+        split.setPpPoints(11);
+        split.setShGoals(1);
+        split.setShPoints(2);
+        split.setHits(18);
+        split.setBlocks(9);
+        split.setFaceoffsWon(120);
+        split.setFaceoffsLost(100);
+        split.setToiSeconds(26000);
         split.setFirstTeamGame(63);
         split.setLastTeamGame(82);
-        when(projectionServiceClient.skaterSplits(anyInt(), anyInt(), anyInt()))
+        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(split));
+        when(projectionServiceClient.goalieSplits(anyInt(), any(GameRange.class), anyInt()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -116,5 +131,77 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=200")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("forwards an explicit from/to range to the projection service")
+    void forwardsExplicitRange() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?season=2025&fromGame=50&toGame=82")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        verify(projectionServiceClient).skaterSplits(2025, new GameRange(50, 82, null), 100);
+    }
+
+    @Test
+    @DisplayName("an omitted range covers the whole season")
+    void omittedRangeCoversTheSeason() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?season=2025")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        verify(projectionServiceClient).skaterSplits(2025, GameRange.season(), 100);
+    }
+
+    @Test
+    @DisplayName("rejects a range that says two different things")
+    void rejectsConflictingRange() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20&fromGame=50")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("rejects a range that runs backwards")
+    void rejectsInvertedRange() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=60&toGame=20")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("carries hits, blocks and faceoffs, and derives the splits that follow from them")
+    void derivesStats() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].stats.hits").value(18.0))
+                .andExpect(jsonPath("$[0].stats.blocks").value(9.0))
+                .andExpect(jsonPath("$[0].stats.fw").value(120.0))
+                .andExpect(jsonPath("$[0].stats.fl").value(100.0))
+                .andExpect(jsonPath("$[0].stats.ppa").value(7.0)
+                        ) // 11 power-play points less 4 power-play goals
+                .andExpect(jsonPath("$[0].stats.sha").value(1.0))
+                .andExpect(jsonPath("$[0].stats.shPct").value(20.0)) // 13 of 65
+                .andExpect(jsonPath("$[0].stats.toiPerGame").value(1300.0)); // 26000s over 20
+    }
+
+    @Test
+    @DisplayName("leaves out a rate there is nothing to divide by")
+    void omitsUndefinedRates() throws Exception {
+        SkaterSplitResponse noShots = new SkaterSplitResponse();
+        noShots.setNhlId(8478402);
+        noShots.setSeason(2025);
+        noShots.setGames(0);
+        noShots.setGoals(0);
+        noShots.setShots(0);
+        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+                .thenReturn(List.of(noShots));
+
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].stats.shPct").doesNotExist())
+                .andExpect(jsonPath("$[0].stats.toiPerGame").doesNotExist());
     }
 }

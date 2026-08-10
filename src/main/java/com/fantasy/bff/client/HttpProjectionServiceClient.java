@@ -1,15 +1,18 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import java.net.URI;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
 /**
  * {@link ProjectionServiceClient} that talks to fantasy-projection-service over HTTP.
@@ -76,31 +79,38 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     }
 
     @Override
-    public List<SkaterSplitResponse> skaterSplits(int season, int lastGames, int limit) {
+    public List<SkaterSplitResponse> skaterSplits(int season, GameRange range, int limit) {
         return restClient.get()
-                .uri(b -> splits(b, "/api/v1/splits/skaters", season, lastGames, limit))
+                .uri(b -> splits(b, "/api/v1/splits/skaters", season, range, limit))
                 .retrieve()
                 .body(SKATER_SPLITS);
     }
 
     @Override
-    public List<GoalieSplitResponse> goalieSplits(int season, int lastGames, int limit) {
+    public List<GoalieSplitResponse> goalieSplits(int season, GameRange range, int limit) {
         return restClient.get()
-                .uri(b -> splits(b, "/api/v1/splits/goalies", season, lastGames, limit))
+                .uri(b -> splits(b, "/api/v1/splits/goalies", season, range, limit))
                 .retrieve()
                 .body(GOALIE_SPLITS);
     }
 
-    private static java.net.URI splits(
-            org.springframework.web.util.UriBuilder builder,
-            String path,
-            int season,
-            int lastGames,
-            int limit) {
-        return builder.path(path)
-                .queryParam("season", season)
-                .queryParam("last_games", lastGames)
-                .queryParam("limit", limit)
-                .build();
+    /**
+     * Unset bounds are left off the query entirely rather than sent as nulls — the service
+     * reads an absent bound as "the whole season", and rejects a request that carries both a
+     * last_games shorthand and an explicit range.
+     */
+    private static URI splits(
+            UriBuilder builder, String path, int season, GameRange range, int limit) {
+        builder.path(path).queryParam("season", season).queryParam("limit", limit);
+        if (range.fromGame() != null) {
+            builder.queryParam("from_game", range.fromGame());
+        }
+        if (range.toGame() != null) {
+            builder.queryParam("to_game", range.toGame());
+        }
+        if (range.lastGames() != null) {
+            builder.queryParam("last_games", range.lastGames());
+        }
+        return builder.build();
     }
 }
