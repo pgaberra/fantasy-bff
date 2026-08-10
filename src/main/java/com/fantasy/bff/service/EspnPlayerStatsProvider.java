@@ -53,8 +53,7 @@ public class EspnPlayerStatsProvider {
         }
         try {
             PlayerStatsResponse response = espnServiceClient.playerStats();
-            List<PlayerStatLine> statLines =
-                    response == null || response.getPlayers() == null ? List.of() : response.getPlayers();
+            List<PlayerStatLine> statLines = response == null ? List.of() : response.getPlayers();
             EspnStatLineIndex index = new EspnStatLineIndex(statLines);
             cache.set(new Cached(index, Instant.now().plus(ttl)));
             log.info("Loaded {} ESPN stat lines for player enrichment", statLines.size());

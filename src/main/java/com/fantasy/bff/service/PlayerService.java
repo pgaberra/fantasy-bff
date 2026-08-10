@@ -60,10 +60,12 @@ public class PlayerService {
         if (line.isEmpty()) {
             return skater;
         }
+        PlayerStatLine statLine = line.get();
         SkaterResponse.ScoringStats scoring = skater.stats().scoring();
-        int hatTricks = zero(line.get().getHatTricks());
-        int shifts = zero(line.get().getShifts());
-        int toi = line.get().getTimeOnIce() == null ? scoring.toi() : line.get().getTimeOnIce();
+        int hatTricks = zero(statLine.getHatTricks());
+        int shifts = zero(statLine.getShifts());
+        Integer espnToi = statLine.getTimeOnIce();
+        int toi = espnToi == null ? scoring.toi() : espnToi;
         return new SkaterResponse(
                 skater.id(), skater.name(), skater.teamAbbrev(), skater.headshot(), skater.sweaterNumber(),
                 skater.positions(),
@@ -86,9 +88,10 @@ public class PlayerService {
         if (line.isEmpty()) {
             return goalie;
         }
+        PlayerStatLine statLine = line.get();
         GoalieResponse.ScoringStats scoring = goalie.stats().scoring();
-        int otl = zero(line.get().getOvertimeLosses());
-        int toi = zero(line.get().getTimeOnIce());
+        int otl = zero(statLine.getOvertimeLosses());
+        int toi = zero(statLine.getTimeOnIce());
         return new GoalieResponse(
                 goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.headshot(), goalie.sweaterNumber(),
                 new GoalieResponse.Stats(
