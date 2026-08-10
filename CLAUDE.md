@@ -43,7 +43,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   and forwards to db-service, never trusting a client-supplied user id. A create may set
   `kind: preset_draft`, which stores a projection that only holds the picks of a draft
   started from a preset — db-service keeps one of each kind per user, and the web filters
-  preset drafts out of "my projections")
+  preset drafts out of "my projections". A preset is defined here, not by the caller: a
+  `preset_draft` must be created with `source=default` and is named server-side, so a
+  draft cannot claim to be drafted against something it wasn't)
   - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
     public link. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
     the visitor's side is `GET /api/v1/shared/{token}`, permitted for everyone — a share link has

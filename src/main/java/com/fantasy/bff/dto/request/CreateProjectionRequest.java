@@ -14,7 +14,9 @@ import jakarta.validation.constraints.Size;
  *
  * <p>{@code kind} is likewise a concern of this API: db-service stores whichever kind it is
  * told, while the app decides that a draft started from a preset gets a {@code PRESET_DRAFT}
- * so it never shows up among the projections the user made.
+ * so it never shows up among the projections the user made. A preset is defined by the
+ * server, so a {@code PRESET_DRAFT} takes its name and its player rows from here and not from
+ * the caller — see {@code ProjectionService}.
  *
  * <p>A projection covers every player in the league, which is ~0.5 MB of JSON the client had
  * just downloaded from {@code /api/v1/players/*}. Uploading it back was failing in production
@@ -25,10 +27,12 @@ import jakarta.validation.constraints.Size;
  */
 public record CreateProjectionRequest(
 
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Ignored for a preset draft, which the server names itself.")
         @NotBlank @Size(max = 100) String name,
 
-        @Schema(description = "What the projection is for. Defaults to the user's own.")
+        @Schema(description = "What the projection is for. Defaults to the user's own. A preset "
+                + "draft requires source=default and is named by the server.")
         ProjectionKind kind,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)

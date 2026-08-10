@@ -180,6 +180,44 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(sent.getValue().getKind()).isEqualTo(CreateProjectionRequest.KindEnum.PRESET_DRAFT);
     }
 
+    /**
+     * The name is the heading the draft board shows, so a client must not be able to make a
+     * draft claim it was drafted against something it wasn't.
+     */
+    @Test
+    void create_asPresetDraft_isNamedByTheServerNotTheCaller() throws Exception {
+        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse().id(PROJECTION_ID.toString()).name("Last Season's Stats"));
+
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SOURCED_BODY
+                                .replace("\"name\": \"My league\",", "\"name\": \"Totally legit ranking\",")
+                                .replace("\"source\": \"default\",",
+                                        "\"source\": \"default\", \"kind\": \"preset_draft\",")))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateProjectionRequest> sent = ArgumentCaptor.forClass(CreateProjectionRequest.class);
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getName()).isEqualTo("Last Season's Stats");
+    }
+
+    /** A preset whose rows came from the caller would not be the preset. */
+    @Test
+    void create_asPresetDraftWithoutTheDefaultSource_isRejected() throws Exception {
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY.replace("\"name\": \"My league\",",
+                                "\"name\": \"My league\", \"kind\": \"preset_draft\",")))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).createProjection(any(), any());
+    }
+
     @Test
     void create_withoutKind_defaultsToTheUsersOwnProjection() throws Exception {
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(

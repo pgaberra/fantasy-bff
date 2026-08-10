@@ -1502,11 +1502,13 @@ components:
       properties:
         name:
           type: string
+          description: "Ignored for a preset draft, which the server names itself."
           maxLength: 100
           minLength: 0
         kind:
           type: string
-          description: What the projection is for. Defaults to the user's own.
+          description: What the projection is for. Defaults to the user's own. A preset
+            draft requires source=default and is named by the server.
           enum:
           - projection
           - preset_draft
