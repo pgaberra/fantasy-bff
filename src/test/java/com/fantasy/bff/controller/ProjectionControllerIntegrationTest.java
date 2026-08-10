@@ -138,8 +138,8 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                 1, "Connor McDavid", "EDM", "https://example.test/1.png", 97, Set.of(SkaterPosition.C),
                 new SkaterResponse.Stats(
                         new SkaterResponse.UtilityStats(82, 1320),
-                        new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348,
-                                18.4, 812, 623, 42, 28)))));
+                        new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 23, 38, 61,
+                                8, 2, 348, 18.4, 812, 623, 42, 28, 0, 1408, 92400)))));
         when(playerServiceClient.getGoalies()).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
                 new ProjectionResponse().id(PROJECTION_ID.toString()).name("My league"));

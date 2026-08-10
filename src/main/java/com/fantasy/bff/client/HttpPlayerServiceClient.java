@@ -86,17 +86,20 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
         int ppp = zero(s.getPowerPlayPoints());
         int shg = zero(s.getShorthandedGoals());
         int shp = zero(s.getShorthandedPoints());
+        int ppa = ppp - ppg;
+        int sha = shp - shg;
+        int gamesPlayed = zero(s.getGamesPlayed());
+        int toiPerGame = toiToSeconds(s.getAvgToi());
+        Set<SkaterPosition> positions = toPositions(s.getEligiblePositions(), s.getPosition());
         return new SkaterResponse(
                 (int) (long) s.getId(),
                 s.getFirstName() + " " + s.getLastName(),
                 s.getTeamAbbrev(),
                 s.getHeadshot(),
                 s.getSweaterNumber(),
-                toPositions(s.getEligiblePositions(), s.getPosition()),
+                positions,
                 new SkaterResponse.Stats(
-                        new SkaterResponse.UtilityStats(
-                                zero(s.getGamesPlayed()),
-                                toiToSeconds(s.getAvgToi())),
+                        new SkaterResponse.UtilityStats(gamesPlayed, toiPerGame),
                         new SkaterResponse.ScoringStats(
                                 zero(s.getGoals()),
                                 zero(s.getAssists()),
@@ -106,19 +109,32 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                                 ppg,
                                 // The NHL API exposes power-play/shorthanded *points*,
                                 // not assists; derive assists as points - goals.
-                                ppp - ppg,
+                                ppa,
                                 ppp,
                                 shg,
-                                shp - shg,
+                                sha,
                                 shp,
+                                // ESPN scores special teams as one category: power play plus
+                                // shorthanded. Nothing reports it directly, so it is summed.
+                                ppg + shg,
+                                ppa + sha,
+                                ppp + shp,
                                 zero(s.getGameWinningGoals()),
+                                // Hat tricks and shifts only exist in ESPN's stat line; the
+                                // BFF fills them in from espn-service after this mapping.
+                                0,
                                 zero(s.getShots()),
                                 // NHL shootingPctg is a fraction (0.156); UI wants percent.
                                 round1(zero(s.getShootingPctg()) * 100.0),
                                 zero(s.getTotalFaceoffWins()),
                                 zero(s.getTotalFaceoffLosses()),
                                 zero(s.getHits()),
-                                zero(s.getBlockedShots()))));
+                                zero(s.getBlockedShots()),
+                                // ESPN's "defensemen points" category counts a player's points
+                                // only while they are eligible at defence.
+                                positions.contains(SkaterPosition.D) ? zero(s.getPoints()) : 0,
+                                0,
+                                gamesPlayed * toiPerGame)));
     }
 
     private static GoalieResponse toGoalie(com.fantasy.bff.generated.yahoo.model.GoalieResponse g) {
@@ -134,13 +150,19 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                                 zero(g.getGamesStarted()),
                                 zero(g.getWins()),
                                 zero(g.getLosses()),
+                                // Overtime losses and time on ice only exist in ESPN's stat
+                                // line, and win % is derived from OTL — the BFF fills all
+                                // three in from espn-service after this mapping.
+                                0,
                                 zero(g.getShutouts()),
                                 zero(g.getShotsAgainst()),
                                 zero(g.getSaves()),
                                 zero(g.getGoalsAgainst()),
                                 round2(zero(g.getGoalsAgainstAvg())),
                                 // savePctg stays a fraction (0.912) — UI convention.
-                                round3(zero(g.getSavePctg())))));
+                                round3(zero(g.getSavePctg())),
+                                0.0,
+                                0)));
     }
 
     /** Yahoo eligible positions → frontend enum; falls back to the NHL position if none map. */

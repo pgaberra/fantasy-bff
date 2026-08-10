@@ -1746,9 +1746,25 @@ components:
         shp:
           type: integer
           format: int32
+        stpg:
+          type: integer
+          format: int32
+          description: Special-teams goals (power play + shorthanded)
+        stpa:
+          type: integer
+          format: int32
+          description: Special-teams assists
+        stp:
+          type: integer
+          format: int32
+          description: Special-teams points
         gwg:
           type: integer
           format: int32
+        hatTricks:
+          type: integer
+          format: int32
+          description: Games with three or more goals; sourced from ESPN
         sog:
           type: integer
           format: int32
@@ -1767,13 +1783,27 @@ components:
         blocks:
           type: integer
           format: int32
+        defPoints:
+          type: integer
+          format: int32
+          description: Points scored while eligible at defence; zero for forwards
+        shifts:
+          type: integer
+          format: int32
+          description: Shifts taken over the season; sourced from ESPN
+        toi:
+          type: integer
+          format: int32
+          description: "Total time on ice for the season, in seconds"
       required:
       - assists
       - blocks
+      - defPoints
       - fl
       - fw
       - goals
       - gwg
+      - hatTricks
       - hits
       - pim
       - plusMinus
@@ -1784,8 +1814,13 @@ components:
       - shPct
       - sha
       - shg
+      - shifts
       - shp
       - sog
+      - stp
+      - stpa
+      - stpg
+      - toi
     SkaterStats:
       type: object
       properties:
@@ -1843,6 +1878,10 @@ components:
         l:
           type: integer
           format: int32
+        otl:
+          type: integer
+          format: int32
+          description: Overtime losses; sourced from ESPN
         sho:
           type: integer
           format: int32
@@ -1861,16 +1900,28 @@ components:
         svPct:
           type: number
           format: double
+        winPct:
+          type: number
+          format: double
+          description: "Share of decisions won, as a fraction"
+        toi:
+          type: integer
+          format: int32
+          description: "Total time on ice for the season, in seconds; sourced from\
+            \ ESPN"
       required:
       - ga
       - gaa
       - gs
       - l
+      - otl
       - sa
       - sho
       - sv
       - svPct
+      - toi
       - w
+      - winPct
     GoalieStats:
       type: object
       properties:
