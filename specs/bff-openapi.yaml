@@ -1326,6 +1326,11 @@ components:
           type: string
         name:
           type: string
+        kind:
+          type: string
+          enum:
+          - projection
+          - preset_draft
         season:
           type: string
           enum:
@@ -1345,6 +1350,7 @@ components:
       - createdAt
       - data
       - id
+      - kind
       - name
       - season
       - updatedAt
@@ -1818,6 +1824,11 @@ components:
           type: string
         name:
           type: string
+        kind:
+          type: string
+          enum:
+          - projection
+          - preset_draft
         season:
           type: string
           enum:
@@ -1841,6 +1852,7 @@ components:
       - createdAt
       - draftStatus
       - id
+      - kind
       - name
       - season
       - updatedAt
