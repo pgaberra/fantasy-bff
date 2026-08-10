@@ -9,7 +9,7 @@ import com.fantasy.bff.service.mapping.EspnStatLineIndex;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 /**
  * Serves the player read model the projections are built from.
@@ -37,8 +37,12 @@ public class PlayerService {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to retrieve skaters from player service", e);
         }
-        EspnStatLineIndex index = espnPlayerStats.index();
-        return skaters.stream().map(skater -> withEspnStats(skater, index)).toList();
+        Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(
+                skaters.stream()
+                        .map(skater -> new EspnStatLineIndex.Subject(
+                                skater.id(), skater.name(), primaryPosition(skater)))
+                        .toList());
+        return skaters.stream().map(skater -> withEspnStats(skater, statLines.get(skater.id()))).toList();
     }
 
     public List<GoalieResponse> getGoalies() {
@@ -48,19 +52,17 @@ public class PlayerService {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to retrieve goalies from player service", e);
         }
-        EspnStatLineIndex index = espnPlayerStats.index();
-        return goalies.stream().map(goalie -> withEspnStats(goalie, index)).toList();
+        Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(
+                goalies.stream()
+                        .map(goalie -> new EspnStatLineIndex.Subject(goalie.id(), goalie.name(), "G"))
+                        .toList());
+        return goalies.stream().map(goalie -> withEspnStats(goalie, statLines.get(goalie.id()))).toList();
     }
 
-    private static SkaterResponse withEspnStats(SkaterResponse skater, EspnStatLineIndex index) {
-        if (skater.stats() == null) {
+    private static SkaterResponse withEspnStats(SkaterResponse skater, PlayerStatLine statLine) {
+        if (skater.stats() == null || statLine == null) {
             return skater;
         }
-        Optional<PlayerStatLine> line = index.find(skater.name(), primaryPosition(skater));
-        if (line.isEmpty()) {
-            return skater;
-        }
-        PlayerStatLine statLine = line.get();
         SkaterResponse.ScoringStats scoring = skater.stats().scoring();
         int hatTricks = zero(statLine.getHatTricks());
         int shifts = zero(statLine.getShifts());
@@ -80,15 +82,10 @@ public class PlayerService {
                                 shifts, toi)));
     }
 
-    private static GoalieResponse withEspnStats(GoalieResponse goalie, EspnStatLineIndex index) {
-        if (goalie.stats() == null) {
+    private static GoalieResponse withEspnStats(GoalieResponse goalie, PlayerStatLine statLine) {
+        if (goalie.stats() == null || statLine == null) {
             return goalie;
         }
-        Optional<PlayerStatLine> line = index.find(goalie.name(), "G");
-        if (line.isEmpty()) {
-            return goalie;
-        }
-        PlayerStatLine statLine = line.get();
         GoalieResponse.ScoringStats scoring = goalie.stats().scoring();
         int otl = zero(statLine.getOvertimeLosses());
         int toi = zero(statLine.getTimeOnIce());

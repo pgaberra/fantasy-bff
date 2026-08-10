@@ -4,14 +4,17 @@ import com.fantasy.bff.generated.espn.model.PlayerStatLine;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Looks up a player's ESPN stat line from their Yahoo-side name and position.
+ * Matches players to their ESPN stat line.
  *
  * <p>Nobody publishes a Yahoo id → ESPN id crosswalk, so the two sides are matched on identity,
  * the same way {@link PlayerIdResolver} matches NHL players to a platform. The keys here differ
@@ -20,12 +23,20 @@ import java.util.function.Function;
  *
  * <p>Measured against staging (1037 players who played last season): normalised full name plus
  * position matched 83.6%, full name alone recovered a further 14.6%, and last name plus first
- * initial recovered 1.1% more — familiar forms such as Yahoo's <i>Zachary</i> Bolduc for Zack.
- * Position is tried first rather than last because it is what separates two players who share a
- * name (the Sebastian Ahos); falling back to the name alone is safe because espn-service has
- * already dropped ESPN's duplicate records for the same person.
+ * initial recovered 1.1% more — familiar forms such as Yahoo's <i>Zachary</i> Bolduc for ESPN's
+ * Zack. Position is tried first because it is what separates two players who share a name (the
+ * Sebastian Ahos); falling back to the name alone is safe because espn-service has already
+ * dropped ESPN's duplicate records for the same person.
+ *
+ * <p>The whole squad is matched at once rather than a player at a time, because <b>a stat line
+ * belongs to one person</b>. Matching individually let Tyce Thompson — who ESPN doesn't carry —
+ * fall through to the familiar-name form and collect Tage Thompson's season: a hat trick and
+ * 1856 shifts, for a player who barely played. A line two people want is given to neither.
  */
 public final class EspnStatLineIndex {
+
+    /** A player to match: the id the result is keyed by, plus what identifies them. */
+    public record Subject(int playerId, String name, String position) {}
 
     private final Map<String, List<PlayerStatLine>> byNameAndPosition;
     private final Map<String, List<PlayerStatLine>> byName;
@@ -45,17 +56,69 @@ public final class EspnStatLineIndex {
     }
 
     /**
-     * @param name the player's display name as Yahoo spells it
-     * @param position the player's primary position (C, LW, RW, D or G)
+     * Resolves every subject at once, keyed by {@link Subject#playerId()}. Players absent from
+     * the result had no stat line of their own.
      */
-    public Optional<PlayerStatLine> find(String name, String position) {
-        PlayerNameKey key = PlayerNameKey.of(name);
-        return unique(byNameAndPosition, withPosition(key.fullName(), position))
-                .or(() -> unique(byName, key.fullName()))
-                .or(() -> key.hasFallback()
-                        ? unique(byFallbackAndPosition, withPosition(key.lastNameInitial(), position))
-                        : Optional.empty())
-                .or(() -> key.hasFallback() ? unique(byFallback, key.lastNameInitial()) : Optional.empty());
+    public Map<Integer, PlayerStatLine> matchAll(List<Subject> subjects) {
+        Map<Integer, PlayerStatLine> matched = new LinkedHashMap<>();
+        Set<Long> claimed = new HashSet<>();
+
+        // The exact forms first, so a player ESPN carries under their own name always beats
+        // someone else reaching the same line through a familiar-name guess.
+        List<Subject> unmatched = assign(subjects, this::byExactName, matched, claimed);
+        assign(unmatched, this::byFamiliarName, matched, claimed);
+        return matched;
+    }
+
+    /**
+     * Assigns what this lookup resolves unambiguously, and returns the subjects still without a
+     * line. A line more than one subject resolves to identifies neither of them, so it goes to
+     * nobody and stays available to no one.
+     */
+    private List<Subject> assign(List<Subject> subjects,
+                                 Function<Subject, Optional<PlayerStatLine>> lookup,
+                                 Map<Integer, PlayerStatLine> matched,
+                                 Set<Long> claimed) {
+        Map<Long, List<Subject>> claimants = new LinkedHashMap<>();
+        Map<Long, PlayerStatLine> lines = new HashMap<>();
+        List<Subject> unmatched = new ArrayList<>();
+
+        for (Subject subject : subjects) {
+            Optional<PlayerStatLine> line = lookup.apply(subject);
+            if (line.isEmpty() || claimed.contains(line.get().getId())) {
+                unmatched.add(subject);
+                continue;
+            }
+            long id = line.get().getId();
+            lines.put(id, line.get());
+            claimants.computeIfAbsent(id, ignored -> new ArrayList<>()).add(subject);
+        }
+
+        for (Map.Entry<Long, List<Subject>> entry : claimants.entrySet()) {
+            List<Subject> contenders = entry.getValue();
+            claimed.add(entry.getKey());
+            if (contenders.size() == 1) {
+                matched.put(contenders.getFirst().playerId(), lines.get(entry.getKey()));
+            } else {
+                unmatched.addAll(contenders);
+            }
+        }
+        return unmatched;
+    }
+
+    private Optional<PlayerStatLine> byExactName(Subject subject) {
+        PlayerNameKey key = PlayerNameKey.of(subject.name());
+        return unique(byNameAndPosition, withPosition(key.fullName(), subject.position()))
+                .or(() -> unique(byName, key.fullName()));
+    }
+
+    private Optional<PlayerStatLine> byFamiliarName(Subject subject) {
+        PlayerNameKey key = PlayerNameKey.of(subject.name());
+        if (!key.hasFallback()) {
+            return Optional.empty();
+        }
+        return unique(byFallbackAndPosition, withPosition(key.lastNameInitial(), subject.position()))
+                .or(() -> unique(byFallback, key.lastNameInitial()));
     }
 
     private static Optional<PlayerStatLine> unique(Map<String, List<PlayerStatLine>> index, String key) {
