@@ -28,6 +28,13 @@ import java.util.function.Function;
  * Sebastian Ahos); falling back to the name alone is safe because espn-service has already
  * dropped ESPN's duplicate records for the same person.
  *
+ * <p>Where a name reaches more than one player, the <b>jersey</b> settles it — it is the only
+ * thing that does, since two Elias Petterssons played in Vancouver and two Matt Murrays played
+ * in goal. It is a tie break and never a filter: of 1145 players whose name resolved to exactly
+ * one line, 28 wore a different number on each side, the same person after a trade or a new
+ * season. Rejecting those would blank ten players for every one it saved. Team isn't used at
+ * all — see {@link PlayerIdResolver}, where requiring it dropped coverage to 77.9%.
+ *
  * <p>The whole squad is matched at once rather than a player at a time, because <b>a stat line
  * belongs to one person</b>. Matching individually let Tyce Thompson — who ESPN doesn't carry —
  * fall through to the familiar-name form and collect Tage Thompson's season: a hat trick and
@@ -35,8 +42,11 @@ import java.util.function.Function;
  */
 public final class EspnStatLineIndex {
 
-    /** A player to match: the id the result is keyed by, plus what identifies them. */
-    public record Subject(int playerId, String name, String position) {}
+    /**
+     * A player to match: the id the result is keyed by, plus what identifies them. The jersey
+     * is what separates two people who share a name, so it may be absent but is never a filter.
+     */
+    public record Subject(int playerId, String name, String position, Integer sweaterNumber) {}
 
     private final Map<String, List<PlayerStatLine>> byNameAndPosition;
     private final Map<String, List<PlayerStatLine>> byName;
@@ -96,20 +106,40 @@ public final class EspnStatLineIndex {
 
         for (Map.Entry<Long, List<Subject>> entry : claimants.entrySet()) {
             List<Subject> contenders = entry.getValue();
+            PlayerStatLine line = lines.get(entry.getKey());
             claimed.add(entry.getKey());
-            if (contenders.size() == 1) {
-                matched.put(contenders.getFirst().playerId(), lines.get(entry.getKey()));
-            } else {
-                unmatched.addAll(contenders);
+            Subject owner = contenders.size() == 1 ? contenders.getFirst() : wearingTheJersey(contenders, line);
+            for (Subject contender : contenders) {
+                if (contender.equals(owner)) {
+                    matched.put(contender.playerId(), line);
+                } else {
+                    unmatched.add(contender);
+                }
             }
         }
         return unmatched;
     }
 
+    /**
+     * Which of several same-named players a line belongs to. Both Vancouver Petterssons answer
+     * to the name; only one of them wears 40. Returns null when the jersey doesn't decide, and
+     * then the line goes to nobody.
+     */
+    private static Subject wearingTheJersey(List<Subject> contenders, PlayerStatLine line) {
+        Integer jersey = line.getSweaterNumber();
+        if (jersey == null) {
+            return null;
+        }
+        List<Subject> wearers = contenders.stream()
+                .filter(subject -> jersey.equals(subject.sweaterNumber()))
+                .toList();
+        return wearers.size() == 1 ? wearers.getFirst() : null;
+    }
+
     private Optional<PlayerStatLine> byExactName(Subject subject) {
         PlayerNameKey key = PlayerNameKey.of(subject.name());
-        return unique(byNameAndPosition, withPosition(key.fullName(), subject.position()))
-                .or(() -> unique(byName, key.fullName()));
+        return decide(byNameAndPosition, withPosition(key.fullName(), subject.position()), subject)
+                .or(() -> decide(byName, key.fullName(), subject));
     }
 
     private Optional<PlayerStatLine> byFamiliarName(Subject subject) {
@@ -117,20 +147,34 @@ public final class EspnStatLineIndex {
         if (!key.hasFallback()) {
             return Optional.empty();
         }
-        return unique(byFallbackAndPosition, withPosition(key.lastNameInitial(), subject.position()))
-                .or(() -> unique(byFallback, key.lastNameInitial()));
+        return decide(byFallbackAndPosition, withPosition(key.lastNameInitial(), subject.position()), subject)
+                .or(() -> decide(byFallback, key.lastNameInitial(), subject));
     }
 
-    private static Optional<PlayerStatLine> unique(Map<String, List<PlayerStatLine>> index, String key) {
+    /**
+     * The one line this player's name resolves to. Where the name alone reaches several — ESPN
+     * carries two Matt Murrays in goal — the jersey decides; where it still doesn't, nothing is
+     * returned, because guessing would attach another player's stats.
+     */
+    private static Optional<PlayerStatLine> decide(
+            Map<String, List<PlayerStatLine>> index, String key, Subject subject) {
         if (key == null || key.isEmpty()) {
             return Optional.empty();
         }
         List<PlayerStatLine> candidates = index.get(key);
-        // More than one match means the name doesn't identify a person; guessing would attach
-        // another player's stats.
-        return candidates != null && candidates.size() == 1
-                ? Optional.of(candidates.getFirst())
-                : Optional.empty();
+        if (candidates == null || candidates.isEmpty()) {
+            return Optional.empty();
+        }
+        if (candidates.size() == 1) {
+            return Optional.of(candidates.getFirst());
+        }
+        if (subject.sweaterNumber() == null) {
+            return Optional.empty();
+        }
+        List<PlayerStatLine> wearingIt = candidates.stream()
+                .filter(candidate -> subject.sweaterNumber().equals(candidate.getSweaterNumber()))
+                .toList();
+        return wearingIt.size() == 1 ? Optional.of(wearingIt.getFirst()) : Optional.empty();
     }
 
     private static String fullNameKey(PlayerStatLine line) {

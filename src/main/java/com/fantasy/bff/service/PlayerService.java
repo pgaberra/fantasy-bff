@@ -40,7 +40,8 @@ public class PlayerService {
         Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(
                 skaters.stream()
                         .map(skater -> new EspnStatLineIndex.Subject(
-                                skater.id(), skater.name(), primaryPosition(skater)))
+                                skater.id(), skater.name(), primaryPosition(skater),
+                                skater.sweaterNumber()))
                         .toList());
         return skaters.stream().map(skater -> withEspnStats(skater, statLines.get(skater.id()))).toList();
     }
@@ -54,7 +55,8 @@ public class PlayerService {
         }
         Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(
                 goalies.stream()
-                        .map(goalie -> new EspnStatLineIndex.Subject(goalie.id(), goalie.name(), "G"))
+                        .map(goalie -> new EspnStatLineIndex.Subject(
+                                goalie.id(), goalie.name(), "G", goalie.sweaterNumber()))
                         .toList());
         return goalies.stream().map(goalie -> withEspnStats(goalie, statLines.get(goalie.id()))).toList();
     }

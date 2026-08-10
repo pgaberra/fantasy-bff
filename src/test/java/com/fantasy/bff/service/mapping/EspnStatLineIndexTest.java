@@ -15,6 +15,10 @@ class EspnStatLineIndexTest {
         return new PlayerStatLine().id(id).fullName(fullName).position(position);
     }
 
+    private static PlayerStatLine line(long id, String fullName, String position, int jersey) {
+        return line(id, fullName, position).sweaterNumber(jersey);
+    }
+
     private static Map<Integer, PlayerStatLine> match(List<PlayerStatLine> lines, Subject... subjects) {
         return new EspnStatLineIndex(lines).matchAll(List.of(subjects));
     }
@@ -23,7 +27,7 @@ class EspnStatLineIndexTest {
     void matchesOnNameAndPosition() {
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Connor McDavid", "C")),
-                new Subject(97, "Connor McDavid", "C"));
+                new Subject(97, "Connor McDavid", "C", null));
 
         assertThat(matched.get(97)).extracting(PlayerStatLine::getId).isEqualTo(1L);
     }
@@ -32,8 +36,8 @@ class EspnStatLineIndexTest {
     void foldsAccentsAndPunctuationTheTwoSourcesSpellDifferently() {
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Juraj Slafkovsky", "LW"), line(2L, "Ryan OReilly", "C")),
-                new Subject(20, "Juraj Slafkovský", "LW"),
-                new Subject(90, "Ryan O'Reilly", "C"));
+                new Subject(20, "Juraj Slafkovský", "LW", null),
+                new Subject(90, "Ryan O'Reilly", "C", null));
 
         assertThat(matched).containsOnlyKeys(20, 90);
     }
@@ -43,7 +47,7 @@ class EspnStatLineIndexTest {
         // Yahoo lists Zack Bolduc at LW, ESPN at C. The position is a tie break, not a filter.
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Zack Bolduc", "C")),
-                new Subject(76, "Zack Bolduc", "LW"));
+                new Subject(76, "Zack Bolduc", "LW", null));
 
         assertThat(matched.get(76)).extracting(PlayerStatLine::getId).isEqualTo(1L);
     }
@@ -52,8 +56,8 @@ class EspnStatLineIndexTest {
     void separatesTwoPlayersWhoShareANameByPosition() {
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Sebastian Aho", "C"), line(2L, "Sebastian Aho", "D")),
-                new Subject(20, "Sebastian Aho", "C"),
-                new Subject(28, "Sebastian Aho", "D"));
+                new Subject(20, "Sebastian Aho", "C", null),
+                new Subject(28, "Sebastian Aho", "D", null));
 
         assertThat(matched.get(20)).extracting(PlayerStatLine::getId).isEqualTo(1L);
         assertThat(matched.get(28)).extracting(PlayerStatLine::getId).isEqualTo(2L);
@@ -64,7 +68,7 @@ class EspnStatLineIndexTest {
         // Yahoo's Zachary for ESPN's Zack, Freddy for Frederick, Samuel for Sammy.
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Zack Bolduc", "C")),
-                new Subject(76, "Zachary Bolduc", "C"));
+                new Subject(76, "Zachary Bolduc", "C", null));
 
         assertThat(matched.get(76)).extracting(PlayerStatLine::getId).isEqualTo(1L);
     }
@@ -74,7 +78,7 @@ class EspnStatLineIndexTest {
         // Attaching another player's hat tricks is worse than showing none.
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Sebastian Aho", "C"), line(2L, "Sebastian Aho", "D")),
-                new Subject(20, "Sebastian Aho", "LW"));
+                new Subject(20, "Sebastian Aho", "LW", null));
 
         assertThat(matched).isEmpty();
     }
@@ -86,8 +90,8 @@ class EspnStatLineIndexTest {
         // who barely played. The exact match keeps the line; the guess gets nothing.
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Tage Thompson", "C")),
-                new Subject(72, "Tage Thompson", "C"),
-                new Subject(41, "Tyce Thompson", "RW"));
+                new Subject(72, "Tage Thompson", "C", null),
+                new Subject(41, "Tyce Thompson", "RW", null));
 
         assertThat(matched).containsOnlyKeys(72);
         assertThat(matched.get(72)).extracting(PlayerStatLine::getId).isEqualTo(1L);
@@ -97,15 +101,70 @@ class EspnStatLineIndexTest {
     void aLineTwoPlayersMatchExactlyGoesToNeither() {
         Map<Integer, PlayerStatLine> matched = match(
                 List.of(line(1L, "Elias Pettersson", "D")),
-                new Subject(40, "Elias Pettersson", "D"),
-                new Subject(25, "Elias Pettersson", "D"));
+                new Subject(40, "Elias Pettersson", "D", null),
+                new Subject(25, "Elias Pettersson", "D", null));
 
         assertThat(matched).isEmpty();
     }
 
+    /**
+     * The three collisions actually present in last season's data. Each is a pair of real
+     * players, and in each the jersey is the only thing that tells them apart — team doesn't
+     * (both Petterssons play in Vancouver) and neither does position.
+     */
+    @Test
+    void theJerseyDecidesWhichOfTwoSameNamedPlayersOwnsTheLine() {
+        Map<Integer, PlayerStatLine> pettersson = match(
+                List.of(line(1L, "Elias Pettersson", "C", 40)),
+                new Subject(400, "Elias Pettersson", "C", 40),
+                new Subject(250, "Elias Pettersson", "D", 25));
+        assertThat(pettersson).containsOnlyKeys(400);
+
+        Map<Integer, PlayerStatLine> murphy = match(
+                List.of(line(2L, "Connor Murphy", "D", 5)),
+                new Subject(5, "Connor Murphy", "D", 5),
+                new Subject(81, "Connor Murphy", "D", 81));
+        assertThat(murphy).containsOnlyKeys(5);
+    }
+
+    @Test
+    void theJerseyPicksBetweenTwoStatLinesThatShareANameAndPosition() {
+        // ESPN carries both Matt Murrays in goal; each Yahoo goalie must land on their own.
+        Map<Integer, PlayerStatLine> matched = match(
+                List.of(line(1L, "Matt Murray", "G", 30), line(2L, "Matt Murray", "G", 32)),
+                new Subject(300, "Matt Murray", "G", 30),
+                new Subject(320, "Matt Murray", "G", 32));
+
+        assertThat(matched.get(300)).extracting(PlayerStatLine::getId).isEqualTo(1L);
+        assertThat(matched.get(320)).extracting(PlayerStatLine::getId).isEqualTo(2L);
+    }
+
+    @Test
+    void aChangedJerseyNumberDoesNotBlockAnUnambiguousMatch() {
+        // Measured on last season's data: of 1145 players whose name resolved to exactly one
+        // line, 28 wore a different number on each side — the same person, on the same team,
+        // after a trade or a new season. Rejecting those would blank ten players for every one
+        // it saved, so a lone candidate wins on the name and the jersey only breaks ties.
+        Map<Integer, PlayerStatLine> matched = match(
+                List.of(line(1L, "Scott Laughton", "C", 24)),
+                new Subject(21, "Scott Laughton", "C", 21));
+
+        assertThat(matched).containsOnlyKeys(21);
+    }
+
+    @Test
+    void anUnknownJerseyIsNeverAFilter() {
+        // A player whose number we don't have still matches when the name is unambiguous.
+        Map<Integer, PlayerStatLine> matched = match(
+                List.of(line(1L, "Connor McDavid", "C", 97)),
+                new Subject(970, "Connor McDavid", "C", null));
+
+        assertThat(matched).containsOnlyKeys(970);
+    }
+
     @Test
     void emptyIndexMatchesNobody() {
-        assertThat(EspnStatLineIndex.empty().matchAll(List.of(new Subject(97, "Connor McDavid", "C"))))
+        assertThat(EspnStatLineIndex.empty().matchAll(List.of(new Subject(97, "Connor McDavid", "C", null))))
                 .isEmpty();
     }
 }
