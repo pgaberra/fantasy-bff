@@ -4,6 +4,7 @@ import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import com.fantasy.bff.generated.db.model.PlayerStats;
+import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.ShareResponse;
 import com.fantasy.bff.generated.db.model.SharedPlayer;
 import com.fantasy.bff.generated.db.model.SharedProjectionData;
@@ -20,6 +21,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.RestClientResponseException;
 
+import javax.imageio.ImageIO;
+import java.io.ByteArrayInputStream;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -100,7 +103,17 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .name(name)
                 .authorAlias(alias)
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
-                .data(new SharedProjectionData().players(List.of(mcDavid)))
+                .data(new SharedProjectionData()
+                        .settings(new ProjectionSettings()
+                                .scoringType(ProjectionSettings.ScoringTypeEnum.POINTS)
+                                .statWeights(Map.of("goals", 4.5))
+                                .activeScoringColumns(List.of("goals"))
+                                .activeUtilityColumns(List.of("gp"))
+                                .scaleSettings(Map.of())
+                                .decimalSettings(Map.of("goals", 0))
+                                .useDefaultDecimals(true)
+                                .leagueSize(12))
+                        .players(List.of(mcDavid)))
                 .createdAt(OffsetDateTime.of(2026, 8, 1, 10, 0, 0, 0, ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.of(2026, 8, 2, 10, 0, 0, 0, ZoneOffset.UTC));
     }
@@ -207,6 +220,40 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(html).doesNotContain("<script>alert(1)</script>");
         assertThat(html).contains("&lt;script&gt;");
         assertThat(html).doesNotContain("\"onload=\"x");
+    }
+
+    @Test
+    void preview_pointsAtThePerShareCardRatherThanTheSiteWideImage() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex"));
+
+        String html = mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/preview"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("og:image\" content=\"http://localhost:4200/s/" + TOKEN + "/og-image.png");
+        assertThat(html).doesNotContain("content=\"http://localhost:4200/og-image.png\"");
+    }
+
+    @Test
+    void ogImage_rendersACardForTheShare() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex"));
+
+        byte[] card = mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/og-image.png"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andReturn().getResponse().getContentAsByteArray();
+
+        assertThat(ImageIO.read(new ByteArrayInputStream(card)).getWidth()).isEqualTo(1200);
+    }
+
+    @Test
+    void ogImage_needsNoSignIn() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex"));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/og-image.png")).andExpect(status().isOk());
     }
 
     @Test

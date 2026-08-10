@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.service.ShareCardRenderer;
 import com.fantasy.bff.generated.db.model.SharedPlayer;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,13 +10,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,13 +49,13 @@ public class SharedProjectionController {
                 <meta property="og:url" content="{{url}}" />
                 <meta property="og:title" content="{{title}}" />
                 <meta property="og:description" content="{{description}}" />
-                <meta property="og:image" content="{{origin}}/og-image.png" />
+                <meta property="og:image" content="{{origin}}/s/{{token}}/og-image.png" />
                 <meta property="og:image:width" content="1200" />
                 <meta property="og:image:height" content="630" />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="{{title}}" />
                 <meta name="twitter:description" content="{{description}}" />
-                <meta name="twitter:image" content="{{origin}}/og-image.png" />
+                <meta name="twitter:image" content="{{origin}}/s/{{token}}/og-image.png" />
                 <meta http-equiv="refresh" content="0; url={{url}}" />
               </head>
               <body><p><a href="{{url}}">View this projection on SlapStat</a></p></body>
@@ -59,11 +63,14 @@ public class SharedProjectionController {
             """;
 
     private final DatabaseServiceClient databaseServiceClient;
+    private final ShareCardRenderer shareCardRenderer;
     private final String webBaseUrl;
 
     public SharedProjectionController(DatabaseServiceClient databaseServiceClient,
+                                      ShareCardRenderer shareCardRenderer,
                                       @Value("${app.web-base-url}") String webBaseUrl) {
         this.databaseServiceClient = databaseServiceClient;
+        this.shareCardRenderer = shareCardRenderer;
         this.webBaseUrl = webBaseUrl;
     }
 
@@ -100,7 +107,28 @@ public class SharedProjectionController {
                 .replace("{{title}}", escape(title))
                 .replace("{{url}}", escape(url))
                 .replace("{{description}}", escape(description))
-                .replace("{{origin}}", escape(webBaseUrl));
+                .replace("{{origin}}", escape(webBaseUrl))
+                .replace("{{token}}", escape(token));
+    }
+
+    /**
+     * The picture the preview above points at: the projection's name, who made it, and the top of
+     * their board, drawn from the same snapshot the page shows.
+     *
+     * <p>Reached through the web origin (`/s/{token}/og-image.png`, proxied by nginx) so the tags
+     * and the image share a host and no extra environment config is needed. Hidden from the spec
+     * for the same reason as the preview: it is for crawlers, not for the web client.
+     */
+    @Hidden
+    @GetMapping(value = "/{token}/og-image.png", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> ogImage(@PathVariable String token) {
+        byte[] card = shareCardRenderer.render(databaseServiceClient.getSharedProjection(token));
+        return ResponseEntity.ok()
+                // Crawlers refetch this far more often than the snapshot changes, and a stale card
+                // for an hour after a re-share is a better trade than rendering on every hit.
+                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                .contentType(MediaType.IMAGE_PNG)
+                .body(card);
     }
 
     private String describe(SharedProjectionResponse shared) {
