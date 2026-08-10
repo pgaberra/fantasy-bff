@@ -81,7 +81,6 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .projectionId(PROJECTION_ID.toString())
                 .token(TOKEN)
                 .authorAlias("Alex")
-                .viewCount(7L)
                 .createdAt(OffsetDateTime.of(2026, 8, 1, 10, 0, 0, 0, ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.of(2026, 8, 2, 10, 0, 0, 0, ZoneOffset.UTC));
     }
@@ -130,7 +129,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value(TOKEN))
                 .andExpect(jsonPath("$.shareUrl").value("http://localhost:4200/s/" + TOKEN))
-                .andExpect(jsonPath("$.viewCount").value(7));
+                .andExpect(jsonPath("$.viewCount").doesNotExist());
     }
 
     @Test
