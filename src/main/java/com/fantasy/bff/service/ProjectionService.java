@@ -25,6 +25,9 @@ public class ProjectionService {
 
     private static final TypeReference<Map<String, Double>> STAT_MAP = new TypeReference<>() {};
 
+    /** The only preset a draft can be started from today. */
+    private static final String LAST_SEASON_PRESET_NAME = "Last Season's Stats";
+
     private final DatabaseServiceClient databaseServiceClient;
     private final PlayerService playerService;
     private final ObjectMapper objectMapper;
@@ -39,6 +42,11 @@ public class ProjectionService {
 
     public ProjectionResponse create(UUID userId, CreateProjectionRequest request) {
         ProjectionData data = request.data();
+        if (request.kind() == ProjectionKind.PRESET_DRAFT && request.source() != ProjectionSource.DEFAULT) {
+            throw new IllegalArgumentException(
+                    "a preset draft is defined by the server: send source=default and let it fill "
+                            + "in the player rows");
+        }
         if (request.source() != null) {
             if (!data.getPlayers().isEmpty()) {
                 throw new IllegalArgumentException(
@@ -51,9 +59,20 @@ public class ProjectionService {
         }
         return databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
-                        .name(request.name())
+                        .name(nameOf(request))
                         .kind(kindOf(request.kind()))
                         .data(data));
+    }
+
+    /**
+     * A preset draft is named here rather than by the caller. The name is what the draft board
+     * shows as its heading, so letting a client choose it would let a draft claim to be drafted
+     * against something it wasn't.
+     */
+    private static String nameOf(CreateProjectionRequest request) {
+        return request.kind() == ProjectionKind.PRESET_DRAFT
+                ? LAST_SEASON_PRESET_NAME
+                : request.name();
     }
 
     private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum kindOf(
