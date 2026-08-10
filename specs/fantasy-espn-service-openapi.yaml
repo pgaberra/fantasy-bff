@@ -233,6 +233,11 @@ components:
         position:
           type: string
           description: "C, LW, RW, D or G"
+        sweaterNumber:
+          type: integer
+          format: int32
+          description: "Jersey number, which is what separates two players who share\
+            \ a name"
         gamesPlayed:
           type: integer
           format: int32
