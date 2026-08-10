@@ -69,6 +69,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `DatabaseServiceClient` — `HttpDatabaseServiceClient` talks to `fantasy-db-service`.
 - `config/` — `SecurityConfig`, `RestClientConfig` (downstream `RestClient` beans),
   `*Properties` (typed config), `OpenApiConfig`
+- `security/RateLimitFilter` — per-client-IP limits, configured entirely under
+  `security.rate-limit.endpoints`. A key is an exact path or an Ant pattern, and a pattern
+  counts every path it covers into **one bucket per client** — which is the point for the
+  public share reads, where a caller working through tokens would never fill a per-path
+  bucket. `method` defaults to POST, so the auth rules read as before.
+  Note what the client is for the crawler-facing share paths: nginx proxies them, so the
+  last forwarded hop is the web container and every crawler shares one bucket. Those limits
+  are a ceiling on total load rather than a per-caller limit, and are set accordingly.
 - `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
   `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
   Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified
