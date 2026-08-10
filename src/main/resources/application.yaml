@@ -127,10 +127,12 @@ security:
     expiration-ms: 900000 # 15 minutes
     refresh-expiration-ms: 2592000000  # 30 days
   rate-limit:
-    # Per-client-IP limits on the public auth endpoints (brute-force / reset-email abuse).
-    # Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds = fixed window length.
+    # Per-client-IP limits on the public endpoints (brute-force / reset-email abuse, and the
+    # public share reads). Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds =
+    # fixed window length.
     enabled: ${RATE_LIMIT_ENABLED:true}
-    # Protected endpoints (keyed by request path) and their per-IP limits.
+    # Protected endpoints and their per-IP limits. A key is an exact path or an Ant pattern, and
+    # a pattern counts every path it covers into one bucket per client. `method` defaults to POST.
     # Add or remove an endpoint here — no code change needed.
     endpoints:
       "/api/v1/auth/login": { limit: 10, window-seconds: 300 }
@@ -142,6 +144,16 @@ security:
       "/api/v1/auth/password/reset": { limit: 10, window-seconds: 900 }
       "/api/v1/billing/checkout-session": { limit: 10, window-seconds: 300 }
       "/api/v1/billing/portal-session": { limit: 10, window-seconds: 300 }
+      # The public share reads. The JSON one is per real visitor IP, so it can be tight — a
+      # person opening shared links does not need more than this.
+      "/api/v1/shared/*": { limit: 60, window-seconds: 60, method: GET }
+      # The crawler-facing pair is different: nginx proxies both, so every request arrives with
+      # the web container as the last forwarded hop and they all share ONE bucket regardless of
+      # who posted the link. These limits are therefore a ceiling on total load, not a per-caller
+      # limit, and are set high enough that a link doing the rounds cannot starve everyone else's
+      # previews. The card render is the expensive half, hence the tighter number.
+      "/api/v1/shared/*/preview": { limit: 600, window-seconds: 60, method: GET }
+      "/api/v1/shared/*/og-image.png": { limit: 300, window-seconds: 60, method: GET }
 
 # Swagger UI / OpenAPI docs are off unless SWAGGER_ENABLED=true, so any deployment is
 # hardened by default rather than by virtue of running a particular profile. The dev profile
