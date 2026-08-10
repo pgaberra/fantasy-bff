@@ -101,6 +101,17 @@ jobs:
       - name: Build, test & coverage
         run: ./gradlew build jacocoTestReport --no-daemon
 
+      # SpotBugs only prints a path to an HTML report the runner throws away, which makes a
+      # failure unreadable from the log alone. Print the findings instead.
+      - name: Show SpotBugs findings
+        if: failure()
+        run: |
+          for report in build/reports/spotbugs/*.xml; do
+            [ -f "$report" ] || continue
+            echo "== $report"
+            grep -oE 'BugInstance type="[^"]+"|Class classname="[^"]+"|Method[^>]*name="[^"]+"|start="[0-9]+"' "$report" || true
+          done
+
       - name: Publish coverage report
         uses: Madrapps/jacoco-report@v1.8.0
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'

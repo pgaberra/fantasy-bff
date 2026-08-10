@@ -39,12 +39,26 @@ public record SkaterResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int shg,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sha,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int shp,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Special-teams goals (power play + shorthanded)") int stpg,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Special-teams assists") int stpa,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Special-teams points") int stp,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gwg,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Games with three or more goals; sourced from ESPN") int hatTricks,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sog,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double shPct,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int fw,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int fl,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int hits,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int blocks
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int blocks,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Points scored while eligible at defence; zero for forwards") int defPoints,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Shifts taken over the season; sourced from ESPN") int shifts,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Total time on ice for the season, in seconds") int toi
     ) {}
 }

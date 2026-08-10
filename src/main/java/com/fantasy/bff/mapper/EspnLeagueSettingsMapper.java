@@ -30,19 +30,32 @@ import java.util.Set;
 @Component
 public class EspnLeagueSettingsMapper {
 
-    /** ESPN hockey (fhl) stat id -> projection stat. */
+    /**
+     * ESPN hockey (fhl) stat id -> projection stat. ESPN publishes no glossary for these ids,
+     * so every entry was read off real season lines (a known player's totals identify the stat
+     * unambiguously). Both games-played ids are mapped: 30 is the universal one ESPN reports
+     * for goalies too, 34 is skater-only.
+     */
     private static final Map<Integer, StatKey> STAT_ID_TO_KEY = Map.ofEntries(
-            Map.entry(34, StatKey.GP), Map.entry(27, StatKey.TOI_PER_GAME),
+            Map.entry(30, StatKey.GP), Map.entry(34, StatKey.GP),
+            Map.entry(27, StatKey.TOI_PER_GAME),
             Map.entry(13, StatKey.GOALS), Map.entry(14, StatKey.ASSISTS),
+            Map.entry(16, StatKey.POINTS),
             Map.entry(15, StatKey.PLUS_MINUS), Map.entry(17, StatKey.PIM),
             Map.entry(18, StatKey.PPG), Map.entry(19, StatKey.PPA),
             Map.entry(20, StatKey.SHG), Map.entry(21, StatKey.SHA), Map.entry(22, StatKey.GWG),
             Map.entry(38, StatKey.PPP), Map.entry(39, StatKey.SHP),
+            Map.entry(35, StatKey.STPG), Map.entry(36, StatKey.STPA), Map.entry(37, StatKey.STP),
+            Map.entry(28, StatKey.HAT_TRICKS), Map.entry(25, StatKey.SHIFTS),
+            Map.entry(33, StatKey.DEF_POINTS),
+            Map.entry(26, StatKey.TOI), Map.entry(8, StatKey.TOI),
             Map.entry(29, StatKey.SOG), Map.entry(23, StatKey.FW), Map.entry(24, StatKey.FL),
             Map.entry(31, StatKey.HITS), Map.entry(32, StatKey.BLOCKS),
             Map.entry(0, StatKey.GS), Map.entry(1, StatKey.W), Map.entry(2, StatKey.L),
+            Map.entry(9, StatKey.OTL),
             Map.entry(7, StatKey.SHO), Map.entry(3, StatKey.SA), Map.entry(6, StatKey.SV),
-            Map.entry(4, StatKey.GA), Map.entry(10, StatKey.GAA), Map.entry(11, StatKey.SV_PCT)
+            Map.entry(4, StatKey.GA), Map.entry(10, StatKey.GAA), Map.entry(11, StatKey.SV_PCT),
+            Map.entry(12, StatKey.WIN_PCT)
     );
 
     /** ESPN roster slot code -> projection roster slot. F is a flex slot we approximate as util. */

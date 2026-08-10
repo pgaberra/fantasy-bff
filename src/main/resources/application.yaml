@@ -38,6 +38,10 @@ services:
     base-url: ${ESPN_SERVICE_URL:http://localhost:8090}
     timeout-ms: 10000
     api-key: ${ESPN_INTERNAL_API_KEY:}
+    # How long the ESPN stat lines used to enrich player responses are held in memory.
+    # espn-service refreshes them nightly, so re-fetching per request would be pure overhead
+    # on the hottest endpoint in the app.
+    player-stats-ttl-ms: ${ESPN_PLAYER_STATS_TTL_MS:1800000}
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000

@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
+import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
 import com.fantasy.bff.generated.espn.model.SaveCredentialsRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -68,5 +69,13 @@ public class HttpEspnServiceClient implements EspnServiceClient {
                         .queryParam("appUserId", appUserId).build(leagueId))
                 .retrieve()
                 .body(LeagueTeamsResponse.class);
+    }
+
+    @Override
+    public PlayerStatsResponse playerStats() {
+        return restClient.get()
+                .uri("/api/v1/espn/players")
+                .retrieve()
+                .body(PlayerStatsResponse.class);
     }
 }
