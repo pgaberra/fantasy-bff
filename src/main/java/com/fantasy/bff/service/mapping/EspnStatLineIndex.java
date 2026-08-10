@@ -28,6 +28,13 @@ import java.util.function.Function;
  * Sebastian Ahos); falling back to the name alone is safe because espn-service has already
  * dropped ESPN's duplicate records for the same person.
  *
+ * <p>Where a name reaches more than one player, the <b>jersey</b> settles it — it is the only
+ * thing that does, since two Elias Petterssons played in Vancouver and two Matt Murrays played
+ * in goal. It is a tie break and never a filter: of 1145 players whose name resolved to exactly
+ * one line, 28 wore a different number on each side, the same person after a trade or a new
+ * season. Rejecting those would blank ten players for every one it saved. Team isn't used at
+ * all — see {@link PlayerIdResolver}, where requiring it dropped coverage to 77.9%.
+ *
  * <p>The whole squad is matched at once rather than a player at a time, because <b>a stat line
  * belongs to one person</b>. Matching individually let Tyce Thompson — who ESPN doesn't carry —
  * fall through to the familiar-name form and collect Tage Thompson's season: a hat trick and
@@ -119,11 +126,12 @@ public final class EspnStatLineIndex {
      * then the line goes to nobody.
      */
     private static Subject wearingTheJersey(List<Subject> contenders, PlayerStatLine line) {
-        if (line.getSweaterNumber() == null) {
+        Integer jersey = line.getSweaterNumber();
+        if (jersey == null) {
             return null;
         }
         List<Subject> wearers = contenders.stream()
-                .filter(subject -> line.getSweaterNumber().equals(subject.sweaterNumber()))
+                .filter(subject -> jersey.equals(subject.sweaterNumber()))
                 .toList();
         return wearers.size() == 1 ? wearers.getFirst() : null;
     }

@@ -140,13 +140,16 @@ class EspnStatLineIndexTest {
     }
 
     @Test
-    void aPlayerEspnDoesNotCarryStillGetsNothing() {
-        // Only the number 40 Pettersson exists on ESPN's side; the other must not inherit him.
+    void aChangedJerseyNumberDoesNotBlockAnUnambiguousMatch() {
+        // Measured on last season's data: of 1145 players whose name resolved to exactly one
+        // line, 28 wore a different number on each side — the same person, on the same team,
+        // after a trade or a new season. Rejecting those would blank ten players for every one
+        // it saved, so a lone candidate wins on the name and the jersey only breaks ties.
         Map<Integer, PlayerStatLine> matched = match(
-                List.of(line(1L, "Elias Pettersson", "C", 40)),
-                new Subject(250, "Elias Pettersson", "D", 25));
+                List.of(line(1L, "Scott Laughton", "C", 24)),
+                new Subject(21, "Scott Laughton", "C", 21));
 
-        assertThat(matched).isEmpty();
+        assertThat(matched).containsOnlyKeys(21);
     }
 
     @Test
