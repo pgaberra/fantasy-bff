@@ -27,8 +27,6 @@ import java.util.function.Function;
  */
 public final class EspnStatLineIndex {
 
-    private static final EspnStatLineIndex EMPTY = new EspnStatLineIndex(List.of());
-
     private final Map<String, List<PlayerStatLine>> byNameAndPosition;
     private final Map<String, List<PlayerStatLine>> byName;
     private final Map<String, List<PlayerStatLine>> byFallbackAndPosition;
@@ -41,8 +39,9 @@ public final class EspnStatLineIndex {
         this.byFallback = index(statLines, EspnStatLineIndex::fallbackKey);
     }
 
+    /** Matches nobody — what the BFF falls back to when espn-service can't be reached. */
     public static EspnStatLineIndex empty() {
-        return EMPTY;
+        return new EspnStatLineIndex(List.of());
     }
 
     /**
