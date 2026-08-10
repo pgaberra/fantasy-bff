@@ -3,7 +3,9 @@
 Backend-for-Frontend (BFF) for the fantasy hockey draft tool. It is the only
 service the Angular frontend (`fantasy-web`) talks to. It handles auth (JWT),
 serves player data, and orchestrates calls to downstream services
-(`fantasy-db-service` for users/persistence, an NHL data service for stats).
+(`fantasy-db-service` for users/persistence, `fantasy-yahoo-service` for the player read
+model and Yahoo leagues, `fantasy-espn-service` for ESPN leagues and the stats Yahoo does not
+report, `fantasy-projection-service` for the projection model).
 
 @.aiassistant/rules/agent-context.md
 
@@ -22,11 +24,13 @@ serves player data, and orchestrates calls to downstream services
 ./gradlew build          # compile + test (CI runs: ./gradlew build --no-daemon)
 ./gradlew test           # tests only
 
-# Run locally (start Postgres + db-service + nhl-service first — see those repos):
+# Run locally (start Postgres + db-service + yahoo-service first — see those repos):
 SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> ./gradlew bootRun
 
-./gradlew openApiGenerate     # regenerate db-service models from specs/
-./gradlew generateNhlClient   # regenerate nhl-service models from specs/
+./gradlew openApiGenerate          # regenerate db-service models from specs/
+./gradlew generateYahooClient      # yahoo-service
+./gradlew generateEspnClient       # espn-service
+./gradlew generateProjectionClient # projection-service
 ```
 
 Swagger UI (when running): `http://localhost:8080/swagger-ui.html`
@@ -62,10 +66,16 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 - `client/` — downstream clients. Each is an **interface** plus an **http**
   implementation that uses OpenAPI-generated models (no mock implementations —
   tests replace clients with `@MockitoBean`).
-  - `NhlServiceClient` — `HttpNhlServiceClient` talks to `fantasy-nhl-service` and
-    owns the NHL-native → frontend-shape mapping (position codes, `avgToi` → seconds,
-    `shootingPctg` fraction → percent, ppa/sha derived from points − goals,
-    null stats → zeroed blocks for rookies).
+  - `PlayerServiceClient` — `HttpPlayerServiceClient` reads the cached player read model from
+    `fantasy-yahoo-service` and owns the reshaping into the frontend's `SkaterResponse` /
+    `GoalieResponse` (positions from Yahoo eligibility, `avgToi` → seconds, shooting pct
+    fraction → percent, ppa/sha derived from points − goals, special teams summed, null stats
+    → zeroed blocks for rookies).
+  - `EspnServiceClient` — ESPN leagues, plus the cached ESPN stat lines for the four stats
+    Yahoo does not report at all (hat tricks, shifts, goalie overtime losses, time on ice).
+    `PlayerService` merges those onto the Yahoo line; see `EspnStatLineIndex` for how the two
+    sides are matched, and why a line that two players answer to goes to neither.
+  - `YahooServiceClient` — a user's Yahoo OAuth connection and league settings.
   - `DatabaseServiceClient` — `HttpDatabaseServiceClient` talks to `fantasy-db-service`.
 - `config/` — `SecurityConfig`, `RestClientConfig` (downstream `RestClient` beans),
   `*Properties` (typed config), `OpenApiConfig`
@@ -92,7 +102,7 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 
 - **base** (`application.yaml`): downstream service URLs (env-overridable),
   JWT settings, `server.port=${PORT:8080}`, permitted URLs,
-  `services.nhl.season` (NHL season id the projections are based on), **the CORS
+  `services.projection.season` (the season the model projects), **the CORS
   allowlist** (`${CORS_ALLOWED_ORIGINS:${WEB_ORIGIN:}}`) and **the API-docs gate**
   (`${SWAGGER_ENABLED:false}`).
 - **`dev`**: enables + permits Swagger and allows CORS from `http://localhost:4200`.
@@ -144,7 +154,7 @@ because of exactly this). Rules of thumb:
 - **4xx / expected client outcomes** (unauthorized, bad request, validation): do **not**
   log as errors — they are normal and would just be noise.
 
-The same convention is documented in `fantasy-db-service` and `fantasy-nhl-service`.
+The same convention is documented in every other service in the monorepo.
 
 ### OpenAPI-first downstream clients
 
@@ -155,14 +165,12 @@ Workflow for a new downstream service:
 1. Ensure the downstream service has complete `@Operation`, `@ApiResponse`, and
    `@Schema` annotations on its controllers and DTOs.
 2. Add a committed spec YAML to `specs/` and a new `openApiGenerate`-style task in
-   `build.gradle` (see `generateNhlClient` for the pattern).
+   `build.gradle` (see `generateYahooClient` for the pattern).
 3. Define an `interface` in `client/` and implement it with the generated model
    classes; integration tests mock the interface with `@MockitoBean`.
 
-Both downstream clients are fully generated: `HttpDatabaseServiceClient` uses
-`com.fantasy.bff.generated.db.model` (from `specs/fantasy-db-service-openapi.yaml`)
-and `HttpNhlServiceClient` uses `com.fantasy.bff.generated.nhl.model` (from
-`specs/fantasy-nhl-service-openapi.yaml`).
+Every downstream client is fully generated, each from its pinned spec in `specs/`:
+`com.fantasy.bff.generated.db.model`, `.yahoo.model`, `.espn.model` and `.projection.model`.
 
 The `specs/fantasy-*-openapi.yaml` files are **verbatim pinned copies** of each
 service's `specs/openapi.yaml`. CI fails if they drift from the respective repo's
@@ -189,15 +197,16 @@ git add specs/bff-openapi.yaml
 - `.github/workflows/pr-checks.yml`: runs `./gradlew build --no-daemon` on PRs to `master`.
 - A **spec drift check** runs first: it fetches each downstream service's spec from
   its `master` and fails if the pinned copy differs. This needs a repo secret
-  `SPEC_READ_TOKEN` — a fine-grained PAT with read access to `fantasy-db-service`
-  and `fantasy-nhl-service` contents.
+  `SPEC_READ_TOKEN` — a fine-grained PAT with read access to the contents of every service
+  whose spec is pinned here (db, yahoo, espn, projection). Adding a downstream means adding
+  it to that token too, or the check 404s rather than reporting drift.
 - `@claude` mentions on issues/PRs trigger `.github/workflows/claude.yml`.
 
 ## Monorepo conventions
 
-Shared across all four repos (`fantasy-web` → `fantasy-bff` → `fantasy-db-service` +
-`fantasy-nhl-service`). The web talks only to the BFF; inter-service calls to db/nhl use a
-shared `X-Internal-Api-Key` header.
+Shared across the repos (`fantasy-web` → `fantasy-bff` → `fantasy-db-service` +
+`fantasy-yahoo-service` + `fantasy-espn-service` + `fantasy-projection-service`). The web talks
+only to the BFF; every inter-service call carries a shared `X-Internal-Api-Key` header.
 
 ### Input validation
 
@@ -237,9 +246,10 @@ No attribution trailers (`attribution.commit` / `attribution.pr` are `""` in
 
 - Dockerized (multi-stage `Dockerfile`), deployed via **Coolify** (Hetzner) as a web
   service (`SPRING_PROFILES_ACTIVE=staging`) on both prod (`api.slapstat.com`) and staging
-  (`api.staging.slapstat.com`). See `DEPLOYMENT.md`. Requires `NHL_SERVICE_URL` +
-  `NHL_INTERNAL_API_KEY` (nhl-service) and `DATABASE_SERVICE_URL` + `DB_INTERNAL_API_KEY`
-  (db-service) — the internal URLs use the services' Docker network aliases
-  (`http://db-service:8086`, `http://nhl-service:8087`). Each `*_INTERNAL_API_KEY` is the
+  (`api.staging.slapstat.com`). See `DEPLOYMENT.md`. Requires a `*_SERVICE_URL` +
+  `*_INTERNAL_API_KEY` pair per downstream (`DATABASE_`, `YAHOO_`, `ESPN_`, `PROJECTION_`) —
+  the internal URLs use the services' Docker network aliases
+  (`http://db-service:8086`, `http://yahoo-service:8088`, `http://espn-service:8090`).
+  Each `*_INTERNAL_API_KEY` is the
   value the matching downstream service exposes as its own `INTERNAL_API_KEY`.
 - Health check: `/actuator/health`.
