@@ -13,6 +13,8 @@ tags:
 - name: ESPN Credentials
   description: "A user's stored ESPN cookies (espn_s2 + SWID), needed to read private\
     \ leagues"
+- name: ESPN Players
+  description: Cached ESPN season stat lines for stats Yahoo does not report
 paths:
   /api/v1/espn/credentials:
     get:
@@ -69,6 +71,39 @@ paths:
       responses:
         "204":
           description: Cookies deleted (or none existed)
+  /api/v1/espn/players/sync:
+    post:
+      tags:
+      - ESPN Players
+      summary: Refresh the cached stat lines from ESPN
+      operationId: sync
+      responses:
+        "200":
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSyncResponse"
+        "502":
+          description: ESPN was unreachable or returned nothing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSyncResponse"
+  /api/v1/espn/players:
+    get:
+      tags:
+      - ESPN Players
+      summary: "Every cached ESPN stat line (hat tricks, shifts, goalie OT losses,\
+        \ time on ice)"
+      operationId: players
+      responses:
+        "200":
+          description: Stat lines returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerStatsResponse"
   /api/v1/espn/leagues/{leagueId}/teams:
     get:
       tags:
@@ -253,3 +288,63 @@ components:
           description: Whether the user has stored ESPN cookies (for private leagues).
       required:
       - hasCredentials
+    PlayerSyncResponse:
+      type: object
+      properties:
+        players:
+          type: integer
+          format: int32
+          description: Stat lines stored
+        syncedAt:
+          type: string
+          format: date-time
+      required:
+      - players
+      - syncedAt
+    PlayerStatLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ESPN's player id
+        fullName:
+          type: string
+        position:
+          type: string
+          description: "C, LW, RW, D or G"
+        gamesPlayed:
+          type: integer
+          format: int32
+        hatTricks:
+          type: integer
+          format: int32
+        shifts:
+          type: integer
+          format: int32
+        overtimeLosses:
+          type: integer
+          format: int32
+          description: Goalie overtime losses
+        timeOnIce:
+          type: integer
+          format: int32
+          description: "Total time on ice for the season, in seconds"
+      required:
+      - fullName
+      - id
+      - position
+    PlayerStatsResponse:
+      type: object
+      properties:
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerStatLine"
+        syncedAt:
+          type: string
+          format: date-time
+          description: When the cached stat lines were last refreshed from ESPN; absent
+            while no sync has succeeded yet
+      required:
+      - players

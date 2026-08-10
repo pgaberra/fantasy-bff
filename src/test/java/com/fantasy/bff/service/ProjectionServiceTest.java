@@ -150,13 +150,14 @@ class ProjectionServiceTest {
                 1, "Connor McDavid", "EDM", "https://example.test/1.png", 97, Set.of(SkaterPosition.C),
                 new SkaterResponse.Stats(
                         new SkaterResponse.UtilityStats(82, 1320),
-                        new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348, 18.4,
-                                812, 623, 42, 28)))));
+                        new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 23, 38, 61,
+                                8, 2, 348, 18.4, 812, 623, 42, 28, 0, 1408, 92400)))));
         when(playerService.getGoalies()).thenReturn(List.of(new GoalieResponse(
                 101, "Igor Shesterkin", "NYR", "https://example.test/101.png", 31,
                 new GoalieResponse.Stats(
                         new GoalieResponse.UtilityStats(58),
-                        new GoalieResponse.ScoringStats(58, 36, 17, 3, 1720, 1565, 155, 2.67, 0.910)))));
+                        new GoalieResponse.ScoringStats(58, 36, 17, 4, 3, 1720, 1565, 155, 2.67, 0.910,
+                                0.632, 209000)))));
     }
 
     private List<PlayerProjection> capturedPlayers() {

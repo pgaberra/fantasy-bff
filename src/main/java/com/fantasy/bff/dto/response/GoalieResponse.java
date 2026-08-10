@@ -27,11 +27,17 @@ public record GoalieResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int gs,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int w,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int l,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Overtime losses; sourced from ESPN") int otl,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sho,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sa,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sv,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int ga,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double gaa,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double svPct
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double svPct,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Share of decisions won, as a fraction") double winPct,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Total time on ice for the season, in seconds; sourced from ESPN") int toi
     ) {}
 }

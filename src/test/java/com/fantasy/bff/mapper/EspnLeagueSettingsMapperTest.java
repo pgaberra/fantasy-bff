@@ -118,17 +118,29 @@ class EspnLeagueSettingsMapperTest {
     }
 
     @Test
-    void reportsEspnOnlyStatsSuchAsHatTricksAsUnsupported() {
-        // ESPN scores some stats the projection domain has no equivalent for (hat tricks,
-        // overtime losses, shootout points). They must surface as unsupported, never be dropped
-        // silently or mapped onto the wrong stat.
+    void mapsTheStatsOnlyEspnScores() {
+        // Hat tricks, shifts, goalie overtime losses and special-teams points have no Yahoo
+        // equivalent, which is why they used to land in unsupportedStats. The projection domain
+        // covers them now, so an ESPN league that scores them is mapped in full.
         LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("H2H_CATEGORY", null,
-                        List.of(cat(13, "G"), cat(28, "HAT"), cat(9, "OTL"), cat(37, "STP")),
+                        List.of(cat(13, "G"), cat(28, "HAT"), cat(9, "OTL"), cat(37, "STP"),
+                                cat(25, "SHIFTS"), cat(33, "DEF"), cat(12, "W%"), cat(16, "P")),
                         List.of()));
 
-        assertThat(mapped.activeScoringColumns()).containsExactly("goals");
-        assertThat(mapped.unsupportedStats()).containsExactly("HAT", "OTL", "STP");
+        assertThat(mapped.activeScoringColumns())
+                .containsExactly("goals", "hatTricks", "otl", "stp", "shifts", "defPoints", "winPct", "points");
+        assertThat(mapped.unsupportedStats()).isEmpty();
+    }
+
+    @Test
+    void countsGoalieGamesPlayedWhichEspnNumbersDifferentlyFromSkaterGames() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_CATEGORY", null, List.of(cat(30, "GP"), cat(1, "W")), List.of()));
+
+        assertThat(mapped.activeUtilityColumns()).containsExactly("gp");
+        assertThat(mapped.activeScoringColumns()).containsExactly("w");
+        assertThat(mapped.unsupportedStats()).isEmpty();
     }
 
     @Test

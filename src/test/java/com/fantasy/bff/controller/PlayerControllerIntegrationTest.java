@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
+import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
@@ -34,6 +35,14 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     @MockitoBean
     private PlayerServiceClient playerServiceClient;
 
+    /**
+     * Player responses are enriched with ESPN's stat lines. Mocking the client keeps the test
+     * off the network — an unstubbed call returns null, which the provider reads as "no ESPN
+     * stats" and serves the Yahoo line unchanged.
+     */
+    @MockitoBean
+    private EspnServiceClient espnServiceClient;
+
     @Test
     void getSkaters_withValidToken_returns200() throws Exception {
         when(playerServiceClient.getSkaters()).thenReturn(List.of(
@@ -41,7 +50,8 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                         "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png", 97, Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
                                 new SkaterResponse.UtilityStats(82, 1320),
-                                new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 8, 348, 18.4, 812, 623, 42, 28)
+                                new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 23, 38, 61, 8, 2,
+                                        348, 18.4, 812, 623, 42, 28, 0, 1408, 92400)
                         ))
         ));
 
@@ -80,7 +90,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                         "https://assets.nhle.com/mugs/nhl/20242025/NYR/8478048.png", 31,
                         new GoalieResponse.Stats(
                                 new GoalieResponse.UtilityStats(58),
-                                new GoalieResponse.ScoringStats(58, 36, 17, 3, 1720, 1565, 155, 2.67, 0.910)
+                                new GoalieResponse.ScoringStats(58, 36, 17, 4, 3, 1720, 1565, 155, 2.67, 0.910, 0.632, 209000)
                         ))
         ));
 

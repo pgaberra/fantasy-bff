@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fantasy.bff.BaseIntegrationTest;
+import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -38,6 +39,8 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean private ProjectionServiceClient projectionServiceClient;
     @MockitoBean private PlayerServiceClient playerServiceClient;
+    /** Keeps the ESPN stat-line enrichment off the network; unstubbed means "no ESPN stats". */
+    @MockitoBean private EspnServiceClient espnServiceClient;
 
     private String token;
 
