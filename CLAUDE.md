@@ -41,6 +41,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 - `controller/` — REST endpoints under `/api/v1` (`AuthController`, `PlayerController`,
   `ProjectionController` — the user's saved projections; takes the user id from the JWT
   and forwards to db-service, never trusting a client-supplied user id)
+  - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
+    public link. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
+    the visitor's side is `GET /api/v1/shared/{token}`, permitted for everyone — a share link has
+    to open for someone who has never signed in. `SharedProjectionController.preview` additionally
+    serves a small HTML document with per-share Open Graph tags: chat and social crawlers run no
+    JavaScript, so without it every shared link would unfurl as the site-wide preview. nginx routes
+    crawler user agents for `/s/*` there; it is `@Hidden` from the spec since it serves HTML to bots
+    rather than JSON to the web client.
 - `service/` — business logic (`AuthService`, `PlayerService`)
 - `client/` — downstream clients. Each is an **interface** plus an **http**
   implementation that uses OpenAPI-generated models (no mock implementations —

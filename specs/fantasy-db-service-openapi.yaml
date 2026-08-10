@@ -6,6 +6,8 @@ info:
 servers:
 - url: /
 tags:
+- name: Shared projections
+  description: "Snapshot lookup by share token, for the BFF's public page"
 - name: Email verification
   description: Single-use email-verification token issuance and consumption
 - name: Password reset
@@ -14,6 +16,8 @@ tags:
   description: "A user's billing subscription, at most one per user"
 - name: User projections
   description: "Saved player projections, scoped to a user"
+- name: Projection shares
+  description: The owner's control over a projection's public link
 - name: Users
   description: User management
 paths:
@@ -81,12 +85,114 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SubscriptionResponse"
+  /api/v1/users/{userId}/projections/{projectionId}/share:
+    get:
+      tags:
+      - Projection shares
+      summary: "Fetch the projection's share, if it has one"
+      operationId: get_1
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: projectionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The projection is shared
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+        "404":
+          description: "No such projection for this user, or it is not shared"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+    put:
+      tags:
+      - Projection shares
+      summary: Publish or refresh the projection's public snapshot
+      description: "Idempotent: an already-shared projection keeps its token, so links\
+        \ already posted elsewhere stay valid and start showing the refreshed snapshot."
+      operationId: share
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: projectionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShareRequest"
+        required: true
+      responses:
+        "200":
+          description: Share created or refreshed
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+        "400":
+          description: "Validation failed (too many rows, oversized name/alias)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+        "404":
+          description: No such projection for this user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+    delete:
+      tags:
+      - Projection shares
+      summary: Take the projection's public link down
+      description: "Deletes the snapshot outright. Sharing again mints a new token,\
+        \ so the old link stays dead."
+      operationId: unshare
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: projectionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Share deleted
+        "404":
+          description: "No such projection for this user, or it is not shared"
   /api/v1/users/{userId}/projections/{id}:
     get:
       tags:
       - User projections
       summary: "Fetch a single saved projection, including its data"
-      operationId: get_1
+      operationId: get_2
       parameters:
       - name: userId
         in: path
@@ -484,6 +590,33 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ExistsResponse"
+  /api/v1/shares/{token}:
+    get:
+      tags:
+      - Shared projections
+      summary: Fetch a shared snapshot by its token
+      description: Counts the view. Carries no owner identity beyond the alias they
+        chose.
+      operationId: get_3
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Snapshot found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SharedProjectionResponse"
+        "404":
+          description: No share with that token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SharedProjectionResponse"
 components:
   schemas:
     UpsertSubscriptionRequest:
@@ -573,6 +706,117 @@ components:
       - premium
       - provider
       - status
+    CreateShareRequest:
+      type: object
+      properties:
+        authorAlias:
+          type: string
+          description: Name the owner wants to be credited as on the public page.
+            Absent means the page credits nobody — the account's email is never shown.
+          maxLength: 40
+          minLength: 0
+        players:
+          type: array
+          description: "The ranked rows to publish, in display order. The caller decides\
+            \ how many to include; the cap is a safety limit, not the product rule."
+          items:
+            $ref: "#/components/schemas/SharedPlayer"
+          maxItems: 200
+          minItems: 0
+      required:
+      - players
+    PlayerStats:
+      type: object
+      properties:
+        utility:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        scoring:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      required:
+      - scoring
+      - utility
+    SharedPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        teamAbbrev:
+          type: string
+          description: "NHL team abbreviation, absent for a player without one."
+          maxLength: 10
+          minLength: 0
+        positions:
+          type: array
+          description: "Eligible positions, for skaters. Absent for goalies."
+          items:
+            type: string
+            maxLength: 4
+            minLength: 0
+          maxItems: 6
+          minItems: 0
+        type:
+          type: string
+          enum:
+          - skater
+          - goalie
+        rank:
+          type: integer
+          format: int32
+          description: "Position in the shared ranking, 1-based."
+          minimum: 1
+        value:
+          type: number
+          format: double
+          description: "The value the ranking was sorted by — fantasy points in a\
+            \ points league, z-score in a category league."
+        stats:
+          $ref: "#/components/schemas/PlayerStats"
+      required:
+      - name
+      - playerId
+      - rank
+      - stats
+      - type
+      - value
+    ShareResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        projectionId:
+          type: string
+        token:
+          type: string
+        authorAlias:
+          type: string
+          description: "The name the public page credits, if the owner set one."
+        viewCount:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - createdAt
+      - id
+      - projectionId
+      - token
+      - updatedAt
+      - viewCount
     DraftPick:
       type: object
       properties:
@@ -650,22 +894,6 @@ components:
       - playerId
       - stats
       - type
-    PlayerStats:
-      type: object
-      properties:
-        utility:
-          type: object
-          additionalProperties:
-            type: number
-            format: double
-        scoring:
-          type: object
-          additionalProperties:
-            type: number
-            format: double
-      required:
-      - scoring
-      - utility
     ProjectionSettings:
       type: object
       properties:
@@ -1074,3 +1302,47 @@ components:
           type: boolean
       required:
       - exists
+    SharedProjectionData:
+      type: object
+      properties:
+        settings:
+          $ref: "#/components/schemas/ProjectionSettings"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/SharedPlayer"
+      required:
+      - players
+      - settings
+    SharedProjectionResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        name:
+          type: string
+        authorAlias:
+          type: string
+          description: "The name the owner chose to be credited as, if any."
+        season:
+          type: string
+          enum:
+          - "20252026"
+          - "20262027"
+          - "20272028"
+          - "20282029"
+        data:
+          $ref: "#/components/schemas/SharedProjectionData"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - createdAt
+      - data
+      - name
+      - season
+      - token
+      - updatedAt
