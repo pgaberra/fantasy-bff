@@ -298,7 +298,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: A projection with that name already exists
+          description: A projection of that kind already exists
           content:
             application/json:
               schema:
@@ -1504,6 +1504,12 @@ components:
           type: string
           maxLength: 100
           minLength: 0
+        kind:
+          type: string
+          description: What the projection is for. Defaults to the user's own.
+          enum:
+          - projection
+          - preset_draft
         data:
           $ref: "#/components/schemas/ProjectionData"
         source:

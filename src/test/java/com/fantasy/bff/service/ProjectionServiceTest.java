@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
@@ -166,7 +167,12 @@ class ProjectionServiceTest {
     }
 
     private static CreateProjectionRequest request(ProjectionData data, ProjectionSource source) {
-        return new CreateProjectionRequest("My Projection", data, source);
+        return request(data, source, null);
+    }
+
+    private static CreateProjectionRequest request(ProjectionData data, ProjectionSource source,
+                                                   ProjectionKind kind) {
+        return new CreateProjectionRequest("My Projection", kind, data, source);
     }
 
     private static ProjectionData emptyData() {

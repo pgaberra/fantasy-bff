@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -51,7 +52,15 @@ public class ProjectionService {
         return databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(request.name())
+                        .kind(kindOf(request.kind()))
                         .data(data));
+    }
+
+    private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum kindOf(
+            ProjectionKind kind) {
+        return kind == ProjectionKind.PRESET_DRAFT
+                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PRESET_DRAFT
+                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION;
     }
 
     /**
