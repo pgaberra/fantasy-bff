@@ -52,6 +52,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     JavaScript, so without it every shared link would unfurl as the site-wide preview. nginx routes
     crawler user agents for `/s/*` there; it is `@Hidden` from the spec since it serves HTML to bots
     rather than JSON to the web client.
+    The tags point at `ShareCardRenderer`'s per-share card (`/{token}/og-image.png`), drawn with
+    Java2D from the same snapshot the page shows — which is why the runtime image installs
+    `fontconfig` and a font: without them Java2D renders every glyph as a box instead of
+    failing, so it would only surface when someone looked at a preview.
 - `service/` — business logic (`AuthService`, `PlayerService`)
 - `client/` — downstream clients. Each is an **interface** plus an **http**
   implementation that uses OpenAPI-generated models (no mock implementations —
