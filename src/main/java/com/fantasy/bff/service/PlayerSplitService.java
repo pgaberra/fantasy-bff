@@ -62,10 +62,25 @@ public class PlayerSplitService {
             put(stats, "blocks", split.getBlocks());
             put(stats, "fw", split.getFaceoffsWon());
             put(stats, "fl", split.getFaceoffsLost());
-            // The service reports the totals it measured; the assist and rate splits below are
-            // arithmetic on those, and are derived here so every client doesn't redo it.
+            put(stats, "hatTricks", split.getHatTricks());
+            put(stats, "shifts", split.getShifts());
+            put(stats, "toi", split.getToiSeconds());
+            // The service reports the totals it measured; the assist, special-teams and rate
+            // splits below are arithmetic on those, and are derived here so every client
+            // doesn't redo it.
             putDifference(stats, "ppa", split.getPpPoints(), split.getPpGoals());
             putDifference(stats, "sha", split.getShPoints(), split.getShGoals());
+            // A league that scores special teams scores one category, power play plus
+            // shorthanded, so it is summed rather than reported anywhere.
+            putSum(stats, "stpg", split.getPpGoals(), split.getShGoals());
+            putSum(stats, "stpa", stats.get("ppa"), stats.get("sha"));
+            putSum(stats, "stp", split.getPpPoints(), split.getShPoints());
+            // Defencemen points count a player's points only while they are eligible at
+            // defence, so a forward's are not a smaller version of the same thing — they are
+            // none of it.
+            if (context.playsDefence(playerId)) {
+                put(stats, "defPoints", split.getPoints());
+            }
             putRatio(stats, "shPct", split.getGoals(), split.getShots(), 100.0);
             putRatio(stats, "toiPerGame", split.getToiSeconds(), split.getGames(), 1.0);
             splits.add(response(playerId, context, split.getNhlId(), "skater",
@@ -90,10 +105,13 @@ public class PlayerSplitService {
             put(stats, "sa", split.getShotsAgainst());
             put(stats, "sv", split.getSaves());
             put(stats, "ga", split.getGoalsAgainst());
+            put(stats, "otl", split.getOtLosses());
+            put(stats, "toi", split.getToiSeconds());
             // Both are absent for a goalie who faced no shots in the range; an absent rate is
             // not the same as a zero one.
             put(stats, "gaa", split.getGoalsAgainstAvg());
             put(stats, "svPct", split.getSavePct());
+            putWinPct(stats, split.getWins(), split.getLosses(), split.getOtLosses());
             splits.add(response(playerId, context, split.getNhlId(), "goalie",
                     split.getGames(), split.getFirstTeamGame(), split.getLastTeamGame(), stats));
         }
@@ -130,6 +148,32 @@ public class PlayerSplitService {
     private static void put(Map<String, Double> target, String key, Integer value) {
         if (value != null) {
             target.put(key, value.doubleValue());
+        }
+    }
+
+    private static void putSum(Map<String, Double> target, String key, Integer first, Integer second) {
+        if (first != null && second != null) {
+            target.put(key, (double) (first + second));
+        }
+    }
+
+    private static void putSum(Map<String, Double> target, String key, Double first, Double second) {
+        if (first != null && second != null) {
+            target.put(key, first + second);
+        }
+    }
+
+    /**
+     * Share of decisions won. An overtime loss is a decision like any other, so a goalie who
+     * only ever loses in overtime has a win percentage of zero rather than none.
+     */
+    private static void putWinPct(Map<String, Double> target, Integer wins, Integer losses, Integer otLosses) {
+        if (wins == null || losses == null || otLosses == null) {
+            return;
+        }
+        int decisions = wins + losses + otLosses;
+        if (decisions > 0) {
+            target.put("winPct", Math.round((double) wins / decisions * 1000.0) / 1000.0);
         }
     }
 

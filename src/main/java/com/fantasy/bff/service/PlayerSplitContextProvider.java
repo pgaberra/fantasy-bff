@@ -3,6 +3,7 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
+import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
@@ -13,8 +14,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,10 +49,24 @@ public class PlayerSplitContextProvider {
      */
     private static final Duration RETRY_AFTER_FAILURE = Duration.ofMinutes(1);
 
-    /** The mapping plus the NHL-side identities, which is everything a split row needs. */
-    public record Context(PlayerIdMapping mapping, Map<Long, PlayerResponse> identities) {
+    /**
+     * The mapping plus the NHL-side identities, which is everything a split row needs.
+     *
+     * @param defenceEligible platform ids of players a league would slot at defence. Defencemen
+     *     points are scored as their own category, and eligibility is the platform's answer —
+     *     the NHL's listed position doesn't decide what a fantasy league lets you start.
+     */
+    public record Context(
+            PlayerIdMapping mapping,
+            Map<Long, PlayerResponse> identities,
+            Set<Integer> defenceEligible) {
+
         public Integer platformId(Integer nhlId) {
             return nhlId == null ? null : mapping.nhlIdToPlatformId().get(nhlId.longValue());
+        }
+
+        public boolean playsDefence(int platformId) {
+            return defenceEligible.contains(platformId);
         }
     }
 
@@ -110,15 +127,22 @@ public class PlayerSplitContextProvider {
         }
 
         List<Candidate> platform = new ArrayList<>();
+        Set<Integer> defenceEligible = new HashSet<>();
         for (SkaterResponse skater : playerServiceClient.getSkaters()) {
             platform.add(new Candidate(
                     skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
+            if (skater.positions() != null && skater.positions().contains(SkaterPosition.D)) {
+                defenceEligible.add(skater.id());
+            }
         }
         for (GoalieResponse goalie : playerServiceClient.getGoalies()) {
             platform.add(new Candidate(
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
 
-        return new Context(resolver.resolve(nhlCandidates, platform, overrides.asMap()), identities);
+        return new Context(
+                resolver.resolve(nhlCandidates, platform, overrides.asMap()),
+                identities,
+                defenceEligible);
     }
 }
