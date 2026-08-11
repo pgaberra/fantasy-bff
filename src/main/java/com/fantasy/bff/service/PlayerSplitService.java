@@ -1,21 +1,14 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.request.GameRange;
-import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
-import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
-import com.fantasy.bff.service.mapping.PlayerIdMapping;
-import com.fantasy.bff.service.mapping.PlayerIdOverrides;
-import com.fantasy.bff.service.mapping.PlayerIdResolver;
-import com.fantasy.bff.service.mapping.PlayerIdResolver.Candidate;
+import com.fantasy.bff.service.PlayerSplitContextProvider.Context;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +18,9 @@ import org.springframework.stereotype.Service;
  * Who has actually been producing lately.
  *
  * <p>The projection service holds per-game logs and can total a player's stats over a stretch
- * of their team's schedule. Those totals are keyed by NHL id and carry no names, so this joins
- * them to the platform's players — the same match the projections need.
+ * of their team's schedule. Those totals are keyed by NHL id and carry no names, so they are
+ * joined to the platform's players through {@link PlayerSplitContextProvider} — the same match
+ * the projections need, and cached there because it is the expensive half of serving a range.
  *
  * <p>Ranges are expressed in team game numbers, so "the last twenty" covers the same stretch of
  * schedule for everyone. A player who missed some of them shows fewer games, which is the point.
@@ -35,23 +29,17 @@ import org.springframework.stereotype.Service;
 public class PlayerSplitService {
 
     private final ProjectionServiceClient projectionServiceClient;
-    private final PlayerServiceClient playerServiceClient;
-    private final PlayerIdResolver resolver;
-    private final PlayerIdOverrides overrides;
+    private final PlayerSplitContextProvider contextProvider;
 
     public PlayerSplitService(
             ProjectionServiceClient projectionServiceClient,
-            PlayerServiceClient playerServiceClient,
-            PlayerIdResolver resolver,
-            PlayerIdOverrides overrides) {
+            PlayerSplitContextProvider contextProvider) {
         this.projectionServiceClient = projectionServiceClient;
-        this.playerServiceClient = playerServiceClient;
-        this.resolver = resolver;
-        this.overrides = overrides;
+        this.contextProvider = contextProvider;
     }
 
     public List<PlayerSplitResponse> skaterSplits(int season, GameRange range, int limit) {
-        Context context = context();
+        Context context = contextProvider.context();
         List<PlayerSplitResponse> splits = new ArrayList<>();
         for (SkaterSplitResponse split : projectionServiceClient.skaterSplits(season, range, limit)) {
             Integer playerId = context.platformId(split.getNhlId());
@@ -87,7 +75,7 @@ public class PlayerSplitService {
     }
 
     public List<PlayerSplitResponse> goalieSplits(int season, GameRange range, int limit) {
-        Context context = context();
+        Context context = contextProvider.context();
         List<PlayerSplitResponse> splits = new ArrayList<>();
         for (GoalieSplitResponse split : projectionServiceClient.goalieSplits(season, range, limit)) {
             Integer playerId = context.platformId(split.getNhlId());
@@ -131,38 +119,6 @@ public class PlayerSplitService {
                 firstGame,
                 lastGame,
                 stats);
-    }
-
-    private record Context(PlayerIdMapping mapping, Map<Long, PlayerResponse> identities) {
-        Integer platformId(Integer nhlId) {
-            return nhlId == null ? null : mapping.nhlIdToPlatformId().get(nhlId.longValue());
-        }
-    }
-
-    private Context context() {
-        List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers();
-        Map<Long, PlayerResponse> identities = new HashMap<>();
-        List<Candidate> nhlCandidates = new ArrayList<>();
-        for (PlayerResponse player : nhlPlayers) {
-            identities.put(player.getNhlId().longValue(), player);
-            nhlCandidates.add(new Candidate(
-                    player.getNhlId().longValue(),
-                    player.getFullName(),
-                    player.getCurrentTeam(),
-                    player.getSweaterNumber()));
-        }
-
-        List<Candidate> platform = new ArrayList<>();
-        for (SkaterResponse skater : playerServiceClient.getSkaters()) {
-            platform.add(new Candidate(
-                    skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
-        }
-        for (GoalieResponse goalie : playerServiceClient.getGoalies()) {
-            platform.add(new Candidate(
-                    goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
-        }
-
-        return new Context(resolver.resolve(nhlCandidates, platform, overrides.asMap()), identities);
     }
 
     private static void put(Map<String, Double> target, String key, BigDecimal value) {
