@@ -21,6 +21,11 @@ public interface DatabaseServiceClient {
 
     Optional<User> findUserByEmail(String email);
 
+    User findUserById(UUID userId);
+
+    /** Sets the account's public name. Throws when another account already holds it (409). */
+    User setUsername(UUID userId, String username);
+
     User createUser(String email, String passwordHash);
 
     boolean existsByEmail(String email);

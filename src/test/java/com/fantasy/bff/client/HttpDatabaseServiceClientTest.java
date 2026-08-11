@@ -88,7 +88,7 @@ class HttpDatabaseServiceClientTest {
 
         User resolved = client.findOrCreateGoogleUser("g@b.com", "google-sub-5");
 
-        assertThat(resolved).isEqualTo(new User("u-5", "g@b.com", null, 0, true));
+        assertThat(resolved).isEqualTo(new User("u-5", "g@b.com", null, null, 0, true));
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/google"))
                 .withRequestBody(equalToJson("{\"email\":\"g@b.com\",\"googleSub\":\"google-sub-5\"}")));
     }
@@ -101,7 +101,7 @@ class HttpDatabaseServiceClientTest {
 
         User created = client.createUser("new@b.com", "hashed");
 
-        assertThat(created).isEqualTo(new User("u-9", "new@b.com", "hashed", 0, false));
+        assertThat(created).isEqualTo(new User("u-9", "new@b.com", null, "hashed", 0, false));
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users"))
                 .withRequestBody(equalToJson("{\"email\":\"new@b.com\",\"passwordHash\":\"hashed\"}")));
     }

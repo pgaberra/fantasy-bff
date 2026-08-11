@@ -12,14 +12,11 @@ import java.util.List;
  * Publishing a projection. The rows come from the client because the ranking is computed there —
  * fantasy value depends on the league's scoring settings and the whole player pool, neither of
  * which the server ranks today. Everything else on the public page (name, season, settings) is
- * copied from the stored projection downstream, so a client cannot publish a page that claims
- * to be something the projection is not.
+ * copied from the stored projection downstream, and the page is credited to the owner's account
+ * username, so a client cannot publish a page that claims to be something — or someone — it is not.
  */
 public record ShareProjectionRequest(
 
-        @Schema(description = "Name to be credited as on the public page. Omit to be credited as "
-                + "nobody — the account's email is never shown.")
-        @Size(max = 40) String authorAlias,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "The ranked rows to publish, in display order.")

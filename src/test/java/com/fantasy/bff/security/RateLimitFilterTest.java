@@ -97,7 +97,7 @@ class RateLimitFilterTest {
                 .rank(1).value(412.5)
                 .stats(new PlayerStats().utility(Map.of("gp", 82.0)).scoring(Map.of("goals", 64.0)));
         return new SharedProjectionResponse()
-                .token("abc123").name("My league").authorAlias("Alex")
+                .token("abc123").name("My league").authorUsername("alex")
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
                 .data(new SharedProjectionData().settings(settings).players(List.of(mcDavid)));
     }

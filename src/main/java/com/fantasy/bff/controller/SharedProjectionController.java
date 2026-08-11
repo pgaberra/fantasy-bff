@@ -136,8 +136,7 @@ public class SharedProjectionController {
                 .limit(PREVIEW_PLAYERS)
                 .map(SharedPlayer::getName)
                 .collect(Collectors.joining(", "));
-        String alias = shared.getAuthorAlias();
-        String author = alias == null || alias.isBlank() ? "A SlapStat user" : alias;
+        String author = shared.getAuthorUsername();
         if (top.isBlank()) {
             return author + "'s player rankings for the upcoming NHL season, tuned to their league's "
                     + "scoring settings.";

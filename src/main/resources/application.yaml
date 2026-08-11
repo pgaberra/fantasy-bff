@@ -146,6 +146,8 @@ security:
       "/api/v1/billing/portal-session": { limit: 10, window-seconds: 300 }
       # The public share reads. The JSON one is per real visitor IP, so it can be tight — a
       # person opening shared links does not need more than this.
+      # Claiming names is worth slowing down: the namespace is first-come, first-served.
+      "/api/v1/account/username": { limit: 10, window-seconds: 300, method: PUT }
       "/api/v1/shared/*": { limit: 60, window-seconds: 60, method: GET }
       # The crawler-facing pair is different: nginx proxies both, so every request arrives with
       # the web container as the last forwarded hop and they all share ONE bucket regardless of

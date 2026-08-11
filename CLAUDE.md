@@ -62,6 +62,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     Java2D from the same snapshot the page shows — which is why the runtime image installs
     `fontconfig` and a font: without them Java2D renders every glyph as a box instead of
     failing, so it would only surface when someone looked at a preview.
+  - `AccountController` — the signed-in account itself: `GET /api/v1/account` and
+    `PUT /api/v1/account/username`. `AccountResponse` is deliberately thinner than what
+    db-service returns to its trusted caller — the password hash and social subject ids stop
+    here. Sharing a projection requires a username, so the share endpoints relay db-service's
+    409 when an account has not picked one.
 - `service/` — business logic (`AuthService`, `PlayerService`)
 - `client/` — downstream clients. Each is an **interface** plus an **http**
   implementation that uses OpenAPI-generated models (no mock implementations —

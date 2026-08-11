@@ -62,7 +62,6 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
 
     private static final String VALID_BODY = """
             {
-              "authorAlias": "Alex",
               "players": [
                 { "playerId": 1, "name": "Connor McDavid", "teamAbbrev": "EDM", "positions": ["C"],
                   "type": "skater", "rank": 1, "value": 412.5,
@@ -80,12 +79,11 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .id("33333333-3333-3333-3333-333333333333")
                 .projectionId(PROJECTION_ID.toString())
                 .token(TOKEN)
-                .authorAlias("Alex")
                 .createdAt(OffsetDateTime.of(2026, 8, 1, 10, 0, 0, 0, ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.of(2026, 8, 2, 10, 0, 0, 0, ZoneOffset.UTC));
     }
 
-    private static SharedProjectionResponse sharedProjection(String name, String alias) {
+    private static SharedProjectionResponse sharedProjection(String name, String username) {
         SharedPlayer mcDavid = new SharedPlayer()
                 .playerId(1)
                 .name("Connor McDavid")
@@ -100,7 +98,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
         return new SharedProjectionResponse()
                 .token(TOKEN)
                 .name(name)
-                .authorAlias(alias)
+                .authorUsername(username)
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
                 .data(new SharedProjectionData()
                         .settings(new ProjectionSettings()
@@ -145,7 +143,6 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
 
         ArgumentCaptor<CreateShareRequest> request = ArgumentCaptor.forClass(CreateShareRequest.class);
         verify(databaseServiceClient).shareProjection(eq(USER_ID), eq(PROJECTION_ID), request.capture());
-        assertThat(request.getValue().getAuthorAlias()).isEqualTo("Alex");
         assertThat(request.getValue().getPlayers()).hasSize(1);
         assertThat(request.getValue().getPlayers().getFirst().getName()).isEqualTo("Connor McDavid");
     }
@@ -176,7 +173,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/shared/" + TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("My league"))
-                .andExpect(jsonPath("$.authorAlias").value("Alex"))
+                .andExpect(jsonPath("$.authorUsername").value("Alex"))
                 .andExpect(jsonPath("$.data.players[0].name").value("Connor McDavid"));
     }
 

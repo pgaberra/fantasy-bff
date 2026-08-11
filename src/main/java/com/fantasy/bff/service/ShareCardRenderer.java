@@ -140,8 +140,7 @@ public class ShareCardRenderer {
     }
 
     private String subtitle(SharedProjectionResponse shared) {
-        String alias = shared.getAuthorAlias();
-        String author = alias == null || alias.isBlank() ? "a SlapStat user" : alias;
+        String author = shared.getAuthorUsername();
         String scoring = isPointsLeague(shared) ? "Points league" : "Category league";
         Integer leagueSize = shared.getData().getSettings().getLeagueSize();
         return leagueSize == null
