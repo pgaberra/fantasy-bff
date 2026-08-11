@@ -76,7 +76,7 @@ class AuthServiceTest {
 
     @Test
     void login_withPasswordlessSocialUser_stillRunsPasswordComparison() {
-        User socialUser = new User("user-1", "social@example.com", null, 0, true);
+        User socialUser = new User("user-1", "social@example.com", null, null, 0, true);
         when(databaseServiceClient.findUserByEmail("social@example.com"))
                 .thenReturn(Optional.of(socialUser));
 
@@ -95,7 +95,7 @@ class AuthServiceTest {
         when(jwtTokenValidator.validateAndExtractRefreshTokenClaims("stale-refresh")).thenReturn(claims);
         when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.of(0));
         when(databaseServiceClient.findUserByEmail("user@example.com"))
-                .thenReturn(Optional.of(new User("user-1", "user@example.com", "hash", 1, true)));
+                .thenReturn(Optional.of(new User("user-1", "user@example.com", null, "hash", 1, true)));
 
         assertThatThrownBy(() -> authService.refresh(new RefreshRequest("stale-refresh")))
                 .isInstanceOf(SecurityException.class);
@@ -108,7 +108,7 @@ class AuthServiceTest {
         when(jwtTokenValidator.validateAndExtractRefreshTokenClaims("good-refresh")).thenReturn(claims);
         when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.of(3));
         when(databaseServiceClient.findUserByEmail("user@example.com"))
-                .thenReturn(Optional.of(new User("user-1", "user@example.com", "hash", 3, true)));
+                .thenReturn(Optional.of(new User("user-1", "user@example.com", null, "hash", 3, true)));
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("new-access");
         when(jwtTokenValidator.generateRefreshToken(anyString(), anyString(), anyInt())).thenReturn("new-refresh");
 
@@ -127,7 +127,7 @@ class AuthServiceTest {
         when(googleTokenVerifier.verify("google-id-token"))
                 .thenReturn(new GoogleIdentity("google-sub-9", "g@example.com"));
         when(databaseServiceClient.findOrCreateGoogleUser("g@example.com", "google-sub-9"))
-                .thenReturn(new User("user-9", "g@example.com", null, 0, true));
+                .thenReturn(new User("user-9", "g@example.com", null, null, 0, true));
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("access");
         when(jwtTokenValidator.generateRefreshToken(anyString(), anyString(), anyInt())).thenReturn("refresh");
 

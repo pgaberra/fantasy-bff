@@ -55,14 +55,13 @@ public class ProjectionShareController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Share created or refreshed"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
-        @ApiResponse(responseCode = "404", description = "No such projection for this user")
+        @ApiResponse(responseCode = "404", description = "No such projection for this user"),
+        @ApiResponse(responseCode = "409", description = "The account has no username yet")
     })
     @PutMapping
     public ShareLinkResponse share(@AuthenticationPrincipal String userId, @PathVariable UUID id,
                                    @Valid @RequestBody ShareProjectionRequest request) {
-        CreateShareRequest downstream = new CreateShareRequest()
-                .authorAlias(request.authorAlias())
-                .players(request.players());
+        CreateShareRequest downstream = new CreateShareRequest().players(request.players());
         return ShareLinkResponse.from(
                 databaseServiceClient.shareProjection(UUID.fromString(userId), id, downstream), webBaseUrl);
     }

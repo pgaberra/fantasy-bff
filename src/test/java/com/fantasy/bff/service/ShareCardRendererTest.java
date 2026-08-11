@@ -32,7 +32,7 @@ class ShareCardRendererTest {
                 .stats(new PlayerStats().utility(Map.of("gp", 82.0)).scoring(Map.of("goals", 64.0)));
     }
 
-    private static SharedProjectionResponse shared(String name, String alias, List<SharedPlayer> players) {
+    private static SharedProjectionResponse shared(String name, String username, List<SharedPlayer> players) {
         ProjectionSettings settings = new ProjectionSettings()
                 .scoringType(ProjectionSettings.ScoringTypeEnum.POINTS)
                 .statWeights(Map.of("goals", 4.5))
@@ -45,7 +45,7 @@ class ShareCardRendererTest {
         return new SharedProjectionResponse()
                 .token("abc123")
                 .name(name)
-                .authorAlias(alias)
+                .authorUsername(username)
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
                 .data(new SharedProjectionData().settings(settings).players(players));
     }
@@ -85,8 +85,8 @@ class ShareCardRendererTest {
     }
 
     @Test
-    void survivesAProjectionWithNoRowsAndNoAlias() {
-        assertThatCode(() -> renderer.render(shared("Empty", null, List.of()))).doesNotThrowAnyException();
+    void survivesAProjectionWithNoRows() {
+        assertThatCode(() -> renderer.render(shared("Empty", "alex", List.of()))).doesNotThrowAnyException();
     }
 
     @Test

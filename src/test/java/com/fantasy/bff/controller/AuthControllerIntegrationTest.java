@@ -134,7 +134,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         RegisterRequest request = new RegisterRequest(email, "Password1");
         when(databaseServiceClient.existsByEmail(email)).thenReturn(false);
         when(databaseServiceClient.createUser(eq(email), anyString()))
-                .thenReturn(new User("user-7", email, "stored-hash", 0, false));
+                .thenReturn(new User("user-7", email, null, "stored-hash", 0, false));
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,7 +151,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void login_withValidCredentials_returnsBothTokens() throws Exception {
         String email = "user@example.com";
         String rawPassword = "secret";
-        User user = new User("user-1", email, passwordEncoder.encode(rawPassword), 0, true);
+        User user = new User("user-1", email, null, passwordEncoder.encode(rawPassword), 0, true);
         when(databaseServiceClient.findUserByEmail(email)).thenReturn(Optional.of(user));
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -170,7 +170,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         when(googleTokenVerifier.verify("valid-google-token"))
                 .thenReturn(new GoogleIdentity("google-sub-1", "g@example.com"));
         when(databaseServiceClient.findOrCreateGoogleUser("g@example.com", "google-sub-1"))
-                .thenReturn(new User("user-3", "g@example.com", null, 0, true));
+                .thenReturn(new User("user-3", "g@example.com", null, null, 0, true));
 
         mockMvc.perform(post("/api/v1/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -210,7 +210,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         when(googleTokenVerifier.verify("google-id-token"))
                 .thenReturn(new GoogleIdentity("google-sub-2", "gc@example.com"));
         when(databaseServiceClient.findOrCreateGoogleUser("gc@example.com", "google-sub-2"))
-                .thenReturn(new User("user-4", "gc@example.com", null, 0, true));
+                .thenReturn(new User("user-4", "gc@example.com", null, null, 0, true));
 
         mockMvc.perform(post("/api/v1/auth/google/code")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -262,7 +262,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         when(facebookTokenVerifier.verify("valid-fb-token"))
                 .thenReturn(new FacebookIdentity("fb-sub-1", "f@example.com"));
         when(databaseServiceClient.findOrCreateFacebookUser("f@example.com", "fb-sub-1"))
-                .thenReturn(new User("user-4", "f@example.com", null, 0, true));
+                .thenReturn(new User("user-4", "f@example.com", null, null, 0, true));
 
         mockMvc.perform(post("/api/v1/auth/facebook")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -299,7 +299,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void refresh_withValidRefreshToken_returnsNewTokenPair() throws Exception {
         String email = "user@example.com";
         String rawPassword = "secret";
-        User user = new User("user-1", email, passwordEncoder.encode(rawPassword), 0, true);
+        User user = new User("user-1", email, null, passwordEncoder.encode(rawPassword), 0, true);
         when(databaseServiceClient.findUserByEmail(email)).thenReturn(Optional.of(user));
 
         MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
@@ -323,7 +323,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void refresh_withAccessTokenInsteadOfRefreshToken_returns401() throws Exception {
         String email = "user@example.com";
         String rawPassword = "secret";
-        User user = new User("user-1", email, passwordEncoder.encode(rawPassword), 0, true);
+        User user = new User("user-1", email, null, passwordEncoder.encode(rawPassword), 0, true);
         when(databaseServiceClient.findUserByEmail(email)).thenReturn(Optional.of(user));
 
         MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
@@ -423,7 +423,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         String email = "verify@example.com";
         when(databaseServiceClient.existsByEmail(email)).thenReturn(false);
         when(databaseServiceClient.createUser(eq(email), anyString()))
-                .thenReturn(new User("user-9", email, "stored-hash", 0, false));
+                .thenReturn(new User("user-9", email, null, "stored-hash", 0, false));
         when(databaseServiceClient.createEmailVerificationToken(email))
                 .thenReturn(Optional.of(new EmailVerificationToken("verify-token", Instant.now().plusSeconds(86400))));
 

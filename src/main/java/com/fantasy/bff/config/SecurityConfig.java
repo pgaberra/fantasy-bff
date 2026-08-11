@@ -51,6 +51,7 @@ public class SecurityConfig {
                             // the whole point of it. GET only: publishing and taking a link down stay
                             // with the owner under /api/v1/projections/{id}/share.
                             .requestMatchers(HttpMethod.GET, "/api/v1/shared/**").permitAll()
+                            .requestMatchers("/api/v1/account", "/api/v1/account/**").authenticated()
                             .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated();
 
                     if (securityProperties.projectionModelEnabled()) {

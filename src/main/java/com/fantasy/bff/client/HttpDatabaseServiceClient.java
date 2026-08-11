@@ -13,6 +13,7 @@ import com.fantasy.bff.generated.db.model.PasswordResetRequest;
 import com.fantasy.bff.generated.db.model.PasswordResetTokenResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
+import com.fantasy.bff.generated.db.model.SetUsernameRequest;
 import com.fantasy.bff.generated.db.model.ShareResponse;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
@@ -57,8 +58,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                     .retrieve()
                     .body(UserResponse.class);
             return Optional.ofNullable(response)
-                    .map(r -> new User(r.getId(), r.getEmail(), r.getPasswordHash(),
-                            r.getTokenVersion(), r.getEmailVerified()));
+                    .map(HttpDatabaseServiceClient::toUser);
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 404) {
                 return Optional.empty();
@@ -81,8 +81,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
         if (response == null) {
             throw new IllegalStateException("db-service returned no body when creating the user");
         }
-        return new User(response.getId(), response.getEmail(), response.getPasswordHash(),
-                response.getTokenVersion(), response.getEmailVerified());
+        return toUser(response);
     }
 
     @Override
@@ -108,8 +107,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
         if (response == null) {
             throw new IllegalStateException("db-service returned no body when resolving the Google user");
         }
-        return new User(response.getId(), response.getEmail(), response.getPasswordHash(),
-                response.getTokenVersion(), response.getEmailVerified());
+        return toUser(response);
     }
 
     @Override
@@ -126,8 +124,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
         if (response == null) {
             throw new IllegalStateException("db-service returned no body when resolving the Facebook user");
         }
-        return new User(response.getId(), response.getEmail(), response.getPasswordHash(),
-                response.getTokenVersion(), response.getEmailVerified());
+        return toUser(response);
     }
 
     @Override
@@ -196,6 +193,37 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
             }
             throw e;
         }
+    }
+
+    @Override
+    public User findUserById(UUID userId) {
+        UserResponse response = restClient.get()
+                .uri("/api/v1/users/{userId}", userId)
+                .retrieve()
+                .body(UserResponse.class);
+        if (response == null) {
+            throw new IllegalStateException("db-service returned no body when reading the user");
+        }
+        return toUser(response);
+    }
+
+    @Override
+    public User setUsername(UUID userId, String username) {
+        UserResponse response = restClient.put()
+                .uri("/api/v1/users/{userId}/username", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new SetUsernameRequest().username(username))
+                .retrieve()
+                .body(UserResponse.class);
+        if (response == null) {
+            throw new IllegalStateException("db-service returned no body when setting the username");
+        }
+        return toUser(response);
+    }
+
+    private static User toUser(UserResponse response) {
+        return new User(response.getId(), response.getEmail(), response.getUsername(),
+                response.getPasswordHash(), response.getTokenVersion(), response.getEmailVerified());
     }
 
     @Override

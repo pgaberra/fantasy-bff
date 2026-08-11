@@ -16,6 +16,8 @@ tags:
   description: The current user's public links to their projections
 - name: Admin
   description: "Admin-only: Yahoo service account + player sync"
+- name: Account
+  description: The signed-in account's own profile
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
@@ -183,6 +185,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ShareLinkResponse"
+        "409":
+          description: The account has no username yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLinkResponse"
     delete:
       tags:
       - Projection shares
@@ -239,6 +247,39 @@ paths:
       responses:
         "204":
           description: Cookies deleted (or none existed)
+  /api/v1/account/username:
+    put:
+      tags:
+      - Account
+      summary: Set the account's public name
+      description: "The name shown wherever the account publishes something. Sharing\
+        \ a projection requires one, which is the only thing that forces the choice."
+      operationId: setUsername
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetUsernameRequest"
+        required: true
+      responses:
+        "200":
+          description: Username set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+        "400":
+          description: Validation failed (length or characters)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+        "409":
+          description: Another account already holds that name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
   /api/v1/yahoo/connect:
     post:
       tags:
@@ -1084,6 +1125,19 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SyncRunResponse"
+  /api/v1/account:
+    get:
+      tags:
+      - Account
+      summary: Fetch the signed-in account's profile
+      operationId: getAccount
+      responses:
+        "200":
+          description: Profile returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
 components:
   schemas:
     DraftPick:
@@ -1390,12 +1444,6 @@ components:
     ShareProjectionRequest:
       type: object
       properties:
-        authorAlias:
-          type: string
-          description: Name to be credited as on the public page. Omit to be credited
-            as nobody — the account's email is never shown.
-          maxLength: 40
-          minLength: 0
         players:
           type: array
           description: "The ranked rows to publish, in display order."
@@ -1456,9 +1504,6 @@ components:
         shareUrl:
           type: string
           description: "The public link to share, e.g. https://slapstat.com/s/<token>"
-        authorAlias:
-          type: string
-          description: "The name the public page credits, if the owner set one."
         createdAt:
           type: string
           format: date-time
@@ -1486,6 +1531,29 @@ components:
       required:
       - espnS2
       - swid
+    SetUsernameRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: "Letters, digits and underscores, 3–20 characters. Shown publicly\
+            \ wherever the account publishes something."
+          maxLength: 20
+          minLength: 3
+          pattern: "^[A-Za-z0-9_]+$"
+      required:
+      - username
+    AccountResponse:
+      type: object
+      properties:
+        email:
+          type: string
+        username:
+          type: string
+          description: "The account's public name; absent until the user picks one,\
+            \ which sharing a projection requires"
+      required:
+      - email
     AuthorizeUrlResponse:
       type: object
       properties:
@@ -1830,7 +1898,7 @@ components:
           type: string
         name:
           type: string
-        authorAlias:
+        authorUsername:
           type: string
         season:
           type: string
@@ -1848,6 +1916,7 @@ components:
           type: string
           format: date-time
       required:
+      - authorUsername
       - createdAt
       - data
       - name

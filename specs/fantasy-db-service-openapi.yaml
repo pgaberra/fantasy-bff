@@ -21,6 +21,52 @@ tags:
 - name: Users
   description: User management
 paths:
+  /api/v1/users/{userId}/username:
+    put:
+      tags:
+      - Users
+      summary: Set the account's public name
+      description: Nullable on the account until it is set; sharing a projection requires
+        it.
+      operationId: setUsername
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetUsernameRequest"
+        required: true
+      responses:
+        "200":
+          description: Username set
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: Validation failed (length or characters)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: No such user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "409":
+          description: Another account already holds that name
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
   /api/v1/users/{userId}/subscription:
     get:
       tags:
@@ -151,7 +197,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShareResponse"
         "400":
-          description: "Validation failed (too many rows, oversized name/alias)"
+          description: "Validation failed (too many rows, oversized name)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+        "409":
+          description: The owner has not set a username yet
           content:
             '*/*':
               schema:
@@ -572,6 +624,32 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/EmailVerificationTokenResponse"
+  /api/v1/users/{userId}:
+    get:
+      tags:
+      - Users
+      summary: Fetch a user by id
+      operationId: getById
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: User found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: No such user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
   /api/v1/users/exists:
     get:
       tags:
@@ -596,8 +674,7 @@ paths:
       tags:
       - Shared projections
       summary: Fetch a shared snapshot by its token
-      description: Counts the view. Carries no owner identity beyond the alias they
-        chose.
+      description: Carries no owner identity beyond their public username.
       operationId: get_3
       parameters:
       - name: token
@@ -620,6 +697,50 @@ paths:
                 $ref: "#/components/schemas/SharedProjectionResponse"
 components:
   schemas:
+    SetUsernameRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: "Letters, digits and underscores, 3–20 characters. Shown publicly\
+            \ wherever the account publishes something."
+          maxLength: 20
+          minLength: 3
+          pattern: "^[A-Za-z0-9_]+$"
+      required:
+      - username
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+          description: The account's public name; null until the user picks one
+        passwordHash:
+          type: string
+          description: Null for users who only authenticate via a social provider
+        googleSub:
+          type: string
+          description: Google subject id; null otherwise
+        facebookSub:
+          type: string
+          description: Facebook subject id; null otherwise
+        tokenVersion:
+          type: integer
+          format: int32
+          description: Session-invalidation counter; the BFF stamps it into refresh
+            tokens and rejects a refresh whose value is stale
+        emailVerified:
+          type: boolean
+          description: Whether the account's email address has been verified
+      required:
+      - email
+      - emailVerified
+      - id
+      - tokenVersion
     UpsertSubscriptionRequest:
       type: object
       properties:
@@ -710,12 +831,6 @@ components:
     CreateShareRequest:
       type: object
       properties:
-        authorAlias:
-          type: string
-          description: Name the owner wants to be credited as on the public page.
-            Absent means the page credits nobody — the account's email is never shown.
-          maxLength: 40
-          minLength: 0
         players:
           type: array
           description: "The ranked rows to publish, in display order. The caller decides\
@@ -799,9 +914,6 @@ components:
           type: string
         token:
           type: string
-        authorAlias:
-          type: string
-          description: "The name the public page credits, if the owner set one."
         createdAt:
           type: string
           format: date-time
@@ -1023,7 +1135,9 @@ components:
         players:
           type: array
           description: "Omit to keep the stored player rows unchanged. Send them only\
-            \ when they actually change, e.g. after editing a player's projected stats."
+            \ when they actually change, e.g. after editing a player's projected stats.\
+            \ An empty list means the same as omitting them — a projection covers\
+            \ every player, so there is no way to ask for none."
           items:
             $ref: "#/components/schemas/PlayerProjection"
         draft:
@@ -1129,35 +1243,6 @@ components:
       required:
       - email
       - passwordHash
-    UserResponse:
-      type: object
-      properties:
-        id:
-          type: string
-        email:
-          type: string
-        passwordHash:
-          type: string
-          description: Null for users who only authenticate via a social provider
-        googleSub:
-          type: string
-          description: Google subject id; null otherwise
-        facebookSub:
-          type: string
-          description: Facebook subject id; null otherwise
-        tokenVersion:
-          type: integer
-          format: int32
-          description: Session-invalidation counter; the BFF stamps it into refresh
-            tokens and rejects a refresh whose value is stale
-        emailVerified:
-          type: boolean
-          description: Whether the account's email address has been verified
-      required:
-      - email
-      - emailVerified
-      - id
-      - tokenVersion
     CreateProjectionRequest:
       type: object
       properties:
@@ -1336,9 +1421,10 @@ components:
           type: string
         name:
           type: string
-        authorAlias:
+        authorUsername:
           type: string
-          description: "The name the owner chose to be credited as, if any."
+          description: "The owner's public name. Read live rather than snapshotted:\
+            \ a rename should follow onto links already shared."
         season:
           type: string
           enum:
@@ -1355,6 +1441,7 @@ components:
           type: string
           format: date-time
       required:
+      - authorUsername
       - createdAt
       - data
       - name

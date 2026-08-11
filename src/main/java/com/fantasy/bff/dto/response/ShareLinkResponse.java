@@ -15,7 +15,6 @@ public record ShareLinkResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "The public link to share, e.g. https://slapstat.com/s/<token>")
         String shareUrl,
-        @Schema(description = "The name the public page credits, if the owner set one.") String authorAlias,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant createdAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant updatedAt
 ) {
@@ -23,7 +22,6 @@ public record ShareLinkResponse(
         return new ShareLinkResponse(
                 share.getToken(),
                 webBaseUrl + "/s/" + share.getToken(),
-                share.getAuthorAlias(),
                 toInstant(share.getCreatedAt()),
                 toInstant(share.getUpdatedAt()));
     }
