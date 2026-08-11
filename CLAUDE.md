@@ -51,7 +51,8 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   `preset_draft` must be created with `source=default` and is named server-side, so a
   draft cannot claim to be drafted against something it wasn't)
   - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
-    public link. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
+    public link, which is a one-way action: there is no endpoint to refresh or withdraw a
+    published snapshot. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
     the visitor's side is `GET /api/v1/shared/{token}`, permitted for everyone — a share link has
     to open for someone who has never signed in. `SharedProjectionController.preview` additionally
     serves a small HTML document with per-share Open Graph tags: chat and social crawlers run no
