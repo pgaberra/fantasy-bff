@@ -224,6 +224,10 @@
             "title": "Nhl Id",
             "type": "integer"
           },
+          "ot_losses": {
+            "title": "Ot Losses",
+            "type": "integer"
+          },
           "save_pct": {
             "anyOf": [
               {
@@ -269,6 +273,7 @@
           "last_team_game",
           "wins",
           "losses",
+          "ot_losses",
           "shutouts",
           "shots_against",
           "goals_against",
@@ -669,6 +674,10 @@
             "title": "Gw Goals",
             "type": "integer"
           },
+          "hat_tricks": {
+            "title": "Hat Tricks",
+            "type": "integer"
+          },
           "hits": {
             "title": "Hits",
             "type": "integer"
@@ -720,6 +729,10 @@
             "title": "Sh Points",
             "type": "integer"
           },
+          "shifts": {
+            "title": "Shifts",
+            "type": "integer"
+          },
           "shots": {
             "title": "Shots",
             "type": "integer"
@@ -746,7 +759,9 @@
           "sh_points",
           "gw_goals",
           "shots",
+          "shifts",
           "toi_seconds",
+          "hat_tricks",
           "hits",
           "blocks",
           "faceoffs_won",
