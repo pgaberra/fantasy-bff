@@ -34,7 +34,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "security.projection-model-enabled=true")
+@TestPropertySource(properties = {
+        "security.projection-model-enabled=true",
+        // The id mapping is cached in a singleton, so without this the first test's stubs would
+        // answer for every later one. Zero means "always stale", i.e. rebuilt per request.
+        "services.projection.player-mapping-ttl-ms=0"
+})
 class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
