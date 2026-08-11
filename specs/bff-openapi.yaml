@@ -12,10 +12,10 @@ tags:
   description: Register and login endpoints
 - name: Shared projections
   description: "Public, read-only projections (no sign-in required)"
-- name: Projection shares
-  description: The current user's public links to their projections
 - name: Admin
   description: "Admin-only: Yahoo service account + player sync"
+- name: Projection shares
+  description: The current user's public links to their projections
 - name: Account
   description: The signed-in account's own profile
 - name: Yahoo
@@ -149,9 +149,9 @@ paths:
     put:
       tags:
       - Projection shares
-      summary: Publish or refresh the projection's public snapshot
-      description: "Idempotent: re-sharing keeps the same link and updates what it\
-        \ shows."
+      summary: Publish the projection's public snapshot
+      description: "Idempotent: an already-shared projection returns the link it has.\
+        \ A published snapshot cannot be refreshed or withdrawn."
       operationId: shareProjection
       parameters:
       - name: id
@@ -168,7 +168,7 @@ paths:
         required: true
       responses:
         "200":
-          description: Share created or refreshed
+          description: "Share created, or the existing one returned"
           content:
             application/json:
               schema:
@@ -191,25 +191,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ShareLinkResponse"
-    delete:
-      tags:
-      - Projection shares
-      summary: Take the projection's public link down
-      description: "The link stops working immediately, and sharing again produces\
-        \ a new one."
-      operationId: unshareProjection
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "204":
-          description: Share deleted
-        "404":
-          description: "No such projection for this user, or it is not shared"
   /api/v1/espn/credentials:
     get:
       tags:

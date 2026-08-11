@@ -80,7 +80,6 @@ public interface DatabaseServiceClient {
 
     ShareResponse getProjectionShare(UUID userId, UUID projectionId);
 
-    void unshareProjection(UUID userId, UUID projectionId);
 
     SharedProjectionResponse getSharedProjection(String token);
 

@@ -16,10 +16,10 @@ tags:
   description: "A user's billing subscription, at most one per user"
 - name: User projections
   description: "Saved player projections, scoped to a user"
-- name: Projection shares
-  description: The owner's control over a projection's public link
 - name: Users
   description: User management
+- name: Projection shares
+  description: The owner's control over a projection's public link
 paths:
   /api/v1/users/{userId}/username:
     put:
@@ -191,7 +191,7 @@ paths:
         required: true
       responses:
         "200":
-          description: Share created or refreshed
+          description: "Share created, or the existing one returned"
           content:
             '*/*':
               schema:
@@ -214,31 +214,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ShareResponse"
-    delete:
-      tags:
-      - Projection shares
-      summary: Take the projection's public link down
-      description: "Deletes the snapshot outright. Sharing again mints a new token,\
-        \ so the old link stays dead."
-      operationId: unshare
-      parameters:
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: projectionId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "204":
-          description: Share deleted
-        "404":
-          description: "No such projection for this user, or it is not shared"
   /api/v1/users/{userId}/projections/{id}:
     get:
       tags:

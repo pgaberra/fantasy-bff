@@ -35,7 +35,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -155,14 +154,6 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         verify(databaseServiceClient, never()).shareProjection(any(), any(), any());
-    }
-
-    @Test
-    void unshare_withValidToken_deletesTheShare() throws Exception {
-        mockMvc.perform(delete(SHARE_PATH).header("Authorization", "Bearer " + token()))
-                .andExpect(status().isNoContent());
-
-        verify(databaseServiceClient).unshareProjection(USER_ID, PROJECTION_ID);
     }
 
     @Test

@@ -289,13 +289,6 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(ShareResponse.class);
     }
 
-    @Override
-    public void unshareProjection(UUID userId, UUID projectionId) {
-        restClient.delete()
-                .uri("/api/v1/users/{userId}/projections/{projectionId}/share", userId, projectionId)
-                .retrieve()
-                .toBodilessEntity();
-    }
 
     @Override
     public SharedProjectionResponse getSharedProjection(String token) {
