@@ -1448,6 +1448,10 @@ components:
           type: string
           maxLength: 10
           minLength: 0
+        headshot:
+          type: string
+          maxLength: 300
+          minLength: 0
         positions:
           type: array
           items:

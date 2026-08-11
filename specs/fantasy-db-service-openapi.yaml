@@ -847,6 +847,12 @@ components:
           description: "NHL team abbreviation, absent for a player without one."
           maxLength: 10
           minLength: 0
+        headshot:
+          type: string
+          description: "Player headshot URL, copied at share time so the public page\
+            \ needs no player read model. Absent for a player without one."
+          maxLength: 300
+          minLength: 0
         positions:
           type: array
           description: "Eligible positions, for skaters. Absent for goalies."
