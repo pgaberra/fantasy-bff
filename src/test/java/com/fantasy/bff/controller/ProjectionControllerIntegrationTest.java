@@ -157,6 +157,45 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                 .containsEntry("goals", 64.0);
     }
 
+    /**
+     * A draft started from a preset has no projection behind it, so it is stored as one of its
+     * own kind — kept out of the projections the user made.
+     */
+    @Test
+    void create_withPresetDraftKind_forwardsTheKindDownstream() throws Exception {
+        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse().id(PROJECTION_ID.toString()).name("Last Season's Stats"));
+
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SOURCED_BODY.replace("\"source\": \"default\",",
+                                "\"source\": \"default\", \"kind\": \"preset_draft\",")))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateProjectionRequest> sent = ArgumentCaptor.forClass(CreateProjectionRequest.class);
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getKind()).isEqualTo(CreateProjectionRequest.KindEnum.PRESET_DRAFT);
+    }
+
+    @Test
+    void create_withoutKind_defaultsToTheUsersOwnProjection() throws Exception {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse().id(PROJECTION_ID.toString()).name("My league"));
+
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateProjectionRequest> sent = ArgumentCaptor.forClass(CreateProjectionRequest.class);
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getKind()).isEqualTo(CreateProjectionRequest.KindEnum.PROJECTION);
+    }
+
     @Test
     void create_withNeitherSourceNorPlayers_isRejected() throws Exception {
         String body = SOURCED_BODY.replace("\"source\": \"default\",", "");

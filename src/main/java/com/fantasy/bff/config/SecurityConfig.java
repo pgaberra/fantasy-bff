@@ -47,6 +47,10 @@ public class SecurityConfig {
                             .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
+                            // A share link has to open for someone who has never signed in — that is
+                            // the whole point of it. GET only: publishing and taking a link down stay
+                            // with the owner under /api/v1/projections/{id}/share.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/shared/**").permitAll()
                             .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated();
 
                     if (securityProperties.projectionModelEnabled()) {

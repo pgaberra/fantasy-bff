@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.db.model.CreateEmailVerificationTokenRequest;
 import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.EmailVerificationTokenResponse;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
@@ -12,6 +13,8 @@ import com.fantasy.bff.generated.db.model.PasswordResetRequest;
 import com.fantasy.bff.generated.db.model.PasswordResetTokenResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
+import com.fantasy.bff.generated.db.model.ShareResponse;
+import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
@@ -238,6 +241,40 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    @Override
+    public ShareResponse shareProjection(UUID userId, UUID projectionId, CreateShareRequest request) {
+        return restClient.put()
+                .uri("/api/v1/users/{userId}/projections/{projectionId}/share", userId, projectionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(ShareResponse.class);
+    }
+
+    @Override
+    public ShareResponse getProjectionShare(UUID userId, UUID projectionId) {
+        return restClient.get()
+                .uri("/api/v1/users/{userId}/projections/{projectionId}/share", userId, projectionId)
+                .retrieve()
+                .body(ShareResponse.class);
+    }
+
+    @Override
+    public void unshareProjection(UUID userId, UUID projectionId) {
+        restClient.delete()
+                .uri("/api/v1/users/{userId}/projections/{projectionId}/share", userId, projectionId)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
+    public SharedProjectionResponse getSharedProjection(String token) {
+        return restClient.get()
+                .uri("/api/v1/shares/{token}", token)
+                .retrieve()
+                .body(SharedProjectionResponse.class);
     }
 
     @Override

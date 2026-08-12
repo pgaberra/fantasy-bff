@@ -89,8 +89,12 @@ security:
   # /api/v1/projection-model/** serves the projection engine's raw output — the model itself,
   # not a user's own saved projection. Off unless this says otherwise, so an environment that
   # has not yet decided who may read the model denies the endpoints outright rather than
-  # leaning on the projection service happening to be unreachable. The web does not call them
-  # today; the seeding UI will. See fantasy-bff#105.
+  # leaning on the projection service happening to be unreachable. See fantasy-bff#105.
+  #
+  # NOTE: the web's "Who's hot" page reads /splits/** from under this prefix, so leaving this
+  # off makes that page show its error state. Turn it on wherever Who's hot should work — and
+  # note the splits also need the season's per-game logs ingested in the projection service
+  # (`projection game-logs --season <year>`).
   projection-model-enabled: ${PROJECTION_MODEL_ENABLED:false}
   google:
     # Public OAuth Client ID for "Sign in with Google" (not a secret). When unset,

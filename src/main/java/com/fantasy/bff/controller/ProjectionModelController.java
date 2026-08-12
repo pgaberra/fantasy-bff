@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
 import com.fantasy.bff.service.PlayerSplitService;
@@ -70,32 +71,52 @@ public class ProjectionModelController {
     }
 
     @Operation(
-            summary = "Skaters' measured totals over the closing games of a season",
+            summary = "Skaters' measured totals over a range of a season's games",
             description =
                     "What players actually produced over a stretch of their team's schedule — "
                             + "measured, not projected. Ranges are in team game numbers, so the same "
                             + "range covers the same stretch for every player; one who missed some "
-                            + "of them shows fewer games.")
+                            + "of them shows fewer games. Give either fromGame/toGame or lastGames; "
+                            + "with neither, the whole season is covered.")
     @ApiResponse(responseCode = "200", description = "Totals over the range, highest scoring first")
     @GetMapping("/splits/skaters")
     public List<PlayerSplitResponse> skaterSplits(
             @RequestParam(required = false) Integer season,
-            @Parameter(description = "How many of the team's final games to cover")
-                    @RequestParam(defaultValue = "20")
+            @Parameter(description = "First team game in the range (1-based)")
+                    @RequestParam(required = false)
                     @Min(1)
                     @Max(84)
-                    int lastGames,
-            @RequestParam(defaultValue = "100") @Min(1) @Max(500) int limit) {
-        return splitService.skaterSplits(season == null ? defaultSeason - 1 : season, lastGames, limit);
+                    Integer fromGame,
+            @Parameter(description = "Last team game in the range, inclusive")
+                    @RequestParam(required = false)
+                    @Min(1)
+                    @Max(84)
+                    Integer toGame,
+            @Parameter(description = "Shorthand for the team's final N games")
+                    @RequestParam(required = false)
+                    @Min(1)
+                    @Max(84)
+                    Integer lastGames,
+            @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
+        return splitService.skaterSplits(
+                splitSeason(season), new GameRange(fromGame, toGame, lastGames), limit);
     }
 
-    @Operation(summary = "Goalies' measured totals over the closing games of a season")
+    @Operation(summary = "Goalies' measured totals over a range of a season's games")
     @ApiResponse(responseCode = "200", description = "Totals over the range")
     @GetMapping("/splits/goalies")
     public List<PlayerSplitResponse> goalieSplits(
             @RequestParam(required = false) Integer season,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(84) int lastGames,
-            @RequestParam(defaultValue = "100") @Min(1) @Max(500) int limit) {
-        return splitService.goalieSplits(season == null ? defaultSeason - 1 : season, lastGames, limit);
+            @RequestParam(required = false) @Min(1) @Max(84) Integer fromGame,
+            @RequestParam(required = false) @Min(1) @Max(84) Integer toGame,
+            @RequestParam(required = false) @Min(1) @Max(84) Integer lastGames,
+            @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
+        return splitService.goalieSplits(
+                splitSeason(season), new GameRange(fromGame, toGame, lastGames), limit);
+    }
+
+    /** Splits default one season back from the projected one — that is the season with games in it. */
+    private int splitSeason(Integer season) {
+        return season == null ? defaultSeason - 1 : season;
     }
 }

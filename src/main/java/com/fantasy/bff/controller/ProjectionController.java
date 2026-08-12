@@ -65,7 +65,7 @@ public class ProjectionController {
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Projection created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
-        @ApiResponse(responseCode = "409", description = "A projection with that name already exists")
+        @ApiResponse(responseCode = "409", description = "A projection of that kind already exists")
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
