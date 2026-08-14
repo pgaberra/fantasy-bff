@@ -113,6 +113,7 @@ public class EspnLeagueSettingsMapper {
                 activeScoringColumns,
                 activeUtilityColumns,
                 statWeights,
+                settings.getName(),
                 roster.rosterSlots(),
                 clampLeagueSize(settings.getSize()).orElse(null),
                 unsupportedStats,

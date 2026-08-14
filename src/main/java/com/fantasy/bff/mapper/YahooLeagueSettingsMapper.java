@@ -104,6 +104,8 @@ public class YahooLeagueSettingsMapper {
                 activeScoringColumns,
                 activeUtilityColumns,
                 statWeights,
+                // The client picked this league by name from the league list, so it already has one.
+                null,
                 roster.rosterSlots(),
                 clampLeagueSize(numTeams).orElse(null),
                 unsupportedStats,

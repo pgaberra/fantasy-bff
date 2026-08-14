@@ -967,6 +967,24 @@ components:
       - id
       - mine
       - name
+    EspnSync:
+      type: object
+      properties:
+        leagueName:
+          type: string
+          maxLength: 200
+          minLength: 0
+        leagueId:
+          type: string
+          maxLength: 50
+          minLength: 0
+        syncedAt:
+          type: string
+          format: date-time
+      required:
+      - leagueId
+      - leagueName
+      - syncedAt
     PlayerProjection:
       type: object
       properties:
@@ -1042,6 +1060,11 @@ components:
           description: Where these settings were last synced from — the Yahoo league
             name/key and the timestamp. Absent if the projection was never synced
             from a Yahoo league.
+        espnSync:
+          $ref: "#/components/schemas/EspnSync"
+          description: Where these settings were last synced from — the ESPN league
+            name/id and the timestamp. Absent if the projection was never synced from
+            an ESPN league.
       required:
       - activeScoringColumns
       - activeUtilityColumns
