@@ -1,6 +1,7 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
+import com.fantasy.bff.generated.espn.model.CredentialValuesResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
@@ -34,6 +35,15 @@ public class HttpEspnServiceClient implements EspnServiceClient {
                 .uri(b -> b.path("/api/v1/espn/credentials").queryParam("appUserId", appUserId).build())
                 .retrieve()
                 .body(CredentialStatusResponse.class);
+    }
+
+    @Override
+    public CredentialValuesResponse credentialValues(String appUserId) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/espn/credentials/values")
+                        .queryParam("appUserId", appUserId).build())
+                .retrieve()
+                .body(CredentialValuesResponse.class);
     }
 
     @Override
