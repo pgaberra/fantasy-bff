@@ -190,6 +190,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueSettingsResponse"
+  /api/v1/espn/credentials/values:
+    get:
+      tags:
+      - ESPN Credentials
+      summary: The user's stored ESPN cookies themselves
+      description: For showing a user their own saved connection. 404 when none are
+        stored.
+      operationId: values
+      parameters:
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Cookies returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialValuesResponse"
+        "404":
+          description: User has no stored cookies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialValuesResponse"
 components:
   schemas:
     SaveCredentialsRequest:
@@ -353,3 +380,15 @@ components:
           description: Whether the user has stored ESPN cookies (for private leagues).
       required:
       - hasCredentials
+    CredentialValuesResponse:
+      type: object
+      properties:
+        espnS2:
+          type: string
+          description: The stored espn_s2 cookie.
+        swid:
+          type: string
+          description: The stored SWID cookie.
+      required:
+      - espnS2
+      - swid
