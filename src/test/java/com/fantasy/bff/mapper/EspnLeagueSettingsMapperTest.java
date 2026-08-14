@@ -50,6 +50,9 @@ class EspnLeagueSettingsMapperTest {
         assertThat(mapped.statWeights()).containsEntry("goals", 6.0).containsEntry("assists", 4.0)
                 .containsEntry("sv", 0.2).containsEntry("hits", 0.0);
         assertThat(mapped.leagueSize()).isEqualTo(12);
+        // Carried through so a projection synced from ESPN can name the league it came from —
+        // the client only ever had the id it typed.
+        assertThat(mapped.leagueName()).isEqualTo("Test League");
         assertThat(mapped.rosterSlots().getC()).isEqualTo(2);
         assertThat(mapped.rosterSlots().getG()).isEqualTo(2);
         assertThat(mapped.rosterSlots().getBn()).isEqualTo(4);

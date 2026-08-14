@@ -12,6 +12,10 @@ public record LeagueProjectionSettingsResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> activeUtilityColumns,
         @Schema(description = "Per-stat point weights for points leagues; null for category leagues.")
         Map<String, Double> statWeights,
+        @Schema(description = "The league's own name, so a synced projection can say where its "
+                + "settings came from. Set for ESPN, whose settings response carries it; null for "
+                + "Yahoo, where the client picked the league by name from the league list.")
+        String leagueName,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) RosterSlots rosterSlots,
         @Schema(description = "League size from the Yahoo league's team count; null when unknown.")
         Integer leagueSize,

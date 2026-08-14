@@ -1179,6 +1179,24 @@ components:
       - id
       - mine
       - name
+    EspnSync:
+      type: object
+      properties:
+        leagueName:
+          type: string
+          maxLength: 200
+          minLength: 0
+        leagueId:
+          type: string
+          maxLength: 50
+          minLength: 0
+        syncedAt:
+          type: string
+          format: date-time
+      required:
+      - leagueId
+      - leagueName
+      - syncedAt
     PlayerProjection:
       type: object
       properties:
@@ -1258,6 +1276,8 @@ components:
           minimum: 0
         yahooSync:
           $ref: "#/components/schemas/YahooSync"
+        espnSync:
+          $ref: "#/components/schemas/EspnSync"
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -1811,6 +1831,12 @@ components:
             format: double
           description: Per-stat point weights for points leagues; null for category
             leagues.
+        leagueName:
+          type: string
+          description: "The league's own name, so a synced projection can say where\
+            \ its settings came from. Set for ESPN, whose settings response carries\
+            \ it; null for Yahoo, where the client picked the league by name from\
+            \ the league list."
         rosterSlots:
           $ref: "#/components/schemas/RosterSlots"
         leagueSize:
