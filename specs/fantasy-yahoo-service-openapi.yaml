@@ -260,6 +260,37 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SyncRunResponse"
+  /api/v1/players/{playerId}/headshot:
+    get:
+      tags:
+      - Players
+      summary: A player's headshot thumbnail
+      description: "The player's headshot scaled to a 64px square PNG. Refreshed by\
+        \ the sync, so the response is safe to cache for a long time and is revalidated\
+        \ with an ETag."
+      operationId: headshot
+      parameters:
+      - name: playerId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Thumbnail returned
+          content:
+            image/png:
+              schema:
+                type: string
+                format: byte
+        "404":
+          description: No headshot stored for this player
+          content:
+            image/png:
+              schema:
+                type: string
+                format: byte
   /api/v1/players/skaters:
     get:
       tags:
@@ -653,6 +684,9 @@ components:
           type: string
         headshot:
           type: string
+          description: "Yahoo's source image URL, present only when a thumbnail is\
+            \ served at /api/v1/players/{id}/headshot — clients should render that\
+            \ endpoint, not this URL"
         gamesPlayed:
           type: integer
           format: int32
@@ -739,6 +773,9 @@ components:
           type: string
         headshot:
           type: string
+          description: "Yahoo's source image URL, present only when a thumbnail is\
+            \ served at /api/v1/players/{id}/headshot — clients should render that\
+            \ endpoint, not this URL"
         gamesPlayed:
           type: integer
           format: int32

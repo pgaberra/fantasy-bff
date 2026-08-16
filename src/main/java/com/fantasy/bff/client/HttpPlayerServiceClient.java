@@ -8,12 +8,15 @@ import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -70,6 +73,23 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
     }
 
     @Override
+    public Optional<byte[]> getHeadshot(int playerId) {
+        return restClient.get()
+                .uri("/api/v1/players/{playerId}/headshot", playerId)
+                .accept(MediaType.IMAGE_PNG)
+                .exchange((request, response) -> {
+                    if (response.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
+                        return Optional.<byte[]>empty();
+                    }
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        throw new IllegalStateException(
+                                "Player service returned " + response.getStatusCode() + " for a headshot");
+                    }
+                    return Optional.of(response.getBody().readAllBytes());
+                });
+    }
+
+    @Override
     public SyncAcceptedResponse triggerSync() {
         return restClient.post()
                 .uri("/api/v1/sync")
@@ -100,7 +120,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 (int) (long) s.getId(),
                 s.getFirstName() + " " + s.getLastName(),
                 s.getTeamAbbrev(),
-                s.getHeadshot(),
+                headshotPath(s.getId(), s.getHeadshot()),
                 s.getSweaterNumber(),
                 positions,
                 new SkaterResponse.Stats(
@@ -147,7 +167,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 (int) (long) g.getId(),
                 g.getFirstName() + " " + g.getLastName(),
                 g.getTeamAbbrev(),
-                g.getHeadshot(),
+                headshotPath(g.getId(), g.getHeadshot()),
                 g.getSweaterNumber(),
                 new GoalieResponse.Stats(
                         new GoalieResponse.UtilityStats(zero(g.getGamesPlayed())),
@@ -168,6 +188,19 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                                 round3(zero(g.getSavePctg())),
                                 0.0,
                                 0)));
+    }
+
+    /**
+     * The frontend gets the path this service serves the headshot from, never Yahoo's own image
+     * URL: the source behind that URL is a multi-megapixel original, and the table draws it at
+     * 28px. yahoo-service reports a source only for players it holds a thumbnail for, which is
+     * what makes the path safe to hand out.
+     */
+    private static String headshotPath(Long playerId, String yahooSourceUrl) {
+        if (yahooSourceUrl == null || yahooSourceUrl.isBlank()) {
+            return null;
+        }
+        return "/players/" + playerId + "/headshot";
     }
 
     /** Yahoo eligible positions → frontend enum; falls back to the NHL position if none map. */
