@@ -4,40 +4,59 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
-import com.fantasy.bff.dto.response.GoalieResponse;
-import com.fantasy.bff.dto.response.SkaterResponse;
-import com.fantasy.bff.generated.db.model.PlayerProjection;
-import com.fantasy.bff.generated.db.model.PlayerStats;
+import com.fantasy.bff.dto.response.ProjectionResponse;
+import com.fantasy.bff.dto.response.ProjectionResponse.PoolReconciliation;
 import com.fantasy.bff.generated.db.model.ProjectionData;
-import com.fantasy.bff.generated.db.model.ProjectionResponse;
+import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
+import com.fantasy.bff.generated.db.model.UpdateProjectionData;
+import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.service.ProjectionPoolReconciler.Reconciliation;
 import org.springframework.stereotype.Service;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class ProjectionService {
 
-    private static final TypeReference<Map<String, Double>> STAT_MAP = new TypeReference<>() {};
-
     /** The only preset a draft can be started from today. */
     private static final String LAST_SEASON_PRESET_NAME = "Last Season's Stats";
 
     private final DatabaseServiceClient databaseServiceClient;
-    private final PlayerService playerService;
-    private final ObjectMapper objectMapper;
+    private final PlayerPoolRows playerPoolRows;
+    private final ProjectionPoolReconciler reconciler;
 
     public ProjectionService(DatabaseServiceClient databaseServiceClient,
-                             PlayerService playerService,
-                             ObjectMapper objectMapper) {
+                             PlayerPoolRows playerPoolRows,
+                             ProjectionPoolReconciler reconciler) {
         this.databaseServiceClient = databaseServiceClient;
-        this.playerService = playerService;
-        this.objectMapper = objectMapper;
+        this.playerPoolRows = playerPoolRows;
+        this.reconciler = reconciler;
+    }
+
+    /**
+     * Reads a projection and squares its player rows with the current pool first, so a projection
+     * opened after a player sync covers the players that exist now rather than the ones that did
+     * when it was written. A reconciliation is written back rather than recomputed per read: it
+     * settles what the rows are, and the next read then has nothing to do.
+     */
+    public ProjectionResponse get(UUID userId, UUID projectionId) {
+        com.fantasy.bff.generated.db.model.ProjectionResponse stored =
+                databaseServiceClient.getProjection(userId, projectionId);
+        Optional<Reconciliation> reconciliation = reconciler.reconcile(stored.getData());
+        if (reconciliation.isEmpty()) {
+            return ProjectionResponse.of(stored);
+        }
+        Reconciliation change = reconciliation.get();
+        com.fantasy.bff.generated.db.model.ProjectionResponse saved =
+                databaseServiceClient.updateProjection(userId, projectionId, new UpdateProjectionRequest()
+                        .name(stored.getName())
+                        .data(new UpdateProjectionData()
+                                .settings(stored.getData().getSettings())
+                                .players(stored.getData().getPlayers())
+                                .draft(stored.getData().getDraft())));
+        return ProjectionResponse.of(saved, new PoolReconciliation(change.added(), change.removed()));
     }
 
     public ProjectionResponse create(UUID userId, CreateProjectionRequest request) {
@@ -54,14 +73,20 @@ public class ProjectionService {
                                 + "server fill them in, or omit source to send your own");
             }
             data.setPlayers(playersFrom(request.source()));
+            data.getSettings().setPlayerBasis(basisOf(request.source()));
         } else if (data.getPlayers().isEmpty()) {
             throw new IllegalArgumentException("data.players must not be empty unless source is set");
         }
-        return databaseServiceClient.createProjection(userId,
+        return ProjectionResponse.of(databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
                         .kind(kindOf(request.kind()))
-                        .data(data));
+                        .data(data)));
+    }
+
+    public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
+        return ProjectionResponse.of(
+                databaseServiceClient.updateProjection(userId, projectionId, request));
     }
 
     /**
@@ -83,49 +108,20 @@ public class ProjectionService {
     }
 
     /**
+     * What the rows started as is stored with them, because it is also the answer to what a
+     * player who joins the pool later should be seeded with. A caller that sends its own rows —
+     * a copy, or a projection carried over from the demo — brings the basis with them.
+     */
+    private static PlayerBasisEnum basisOf(ProjectionSource source) {
+        return source == ProjectionSource.BLANK ? PlayerBasisEnum.BLANK : PlayerBasisEnum.LAST_SEASON;
+    }
+
+    /**
      * The player rows a new projection starts from. {@code DEFAULT} keeps each player's current
      * stats, {@code BLANK} zeroes them — the same two starting points the client used to build
      * locally and upload.
      */
-    private List<PlayerProjection> playersFrom(ProjectionSource source) {
-        boolean blank = source == ProjectionSource.BLANK;
-        List<SkaterResponse> skaters = playerService.getSkaters();
-        List<GoalieResponse> goalies = playerService.getGoalies();
-
-        List<PlayerProjection> players = new ArrayList<>(skaters.size() + goalies.size());
-        for (SkaterResponse skater : skaters) {
-            players.add(new PlayerProjection()
-                    .playerId(skater.id())
-                    .type(PlayerProjection.TypeEnum.SKATER)
-                    .stats(stats(skater.stats().utility(), skater.stats().scoring(), blank)));
-        }
-        for (GoalieResponse goalie : goalies) {
-            players.add(new PlayerProjection()
-                    .playerId(goalie.id())
-                    .type(PlayerProjection.TypeEnum.GOALIE)
-                    .stats(stats(goalie.stats().utility(), goalie.stats().scoring(), blank)));
-        }
-        return players;
-    }
-
-    /**
-     * Converts the typed stat records to the stored map form through Jackson rather than by
-     * listing the fields, so the keys stay identical to what the same records serialise to on
-     * {@code /api/v1/players/*} — the client's projections are keyed by exactly those names.
-     */
-    private PlayerStats stats(Object utility, Object scoring, boolean blank) {
-        return new PlayerStats()
-                .utility(toStatMap(utility, blank))
-                .scoring(toStatMap(scoring, blank));
-    }
-
-    private Map<String, Double> toStatMap(Object stats, boolean blank) {
-        Map<String, Double> values = objectMapper.convertValue(stats, STAT_MAP);
-        if (!blank) {
-            return values;
-        }
-        Map<String, Double> zeroed = new LinkedHashMap<>(values.size());
-        values.keySet().forEach(key -> zeroed.put(key, 0.0));
-        return zeroed;
+    private List<com.fantasy.bff.generated.db.model.PlayerProjection> playersFrom(ProjectionSource source) {
+        return playerPoolRows.read().all(source == ProjectionSource.BLANK);
     }
 }

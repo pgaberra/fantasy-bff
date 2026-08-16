@@ -12,6 +12,9 @@ import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
+import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
+import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.service.ProjectionPoolReconciler.Reconciliation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -44,12 +48,16 @@ import static org.mockito.Mockito.when;
 class ProjectionServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID PROJECTION_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
     @Mock
     private DatabaseServiceClient databaseServiceClient;
 
     @Mock
     private PlayerService playerService;
+
+    @Mock
+    private ProjectionPoolReconciler reconciler;
 
     @Captor
     private ArgumentCaptor<com.fantasy.bff.generated.db.model.CreateProjectionRequest> sentRequest;
@@ -58,7 +66,10 @@ class ProjectionServiceTest {
 
     @BeforeEach
     void setUp() {
-        projectionService = new ProjectionService(databaseServiceClient, playerService, JsonMapper.builder().build());
+        projectionService = new ProjectionService(
+                databaseServiceClient,
+                new PlayerPoolRows(playerService, JsonMapper.builder().build()),
+                reconciler);
     }
 
     @Test
@@ -106,6 +117,62 @@ class ProjectionServiceTest {
         assertThat(players.getFirst().getStats().getScoring().values()).containsOnly(0.0);
         assertThat(players.getFirst().getStats().getUtility().values()).containsOnly(0.0);
         assertThat(players.getLast().getStats().getScoring().values()).containsOnly(0.0);
+    }
+
+    /**
+     * What the rows started as is the answer to what a player who joins the pool later gets, so
+     * it is stored with them rather than left as a choice only the create call ever saw.
+     */
+    @Test
+    void recordsWhichStartingPointTheRowsCameFrom() {
+        givenOneSkaterAndOneGoalie();
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
+        assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
+    }
+
+    @Test
+    void recordsABlankProjectionAsStartedFromScratch() {
+        givenOneSkaterAndOneGoalie();
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.BLANK));
+        assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.BLANK);
+    }
+
+    /**
+     * Reading is where a projection meets the pool as it is today, so a read that had to square
+     * the two saves the result — otherwise every later read would redo the same work — and says
+     * how much moved, which is the only chance the client gets to tell the user.
+     */
+    @Test
+    void aReadThatSquaredTheRowsWithThePoolSavesThemAndSaysWhatMoved() {
+        ProjectionResponse stored = storedProjection();
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12, 3)));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.poolReconciliation().added()).isEqualTo(12);
+        assertThat(response.poolReconciliation().removed()).isEqualTo(3);
+        ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
+        assertThat(saved.getValue().getData().getPlayers()).isEqualTo(stored.getData().getPlayers());
+    }
+
+    @Test
+    void aReadWithNothingToSquareTouchesNothing() {
+        ProjectionResponse stored = storedProjection();
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.empty());
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.poolReconciliation()).isNull();
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
     }
 
     @Test
@@ -162,8 +229,26 @@ class ProjectionServiceTest {
     }
 
     private List<PlayerProjection> capturedPlayers() {
+        return capturedData().getPlayers();
+    }
+
+    private ProjectionSettings capturedSettings() {
+        return capturedData().getSettings();
+    }
+
+    private ProjectionData capturedData() {
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
-        return sentRequest.getValue().getData().getPlayers();
+        return sentRequest.getValue().getData();
+    }
+
+    private static ProjectionResponse storedProjection() {
+        return new ProjectionResponse()
+                .id(PROJECTION_ID.toString())
+                .name("My Projection")
+                .data(dataWith(new PlayerProjection()
+                        .playerId(7)
+                        .type(PlayerProjection.TypeEnum.SKATER)
+                        .stats(new PlayerStats().utility(Map.of("gp", 12.0)).scoring(Map.of("goals", 3.0)))));
     }
 
     private static CreateProjectionRequest request(ProjectionData data, ProjectionSource source) {

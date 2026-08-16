@@ -49,7 +49,8 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   started from a preset — db-service keeps one of each kind per user, and the web filters
   preset drafts out of "my projections". A preset is defined here, not by the caller: a
   `preset_draft` must be created with `source=default` and is named server-side, so a
-  draft cannot claim to be drafted against something it wasn't)
+  draft cannot claim to be drafted against something it wasn't). Reading one runs it
+  through `ProjectionPoolReconciler` first — see below
   - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
     public link, which is a one-way action: there is no endpoint to refresh or withdraw a
     published snapshot. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
@@ -69,6 +70,20 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     here. Sharing a projection requires a username, so the share endpoints relay db-service's
     409 when an account has not picked one.
 - `service/` — business logic (`AuthService`, `PlayerService`)
+  - `PlayerPoolRows` — the player read model as projection rows, either keeping each player's
+    stats or zeroed. The one place rows are built, so a player added to a projection a season
+    after it was written carries exactly the stat keys of the ones created alongside it.
+  - `ProjectionPoolReconciler` — keeps a saved projection's rows in step with the pool, which
+    moves under it all season (a new roster in the autumn, trades and call-ups after). Rows for
+    departed players are dropped and gained players are added, seeded from the projection's
+    `playerBasis` — last season's stat line, or zeros for one started from scratch. The basis is
+    stamped at create from `source`; a projection saved before it existed is read off its own
+    rows (almost all zeros → started from scratch). Guarded by `playerPoolSyncedAt` against the
+    latest successful sync run, so the full pool read happens at most once per projection per
+    sync rather than on every open; the result is written back and reported to the caller as
+    `poolReconciliation`, which is the client's one chance to tell the user. A pool that cannot
+    be read — or comes back empty — leaves the projection alone rather than dropping every row
+    it cannot account for.
 - `client/` — downstream clients. Each is an **interface** plus an **http**
   implementation that uses OpenAPI-generated models (no mock implementations —
   tests replace clients with `@MockitoBean`).

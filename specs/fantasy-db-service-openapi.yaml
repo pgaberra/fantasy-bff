@@ -1065,6 +1065,20 @@ components:
           description: Where these settings were last synced from — the ESPN league
             name/id and the timestamp. Absent if the projection was never synced from
             an ESPN league.
+        playerBasis:
+          type: string
+          description: "What the player rows started from, and so what a player who\
+            \ joins the pool later is seeded with: last season's stat line, or zeros.\
+            \ Absent on projections saved before this was recorded."
+          enum:
+          - last_season
+          - blank
+        playerPoolSyncedAt:
+          type: string
+          format: date-time
+          description: When the player rows were last reconciled against the player
+            pool — the finish time of the sync run they were reconciled against. Absent
+            until the rows have been reconciled once.
       required:
       - activeScoringColumns
       - activeUtilityColumns

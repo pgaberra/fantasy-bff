@@ -2,7 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
-import com.fantasy.bff.generated.db.model.ProjectionResponse;
+import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.service.ProjectionService;
@@ -54,7 +54,7 @@ public class ProjectionController {
     })
     @GetMapping("/{id}")
     public ProjectionResponse get(@AuthenticationPrincipal String userId, @PathVariable UUID id) {
-        return databaseServiceClient.getProjection(UUID.fromString(userId), id);
+        return projectionService.get(UUID.fromString(userId), id);
     }
 
     @Operation(summary = "Save a new projection for the current user",
@@ -84,7 +84,7 @@ public class ProjectionController {
     @PutMapping("/{id}")
     public ProjectionResponse update(@AuthenticationPrincipal String userId, @PathVariable UUID id,
                                      @Valid @RequestBody UpdateProjectionRequest request) {
-        return databaseServiceClient.updateProjection(UUID.fromString(userId), id, request);
+        return projectionService.update(UUID.fromString(userId), id, request);
     }
 
     @Operation(summary = "Delete one of the current user's saved projections")
