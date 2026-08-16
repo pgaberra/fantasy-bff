@@ -11,8 +11,8 @@ tags:
   description: League-wide Yahoo player list with fantasy eligible positions (uses
     the app-owned service account)
 - name: Players
-  description: Cached player read model (identity + Yahoo eligible positions + season
-    stats)
+  description: "Cached player read model: the pool as it is now, with a chosen season's\
+    \ stats"
 - name: Yahoo OAuth
   description: Per-user Yahoo account connection flow
 - name: Sync
@@ -264,8 +264,19 @@ paths:
     get:
       tags:
       - Players
-      summary: All skaters with eligible positions and season stats
+      summary: All skaters with eligible positions and a season's stats
       operationId: skaters
+      parameters:
+      - name: season
+        in: query
+        description: "Season start year — 2025 is the 2025-26 season. Required: the\
+          \ season being collected and the season a caller wants to show are deliberately\
+          \ different for most of the year, so there is no sensible default. A player\
+          \ with no line for it comes back with no stats rather than being left out."
+        required: true
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: Skaters returned
@@ -279,8 +290,19 @@ paths:
     get:
       tags:
       - Players
-      summary: All goalies with eligible positions and season stats
+      summary: All goalies with eligible positions and a season's stats
       operationId: goalies
+      parameters:
+      - name: season
+        in: query
+        description: "Season start year — 2025 is the 2025-26 season. Required: the\
+          \ season being collected and the season a caller wants to show are deliberately\
+          \ different for most of the year, so there is no sensible default. A player\
+          \ with no line for it comes back with no stats rather than being left out."
+        required: true
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: Goalies returned

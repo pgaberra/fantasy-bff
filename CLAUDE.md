@@ -95,7 +95,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   implementation that uses OpenAPI-generated models (no mock implementations —
   tests replace clients with `@MockitoBean`).
   - `PlayerServiceClient` — `HttpPlayerServiceClient` reads the cached player read model from
-    `fantasy-yahoo-service` and owns the reshaping into the frontend's `SkaterResponse` /
+    `fantasy-yahoo-service`, asking for the season named by `services.yahoo-fantasy.stats-season`.
+    That is what the app **shows** — the reference column a projection is built against — and is
+    a deliberately separate choice from what yahoo-service is **collecting** (`SYNC_YAHOO_SEASON`
+    there): for most of the year we gather the season being played while the editor still reads
+    the one that finished. It owns the reshaping into the frontend's `SkaterResponse` /
     `GoalieResponse` (positions from Yahoo eligibility, `avgToi` → seconds, shooting pct
     fraction → percent, ppa/sha derived from points − goals, special teams summed, null stats
     → zeroed blocks for rookies).

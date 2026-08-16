@@ -12,13 +12,17 @@ import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpPlayerServiceClientTest {
+
+    private static final int STATS_SEASON = 2025;
 
     private WireMockServer server;
     private HttpPlayerServiceClient client;
@@ -31,7 +35,7 @@ class HttpPlayerServiceClientTest {
                 .baseUrl(server.baseUrl())
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
-        client = new HttpPlayerServiceClient(restClient);
+        client = new HttpPlayerServiceClient(restClient, STATS_SEASON);
     }
 
     @AfterEach
@@ -77,6 +81,20 @@ class HttpPlayerServiceClientTest {
         // Missing stats default to zero so the UI always gets a complete block.
         assertThat(makar.stats().scoring().goals()).isZero();
         assertThat(makar.stats().utility().gp()).isZero();
+    }
+
+    /**
+     * The read model holds a line per season now, so the season is not optional — asking for
+     * the wrong one, or none, would quietly serve a different year's numbers.
+     */
+    @Test
+    void asksForTheConfiguredStatsSeason() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/skaters")).willReturn(okJson("[]")));
+
+        client.getSkaters();
+
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/players/skaters"))
+                .withQueryParam("season", equalTo(String.valueOf(STATS_SEASON))));
     }
 
     @Test
