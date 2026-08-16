@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -114,4 +115,47 @@ class HttpPlayerServiceClientTest {
         assertThat(igor.stats().scoring().gaa()).isEqualTo(2.67);
         assertThat(igor.stats().scoring().svPct()).isEqualTo(0.91);
     }
+
+    /**
+     * Yahoo's own image URL points at a multi-megapixel original the browser must never be sent
+     * to. The frontend is handed this service's path instead.
+     */
+    @Test
+    void pointsHeadshotsAtThisServiceRatherThanAtYahoo() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/skaters")).willReturn(okJson("""
+                [{"id":1,"firstName":"Connor","lastName":"McDavid","position":"C",
+                  "eligiblePositions":["C"],"teamAbbrev":"EDM",
+                  "headshot":"https://s.yimg.com/xe/i/us/sp/v/nhl_cutout/players_l/10132025/6743.png"}]
+                """)));
+
+        assertThat(client.getSkaters().getFirst().headshot()).isEqualTo("/players/1/headshot");
+    }
+
+    @Test
+    void leavesHeadshotUnsetForAPlayerWithoutOne() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/goalies")).willReturn(okJson("""
+                [{"id":101,"firstName":"Igor","lastName":"Shesterkin","position":"G",
+                  "eligiblePositions":["G"],"teamAbbrev":"NYR"}]
+                """)));
+
+        assertThat(client.getGoalies().getFirst().headshot()).isNull();
+    }
+
+    @Test
+    void getHeadshot_returnsTheThumbnailBytes() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/1/headshot")).willReturn(
+                aResponse().withStatus(200).withHeader("Content-Type", "image/png").withBody(PNG_BYTES)));
+
+        assertThat(client.getHeadshot(1)).contains(PNG_BYTES);
+    }
+
+    @Test
+    void getHeadshot_isEmptyWhenThePlayerHasNoStoredHeadshot() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/1/headshot"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertThat(client.getHeadshot(1)).isEmpty();
+    }
+
+    private static final byte[] PNG_BYTES = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3, 4};
 }

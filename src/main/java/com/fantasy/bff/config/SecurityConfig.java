@@ -47,6 +47,9 @@ public class SecurityConfig {
                             .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
+                            // An <img> carries no Authorization header, so the headshots have to
+                            // open for anyone the player lists already open for.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/players/*/headshot").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/rookies").permitAll()
                             // A share link has to open for someone who has never signed in — that is
                             // the whole point of it. GET only: publishing and taking a link down stay

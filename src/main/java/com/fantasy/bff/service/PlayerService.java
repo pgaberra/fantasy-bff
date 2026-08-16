@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Serves the player read model the projections are built from.
@@ -59,6 +60,14 @@ public class PlayerService {
                                 goalie.id(), goalie.name(), "G", goalie.sweaterNumber()))
                         .toList());
         return goalies.stream().map(goalie -> withEspnStats(goalie, statLines.get(goalie.id()))).toList();
+    }
+
+    public Optional<byte[]> getHeadshot(int playerId) {
+        try {
+            return playerServiceClient.getHeadshot(playerId);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to retrieve a headshot from player service", e);
+        }
     }
 
     private static SkaterResponse withEspnStats(SkaterResponse skater, PlayerStatLine statLine) {

@@ -936,6 +936,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SeededProjectionResponse"
+  /api/v1/players/{playerId}/headshot:
+    get:
+      tags:
+      - Players
+      summary: Get a player's headshot
+      description: The thumbnail yahoo-service renders from the player's headshot.
+        This is what the `headshot` path on a skater or goalie points at; the source
+        images themselves are multi-megapixel originals and are never served to a
+        browser.
+      operationId: getHeadshot
+      parameters:
+      - name: playerId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Headshot returned
+          content:
+            image/png:
+              schema:
+                type: string
+                format: byte
+        "404":
+          description: No headshot for this player
+          content:
+            image/png:
+              schema:
+                type: string
+                format: byte
+        "502":
+          description: Player service unavailable
+          content:
+            image/png:
+              schema:
+                type: string
+                format: byte
   /api/v1/players/skaters:
     get:
       tags:
@@ -2130,6 +2169,8 @@ components:
           type: string
         headshot:
           type: string
+          description: "Path to the player's headshot, relative to the API base URL\
+            \ (e.g. /players/9245/headshot). Absent when the player has no picture."
         sweaterNumber:
           type: integer
           format: int32
@@ -2315,6 +2356,8 @@ components:
           type: string
         headshot:
           type: string
+          description: "Path to the player's headshot, relative to the API base URL\
+            \ (e.g. /players/9245/headshot). Absent when the player has no picture."
         sweaterNumber:
           type: integer
           format: int32

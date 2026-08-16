@@ -11,14 +11,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -120,5 +125,38 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("DOWNSTREAM_UNAVAILABLE"));
+    }
+
+    /**
+     * An {@code <img>} sends no Authorization header, so a headshot that needed a token would
+     * render as a broken image for everyone.
+     */
+    @Test
+    void getHeadshot_withoutToken_returnsThePngAndTellsTheBrowserToKeepIt() throws Exception {
+        byte[] thumbnail = {(byte) 0x89, 'P', 'N', 'G'};
+        when(playerServiceClient.getHeadshot(1)).thenReturn(Optional.of(thumbnail));
+
+        mockMvc.perform(get("/api/v1/players/1/headshot"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andExpect(content().bytes(thumbnail))
+                .andExpect(header().string("Cache-Control", containsString("max-age=604800")))
+                .andExpect(header().exists("ETag"));
+    }
+
+    @Test
+    void getHeadshot_returns404WhenThePlayerHasNone() throws Exception {
+        when(playerServiceClient.getHeadshot(1)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/players/1/headshot"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getHeadshot_whenServiceFails_returns502() throws Exception {
+        when(playerServiceClient.getHeadshot(1)).thenThrow(new RuntimeException("player service down"));
+
+        mockMvc.perform(get("/api/v1/players/1/headshot"))
+                .andExpect(status().isBadGateway());
     }
 }
