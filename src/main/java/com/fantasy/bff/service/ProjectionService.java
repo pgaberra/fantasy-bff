@@ -11,6 +11,8 @@ import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
 import com.fantasy.bff.generated.db.model.UpdateProjectionData;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.service.ProjectionPoolReconciler.Reconciliation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +21,8 @@ import java.util.UUID;
 
 @Service
 public class ProjectionService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectionService.class);
 
     /** The only preset a draft can be started from today. */
     private static final String LAST_SEASON_PRESET_NAME = "Last Season's Stats";
@@ -49,14 +53,30 @@ public class ProjectionService {
             return ProjectionResponse.of(stored);
         }
         Reconciliation change = reconciliation.get();
-        com.fantasy.bff.generated.db.model.ProjectionResponse saved =
-                databaseServiceClient.updateProjection(userId, projectionId, new UpdateProjectionRequest()
-                        .name(stored.getName())
-                        .data(new UpdateProjectionData()
-                                .settings(stored.getData().getSettings())
-                                .players(stored.getData().getPlayers())
-                                .draft(stored.getData().getDraft())));
-        return ProjectionResponse.of(saved, new PoolReconciliation(change.added(), change.removed()));
+        return ProjectionResponse.of(
+                save(userId, projectionId, stored),
+                new PoolReconciliation(change.added(), change.removed()));
+    }
+
+    /**
+     * Saving the reconciliation is what stops the next read redoing it — but it is not what the
+     * caller asked for. A write that fails must not cost them the projection they were opening,
+     * so the reconciled rows are served anyway and the next read tries again.
+     */
+    private com.fantasy.bff.generated.db.model.ProjectionResponse save(
+            UUID userId, UUID projectionId, com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
+        try {
+            return databaseServiceClient.updateProjection(userId, projectionId, new UpdateProjectionRequest()
+                    .name(stored.getName())
+                    .data(new UpdateProjectionData()
+                            .settings(stored.getData().getSettings())
+                            .players(stored.getData().getPlayers())
+                            .draft(stored.getData().getDraft())));
+        } catch (RuntimeException e) {
+            log.error("Could not save a projection reconciled against the player pool; "
+                    + "serving it unsaved", e);
+            return stored;
+        }
     }
 
     public ProjectionResponse create(UUID userId, CreateProjectionRequest request) {

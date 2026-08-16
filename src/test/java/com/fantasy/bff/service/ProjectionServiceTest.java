@@ -163,6 +163,21 @@ class ProjectionServiceTest {
         assertThat(saved.getValue().getData().getPlayers()).isEqualTo(stored.getData().getPlayers());
     }
 
+    /** Saving the reconciliation is our business, not the caller's — losing it costs them nothing. */
+    @Test
+    void servesTheReconciledRowsEvenIfSavingThemFails() {
+        ProjectionResponse stored = storedProjection();
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12, 3)));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenThrow(new IllegalStateException("db-service is down"));
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data()).isEqualTo(stored.getData());
+        assertThat(response.poolReconciliation().added()).isEqualTo(12);
+    }
+
     @Test
     void aReadWithNothingToSquareTouchesNothing() {
         ProjectionResponse stored = storedProjection();
