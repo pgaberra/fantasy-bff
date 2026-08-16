@@ -346,6 +346,17 @@
             ],
             "title": "Primary Position"
           },
+          "rookie": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rookie"
+          },
           "sweater_number": {
             "anyOf": [
               {
@@ -900,6 +911,24 @@
               ],
               "description": "Filter to a position: C, L, R, D or G",
               "title": "Position"
+            }
+          },
+          {
+            "description": "Season start year (2026 = 2026-27). Given, each player carries `rookie` for that season; null on every player if the stored history does not reach far enough back to decide.",
+            "in": "query",
+            "name": "season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year (2026 = 2026-27). Given, each player carries `rookie` for that season; null on every player if the stored history does not reach far enough back to decide.",
+              "title": "Season"
             }
           },
           {

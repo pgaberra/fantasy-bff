@@ -1,8 +1,10 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.GoalieResponse;
+import com.fantasy.bff.dto.response.RookiesResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.service.PlayerService;
+import com.fantasy.bff.service.RookieService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -20,9 +22,11 @@ import java.util.List;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final RookieService rookieService;
 
-    public PlayerController(PlayerService playerService) {
+    public PlayerController(PlayerService playerService, RookieService rookieService) {
         this.playerService = playerService;
+        this.rookieService = rookieService;
     }
 
     @GetMapping("/skaters")
@@ -43,5 +47,16 @@ public class PlayerController {
     })
     public ResponseEntity<List<GoalieResponse>> getGoalies() {
         return ResponseEntity.ok(playerService.getGoalies());
+    }
+
+    @GetMapping("/rookies")
+    @Operation(summary = "Which players are rookies",
+            description = "Player ids of the rookies for the season being projected, by the "
+                    + "NHL's rule: under 26 on September 15, no earlier season of 25+ games, and "
+                    + "no two earlier seasons of more than 6. Answers known=false when rookie "
+                    + "status cannot be determined, which is not the same as there being none.")
+    @ApiResponse(responseCode = "200", description = "Rookies returned, or reported as unknown")
+    public ResponseEntity<RookiesResponse> getRookies() {
+        return ResponseEntity.ok(rookieService.rookies());
     }
 }

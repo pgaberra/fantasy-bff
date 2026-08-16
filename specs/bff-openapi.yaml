@@ -960,6 +960,23 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SkaterResponse"
+  /api/v1/players/rookies:
+    get:
+      tags:
+      - Players
+      summary: Which players are rookies
+      description: "Player ids of the rookies for the season being projected, by the\
+        \ NHL's rule: under 26 on September 15, no earlier season of 25+ games, and\
+        \ no two earlier seasons of more than 6. Answers known=false when rookie status\
+        \ cannot be determined, which is not the same as there being none."
+      operationId: getRookies
+      responses:
+        "200":
+          description: "Rookies returned, or reported as unknown"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RookiesResponse"
   /api/v1/players/goalies:
     get:
       tags:
@@ -2268,6 +2285,24 @@ components:
       required:
       - gp
       - toiPerGame
+    RookiesResponse:
+      type: object
+      properties:
+        known:
+          type: boolean
+          description: "Whether rookie status could be determined at all. When false,\
+            \ playerIds is empty and means nothing — hide the marker rather than showing\
+            \ every player as a veteran."
+        playerIds:
+          type: array
+          description: "Player ids of the rookies, in the same id space as /api/v1/players/skaters\
+            \ and /goalies."
+          items:
+            type: integer
+            format: int32
+      required:
+      - known
+      - playerIds
     GoalieResponse:
       type: object
       properties:

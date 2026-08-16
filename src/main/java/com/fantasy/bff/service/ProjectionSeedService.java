@@ -69,7 +69,7 @@ public class ProjectionSeedService {
             int withoutWorkload) {}
 
     public Seed seed(int season, String modelVersion) {
-        List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers();
+        List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers(null);
         Map<Long, PlayerResponse> byNhlId = nhlPlayers.stream()
                 .collect(Collectors.toMap(p -> p.getNhlId().longValue(), Function.identity(), (a, b) -> a));
 

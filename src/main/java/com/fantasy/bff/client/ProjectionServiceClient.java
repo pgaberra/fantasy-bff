@@ -19,7 +19,10 @@ public interface ProjectionServiceClient {
      * active. The projections themselves carry only an NHL id, so this is what makes it
      * possible to work out which platform player a projection belongs to.
      */
-    List<PlayerResponse> activePlayers();
+    /**
+     * @param season the season rookie status is wanted for, or null to leave it out
+     */
+    List<PlayerResponse> activePlayers(Integer season);
 
     /**
      * Measured totals over a stretch of a team's schedule — what a player actually did over

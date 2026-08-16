@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.client.PlayerServiceClient;
@@ -33,12 +34,14 @@ class PlayerSplitContextProviderTest {
     private static final int MCDAVID_NHL_ID = 8478402;
     private static final int MCDAVID_PLATFORM_ID = 77;
 
+    private static final int SEASON = 2026;
+
     @Mock private ProjectionServiceClient projectionServiceClient;
     @Mock private PlayerServiceClient playerServiceClient;
 
     @BeforeEach
     void setUp() {
-        when(projectionServiceClient.activePlayers()).thenReturn(List.of(nhlMcDavid()));
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(nhlMcDavid()));
         when(playerServiceClient.getSkaters()).thenReturn(List.of(platformMcDavid()));
         when(playerServiceClient.getGoalies()).thenReturn(List.of());
     }
@@ -49,7 +52,8 @@ class PlayerSplitContextProviderTest {
                 playerServiceClient,
                 new PlayerIdResolver(),
                 new PlayerIdOverrides(""),
-                ttlMs);
+                ttlMs,
+                SEASON);
     }
 
     @Test
@@ -69,7 +73,7 @@ class PlayerSplitContextProviderTest {
         provider.context();
         provider.context();
 
-        verify(projectionServiceClient, times(1)).activePlayers();
+        verify(projectionServiceClient, times(1)).activePlayers(any());
         verify(playerServiceClient, times(1)).getSkaters();
         verify(playerServiceClient, times(1)).getGoalies();
     }
@@ -82,7 +86,7 @@ class PlayerSplitContextProviderTest {
         provider.context();
         provider.context();
 
-        verify(projectionServiceClient, times(2)).activePlayers();
+        verify(projectionServiceClient, times(2)).activePlayers(any());
     }
 
     @Test
@@ -110,7 +114,7 @@ class PlayerSplitContextProviderTest {
 
         // One successful load, one failed attempt, and then nothing: the requests after the
         // failure are served from the stale mapping rather than each paying the timeout again.
-        verify(projectionServiceClient, times(2)).activePlayers();
+        verify(projectionServiceClient, times(2)).activePlayers(any());
     }
 
     @Test
@@ -125,8 +129,35 @@ class PlayerSplitContextProviderTest {
                 .hasRootCauseInstanceOf(ResourceAccessException.class);
     }
 
+    /**
+     * Rookie status rides along on the same identities, and the projection service withholds it
+     * wholesale when its history is too shallow — so a single player without it leaves the whole
+     * answer undecided rather than reading as "that one is not a rookie".
+     */
+    @Test
+    @DisplayName("carries rookie status across, and withholds it when any player lacks it")
+    void resolvesRookies() {
+        PlayerResponse rookie = nhlMcDavid();
+        rookie.setRookie(true);
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(rookie));
+
+        assertThat(provider(HALF_AN_HOUR_MS).context().rookies())
+                .contains(Set.of(MCDAVID_PLATFORM_ID));
+
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(nhlMcDavid()));
+        assertThat(provider(HALF_AN_HOUR_MS).context().rookies()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("asks for the season being projected, since rookie status is relative to one")
+    void asksAboutTheProjectedSeason() {
+        provider(HALF_AN_HOUR_MS).context();
+
+        verify(projectionServiceClient).activePlayers(SEASON);
+    }
+
     private void upstreamStartsTimingOut() {
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenThrow(new ResourceAccessException("projection-service timed out"));
     }
 
