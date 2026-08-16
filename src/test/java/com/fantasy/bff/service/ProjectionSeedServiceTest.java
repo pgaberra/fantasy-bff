@@ -3,6 +3,7 @@ package com.fantasy.bff.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.client.PlayerServiceClient;
@@ -96,7 +97,7 @@ class ProjectionSeedServiceTest {
     @Test
     @DisplayName("seeds under the platform's player id, not the NHL id")
     void seedsUnderPlatformId() {
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(nhlPlayer(8478402, "Connor McDavid", "EDM", 97)));
         when(playerServiceClient.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
@@ -117,7 +118,7 @@ class ProjectionSeedServiceTest {
     @Test
     @DisplayName("translates the two services' stat vocabularies")
     void translatesStatKeys() {
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(nhlPlayer(1, "Connor McDavid", "EDM", 97)));
         when(playerServiceClient.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
@@ -139,7 +140,7 @@ class ProjectionSeedServiceTest {
     void skipsGoaliesWithoutWorkload() {
         // A goalie behind two starters has no save % to state. Seeding a .000 would read as the
         // worst goalie in the league rather than one who isn't expected to play.
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(
                         nhlPlayer(1, "Connor Hellebuyck", "WPG", 37),
                         nhlPlayer(2, "Third Stringer", "WPG", 50)));
@@ -165,7 +166,7 @@ class ProjectionSeedServiceTest {
     @Test
     @DisplayName("counts players the platform does not carry instead of failing")
     void countsUnmapped() {
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(
                         nhlPlayer(1, "Connor McDavid", "EDM", 97),
                         nhlPlayer(2, "Jake Lucchini", "NSH", 15)));
@@ -188,7 +189,7 @@ class ProjectionSeedServiceTest {
         // Vancouver carries two Elias Petterssons (the real ids and numbers). Their team cannot
         // tell them apart, so without the jersey number both fall out as ambiguous and neither
         // gets a projection at all.
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(
                         nhlPlayer(1, "Elias Pettersson", "VAN", 40),
                         nhlPlayer(2, "Elias Pettersson", "VAN", 25)));
@@ -213,7 +214,7 @@ class ProjectionSeedServiceTest {
     @DisplayName("omits a stat the model did not project rather than zeroing it")
     void omitsMissingStats() {
         // A zero is a claim; an absent value is not. Blocks aren't set on this projection.
-        when(projectionServiceClient.activePlayers())
+        when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(nhlPlayer(1, "Connor McDavid", "EDM", 97)));
         when(playerServiceClient.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));

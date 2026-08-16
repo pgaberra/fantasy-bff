@@ -71,9 +71,15 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     }
 
     @Override
-    public List<PlayerResponse> activePlayers() {
+    public List<PlayerResponse> activePlayers(Integer season) {
         return restClient.get()
-                .uri(b -> b.path("/api/v1/players").queryParam("active", true).build())
+                .uri(b -> {
+                    b.path("/api/v1/players").queryParam("active", true);
+                    if (season != null) {
+                        b.queryParam("season", season);
+                    }
+                    return b.build();
+                })
                 .retrieve()
                 .body(PLAYER_LIST);
     }

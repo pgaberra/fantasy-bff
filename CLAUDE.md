@@ -73,6 +73,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `PlayerPoolRows` — the player read model as projection rows, either keeping each player's
     stats or zeroed. The one place rows are built, so a player added to a projection a season
     after it was written carries exactly the stat keys of the ones created alongside it.
+  - `RookieService` — which players are rookies for the season being projected, by the NHL's
+    rule (projection-service decides; see its `rookies.py`). It reads the same cached NHL-side
+    context the game-range splits are built on, so the answer costs nothing extra. The response
+    carries `known` because "nobody is a rookie" and "we cannot say" are different answers that
+    would otherwise arrive as the same empty list — **production runs with projection-service
+    stopped, so `known: false` is the ordinary answer there**, and a client that ignored it
+    would mark an entire league as veterans.
   - `ProjectionPoolReconciler` — keeps a saved projection's rows in step with the pool, which
     moves under it all season (a new roster in the autumn, trades and call-ups after). Rows for
     departed players are dropped and gained players are added, seeded from the projection's

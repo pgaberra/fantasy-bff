@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -55,11 +56,15 @@ public class PlayerSplitContextProvider {
      * @param defenceEligible platform ids of players a league would slot at defence. Defencemen
      *     points are scored as their own category, and eligibility is the platform's answer —
      *     the NHL's listed position doesn't decide what a fantasy league lets you start.
+     * @param rookies platform ids of players the projection service calls rookies for the season
+     *     being projected. Empty when it declined to say — which is not the same as nobody being
+     *     one, so callers must be able to tell the two apart.
      */
     public record Context(
             PlayerIdMapping mapping,
             Map<Long, PlayerResponse> identities,
-            Set<Integer> defenceEligible) {
+            Set<Integer> defenceEligible,
+            Optional<Set<Integer>> rookies) {
 
         public Integer platformId(Integer nhlId) {
             return nhlId == null ? null : mapping.nhlIdToPlatformId().get(nhlId.longValue());
@@ -77,6 +82,7 @@ public class PlayerSplitContextProvider {
     private final PlayerIdResolver resolver;
     private final PlayerIdOverrides overrides;
     private final Duration ttl;
+    private final int season;
     private final AtomicReference<Cached> cache = new AtomicReference<>();
 
     public PlayerSplitContextProvider(
@@ -84,12 +90,14 @@ public class PlayerSplitContextProvider {
             PlayerServiceClient playerServiceClient,
             PlayerIdResolver resolver,
             PlayerIdOverrides overrides,
-            @Value("${services.projection.player-mapping-ttl-ms:1800000}") long ttlMs) {
+            @Value("${services.projection.player-mapping-ttl-ms:1800000}") long ttlMs,
+            @Value("${services.projection.season}") int season) {
         this.projectionServiceClient = projectionServiceClient;
         this.playerServiceClient = playerServiceClient;
         this.resolver = resolver;
         this.overrides = overrides;
         this.ttl = Duration.ofMillis(ttlMs);
+        this.season = season;
     }
 
     public Context context() {
@@ -114,7 +122,7 @@ public class PlayerSplitContextProvider {
     }
 
     private Context load() {
-        List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers();
+        List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers(season);
         Map<Long, PlayerResponse> identities = new HashMap<>();
         List<Candidate> nhlCandidates = new ArrayList<>();
         for (PlayerResponse player : nhlPlayers) {
@@ -140,9 +148,28 @@ public class PlayerSplitContextProvider {
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
 
-        return new Context(
-                resolver.resolve(nhlCandidates, platform, overrides.asMap()),
-                identities,
-                defenceEligible);
+        PlayerIdMapping mapping = resolver.resolve(nhlCandidates, platform, overrides.asMap());
+        return new Context(mapping, identities, defenceEligible, rookies(nhlPlayers, mapping));
+    }
+
+    /**
+     * A player the projection service leaves undecided leaves the whole answer undecided: it
+     * withholds rookie status wholesale when its history is too shallow to tell, and a partial
+     * "these are the rookies" would read as a complete one.
+     */
+    private static Optional<Set<Integer>> rookies(
+            List<PlayerResponse> nhlPlayers, PlayerIdMapping mapping) {
+        Set<Integer> rookies = new HashSet<>();
+        for (PlayerResponse player : nhlPlayers) {
+            Boolean rookie = player.getRookie();
+            if (rookie == null) {
+                return Optional.empty();
+            }
+            Integer platformId = mapping.nhlIdToPlatformId().get(player.getNhlId().longValue());
+            if (Boolean.TRUE.equals(rookie) && platformId != null) {
+                rookies.add(platformId);
+            }
+        }
+        return Optional.of(rookies);
     }
 }
