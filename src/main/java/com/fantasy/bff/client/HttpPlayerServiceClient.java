@@ -6,6 +6,7 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -31,9 +32,13 @@ import java.util.Set;
 public class HttpPlayerServiceClient implements PlayerServiceClient {
 
     private final RestClient restClient;
+    private final int statsSeason;
 
-    public HttpPlayerServiceClient(@Qualifier("yahooFantasyServiceClient") RestClient restClient) {
+    public HttpPlayerServiceClient(
+            @Qualifier("yahooFantasyServiceClient") RestClient restClient,
+            @Value("${services.yahoo-fantasy.stats-season}") int statsSeason) {
         this.restClient = restClient;
+        this.statsSeason = statsSeason;
     }
 
     private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.yahoo.model.SkaterResponse>>
@@ -49,7 +54,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
     @Override
     public List<SkaterResponse> getSkaters() {
         List<com.fantasy.bff.generated.yahoo.model.SkaterResponse> response = restClient.get()
-                .uri("/api/v1/players/skaters")
+                .uri(b -> b.path("/api/v1/players/skaters").queryParam("season", statsSeason).build())
                 .retrieve()
                 .body(SKATER_LIST);
         return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toSkater).toList();
@@ -58,7 +63,7 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
     @Override
     public List<GoalieResponse> getGoalies() {
         List<com.fantasy.bff.generated.yahoo.model.GoalieResponse> response = restClient.get()
-                .uri("/api/v1/players/goalies")
+                .uri(b -> b.path("/api/v1/players/goalies").queryParam("season", statsSeason).build())
                 .retrieve()
                 .body(GOALIE_LIST);
         return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toGoalie).toList();
