@@ -25,6 +25,8 @@ public class PlayerPoolRows {
 
     private static final TypeReference<Map<String, Double>> STAT_MAP = new TypeReference<>() {};
 
+    private static final Double ZERO = 0.0;
+
     private final PlayerService playerService;
     private final ObjectMapper objectMapper;
 
@@ -110,7 +112,7 @@ public class PlayerPoolRows {
         /** A row owns its stat maps: the pool is read once and may hand out the same player twice. */
         private static Map<String, Double> copy(Map<String, Double> values, boolean blank) {
             Map<String, Double> copied = new LinkedHashMap<>(values.size());
-            values.forEach((key, value) -> copied.put(key, blank ? 0.0 : value));
+            values.forEach((key, value) -> copied.put(key, blank ? ZERO : value));
             return copied;
         }
     }

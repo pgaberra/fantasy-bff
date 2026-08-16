@@ -55,7 +55,7 @@ public record ProjectionResponse(
                 stored.getId(),
                 stored.getName(),
                 kindOf(stored.getKind()),
-                stored.getSeason() == null ? null : stored.getSeason().getValue(),
+                stored.getSeason().getValue(),
                 stored.getData(),
                 stored.getCreatedAt(),
                 stored.getUpdatedAt(),

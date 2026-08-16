@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
+import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
@@ -109,8 +110,8 @@ public class ProjectionPoolReconciler {
         settings.setPlayerBasis(basis);
         settings.setPlayerPoolSyncedAt(syncedAt);
         if (added > 0 || removed > 0) {
-            log.info("Squared a projection with the player pool: +{} added, -{} dropped, basis {}",
-                    added, removed, basis.getValue());
+            log.info("Squared a projection with the player pool: +{} added, -{} dropped, seeded from {}",
+                    added, removed, blank ? "zeros" : "last season");
         }
         return Optional.of(new Reconciliation(added, removed));
     }
@@ -128,8 +129,8 @@ public class ProjectionPoolReconciler {
     }
 
     private static boolean isBlank(PlayerProjection player) {
-        return player.getStats() == null
-                || (allZero(player.getStats().getUtility()) && allZero(player.getStats().getScoring()));
+        PlayerStats stats = player.getStats();
+        return allZero(stats.getUtility()) && allZero(stats.getScoring());
     }
 
     private static boolean allZero(Map<String, Double> stats) {

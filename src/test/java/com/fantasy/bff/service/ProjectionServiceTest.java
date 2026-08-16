@@ -75,7 +75,7 @@ class ProjectionServiceTest {
     @Test
     void withDefaultSource_fillsPlayersFromTheReadModelKeepingTheirStats() {
         givenOneSkaterAndOneGoalie();
-        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
 
@@ -96,7 +96,7 @@ class ProjectionServiceTest {
     @Test
     void withDefaultSource_usesTheSameStatKeysAsThePlayerEndpoints() {
         givenOneSkaterAndOneGoalie();
-        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
 
@@ -108,7 +108,7 @@ class ProjectionServiceTest {
     @Test
     void withBlankSource_keepsEveryPlayerButZeroesTheStats() {
         givenOneSkaterAndOneGoalie();
-        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.BLANK));
 
@@ -126,7 +126,7 @@ class ProjectionServiceTest {
     @Test
     void recordsWhichStartingPointTheRowsCameFrom() {
         givenOneSkaterAndOneGoalie();
-        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
         assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
@@ -135,7 +135,7 @@ class ProjectionServiceTest {
     @Test
     void recordsABlankProjectionAsStartedFromScratch() {
         givenOneSkaterAndOneGoalie();
-        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.BLANK));
         assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.BLANK);
@@ -181,7 +181,7 @@ class ProjectionServiceTest {
                 .playerId(7)
                 .type(PlayerProjection.TypeEnum.SKATER)
                 .stats(new PlayerStats().utility(Map.of("gp", 12.0)).scoring(Map.of("goals", 3.0)));
-        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(new ProjectionResponse());
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(dataWith(own), null));
 
@@ -241,10 +241,16 @@ class ProjectionServiceTest {
         return sentRequest.getValue().getData();
     }
 
+    /** db-service always stamps a season; the response type takes it as given. */
+    private static ProjectionResponse created() {
+        return new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027);
+    }
+
     private static ProjectionResponse storedProjection() {
         return new ProjectionResponse()
                 .id(PROJECTION_ID.toString())
                 .name("My Projection")
+                .season(ProjectionResponse.SeasonEnum._20262027)
                 .data(dataWith(new PlayerProjection()
                         .playerId(7)
                         .type(PlayerProjection.TypeEnum.SKATER)

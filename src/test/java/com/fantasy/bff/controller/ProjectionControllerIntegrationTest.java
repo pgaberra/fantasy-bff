@@ -118,7 +118,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void create_withValidToken_returns201() throws Exception {
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse().id(PROJECTION_ID.toString()).name("My league"));
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("My league"));
 
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
@@ -142,7 +142,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                                 8, 2, 348, 18.4, 812, 623, 42, 28, 0, 1408, 92400)))));
         when(playerServiceClient.getGoalies()).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse().id(PROJECTION_ID.toString()).name("My league"));
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("My league"));
 
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
@@ -166,7 +166,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
         when(playerServiceClient.getSkaters()).thenReturn(List.of());
         when(playerServiceClient.getGoalies()).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse().id(PROJECTION_ID.toString()).name("Last Season's Stats"));
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("Last Season's Stats"));
 
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
@@ -189,7 +189,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
         when(playerServiceClient.getSkaters()).thenReturn(List.of());
         when(playerServiceClient.getGoalies()).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse().id(PROJECTION_ID.toString()).name("Last Season's Stats"));
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("Last Season's Stats"));
 
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
@@ -221,7 +221,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void create_withoutKind_defaultsToTheUsersOwnProjection() throws Exception {
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse().id(PROJECTION_ID.toString()).name("My league"));
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("My league"));
 
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
