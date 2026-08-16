@@ -1300,6 +1300,14 @@ components:
           $ref: "#/components/schemas/YahooSync"
         espnSync:
           $ref: "#/components/schemas/EspnSync"
+        playerBasis:
+          type: string
+          enum:
+          - last_season
+          - blank
+        playerPoolSyncedAt:
+          type: string
+          format: date-time
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -1412,6 +1420,18 @@ components:
       - leagueKey
       - leagueName
       - syncedAt
+    PoolReconciliation:
+      type: object
+      properties:
+        added:
+          type: integer
+          format: int32
+        removed:
+          type: integer
+          format: int32
+      required:
+      - added
+      - removed
     ProjectionData:
       type: object
       properties:
@@ -1443,11 +1463,7 @@ components:
           - preset_draft
         season:
           type: string
-          enum:
-          - "20252026"
-          - "20262027"
-          - "20272028"
-          - "20282029"
+          description: "The season this projection is for, as its 8-digit code."
         data:
           $ref: "#/components/schemas/ProjectionData"
         createdAt:
@@ -1456,6 +1472,12 @@ components:
         updatedAt:
           type: string
           format: date-time
+        poolReconciliation:
+          $ref: "#/components/schemas/PoolReconciliation"
+          description: "How many player rows this read had to add and drop to match\
+            \ the current player pool. Present only when the pool had moved since\
+            \ these rows were last squared with it, so a client can say so once and\
+            \ then stop."
       required:
       - createdAt
       - data
