@@ -1065,6 +1065,14 @@ components:
           description: Where these settings were last synced from — the ESPN league
             name/id and the timestamp. Absent if the projection was never synced from
             an ESPN league.
+        lastEspnLeagueId:
+          type: string
+          description: "The last ESPN league this projection imported from, kept after\
+            \ the settings stop being the league's so a re-import does not have to\
+            \ be retyped. Outlives espnSync, which is cleared when the user takes\
+            \ the projection out of sync."
+          maxLength: 50
+          minLength: 0
         playerBasis:
           type: string
           description: "What the player rows started from, and so what a player who\

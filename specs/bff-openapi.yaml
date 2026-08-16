@@ -1300,6 +1300,10 @@ components:
           $ref: "#/components/schemas/YahooSync"
         espnSync:
           $ref: "#/components/schemas/EspnSync"
+        lastEspnLeagueId:
+          type: string
+          maxLength: 50
+          minLength: 0
         playerBasis:
           type: string
           enum:
