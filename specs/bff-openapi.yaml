@@ -1146,6 +1146,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EntitlementsResponse"
+  /api/v1/admin/yahoo/probe:
+    get:
+      tags:
+      - Admin
+      summary: Ask Yahoo whether it will serve a game's players
+      description: "One live call, reporting the status Yahoo answered with and its\
+        \ own error wording. A failing sync only says that something was refused;\
+        \ vary the game key and season here to find out what. Reads nothing into the\
+        \ cache and writes nothing."
+      operationId: probeYahooAccess
+      parameters:
+      - name: gameKey
+        in: query
+        description: "Yahoo game: \"nhl\" for the current season, or a numeric key\
+          \ to pin a past one"
+        required: false
+        schema:
+          type: string
+          default: nhl
+      - name: season
+        in: query
+        description: Season start year; omit to send no season filter at all
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "What Yahoo answered, refusal included"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YahooProbeResponse"
   /api/v1/admin/yahoo/connection:
     get:
       tags:
@@ -2498,6 +2530,24 @@ components:
       - cancelAtPeriodEnd
       - premium
       - status
+    YahooProbeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        path:
+          type: string
+        status:
+          type: integer
+          format: int32
+        players:
+          type: integer
+          format: int32
+        error:
+          type: string
+      required:
+      - ok
+      - path
     SyncRunResponse:
       type: object
       properties:

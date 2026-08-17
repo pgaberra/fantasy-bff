@@ -4,6 +4,7 @@ import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -68,5 +70,20 @@ public class AdminController {
     @GetMapping("/player/sync/runs")
     public List<SyncRunResponse> playerSyncRuns(@RequestParam(defaultValue = "10") int limit) {
         return playerServiceClient.getSyncRuns(limit);
+    }
+
+    @Operation(summary = "Ask Yahoo whether it will serve a game's players",
+            description = "One live call, reporting the status Yahoo answered with and its own "
+                    + "error wording. A failing sync only says that something was refused; vary "
+                    + "the game key and season here to find out what. Reads nothing into the "
+                    + "cache and writes nothing.")
+    @ApiResponse(responseCode = "200", description = "What Yahoo answered, refusal included")
+    @GetMapping("/yahoo/probe")
+    public YahooProbeResponse probeYahooAccess(
+            @Parameter(description = "Yahoo game: \"nhl\" for the current season, or a numeric key to pin a past one")
+            @RequestParam(defaultValue = "nhl") String gameKey,
+            @Parameter(description = "Season start year; omit to send no season filter at all")
+            @RequestParam(required = false) String season) {
+        return playerServiceClient.probeYahooAccess(gameKey, season);
     }
 }

@@ -260,6 +260,35 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SyncRunResponse"
+  /api/v1/sync/probe:
+    get:
+      tags:
+      - Sync
+      summary: Ask Yahoo whether the service account may read a game's players
+      description: "Makes one live call and reports the status Yahoo answered with,\
+        \ including its own error wording. Reads nothing into the cache and writes\
+        \ nothing, so it is safe to fire at any game key or season. Vary one input\
+        \ at a time to tell a refused season from a refused game from a dead token."
+      operationId: probe
+      parameters:
+      - name: gameKey
+        in: query
+        required: false
+        schema:
+          type: string
+          default: nhl
+      - name: season
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "What Yahoo answered, refusal included"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YahooProbeResponse"
   /api/v1/players/{playerId}/headshot:
     get:
       tags:
@@ -660,6 +689,34 @@ components:
       - removedCount
       - startedAt
       - status
+    YahooProbeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          description: Whether Yahoo returned a usable page of players.
+        path:
+          type: string
+          description: "The path asked for, so the game key and season filter are\
+            \ visible."
+        status:
+          type: integer
+          format: int32
+          description: "Yahoo's HTTP status. Absent when the call never got a response\
+            \ — no service-account token, a connection failure, or unparseable JSON."
+        players:
+          type: integer
+          format: int32
+          description: "How many players the page carried. Yahoo pages 25 at a time,\
+            \ so 25 means there is more behind it; 0 with ok=true means the collection\
+            \ is empty."
+        error:
+          type: string
+          description: "Yahoo's own error text, or ours if the call never reached\
+            \ them. Absent when the call succeeded."
+      required:
+      - ok
+      - path
     SkaterResponse:
       type: object
       properties:

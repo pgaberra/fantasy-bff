@@ -70,6 +70,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     here. Sharing a projection requires a username, so the share endpoints relay db-service's
     409 when an account has not picked one.
 - `service/` — business logic (`AuthService`, `PlayerService`)
+  - `AdminController`'s `GET /api/v1/admin/yahoo/probe` proxies yahoo-service's live Yahoo probe
+    (see its `YahooProbeService`): one call for a chosen game key and season, reporting the status
+    Yahoo answered with and its own error wording. A failing sync only says that *something* was
+    refused; this is how you find out what. Admin-only, since the answer names the service account
+    and quotes upstream errors.
   - `PlayerPoolRows` — the player read model as projection rows, either keeping each player's
     stats or zeroed. The one place rows are built, so a player added to a projection a season
     after it was written carries exactly the stat keys of the ones created alongside it.

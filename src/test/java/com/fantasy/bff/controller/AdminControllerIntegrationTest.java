@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.PlayerServiceClient;
+import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.security.JwtTokenValidator;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -57,6 +60,37 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/admin/player/sync/runs")
                         .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * The probe reports a refusal as data, and that has to survive the whole way out — a client
+     * that sees a 502 instead of Yahoo's own 403 learns nothing, which is the problem it exists
+     * to solve.
+     */
+    @Test
+    void adminCanProbeYahooAccessAndSeeARefusal() throws Exception {
+        when(playerServiceClient.probeYahooAccess("nhl", "2026")).thenReturn(
+                new YahooProbeResponse()
+                        .ok(false)
+                        .path("/game/nhl/players")
+                        .status(403)
+                        .error("This application is not authorized to perform this action."));
+
+        mockMvc.perform(get("/api/v1/admin/yahoo/probe?gameKey=nhl&season=2026")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error")
+                        .value("This application is not authorized to perform this action."));
+    }
+
+    /** Diagnostics are admin-only: the answer names a service account and quotes upstream errors. */
+    @Test
+    void nonAdminCannotProbe() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/yahoo/probe")
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
