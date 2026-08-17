@@ -27,9 +27,15 @@ import java.util.Set;
  *
  * <p>A projection is written once and then edited for a season, while the pool underneath it
  * keeps moving: a new season brings a new roster, and trades and call-ups add players all year.
- * Rows for players the pool no longer carries are dropped, and a player it has gained is added —
- * seeded from what the projection started as, so a projection built on last season's stats gains
- * that player's stat line and one built from scratch gains zeros.
+ * A player the pool has gained is added, seeded from what the projection started as — last
+ * season's stat line, or zeros for one built from scratch.
+ *
+ * <p><b>Nothing is ever removed.</b> A row whose player has left the pool is left exactly where
+ * it is and simply not shown, which the client already does for any row it cannot draw. Deleting
+ * it would be irreversible and the pool is not reliable enough to bet a user's work on: a
+ * truncated fetch, or a player Yahoo momentarily stops listing, would cost them numbers they
+ * cannot get back. Kept, those rows come back into view by themselves when the pool recovers.
+ * The cost is a few dozen stale rows a season against some sixteen hundred live ones.
  *
  * <p>The work is guarded by the sync run the rows were last squared with, so reading a projection
  * costs a full pool read at most once per sync rather than on every open.
@@ -58,10 +64,11 @@ public class ProjectionPoolReconciler {
     }
 
     /**
-     * @param added rows added for players the pool has gained
-     * @param removed rows dropped for players it no longer carries
+     * @param added rows added for players the pool has gained. How many rows are no longer shown
+     *     is deliberately not here: the client holds the pool too, so it can see that for itself
+     *     without us reporting a number that would be the same on every read until the pool moves.
      */
-    public record Reconciliation(int added, int removed) {}
+    public record Reconciliation(int added) {}
 
     /**
      * Squares {@code data}'s rows with the pool, in place. Empty when there was nothing to do —
@@ -89,18 +96,14 @@ public class ProjectionPoolReconciler {
                 : settings.getPlayerBasis();
         boolean blank = basis == PlayerBasisEnum.BLANK;
 
-        List<PlayerProjection> players = new ArrayList<>(pool.size());
-        Set<Integer> kept = new HashSet<>();
+        List<PlayerProjection> players = new ArrayList<>(stored);
+        Set<Integer> held = new HashSet<>();
         for (PlayerProjection player : stored) {
-            if (pool.contains(player.getPlayerId())) {
-                players.add(player);
-                kept.add(player.getPlayerId());
-            }
+            held.add(player.getPlayerId());
         }
-        int removed = stored.size() - players.size();
         int added = 0;
         for (Integer playerId : pool.playerIds()) {
-            if (!kept.contains(playerId)) {
+            if (!held.contains(playerId)) {
                 players.add(pool.row(playerId, blank));
                 added++;
             }
@@ -109,11 +112,11 @@ public class ProjectionPoolReconciler {
         data.setPlayers(players);
         settings.setPlayerBasis(basis);
         settings.setPlayerPoolSyncedAt(syncedAt);
-        if (added > 0 || removed > 0) {
-            log.info("Squared a projection with the player pool: +{} added, -{} dropped, seeded from {}",
-                    added, removed, blank ? "zeros" : "last season");
+        if (added > 0) {
+            log.info("Squared a projection with the player pool: +{} added, seeded from {}",
+                    added, blank ? "zeros" : "last season");
         }
-        return Optional.of(new Reconciliation(added, removed));
+        return Optional.of(new Reconciliation(added));
     }
 
     /**

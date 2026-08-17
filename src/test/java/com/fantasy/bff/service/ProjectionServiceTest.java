@@ -150,14 +150,13 @@ class ProjectionServiceTest {
     void aReadThatSquaredTheRowsWithThePoolSavesThemAndSaysWhatMoved() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
-        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12, 3)));
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12)));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
                 .thenReturn(stored);
 
         var response = projectionService.get(USER_ID, PROJECTION_ID);
 
         assertThat(response.poolReconciliation().added()).isEqualTo(12);
-        assertThat(response.poolReconciliation().removed()).isEqualTo(3);
         ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
         verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
         assertThat(saved.getValue().getData().getPlayers()).isEqualTo(stored.getData().getPlayers());
@@ -168,7 +167,7 @@ class ProjectionServiceTest {
     void servesTheReconciledRowsEvenIfSavingThemFails() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
-        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12, 3)));
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12)));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
                 .thenThrow(new IllegalStateException("db-service is down"));
 

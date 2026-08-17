@@ -32,8 +32,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * The pool a projection was written against stops being the pool a season later, and a saved
- * projection has to survive that: it must lose the players who are gone and gain the ones who
- * arrived, seeded from whatever it started as.
+ * projection has to survive that: it gains the players who arrived, seeded from whatever it
+ * started as, and keeps the rows of the ones who left rather than deleting work that a bad
+ * fetch could have invented a reason for.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -59,13 +60,40 @@ class ProjectionPoolReconcilerTest {
     }
 
     @Test
-    void addsThePlayersThePoolHasGainedAndDropsTheOnesItLost() {
-        ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1), row(99));
+    void addsThePlayersThePoolHasGained() {
+        ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1));
 
         Reconciliation change = reconciler.reconcile(data).orElseThrow();
 
-        assertThat(change).isEqualTo(new Reconciliation(2, 1));
+        assertThat(change).isEqualTo(new Reconciliation(2));
         assertThat(playerIds(data)).containsExactly(1, 2, 101);
+    }
+
+    /**
+     * The promise this rests on. Player 99 is not in the pool, and the row carrying the user's
+     * numbers for them stays — hidden by the client, not deleted here. A truncated fetch or a
+     * player Yahoo briefly stops listing would otherwise cost work that cannot be recovered.
+     */
+    @Test
+    void keepsARowWhosePlayerHasLeftThePool() {
+        PlayerProjection departed = row(99);
+        ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1), departed);
+
+        Reconciliation change = reconciler.reconcile(data).orElseThrow();
+
+        assertThat(change.added()).isEqualTo(2);
+        assertThat(playerIds(data)).contains(99);
+        assertThat(data.getPlayers()).contains(departed);
+    }
+
+    /** A pool that lost every player it had still costs the projection nothing. */
+    @Test
+    void keepsEveryRowEvenWhenNoneOfThemAreInThePoolAnyMore() {
+        ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(97), row(98), row(99));
+
+        reconciler.reconcile(data);
+
+        assertThat(playerIds(data)).contains(97, 98, 99);
     }
 
     /** A projection built on last season's stats should gain that player's line, not a blank row. */
@@ -138,13 +166,26 @@ class ProjectionPoolReconcilerTest {
         assertThat(playerIds(data)).containsExactly(1, 2, 101);
     }
 
+    /** Running twice over the same pool must not add a player a second time. */
+    @Test
+    void addsNothingTwice() {
+        ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1));
+
+        reconciler.reconcile(data);
+        data.getSettings().setPlayerPoolSyncedAt(null);
+        Reconciliation again = reconciler.reconcile(data).orElseThrow();
+
+        assertThat(again.added()).isZero();
+        assertThat(playerIds(data)).containsExactly(1, 2, 101);
+    }
+
     /**
      * The pool is the only thing that says which players exist. A read that fails, or one that
      * comes back empty, must leave the projection alone rather than drop every row it cannot
      * account for.
      */
     @Test
-    void leavesTheRowsAloneWhenThePoolCannotBeRead() {
+    void addsNothingWhenThePoolCannotBeRead() {
         when(playerService.getSkaters()).thenThrow(new IllegalStateException("yahoo-service is down"));
         ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1), row(99));
 
@@ -153,7 +194,7 @@ class ProjectionPoolReconcilerTest {
     }
 
     @Test
-    void leavesTheRowsAloneWhenThePoolComesBackEmpty() {
+    void addsNothingWhenThePoolComesBackEmpty() {
         when(playerService.getSkaters()).thenReturn(List.of());
         when(playerService.getGoalies()).thenReturn(List.of());
         ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1), row(99));

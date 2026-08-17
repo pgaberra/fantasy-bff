@@ -81,8 +81,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stopped, so `known: false` is the ordinary answer there**, and a client that ignored it
     would mark an entire league as veterans.
   - `ProjectionPoolReconciler` — keeps a saved projection's rows in step with the pool, which
-    moves under it all season (a new roster in the autumn, trades and call-ups after). Rows for
-    departed players are dropped and gained players are added, seeded from the projection's
+    moves under it all season (a new roster in the autumn, trades and call-ups after). It **only
+    ever adds**: a row whose player has left the pool stays where it is and is simply not shown
+    (the client already skips any row it cannot draw). Deleting it would be irreversible, and the
+    pool is not reliable enough to bet a user's work on — a truncated fetch, or a player Yahoo
+    momentarily stops listing, would cost numbers they cannot get back; kept, those rows return
+    by themselves when the pool does. Gained players are added, seeded from the projection's
     `playerBasis` — last season's stat line, or zeros for one started from scratch. The basis is
     stamped at create from `source`; a projection saved before it existed is read off its own
     rows (almost all zeros → started from scratch). Guarded by `playerPoolSyncedAt` against the
