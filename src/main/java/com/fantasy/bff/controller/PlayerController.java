@@ -28,6 +28,18 @@ public class PlayerController {
 
     private static final Duration HEADSHOT_MAX_AGE = Duration.ofDays(7);
 
+    /**
+     * The player pool is a read model yahoo-service refreshes about once a day, so re-fetching it
+     * on every page load is wasted work. A minute is short enough that nobody meets a pool that
+     * has visibly moved on, and long enough to cover opening several projections in a row.
+     *
+     * <p>Cached publicly rather than privately because the endpoint is public: the same bytes go
+     * to every caller, signed in or not. Set here rather than left to Spring Security, whose
+     * default {@code no-store} is the right posture for the rest of the API and stops even a
+     * revalidation from being possible.
+     */
+    private static final Duration PLAYER_POOL_MAX_AGE = Duration.ofSeconds(60);
+
     private final PlayerService playerService;
     private final RookieService rookieService;
 
@@ -43,7 +55,9 @@ public class PlayerController {
             @ApiResponse(responseCode = "502", description = "NHL service unavailable")
     })
     public ResponseEntity<List<SkaterResponse>> getSkaters() {
-        return ResponseEntity.ok(playerService.getSkaters());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(PLAYER_POOL_MAX_AGE).cachePublic())
+                .body(playerService.getSkaters());
     }
 
     @GetMapping("/goalies")
@@ -53,7 +67,9 @@ public class PlayerController {
             @ApiResponse(responseCode = "502", description = "NHL service unavailable")
     })
     public ResponseEntity<List<GoalieResponse>> getGoalies() {
-        return ResponseEntity.ok(playerService.getGoalies());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(PLAYER_POOL_MAX_AGE).cachePublic())
+                .body(playerService.getGoalies());
     }
 
     @GetMapping("/rookies")
