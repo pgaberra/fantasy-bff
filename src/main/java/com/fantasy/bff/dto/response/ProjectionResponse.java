@@ -30,19 +30,18 @@ public record ProjectionResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime updatedAt,
 
-        @Schema(description = "How many player rows this read had to add and drop to match the "
-                + "current player pool. Present only when the pool had moved since these rows "
-                + "were last squared with it, so a client can say so once and then stop.")
+        @Schema(description = "How many player rows this read added to match the current player "
+                + "pool. Present only when the pool had moved since these rows were last squared "
+                + "with it, so a client can say so once and then stop. Nothing is removed by a "
+                + "reconciliation — a row whose player has left the pool stays and is not shown.")
         PoolReconciliation poolReconciliation
 ) {
 
     /**
      * @param added rows added for players who joined the pool, seeded from the projection's basis
-     * @param removed rows dropped for players the pool no longer carries
      */
     public record PoolReconciliation(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int added,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int removed
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int added
     ) {}
 
     public static ProjectionResponse of(com.fantasy.bff.generated.db.model.ProjectionResponse stored) {

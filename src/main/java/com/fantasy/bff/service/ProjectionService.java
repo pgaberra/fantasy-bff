@@ -55,7 +55,7 @@ public class ProjectionService {
         Reconciliation change = reconciliation.get();
         return ProjectionResponse.of(
                 save(userId, projectionId, stored),
-                new PoolReconciliation(change.added(), change.removed()));
+                new PoolReconciliation(change.added()));
     }
 
     /**
