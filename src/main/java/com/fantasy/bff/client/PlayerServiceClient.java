@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,4 +21,12 @@ public interface PlayerServiceClient {
     SyncAcceptedResponse triggerSync();
 
     List<SyncRunResponse> getSyncRuns(int limit);
+
+    /**
+     * Asks Yahoo whether the service account may read a game's players, and reports the answer
+     * rather than throwing. A refusal is the thing being looked for.
+     *
+     * @param season season start year, or null to send no season filter
+     */
+    YahooProbeResponse probeYahooAccess(String gameKey, String season);
 }

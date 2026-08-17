@@ -5,6 +5,7 @@ import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -104,6 +105,20 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 .retrieve()
                 .body(SYNC_RUN_LIST);
         return runs == null ? List.of() : runs;
+    }
+
+    @Override
+    public YahooProbeResponse probeYahooAccess(String gameKey, String season) {
+        return restClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder.path("/api/v1/sync/probe").queryParam("gameKey", gameKey);
+                    if (season != null && !season.isBlank()) {
+                        uriBuilder.queryParam("season", season);
+                    }
+                    return uriBuilder.build();
+                })
+                .retrieve()
+                .body(YahooProbeResponse.class);
     }
 
     private static SkaterResponse toSkater(com.fantasy.bff.generated.yahoo.model.SkaterResponse s) {
