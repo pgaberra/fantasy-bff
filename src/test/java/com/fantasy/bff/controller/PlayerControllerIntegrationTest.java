@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -125,6 +126,44 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("DOWNSTREAM_UNAVAILABLE"));
+    }
+
+    /**
+     * The pool is refreshed about once a day, so re-downloading it on every page load is waste.
+     * Asserted through the real filter chain because Spring Security writes its own
+     * {@code no-store} on everything that has not set a Cache-Control of its own — this passing
+     * is what says the controller's header survives to the client.
+     */
+    @Test
+    void getSkaters_letsTheBrowserHoldOntoThePoolBriefly() throws Exception {
+        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/players/skaters"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", containsString("max-age=60")))
+                .andExpect(header().string("Cache-Control", containsString("public")))
+                .andExpect(header().string("Cache-Control", not(containsString("no-store"))))
+                .andExpect(header().doesNotExist("Pragma"));
+    }
+
+    @Test
+    void getGoalies_letsTheBrowserHoldOntoThePoolBriefly() throws Exception {
+        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/players/goalies"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", containsString("max-age=60")))
+                .andExpect(header().string("Cache-Control", not(containsString("no-store"))));
+    }
+
+    /** Everything that is not deliberately public keeps Spring Security's no-store posture. */
+    @Test
+    void aResponseThatDoesNotOptInIsStillNeverStored() throws Exception {
+        String token = jwtTokenValidator.generateToken("user-1", "test@example.com");
+
+        mockMvc.perform(get("/api/v1/players/rookies")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(header().string("Cache-Control", containsString("no-store")));
     }
 
     /**
