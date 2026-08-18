@@ -1171,6 +1171,14 @@ paths:
         required: false
         schema:
           type: string
+      - name: leagueKey
+        in: query
+        description: "Ask this league's players instead of the whole game's. The granted\
+          \ Yahoo scope is about leagues, so this may be served where a game is refused\
+          \ — and that difference is the diagnosis."
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: "What Yahoo answered, refusal included"
@@ -1178,6 +1186,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/YahooProbeResponse"
+  /api/v1/admin/yahoo/leagues:
+    get:
+      tags:
+      - Admin
+      summary: The Yahoo service account's own leagues
+      description: "Hands you a league key for the probe without hunting for one,\
+        \ and is itself a test: succeeding here while a game probe is refused places\
+        \ the refusal on what was asked for rather than on who asked."
+      operationId: yahooServiceAccountLeagues
+      responses:
+        "200":
+          description: Leagues returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaguesResponse"
   /api/v1/admin/yahoo/connection:
     get:
       tags:

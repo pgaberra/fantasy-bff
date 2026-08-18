@@ -7,6 +7,7 @@ import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
+import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -83,7 +84,21 @@ public class AdminController {
             @Parameter(description = "Yahoo game: \"nhl\" for the current season, or a numeric key to pin a past one")
             @RequestParam(defaultValue = "nhl") String gameKey,
             @Parameter(description = "Season start year; omit to send no season filter at all")
-            @RequestParam(required = false) String season) {
-        return playerServiceClient.probeYahooAccess(gameKey, season);
+            @RequestParam(required = false) String season,
+            @Parameter(description = "Ask this league's players instead of the whole game's. The "
+                    + "granted Yahoo scope is about leagues, so this may be served where a game "
+                    + "is refused — and that difference is the diagnosis.")
+            @RequestParam(required = false) String leagueKey) {
+        return playerServiceClient.probeYahooAccess(gameKey, season, leagueKey);
+    }
+
+    @Operation(summary = "The Yahoo service account's own leagues",
+            description = "Hands you a league key for the probe without hunting for one, and is "
+                    + "itself a test: succeeding here while a game probe is refused places the "
+                    + "refusal on what was asked for rather than on who asked.")
+    @ApiResponse(responseCode = "200", description = "Leagues returned")
+    @GetMapping("/yahoo/leagues")
+    public LeaguesResponse yahooServiceAccountLeagues() {
+        return yahooServiceClient.leagues(SERVICE_ACCOUNT_ID);
     }
 }
