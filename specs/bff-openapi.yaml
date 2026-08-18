@@ -1179,6 +1179,15 @@ paths:
         required: false
         schema:
           type: string
+      - name: target
+        in: query
+        description: "Set to \"leagues\" to ask the floor question instead: can this\
+          \ account list its own leagues at all? Everything else is ignored. A refusal\
+          \ here means no route into the Fantasy API is open, not that the wrong one\
+          \ was chosen."
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: "What Yahoo answered, refusal included"

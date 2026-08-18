@@ -28,6 +28,9 @@ public interface PlayerServiceClient {
      *
      * @param season season start year, or null to send no season filter
      * @param leagueKey ask a league's player collection instead of the game's, or null
+     * @param target {@code leagues} to ask whether the account can list its own leagues at all,
+     *     ignoring the other inputs; null for a player collection
      */
-    YahooProbeResponse probeYahooAccess(String gameKey, String season, String leagueKey);
+    YahooProbeResponse probeYahooAccess(
+            String gameKey, String season, String leagueKey, String target);
 }

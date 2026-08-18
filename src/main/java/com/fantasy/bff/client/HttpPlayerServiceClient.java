@@ -108,7 +108,8 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
     }
 
     @Override
-    public YahooProbeResponse probeYahooAccess(String gameKey, String season, String leagueKey) {
+    public YahooProbeResponse probeYahooAccess(
+            String gameKey, String season, String leagueKey, String target) {
         return restClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder.path("/api/v1/sync/probe").queryParam("gameKey", gameKey);
@@ -117,6 +118,9 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                     }
                     if (leagueKey != null && !leagueKey.isBlank()) {
                         uriBuilder.queryParam("leagueKey", leagueKey);
+                    }
+                    if (target != null && !target.isBlank()) {
+                        uriBuilder.queryParam("target", target);
                     }
                     return uriBuilder.build();
                 })

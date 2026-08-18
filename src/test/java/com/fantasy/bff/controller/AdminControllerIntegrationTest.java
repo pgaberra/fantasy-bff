@@ -70,7 +70,7 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void adminCanProbeYahooAccessAndSeeARefusal() throws Exception {
-        when(playerServiceClient.probeYahooAccess("nhl", "2026", null)).thenReturn(
+        when(playerServiceClient.probeYahooAccess("nhl", "2026", null, null)).thenReturn(
                 new YahooProbeResponse()
                         .ok(false)
                         .path("/game/nhl/players")
@@ -92,7 +92,7 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void passesALeagueKeyThroughToTheProbe() throws Exception {
-        when(playerServiceClient.probeYahooAccess("nhl", null, "465.l.12345")).thenReturn(
+        when(playerServiceClient.probeYahooAccess("nhl", null, "465.l.12345", null)).thenReturn(
                 new YahooProbeResponse().ok(true).path("/league/465.l.12345/players")
                         .status(200).players(25));
 
@@ -101,6 +101,24 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andExpect(jsonPath("$.players").value(25));
+    }
+
+    /**
+     * The leagues target is the floor question, and it has to reach yahoo-service unchanged: the
+     * whole point is to learn what Yahoo says about the most basic call the granted scope covers.
+     */
+    @Test
+    void passesTheLeaguesTargetThroughToTheProbe() throws Exception {
+        when(playerServiceClient.probeYahooAccess("nhl", null, null, "leagues")).thenReturn(
+                new YahooProbeResponse().ok(false)
+                        .path("/users;use_login=1/games;game_keys=nhl/leagues")
+                        .status(401).error("Please provide valid credentials"));
+
+        mockMvc.perform(get("/api/v1/admin/yahoo/probe?target=leagues")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Please provide valid credentials"));
     }
 
     @Test

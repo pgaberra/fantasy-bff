@@ -88,8 +88,13 @@ public class AdminController {
             @Parameter(description = "Ask this league's players instead of the whole game's. The "
                     + "granted Yahoo scope is about leagues, so this may be served where a game "
                     + "is refused — and that difference is the diagnosis.")
-            @RequestParam(required = false) String leagueKey) {
-        return playerServiceClient.probeYahooAccess(gameKey, season, leagueKey);
+            @RequestParam(required = false) String leagueKey,
+            @Parameter(description = "Set to \"leagues\" to ask the floor question instead: can "
+                    + "this account list its own leagues at all? Everything else is ignored. A "
+                    + "refusal here means no route into the Fantasy API is open, not that the "
+                    + "wrong one was chosen.")
+            @RequestParam(required = false) String target) {
+        return playerServiceClient.probeYahooAccess(gameKey, season, leagueKey, target);
     }
 
     @Operation(summary = "The Yahoo service account's own leagues",
