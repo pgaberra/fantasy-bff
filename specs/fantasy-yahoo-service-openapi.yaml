@@ -290,6 +290,11 @@ paths:
         required: false
         schema:
           type: string
+      - name: target
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: "What Yahoo answered, refusal included"
