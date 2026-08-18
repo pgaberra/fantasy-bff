@@ -27,6 +27,7 @@ public interface PlayerServiceClient {
      * rather than throwing. A refusal is the thing being looked for.
      *
      * @param season season start year, or null to send no season filter
+     * @param leagueKey ask a league's player collection instead of the game's, or null
      */
-    YahooProbeResponse probeYahooAccess(String gameKey, String season);
+    YahooProbeResponse probeYahooAccess(String gameKey, String season, String leagueKey);
 }

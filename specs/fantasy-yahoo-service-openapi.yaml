@@ -268,7 +268,10 @@ paths:
       description: "Makes one live call and reports the status Yahoo answered with,\
         \ including its own error wording. Reads nothing into the cache and writes\
         \ nothing, so it is safe to fire at any game key or season. Vary one input\
-        \ at a time to tell a refused season from a refused game from a dead token."
+        \ at a time to tell a refused season from a refused game from a dead token.\
+        \ Give a leagueKey to ask a league's player collection instead of the whole\
+        \ game's — the granted scope is about leagues, so that one may be allowed\
+        \ where the other is not."
       operationId: probe
       parameters:
       - name: gameKey
@@ -282,6 +285,11 @@ paths:
         required: false
         schema:
           type: string
+      - name: leagueKey
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: "What Yahoo answered, refusal included"
@@ -289,6 +297,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/YahooProbeResponse"
+  /api/v1/sync/leagues:
+    get:
+      tags:
+      - Sync
+      summary: The service account's own leagues
+      description: "The leagues the app-owned Yahoo account belongs to, with their\
+        \ keys. Two uses: it hands you a league key for the probe without hunting\
+        \ for one, and it is itself a test — if this succeeds while a game's player\
+        \ collection is refused, the account and its permission are fine and the refusal\
+        \ is about what was asked for, not who asked."
+      operationId: serviceAccountLeagues
+      responses:
+        "200":
+          description: Leagues returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaguesResponse"
   /api/v1/players/{playerId}/headshot:
     get:
       tags:

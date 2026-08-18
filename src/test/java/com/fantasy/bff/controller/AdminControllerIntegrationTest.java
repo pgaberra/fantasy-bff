@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.PlayerServiceClient;
+import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -69,7 +70,7 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void adminCanProbeYahooAccessAndSeeARefusal() throws Exception {
-        when(playerServiceClient.probeYahooAccess("nhl", "2026")).thenReturn(
+        when(playerServiceClient.probeYahooAccess("nhl", "2026", null)).thenReturn(
                 new YahooProbeResponse()
                         .ok(false)
                         .path("/game/nhl/players")
@@ -83,6 +84,32 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.error")
                         .value("This application is not authorized to perform this action."));
+    }
+
+    /**
+     * A league key has to reach the downstream call — it is the input that distinguishes "a game
+     * is refused" from "we are refused", which is the question the probe exists to settle.
+     */
+    @Test
+    void passesALeagueKeyThroughToTheProbe() throws Exception {
+        when(playerServiceClient.probeYahooAccess("nhl", null, "465.l.12345")).thenReturn(
+                new YahooProbeResponse().ok(true).path("/league/465.l.12345/players")
+                        .status(200).players(25));
+
+        mockMvc.perform(get("/api/v1/admin/yahoo/probe?leagueKey=465.l.12345")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true))
+                .andExpect(jsonPath("$.players").value(25));
+    }
+
+    @Test
+    void adminCanListTheServiceAccountsLeagues() throws Exception {
+        when(yahooServiceClient.leagues("__service__")).thenReturn(new LeaguesResponse());
+
+        mockMvc.perform(get("/api/v1/admin/yahoo/leagues")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk());
     }
 
     /** Diagnostics are admin-only: the answer names a service account and quotes upstream errors. */
