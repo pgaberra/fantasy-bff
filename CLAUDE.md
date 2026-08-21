@@ -7,7 +7,25 @@ serves player data, and orchestrates calls to downstream services
 model and Yahoo leagues, `fantasy-espn-service` for ESPN leagues and the stats Yahoo does not
 report, `fantasy-projection-service` for the projection model).
 
-@.aiassistant/rules/agent-context.md
+## Design rules
+
+- **No business logic here.** A rule that belongs to a domain lives in the service that owns
+  that domain. The BFF receives, fans out, aggregates, reshapes, returns.
+- **Frontend-driven API design.** Endpoints and response shapes are designed around what the
+  Angular app needs, not around what the downstream services happen to return.
+- **Stateless** — no session state; identity travels in the JWT.
+- **Virtual threads, never reactive.** `spring.threads.virtual.enabled=true` plus synchronous
+  `RestClient` calls. Never write `Mono`, `Flux` or `.subscribe()`, and never reach for
+  `WebClient` or the deprecated `RestTemplate`. Blocking a virtual thread is the point:
+  it keeps the whole stack free to block (JDBC, any library) without starving a carrier pool.
+- **Fail gracefully.** A downstream being unavailable should not fail the whole response when
+  a partial one is meaningful — `/players` serves the Yahoo line without the ESPN-only stats
+  when espn-service is unreachable.
+- **Layering is one-way**: controller → service → client. No skipping.
+- Java `record`s for DTOs (requests in `dto/request/`, responses in `dto/response/`);
+  `Optional` rather than a returned `null`; prefer built-in exceptions over custom ones.
+- Never hardcode a URL or a secret — `@Value` / `@ConfigurationProperties` backed by env.
+- Every new service method gets a test: happy path plus at least one failure or edge case.
 
 ## Tech stack
 
@@ -181,21 +199,22 @@ var — never in a profile.
     "…").permitAll()`) so the whole API's authorization posture stays reviewable in
     one place and any new method on the path falls back to `denyAll`.
 
-### Logging & error handling
+### Error handling
 
-**Never silence an error.** `GlobalExceptionHandler` has a catch-all
-`@ExceptionHandler(Exception.class)` that **logs the full stack trace** (`log.error`)
-and returns a consistent `ErrorDto` — an unmatched exception must never surface as an
-opaque 500 with no server-side trace (a downstream failure was once undiagnosable
-because of exactly this). Rules of thumb:
+The monorepo-wide rule (never silence an error; `ERROR` for 5xx, quiet for 4xx) lives in
+the root `CLAUDE.md`. What is specific here: `GlobalExceptionHandler` maps
 
-- **5xx / genuine faults** (unexpected exceptions, a downstream service returning a
-  non-2xx or being unreachable — see the `RestClientException` handler): log at `ERROR`
-  with the exception so the stack trace and upstream status are captured.
-- **4xx / expected client outcomes** (unauthorized, bad request, validation): do **not**
-  log as errors — they are normal and would just be noise.
+| Exception | Status | Case |
+|---|---|---|
+| `SecurityException` | 401 | JWT invalid/expired, bad credentials |
+| `NoSuchElementException` | 404 | Resource does not exist |
+| `IllegalArgumentException` | 400 | Invalid input, business rule violation |
+| `IllegalStateException` | 502 | Downstream error or timeout |
+| `MethodArgumentNotValidException` | 400 | Bean Validation failure |
+| `Exception` | 500 | Catch-all — logs the stack trace |
 
-The same convention is documented in every other service in the monorepo.
+Set connect + read timeouts on every `RestClient`, use `onStatus()` so a non-2xx becomes an
+exception, and let the `RestClientException` handler capture the upstream status.
 
 ### OpenAPI-first downstream clients
 
@@ -209,6 +228,9 @@ Workflow for a new downstream service:
    `build.gradle` (see `generateYahooClient` for the pattern).
 3. Define an `interface` in `client/` and implement it with the generated model
    classes; integration tests mock the interface with `@MockitoBean`.
+4. Register a `RestClient` bean for it in `RestClientConfig` (base URL, timeouts, API key
+   from `services.<name>.*`), and give `SPEC_READ_TOKEN` read access to the new repo — the
+   drift check 404s rather than reporting drift if you forget.
 
 Every downstream client is fully generated, each from its pinned spec in `specs/`:
 `com.fantasy.bff.generated.db.model`, `.yahoo.model`, `.espn.model` and `.projection.model`.
@@ -245,43 +267,13 @@ git add specs/bff-openapi.yaml
 
 ## Monorepo conventions
 
-Shared across the repos (`fantasy-web` → `fantasy-bff` → `fantasy-db-service` +
-`fantasy-yahoo-service` + `fantasy-espn-service` + `fantasy-projection-service`). The web talks
-only to the BFF; every inter-service call carries a shared `X-Internal-Api-Key` header.
-
-### Input validation
-
-**Every service validates its own inbound data independently** — never trust that an
-upstream caller (e.g. the BFF) validated correctly. Reject malformed input at the
-boundary with Bean Validation (`@Valid` on the controller param + `@NotBlank` / `@Email`
-/ `@Size` / … on the DTO). **Every user-supplied string gets a `@Size(max=…)`** so an
-oversized payload is rejected rather than processed or stored.
-
-### Secrets
-
-**Never commit a password, API key, token, or any secret to git — in any environment**,
-not even throwaway local-dev credentials, so the habit is absolute and we never risk
-leaking (or reusing) a real one. Secrets come only from environment variables
-(`${JWT_SECRET}`, `${DB_INTERNAL_API_KEY}`, …) — no literal value and **no default** in
-`application*.yaml`; a missing var should fail fast, not fall back to a baked-in value.
-Non-secret connection details (host, port, service URLs) may be committed.
-
-### Merging PRs
-
-Branch → push → PR → checks pass → **squash merge** to `master`. GitHub squash uses the
-**PR title** as the commit message, so make it a proper message (`feat: …`, `fix: …`), then
-merge with an explicit subject:
-```
-gh pr merge <n> --squash --delete-branch \
-  --subject "feat: describe the change (#<n>)" \
-  --body "Optional longer description."
-```
-Never merge a PR titled "wip"/"draft".
-
-### Commit messages
-
-No attribution trailers (`attribution.commit` / `attribution.pr` are `""` in
-`~/.claude/settings.json`, enforced at the tool level).
+The full set lives in the monorepo root `CLAUDE.md`: input validation at every boundary,
+logging & error handling, secrets only from env, one worktree per agent, and the merge
+procedure. In short — the web talks only to the BFF; inter-service calls carry a shared
+`X-Internal-Api-Key` header. Branch → push → PR → checks pass → **squash merge** to `master`
+(the PR title becomes the commit message; make it a proper `feat:`/`fix:` message and merge
+with an explicit `--subject`). No attribution trailers. Secrets only from env, never
+committed. Never merge a PR titled "wip"/"draft".
 
 ## Deployment
 
