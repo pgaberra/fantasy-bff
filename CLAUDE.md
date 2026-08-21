@@ -87,12 +87,52 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     db-service returns to its trusted caller — the password hash and social subject ids stop
     here. Sharing a projection requires a username, so the share endpoints relay db-service's
     409 when an account has not picked one.
+  - `BillingController` — `/api/v1/billing`: checkout, the customer portal, the current
+    entitlement, and the provider's webhook. Billing **state** lives in db-service; the BFF
+    stays stateless and only relays. Everything goes through the `payments/`
+    `PaymentProvider` interface, so a real provider (Stripe, Paddle) drops in as another
+    implementation without touching this controller, the db-service contract or the web —
+    `MockPaymentProvider` drives the whole lifecycle locally. Two things to know before
+    changing it: every mutating endpoint **404s unless `payments.enabled`** (and
+    `/entitlements` answers "no premium" rather than failing, so the web renders the same
+    either way), and the **webhook is `permitAll`** — the provider calls it unauthenticated,
+    so its only defence is the signature `parseAndVerify` checks over the *raw* body. Take
+    the body as `byte[]`: re-serializing it would change the bytes the signature covers.
+  - `ProjectionModelController` — `/api/v1/projection-model`: the projection service's output
+    made usable here. `/seed` returns model lines keyed by *this* platform's player id, ready
+    to save as a new projection — deliberately without scoring settings, which belong to the
+    user's league. `/splits/{skaters,goalies}` return what players **actually produced** over
+    a stretch of games — measured, not projected. Ranges are team game numbers so the same
+    range means the same stretch for everyone, and splits default one season *back* from the
+    projected one, since that is the season with games in it.
+  - `YahooController` / `EspnController` — the signed-in user's league integrations, both
+    forwarding the JWT subject to the service that owns the data and both ending at the same
+    place: `…/leagues/{id}/projection-settings`, the league's scoring mapped into *our*
+    projection settings, so the two platforms converge before the web ever sees them. They
+    differ where the platforms differ — Yahoo has `POST /connect` and a `/connection` status
+    because it has OAuth; ESPN has none, so `EspnController` manages the user's stored
+    `espn_s2` + `SWID` cookies instead. Note `GET /espn/credentials/values` hands the caller
+    back **their own** cookies (everything else exposes only a `hasCredentials` flag).
+  - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
+    it answered, probed in parallel on virtual threads. A service that cannot be reached comes
+    back `reachable: false` rather than failing the response — the endpoint exists to show
+    that, so it must survive it.
 - `service/` — business logic (`AuthService`, `PlayerService`)
   - `AdminController`'s `GET /api/v1/admin/yahoo/probe` proxies yahoo-service's live Yahoo probe
     (see its `YahooProbeService`): one call for a chosen game key and season, reporting the status
     Yahoo answered with and its own error wording. A failing sync only says that *something* was
     refused; this is how you find out what. Admin-only, since the answer names the service account
     and quotes upstream errors.
+  - `service/mapping/PlayerIdResolver` — matches NHL players to the platform's players, because
+    **nobody publishes a crosswalk** between NHL ids and Yahoo/ESPN ids. Everything the
+    projection model feeds (seeding, splits) crosses this bridge, so read its Javadoc before
+    touching it: the rules were measured against staging data, not guessed. Two that look wrong
+    until you see the numbers — **team is not a matching key** (requiring it drops coverage from
+    97.4% to 77.9%, since the platform's rows are a sync snapshot while the NHL's team is live),
+    and leftovers **stay unmatched on purpose** (a fantasy platform simply doesn't carry fringe
+    players). `ProjectionSeedService` and `PlayerSplitService` sit on top of it — the seed side
+    also refuses to fill an absent stat with a zero, which would read as a terrible goalie
+    rather than one the model projects no starts for.
   - `PlayerPoolRows` — the player read model as projection rows, either keeping each player's
     stats or zeroed. The one place rows are built, so a player added to a projection a season
     after it was written carries exactly the stat keys of the ones created alongside it.
