@@ -40,7 +40,8 @@ class HttpDatabaseServiceClientSubscriptionTest {
                 .baseUrl(server.baseUrl())
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
-        client = new HttpDatabaseServiceClient(restClient);
+        // Both clients point at the same WireMock; only their timeouts differ in production.
+        client = new HttpDatabaseServiceClient(restClient, restClient);
     }
 
     @AfterEach

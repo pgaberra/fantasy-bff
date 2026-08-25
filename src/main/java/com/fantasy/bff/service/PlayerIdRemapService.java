@@ -31,6 +31,13 @@ import java.util.Map;
  *
  * <p>It is a one-way move. Once the rows are ESPN's ids and the app is serving ESPN's pool,
  * going back means running the same exercise in reverse.
+ *
+ * <p>The call to db-service rewrites every stored projection in one request and runs for as
+ * long as that takes, so it goes out on the migration client's timeout rather than the one
+ * sized for requests a user is waiting on. If it is cut off anyway, db-service does not know
+ * the caller has gone and commits regardless — so a failed apply is not the same as no apply.
+ * A dry run afterwards says which happened: it reports the projections still on Yahoo's ids,
+ * and that is zero once the write has landed.
  */
 @Service
 public class PlayerIdRemapService {
