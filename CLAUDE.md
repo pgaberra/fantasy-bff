@@ -127,6 +127,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     it was saved, so flipping the flag goes together with migrating those rows. `PlayerService`,
     `ProjectionSeedService` and `PlayerSplitContextProvider` all read the pool through this
     seam, so the switch reaches every one of them at once.
+  - `PlayerIdRemapService` — the one-off that goes with flipping that flag: it matches the
+    Yahoo pool to the ESPN one with `PlayerIdResolver` and hands the crosswalk to db-service,
+    which rewrites the ids in every saved projection, draft pick and share. This is the only
+    service that can see both pools — the Yahoo one is still readable from yahoo-service's
+    cache even though Yahoo no longer serves players. Admin-only, dry run by default, and it
+    refuses to apply if either pool came back short or too little of it matched, because a row
+    left behind comes back marked as migrated and a rerun cannot reach it.
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.

@@ -2,6 +2,8 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.response.PlayerIdRemapReport;
+import com.fantasy.bff.service.PlayerIdRemapService;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
@@ -35,8 +37,12 @@ public class AdminController {
 
     private final YahooServiceClient yahooServiceClient;
     private final PlayerServiceClient playerServiceClient;
+    private final PlayerIdRemapService playerIdRemapService;
 
-    public AdminController(YahooServiceClient yahooServiceClient, PlayerServiceClient playerServiceClient) {
+    public AdminController(YahooServiceClient yahooServiceClient,
+                           PlayerServiceClient playerServiceClient,
+                           PlayerIdRemapService playerIdRemapService) {
+        this.playerIdRemapService = playerIdRemapService;
         this.yahooServiceClient = yahooServiceClient;
         this.playerServiceClient = playerServiceClient;
     }
@@ -105,5 +111,19 @@ public class AdminController {
     @GetMapping("/yahoo/leagues")
     public LeaguesResponse yahooServiceAccountLeagues() {
         return yahooServiceClient.leagues(SERVICE_ACCOUNT_ID);
+    }
+
+    @Operation(summary = "Remap saved player ids from Yahoo's numbering to ESPN's",
+            description = "Matches the Yahoo player pool to the ESPN one and rewrites the ids in "
+                    + "every saved projection, draft pick and share. Reports the match before the "
+                    + "write, and defaults to a dry run: pass dryRun=false to actually apply it. "
+                    + "A one-way move — the app should be serving the ESPN pool afterwards.")
+    @ApiResponse(responseCode = "200", description = "Match reported, and applied unless it was a dry run")
+    @ApiResponse(responseCode = "502", description = "Either pool came back short, or too little of the Yahoo pool matched to apply")
+    @PostMapping("/player-ids/remap")
+    public PlayerIdRemapReport remapPlayerIds(
+            @Parameter(description = "Write nothing and report what would change. Defaults to true.")
+            @RequestParam(defaultValue = "true") boolean dryRun) {
+        return playerIdRemapService.remap(dryRun);
     }
 }

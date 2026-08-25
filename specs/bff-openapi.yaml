@@ -666,6 +666,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncAcceptedResponse"
+  /api/v1/admin/player-ids/remap:
+    post:
+      tags:
+      - Admin
+      summary: Remap saved player ids from Yahoo's numbering to ESPN's
+      description: "Matches the Yahoo player pool to the ESPN one and rewrites the\
+        \ ids in every saved projection, draft pick and share. Reports the match before\
+        \ the write, and defaults to a dry run: pass dryRun=false to actually apply\
+        \ it. A one-way move — the app should be serving the ESPN pool afterwards."
+      operationId: remapPlayerIds
+      parameters:
+      - name: dryRun
+        in: query
+        description: Write nothing and report what would change. Defaults to true.
+        required: false
+        schema:
+          type: boolean
+          default: true
+      responses:
+        "200":
+          description: "Match reported, and applied unless it was a dry run"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerIdRemapReport"
+        "502":
+          description: "Either pool came back short, or too little of the Yahoo pool\
+            \ matched to apply"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerIdRemapReport"
   /api/v1/yahoo/leagues:
     get:
       tags:
@@ -1928,6 +1960,100 @@ components:
           type: string
       required:
       - status
+    PlayerIdRemapCounts:
+      type: object
+      properties:
+        remapped:
+          type: integer
+          format: int32
+        unmapped:
+          type: integer
+          format: int32
+      required:
+      - remapped
+      - unmapped
+    PlayerIdRemapReport:
+      type: object
+      properties:
+        yahooPlayers:
+          type: integer
+          format: int32
+          description: Players in the Yahoo pool
+        espnPlayers:
+          type: integer
+          format: int32
+          description: Players in the ESPN pool
+        matched:
+          type: integer
+          format: int32
+          description: Yahoo players that found an ESPN counterpart
+        matchedOnName:
+          type: integer
+          format: int32
+          description: Matched on the full name
+        matchedOnFallback:
+          type: integer
+          format: int32
+          description: "Matched on last name plus first initial, where that form was\
+            \ unique on both sides"
+        unmatched:
+          type: integer
+          format: int32
+        coverage:
+          type: number
+          format: double
+          description: Share of the Yahoo pool that found a counterpart
+        unmatchedSample:
+          type: array
+          description: "Yahoo players with no ESPN counterpart, at most 50 of them.\
+            \ A platform only lists players with fantasy relevance, so some of these\
+            \ should never match; the rest are how a broken match is noticed."
+          items:
+            type: string
+        applied:
+          $ref: "#/components/schemas/PlayerIdRemapResponse"
+          description: "What db-service did with the crosswalk, or would have done\
+            \ on a dry run"
+      required:
+      - applied
+      - coverage
+      - espnPlayers
+      - matched
+      - matchedOnFallback
+      - matchedOnName
+      - unmatched
+      - unmatchedSample
+      - yahooPlayers
+    PlayerIdRemapResponse:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+        projectionsScanned:
+          type: integer
+          format: int32
+        playerRows:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+        draftPicks:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+        sharesScanned:
+          type: integer
+          format: int32
+        sharedRows:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+        unmappedPlayerIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+      required:
+      - draftPicks
+      - dryRun
+      - playerRows
+      - projectionsScanned
+      - sharedRows
+      - sharesScanned
+      - unmappedPlayerIds
     LeagueSummary:
       type: object
       properties:
