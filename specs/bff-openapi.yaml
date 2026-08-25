@@ -2075,12 +2075,31 @@ components:
         coverage:
           type: number
           format: double
-          description: Share of the Yahoo pool that found a counterpart
+          description: "Share of the whole Yahoo pool that found a counterpart. Read\
+            \ the played coverage below instead: the pool is a frozen snapshot of\
+            \ everyone who was fantasy-relevant last season, hundreds of whom never\
+            \ got into a game and are simply not on the new platform's active list."
+        playersWithGames:
+          type: integer
+          format: int32
+          description: Yahoo players who played at least one game in the reference
+            season
+        matchedWithGames:
+          type: integer
+          format: int32
+          description: How many of those found an ESPN counterpart
+        coverageOfPlayersWithGames:
+          type: number
+          format: double
+          description: Share of the players who actually played that found a counterpart.
+            This is what the remap is gated on — they are the ones a projection has
+            real numbers for.
         unmatchedSample:
           type: array
-          description: "Yahoo players with no ESPN counterpart, at most 50 of them.\
-            \ A platform only lists players with fantasy relevance, so some of these\
-            \ should never match; the rest are how a broken match is noticed."
+          description: "Yahoo players with no ESPN counterpart, busiest first and\
+            \ with the games they played, at most 50 of them. A platform only lists\
+            \ players with fantasy relevance, so a long tail of 0 GP here is expected;\
+            \ anyone with a real season is how a broken match is noticed."
           items:
             type: string
         applied:
@@ -2090,10 +2109,13 @@ components:
       required:
       - applied
       - coverage
+      - coverageOfPlayersWithGames
       - espnPlayers
       - matched
       - matchedOnFallback
       - matchedOnName
+      - matchedWithGames
+      - playersWithGames
       - unmatched
       - unmatchedSample
       - yahooPlayers

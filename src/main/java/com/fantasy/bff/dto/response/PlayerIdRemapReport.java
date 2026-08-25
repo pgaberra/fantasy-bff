@@ -25,12 +25,27 @@ public record PlayerIdRemapReport(
         int matchedOnFallback,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int unmatched,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Share of the Yahoo pool that found a counterpart")
+                description = "Share of the whole Yahoo pool that found a counterpart. Read the "
+                        + "played coverage below instead: the pool is a frozen snapshot of "
+                        + "everyone who was fantasy-relevant last season, hundreds of whom never "
+                        + "got into a game and are simply not on the new platform's active list.")
         double coverage,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Yahoo players with no ESPN counterpart, at most 50 of them. A "
-                        + "platform only lists players with fantasy relevance, so some of these "
-                        + "should never match; the rest are how a broken match is noticed.")
+                description = "Yahoo players who played at least one game in the reference season")
+        int playersWithGames,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "How many of those found an ESPN counterpart")
+        int matchedWithGames,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Share of the players who actually played that found a counterpart. "
+                        + "This is what the remap is gated on — they are the ones a projection "
+                        + "has real numbers for.")
+        double coverageOfPlayersWithGames,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Yahoo players with no ESPN counterpart, busiest first and with "
+                        + "the games they played, at most 50 of them. A platform only lists "
+                        + "players with fantasy relevance, so a long tail of 0 GP here is "
+                        + "expected; anyone with a real season is how a broken match is noticed.")
         List<String> unmatchedSample,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "What db-service did with the crosswalk, or would have done on a dry run")

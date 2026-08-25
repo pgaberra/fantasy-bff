@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -42,11 +44,19 @@ public class PlayerIdRemapService {
     private static final int MINIMUM_CREDIBLE_POOL = 1000;
 
     /**
-     * Measured coverage is around 98.7% (97.4% on the full name, 1.3% on the familiar-form
-     * fallback). Well under that is a broken match rather than a thin pool, and applying it
-     * would strand rows that a rerun cannot reach, because they are marked as migrated.
+     * The gate is coverage of the players who <b>actually played</b>, not of the whole pool.
+     *
+     * <p>Measured against staging: 83.7% of the Yahoo pool found an ESPN counterpart, and every
+     * single one of the 259 that didn't had played no games. That is structural rather than
+     * wrong — the Yahoo pool is a frozen snapshot of everyone who was fantasy-relevant last
+     * season, 552 of whom never got into a game, while ESPN lists who is active for the season
+     * being played. Gating on the whole pool would have blocked a perfectly good crosswalk.
+     *
+     * <p>A player who did play is a different matter: they are the ones a projection has real
+     * numbers for, and losing them is what a broken match looks like. A little headroom under
+     * 100% covers someone who played a handful of games and then left the league.
      */
-    private static final double MINIMUM_COVERAGE_TO_APPLY = 0.90;
+    private static final double MINIMUM_PLAYED_COVERAGE_TO_APPLY = 0.95;
 
     /** Enough to see what kind of player went unmatched without answering with a directory. */
     private static final int UNMATCHED_SAMPLE = 50;
@@ -70,17 +80,24 @@ public class PlayerIdRemapService {
     }
 
     public PlayerIdRemapReport remap(boolean dryRun) {
-        List<Candidate> yahoo = yahooPool();
+        Map<Long, Integer> gamesPlayed = new LinkedHashMap<>();
+        List<Candidate> yahoo = yahooPool(gamesPlayed);
         List<Candidate> espn = espnPool();
         requireCredible("Yahoo", yahoo.size());
         requireCredible("ESPN", espn.size());
 
         PlayerIdMapping mapping = resolver.resolve(yahoo, espn, Map.of());
-        if (!dryRun && mapping.coverage() < MINIMUM_COVERAGE_TO_APPLY) {
-            throw new IllegalStateException(("Only %.1f%% of the Yahoo pool matched an ESPN "
-                    + "player, well under the %.0f%% a working match produces. Refusing to apply; "
-                    + "run the dry run and look at what went unmatched.")
-                    .formatted(mapping.coverage() * 100, MINIMUM_COVERAGE_TO_APPLY * 100));
+        int played = (int) gamesPlayed.values().stream().filter(games -> games > 0).count();
+        int matchedWhoPlayed = (int) mapping.nhlIdToPlatformId().keySet().stream()
+                .filter(id -> gamesPlayed.getOrDefault(id, 0) > 0)
+                .count();
+        double playedCoverage = played == 0 ? 0.0 : (double) matchedWhoPlayed / played;
+        if (!dryRun && playedCoverage < MINIMUM_PLAYED_COVERAGE_TO_APPLY) {
+            throw new IllegalStateException(("Only %.1f%% of the Yahoo players who actually "
+                    + "played a game found an ESPN counterpart, under the %.0f%% a working match "
+                    + "produces. Refusing to apply; run the dry run and look at what went "
+                    + "unmatched.")
+                    .formatted(playedCoverage * 100, MINIMUM_PLAYED_COVERAGE_TO_APPLY * 100));
         }
 
         List<PlayerIdPair> crosswalk = mapping.nhlIdToPlatformId().entrySet().stream()
@@ -88,9 +105,10 @@ public class PlayerIdRemapService {
                         .from(Math.toIntExact(entry.getKey()))
                         .to(entry.getValue()))
                 .toList();
-        log.info("Remapping player ids ({}): {} Yahoo players, {} ESPN players, {} matched ({}%)",
+        log.info("Remapping player ids ({}): {} Yahoo players, {} ESPN players, {} matched "
+                        + "({}% of the pool, {}% of the {} who played)",
                 dryRun ? "dry run" : "applying", yahoo.size(), espn.size(), mapping.matched(),
-                Math.round(mapping.coverage() * 100));
+                Math.round(mapping.coverage() * 100), Math.round(playedCoverage * 100), played);
 
         return new PlayerIdRemapReport(
                 yahoo.size(),
@@ -100,7 +118,10 @@ public class PlayerIdRemapService {
                 mapping.matchedOnFallback(),
                 mapping.unmatched().size(),
                 mapping.coverage(),
-                unmatchedSample(mapping),
+                played,
+                matchedWhoPlayed,
+                playedCoverage,
+                unmatchedSample(mapping, gamesPlayed),
                 databaseServiceClient.remapPlayerIds(crosswalk, dryRun));
     }
 
@@ -109,15 +130,17 @@ public class PlayerIdRemapService {
      * crosswalk needs both sides whichever one the app is currently serving, and after the
      * switch the Yahoo side is no longer the pool.
      */
-    private List<Candidate> yahooPool() {
+    private List<Candidate> yahooPool(Map<Long, Integer> gamesPlayed) {
         List<Candidate> candidates = new ArrayList<>();
         for (SkaterResponse skater : yahooPlayerClient.getSkaters()) {
             candidates.add(new Candidate(
                     skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
+            gamesPlayed.put((long) skater.id(), skater.stats().utility().gp());
         }
         for (GoalieResponse goalie : yahooPlayerClient.getGoalies()) {
             candidates.add(new Candidate(
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
+            gamesPlayed.put((long) goalie.id(), goalie.stats().utility().gp());
         }
         return candidates;
     }
@@ -145,12 +168,21 @@ public class PlayerIdRemapService {
         }
     }
 
-    private static List<String> unmatchedSample(PlayerIdMapping mapping) {
+    /**
+     * The unmatched, busiest first and carrying the games they played, because a player with a
+     * season behind them is the one worth looking at — an alphabetical list of players who never
+     * got into a game says nothing.
+     */
+    private static List<String> unmatchedSample(PlayerIdMapping mapping, Map<Long, Integer> gamesPlayed) {
         return mapping.unmatched().stream()
+                .sorted(Comparator.comparingInt(
+                        (PlayerIdMapping.Unmatched player) -> gamesPlayed.getOrDefault(player.nhlId(), 0))
+                        .reversed())
                 .limit(UNMATCHED_SAMPLE)
-                .map(player -> player.team() == null || player.team().isBlank()
-                        ? player.name()
-                        : player.name() + " (" + player.team() + ")")
+                .map(player -> "%s (%s, %d GP)".formatted(
+                        player.name(),
+                        player.team() == null || player.team().isBlank() ? "no team" : player.team(),
+                        gamesPlayed.getOrDefault(player.nhlId(), 0)))
                 .toList();
     }
 }
