@@ -30,12 +30,25 @@ public record ProjectionResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime updatedAt,
 
+        @Schema(description = "Who this board was copied from, on a projection imported from a "
+                + "share link. Absent on the user's own.")
+        ProjectionOrigin origin,
+
         @Schema(description = "How many player rows this read added to match the current player "
                 + "pool. Present only when the pool had moved since these rows were last squared "
                 + "with it, so a client can say so once and then stop. Nothing is removed by a "
                 + "reconciliation — a row whose player has left the pool stays and is not shown.")
         PoolReconciliation poolReconciliation
 ) {
+
+    /**
+     * @param shareToken     the link the board was copied from, which may since have gone
+     * @param authorUsername the author's name as it read when the copy was taken
+     */
+    public record ProjectionOrigin(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String shareToken,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String authorUsername
+    ) {}
 
     /**
      * @param added rows added for players who joined the pool, seeded from the projection's basis
@@ -58,13 +71,26 @@ public record ProjectionResponse(
                 stored.getData(),
                 stored.getCreatedAt(),
                 stored.getUpdatedAt(),
+                originOf(stored.getOrigin()),
                 poolReconciliation);
     }
 
     private static ProjectionKind kindOf(
             com.fantasy.bff.generated.db.model.ProjectionResponse.KindEnum kind) {
-        return kind == com.fantasy.bff.generated.db.model.ProjectionResponse.KindEnum.PRESET_DRAFT
-                ? ProjectionKind.PRESET_DRAFT
-                : ProjectionKind.PROJECTION;
+        if (kind == null) {
+            return ProjectionKind.PROJECTION;
+        }
+        return switch (kind) {
+            case PRESET_DRAFT -> ProjectionKind.PRESET_DRAFT;
+            case IMPORTED -> ProjectionKind.IMPORTED;
+            case PROJECTION -> ProjectionKind.PROJECTION;
+        };
+    }
+
+    private static ProjectionOrigin originOf(
+            com.fantasy.bff.generated.db.model.ProjectionOrigin origin) {
+        return origin == null
+                ? null
+                : new ProjectionOrigin(origin.getShareToken(), origin.getAuthorUsername());
     }
 }

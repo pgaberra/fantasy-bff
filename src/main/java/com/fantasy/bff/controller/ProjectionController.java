@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
@@ -72,6 +73,24 @@ public class ProjectionController {
     public ProjectionResponse create(@AuthenticationPrincipal String userId,
                                      @Valid @RequestBody CreateProjectionRequest request) {
         return projectionService.create(UUID.fromString(userId), request);
+    }
+
+    @Operation(summary = "Copy a shared projection into the current user's own, by its share token",
+            description = "Anyone holding a share link may copy the board behind it and draft "
+                    + "against it. The copy is of the snapshot as it was published, carries none "
+                    + "of the author's draft, and records who shared it.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Projection imported"),
+        @ApiResponse(responseCode = "400", description = "Validation failed"),
+        @ApiResponse(responseCode = "404", description = "No share with that token"),
+        @ApiResponse(responseCode = "409",
+                description = "An imported projection with that name already exists")
+    })
+    @PostMapping("/imports")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectionResponse importFromShare(@AuthenticationPrincipal String userId,
+                                              @Valid @RequestBody ImportProjectionRequest request) {
+        return projectionService.importFromShare(UUID.fromString(userId), request);
     }
 
     @Operation(summary = "Update one of the current user's saved projections")

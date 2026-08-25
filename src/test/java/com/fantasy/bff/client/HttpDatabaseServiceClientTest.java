@@ -1,5 +1,7 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
+import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
@@ -12,6 +14,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -26,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HttpDatabaseServiceClientTest {
+
+    private static final String USER_ID = "11111111-1111-1111-1111-111111111111";
 
     private WireMockServer server;
     private HttpDatabaseServiceClient client;
@@ -188,5 +193,23 @@ class HttpDatabaseServiceClientTest {
 
         assertThatThrownBy(() -> client.verifyEmail("bad"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void importProjection_postsTheTokenToTheImportsCollection() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
+                .willReturn(okJson("{\"id\":\"p-1\",\"name\":\"Their league\",\"kind\":\"imported\","
+                        + "\"season\":\"20262027\",\"createdAt\":\"2026-08-01T10:00:00Z\","
+                        + "\"updatedAt\":\"2026-08-01T10:00:00Z\","
+                        + "\"origin\":{\"shareToken\":\"t0k3n\",\"authorUsername\":\"alex\"}}")));
+
+        ProjectionResponse imported = client.importProjection(
+                UUID.fromString(USER_ID), new ImportProjectionRequest().token("t0k3n"));
+
+        assertThat(imported.getKind()).isEqualTo(ProjectionResponse.KindEnum.IMPORTED);
+        assertThat(imported.getOrigin().getAuthorUsername()).isEqualTo("alex");
+        server.verify(postRequestedFor(
+                        urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
+                .withRequestBody(equalToJson("{\"token\":\"t0k3n\"}", true, true)));
     }
 }
