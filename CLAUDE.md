@@ -132,8 +132,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     which rewrites the ids in every saved projection, draft pick and share. This is the only
     service that can see both pools — the Yahoo one is still readable from yahoo-service's
     cache even though Yahoo no longer serves players. Admin-only, dry run by default, and it
-    refuses to apply if either pool came back short or too little of it matched, because a row
-    left behind comes back marked as migrated and a rerun cannot reach it.
+    refuses to apply if either pool came back short, or if too few of the players who **actually
+    played** matched — a row left behind comes back marked as migrated and a rerun cannot reach
+    it. The gate is deliberately not overall coverage: the Yahoo pool is frozen from last season
+    and hundreds of its players never got into a game, so they are correctly absent from ESPN's
+    active list (measured on staging: 83.7% of the pool matched, and every one of the 259 that
+    did not had played nothing).
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.

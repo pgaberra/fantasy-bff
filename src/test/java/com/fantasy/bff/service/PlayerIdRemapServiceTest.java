@@ -53,9 +53,14 @@ class PlayerIdRemapServiceTest {
     }
 
     private static SkaterResponse yahooSkater(int id, String name, String team, Integer jersey) {
+        return yahooSkater(id, name, team, jersey, 82);
+    }
+
+    private static SkaterResponse yahooSkater(int id, String name, String team, Integer jersey,
+                                              int gamesPlayed) {
         return new SkaterResponse(id, name, team, null, jersey, Set.of(SkaterPosition.C),
                 new SkaterResponse.Stats(
-                        new SkaterResponse.UtilityStats(82, 1320),
+                        new SkaterResponse.UtilityStats(gamesPlayed, 1320),
                         new SkaterResponse.ScoringStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0)));
     }
@@ -133,7 +138,7 @@ class PlayerIdRemapServiceTest {
         PlayerIdRemapReport report = service.remap(true);
 
         assertThat(report.unmatched()).isEqualTo(1);
-        assertThat(report.unmatchedSample()).containsExactly("Nobody Here (SEA)");
+        assertThat(report.unmatchedSample()).containsExactly("Nobody Here (SEA, 82 GP)");
         assertThat(crosswalkSentToDb()).noneMatch(pair -> pair.getFrom() == 1);
     }
 
@@ -152,11 +157,39 @@ class PlayerIdRemapServiceTest {
     }
 
     /**
-     * Applying a collapsed match would strand rows a rerun cannot reach, because they come back
-     * marked as migrated.
+     * The Yahoo pool is a frozen snapshot of everyone who was fantasy-relevant last season, and
+     * hundreds of them never got into a game — ESPN lists who is active now, so they correctly
+     * have no counterpart. Gating on the whole pool would block a perfectly good crosswalk.
      */
     @Test
-    void refusesToApplyWhenTooLittleOfThePoolMatched() {
+    void appliesWhenEveryPlayerThatWentUnmatchedNeverPlayed() {
+        List<SkaterResponse> yahoo = new ArrayList<>();
+        List<com.fantasy.bff.generated.espn.model.SkaterResponse> espn = new ArrayList<>();
+        for (int i = 0; i < FILLER; i++) {
+            yahoo.add(yahooSkater(1000 + i, fillerName(i) + " Played", "EDM", i % 99, 82));
+            espn.add(espnSkater(900000L + i, fillerName(i), "Played", "EDM", i % 99));
+        }
+        // A third of the pool again, none of whom ESPN lists and none of whom played.
+        for (int i = 0; i < FILLER / 2; i++) {
+            yahoo.add(yahooSkater(5000 + i, fillerName(i) + " Benched", "EDM", i % 99, 0));
+        }
+        when(yahooPlayerClient.getSkaters()).thenReturn(yahoo);
+        when(espnServiceClient.skaters(STATS_SEASON)).thenReturn(espn);
+
+        PlayerIdRemapReport report = service.remap(false);
+
+        assertThat(report.coverage()).isLessThan(0.7);
+        assertThat(report.coverageOfPlayersWithGames()).isEqualTo(1.0);
+        assertThat(report.playersWithGames()).isEqualTo(FILLER);
+        verify(databaseServiceClient).remapPlayerIds(any(), org.mockito.ArgumentMatchers.eq(false));
+    }
+
+    /**
+     * Applying a collapsed match would strand rows a rerun cannot reach, because they come back
+     * marked as migrated. A player who played is one a projection has real numbers for.
+     */
+    @Test
+    void refusesToApplyWhenPlayersWhoActuallyPlayedGoUnmatched() {
         List<SkaterResponse> yahoo = new ArrayList<>();
         for (int i = 0; i < FILLER; i++) {
             yahoo.add(yahooSkater(1000 + i, "Yahoo" + fillerName(i) + " Only", "EDM", i % 99));
@@ -170,6 +203,7 @@ class PlayerIdRemapServiceTest {
 
         assertThatThrownBy(() -> service.remap(false))
                 .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("actually played")
                 .hasMessageContaining("Refusing to apply");
 
         verify(databaseServiceClient, never()).remapPlayerIds(any(), anyBoolean());
@@ -189,7 +223,7 @@ class PlayerIdRemapServiceTest {
         }
         when(espnServiceClient.skaters(STATS_SEASON)).thenReturn(espn);
 
-        assertThat(service.remap(true).coverage()).isZero();
+        assertThat(service.remap(true).coverageOfPlayersWithGames()).isZero();
     }
 
     @Test
