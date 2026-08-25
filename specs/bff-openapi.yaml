@@ -2324,16 +2324,6 @@ components:
       - season
       - token
       - updatedAt
-    ProjectionOrigin:
-      type: object
-      properties:
-        shareToken:
-          type: string
-        authorUsername:
-          type: string
-      required:
-      - authorUsername
-      - shareToken
     ProjectionSummaryResponse:
       type: object
       properties:
