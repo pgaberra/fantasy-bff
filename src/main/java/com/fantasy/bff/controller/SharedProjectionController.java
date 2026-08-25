@@ -2,8 +2,8 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.service.ShareCardRenderer;
+import com.fantasy.bff.dto.response.SharedProjectionResponse;
 import com.fantasy.bff.generated.db.model.SharedPlayer;
-import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +31,13 @@ import java.util.stream.Collectors;
 public class SharedProjectionController {
 
     private static final int PREVIEW_PLAYERS = 3;
+
+    /**
+     * How much of a board someone who is not signed in gets to read. Enough that a link posted in
+     * a league chat is worth opening and worth passing on, and short of handing over a board its
+     * author spent a season building.
+     */
+    private static final int ANONYMOUS_PREVIEW_ROWS = 25;
 
     /**
      * Filled by {@code replace} rather than {@code formatted}: the same value appears in several
@@ -74,17 +83,43 @@ public class SharedProjectionController {
         this.webBaseUrl = webBaseUrl;
     }
 
+    /**
+     * The page behind a share link. Unauthenticated on purpose — a link has to open for someone
+     * who has never signed in — but how much it returns depends on whether it was asked with a
+     * token. The JWT filter runs on this path too and leaves a principal behind when one was
+     * presented, so a signed-in reader is recognised here without the endpoint being guarded.
+     */
     @Operation(operationId = "getSharedProjection",
             summary = "Fetch a shared projection by its token",
-            description = "Public: anyone holding the link can read it. Returns the snapshot as it "
-                    + "was when shared, with no identity beyond the alias the owner chose.")
+            description = "Public: anyone holding the link can read it. A signed-in reader gets "
+                    + "the whole published board; anyone else gets its top rows, with "
+                    + "`truncated` set and `totalPlayers` saying what the board holds. Returns "
+                    + "the snapshot as it was when shared, with no identity beyond the owner's "
+                    + "public username.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Shared projection found"),
         @ApiResponse(responseCode = "404", description = "No share with that token, or it was taken down")
     })
     @GetMapping("/{token}")
-    public SharedProjectionResponse get(@PathVariable String token) {
-        return databaseServiceClient.getSharedProjection(token);
+    public SharedProjectionResponse get(Authentication authentication,
+                                        @PathVariable String token) {
+        com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
+                databaseServiceClient.getSharedProjection(token);
+        return isSignedIn(authentication)
+                ? SharedProjectionResponse.full(shared)
+                : SharedProjectionResponse.preview(shared, ANONYMOUS_PREVIEW_ROWS);
+    }
+
+    /**
+     * Asked rather than assumed from the principal being absent. On a permitted path Spring
+     * Security still fills the context in — with an anonymous token whose principal is the
+     * <em>string</em> {@code "anonymousUser"} — so {@code @AuthenticationPrincipal String} is
+     * never null here and every visitor would read as signed in.
+     */
+    private static boolean isSignedIn(Authentication authentication) {
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 
     /**
@@ -98,7 +133,8 @@ public class SharedProjectionController {
     @Hidden
     @GetMapping(value = "/{token}/preview", produces = MediaType.TEXT_HTML_VALUE)
     public String preview(@PathVariable String token) {
-        SharedProjectionResponse shared = databaseServiceClient.getSharedProjection(token);
+        com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
+                databaseServiceClient.getSharedProjection(token);
         String url = webBaseUrl + "/s/" + token;
         String title = shared.getName() + " — a fantasy hockey projection on SlapStat";
         String description = describe(shared);
@@ -131,7 +167,7 @@ public class SharedProjectionController {
                 .body(card);
     }
 
-    private String describe(SharedProjectionResponse shared) {
+    private String describe(com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
         String top = shared.getData().getPlayers().stream()
                 .limit(PREVIEW_PLAYERS)
                 .map(SharedPlayer::getName)

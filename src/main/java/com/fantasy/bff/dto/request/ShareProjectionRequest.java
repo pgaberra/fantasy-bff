@@ -19,6 +19,8 @@ public record ShareProjectionRequest(
 
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "The ranked rows to publish, in display order.")
-        @NotNull @Valid @Size(max = 200) List<SharedPlayer> players
+                description = "The ranked rows to publish, in display order. A share carries the "
+                        + "whole board, so this is the client's entire ranking rather than the top "
+                        + "of it; the cap is a safety limit sized above the largest player pool.")
+        @NotNull @Valid @Size(max = 2000) List<SharedPlayer> players
 ) {}
