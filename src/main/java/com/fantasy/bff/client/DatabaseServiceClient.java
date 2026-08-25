@@ -1,6 +1,8 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.generated.db.model.PlayerIdPair;
+import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
@@ -89,4 +91,10 @@ public interface DatabaseServiceClient {
     Optional<SubscriptionResponse> getSubscription(UUID userId);
 
     SubscriptionResponse upsertSubscription(UUID userId, UpsertSubscriptionRequest request);
+
+    /**
+     * Rewrites the player ids in every stored projection and share from one platform's
+     * numbering to another's. A dry run reports what would change and writes nothing.
+     */
+    PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun);
 }

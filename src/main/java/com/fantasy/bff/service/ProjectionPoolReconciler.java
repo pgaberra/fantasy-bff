@@ -1,12 +1,10 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
-import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.service.PlayerPoolRows.Pool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,11 +12,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -53,13 +49,11 @@ public class ProjectionPoolReconciler {
      */
     private static final double BLANK_SHARE = 0.9;
 
-    private static final int SYNC_RUNS_TO_SCAN = 10;
-
-    private final PlayerServiceClient playerServiceClient;
+    private final PlayerPoolSource playerPool;
     private final PlayerPoolRows playerPoolRows;
 
-    public ProjectionPoolReconciler(PlayerServiceClient playerServiceClient, PlayerPoolRows playerPoolRows) {
-        this.playerServiceClient = playerServiceClient;
+    public ProjectionPoolReconciler(PlayerPoolSource playerPool, PlayerPoolRows playerPoolRows) {
+        this.playerPool = playerPool;
         this.playerPoolRows = playerPoolRows;
     }
 
@@ -160,15 +154,16 @@ public class ProjectionPoolReconciler {
         return Optional.of(pool);
     }
 
+    /**
+     * The watermark comes from whichever source is serving the pool: reconciling against the
+     * other platform's last sync would either never fire or fire forever.
+     */
     private Optional<OffsetDateTime> lastSuccessfulSync() {
         try {
-            return playerServiceClient.getSyncRuns(SYNC_RUNS_TO_SCAN).stream()
-                    .filter(run -> "success".equals(run.getStatus()))
-                    .map(SyncRunResponse::getFinishedAt)
-                    .filter(Objects::nonNull)
-                    .max(Comparator.naturalOrder());
+            return playerPool.lastSyncedAt();
         } catch (RuntimeException e) {
-            log.error("Could not read the player sync runs; serving the projection unreconciled", e);
+            log.error("Could not read when the player pool was last synced; serving the "
+                    + "projection unreconciled", e);
             return Optional.empty();
         }
     }

@@ -1,6 +1,5 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -9,7 +8,6 @@ import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
-import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.service.ProjectionPoolReconciler.Reconciliation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,7 +42,7 @@ class ProjectionPoolReconcilerTest {
     private static final OffsetDateTime LAST_SYNC = OffsetDateTime.parse("2026-08-16T04:12:00Z");
 
     @Mock
-    private PlayerServiceClient playerServiceClient;
+    private PlayerPoolSource playerPool;
 
     @Mock
     private PlayerService playerService;
@@ -53,7 +52,7 @@ class ProjectionPoolReconcilerTest {
     @BeforeEach
     void setUp() {
         reconciler = new ProjectionPoolReconciler(
-                playerServiceClient, new PlayerPoolRows(playerService, JsonMapper.builder().build()));
+                playerPool, new PlayerPoolRows(playerService, JsonMapper.builder().build()));
         givenLastSuccessfulSyncAt(LAST_SYNC);
         when(playerService.getSkaters()).thenReturn(List.of(skater(1), skater(2)));
         when(playerService.getGoalies()).thenReturn(List.of(goalie(101)));
@@ -206,23 +205,14 @@ class ProjectionPoolReconcilerTest {
     /** Nothing has ever been synced, so there is no pool state to square anything with. */
     @Test
     void doesNothingBeforeTheFirstSuccessfulSync() {
-        when(playerServiceClient.getSyncRuns(anyInt())).thenReturn(List.of(failedRun()));
+        when(playerPool.lastSyncedAt()).thenReturn(Optional.empty());
         ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1));
 
         assertThat(reconciler.reconcile(data)).isEmpty();
     }
 
     private void givenLastSuccessfulSyncAt(OffsetDateTime finishedAt) {
-        when(playerServiceClient.getSyncRuns(anyInt()))
-                .thenReturn(List.of(failedRun(), successfulRun(finishedAt.minusDays(2)), successfulRun(finishedAt)));
-    }
-
-    private static SyncRunResponse successfulRun(OffsetDateTime finishedAt) {
-        return new SyncRunResponse().status("success").finishedAt(finishedAt);
-    }
-
-    private static SyncRunResponse failedRun() {
-        return new SyncRunResponse().status("failed").finishedAt(LAST_SYNC.plusHours(1));
+        when(playerPool.lastSyncedAt()).thenReturn(Optional.of(finishedAt));
     }
 
     private static SkaterResponse skater(int id) {
