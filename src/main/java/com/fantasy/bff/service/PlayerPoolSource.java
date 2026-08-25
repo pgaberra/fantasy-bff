@@ -19,6 +19,14 @@ import java.util.Optional;
  */
 public interface PlayerPoolSource {
 
+    /**
+     * Which platform this pool comes from. Reported on {@code /api/v1/versions} so an operator
+     * can read which source is live rather than infer it from the players coming back — the
+     * switch is an environment variable, and an environment variable that did not take looks
+     * exactly like one that was never set.
+     */
+    String platform();
+
     List<SkaterResponse> getSkaters();
 
     List<GoalieResponse> getGoalies();
