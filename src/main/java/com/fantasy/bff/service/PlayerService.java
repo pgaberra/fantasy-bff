@@ -20,6 +20,11 @@ public class PlayerService {
         this.playerPool = playerPool;
     }
 
+    /** Which platform's numbering the ids on every row this service hands out are. */
+    public PlayerIdSpace playerIdSpace() {
+        return playerPool.playerIdSpace();
+    }
+
     public List<SkaterResponse> getSkaters() {
         try {
             return playerPool.getSkaters();

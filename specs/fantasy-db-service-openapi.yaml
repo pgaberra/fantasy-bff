@@ -1384,9 +1384,18 @@ components:
           - imported
         data:
           $ref: "#/components/schemas/ProjectionData"
+        playerIdSpace:
+          type: string
+          description: "Which platform's player ids the rows are keyed by. Required\
+            \ rather than defaulted: a wrong value here is silent until a remap translates\
+            \ ids that were never in the space it assumed."
+          enum:
+          - yahoo
+          - espn
       required:
       - data
       - name
+      - playerIdSpace
     ImportProjectionRequest:
       type: object
       properties:

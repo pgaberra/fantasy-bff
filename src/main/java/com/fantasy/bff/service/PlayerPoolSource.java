@@ -19,6 +19,13 @@ import java.util.Optional;
  */
 public interface PlayerPoolSource {
 
+    /**
+     * Which platform's numbering this pool's ids are. Asked of the source rather than read off
+     * configuration, because the source is the thing that produced the numbers — a projection
+     * filled from here is stamped with the answer, and a remap later trusts that stamp.
+     */
+    PlayerIdSpace playerIdSpace();
+
     List<SkaterResponse> getSkaters();
 
     List<GoalieResponse> getGoalies();

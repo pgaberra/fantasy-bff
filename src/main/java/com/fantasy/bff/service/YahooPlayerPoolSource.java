@@ -29,6 +29,11 @@ import java.util.Optional;
 @ConditionalOnProperty(name = "players.source", havingValue = "yahoo", matchIfMissing = true)
 public class YahooPlayerPoolSource implements PlayerPoolSource {
 
+    @Override
+    public PlayerIdSpace playerIdSpace() {
+        return PlayerIdSpace.YAHOO;
+    }
+
     /** Far enough back to find the last good run through a run of failures, and no further. */
     private static final int SYNC_RUNS_TO_SCAN = 10;
 

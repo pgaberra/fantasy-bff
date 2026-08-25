@@ -102,7 +102,8 @@ public class ProjectionService {
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
                         .kind(kindOf(request.kind()))
-                        .data(data)));
+                        .data(data)
+                        .playerIdSpace(idSpaceOf(playerPoolRows.playerIdSpace()))));
     }
 
     /**
@@ -121,6 +122,18 @@ public class ProjectionService {
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
         return ProjectionResponse.of(
                 databaseServiceClient.updateProjection(userId, projectionId, request));
+    }
+
+    /**
+     * The rows are keyed by whichever pool is wired in, so that is what the stored projection is
+     * stamped with. Rows the client sent rather than the server filling them in are keyed the
+     * same way: they came from this BFF's player endpoints in the first place.
+     */
+    private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum
+            idSpaceOf(PlayerIdSpace space) {
+        return space == PlayerIdSpace.ESPN
+                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN
+                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.YAHOO;
     }
 
     /**

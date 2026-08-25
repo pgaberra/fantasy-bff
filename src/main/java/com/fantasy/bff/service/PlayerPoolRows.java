@@ -35,6 +35,15 @@ public class PlayerPoolRows {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Which numbering the ids on these rows are. It travels with them: a projection filled from
+     * this pool is stamped with it, and a later id remap trusts that stamp to decide what to
+     * translate.
+     */
+    public PlayerIdSpace playerIdSpace() {
+        return playerService.playerIdSpace();
+    }
+
     /** Reads the whole pool once. Both stat maps are kept so a row can be built either way. */
     public Pool read() {
         Map<Integer, Row> rows = new LinkedHashMap<>();

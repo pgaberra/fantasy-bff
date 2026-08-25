@@ -200,7 +200,11 @@ class ProjectionServiceTest {
         projectionService.create(USER_ID, request(dataWith(own), null));
 
         assertThat(capturedPlayers()).containsExactly(own);
-        verifyNoInteractions(playerService);
+        // The point is that the pool is not downloaded, not that the service is never spoken to:
+        // the rows still have to be stamped with the space they are keyed by, and asking which
+        // one that is costs nothing.
+        verify(playerService, never()).getSkaters();
+        verify(playerService, never()).getGoalies();
     }
 
     // Silently dropping the rows a client did send would lose a copied or demo projection.
@@ -286,5 +290,24 @@ class ProjectionServiceTest {
 
     private static ProjectionData dataWith(PlayerProjection player) {
         return new ProjectionData().settings(new ProjectionSettings()).players(List.of(player));
+    }
+
+    /**
+     * The stamp has to follow whichever pool is wired in. Stored as Yahoo's while the rows are
+     * ESPN's, a later id remap picks the projection up and translates ids that were never in
+     * the space it assumed.
+     */
+    @Test
+    void stampsTheCreateWithTheIdSpaceOfThePoolThatIsWiredIn() {
+        when(playerService.playerIdSpace()).thenReturn(PlayerIdSpace.ESPN);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(dataWith(new PlayerProjection().playerId(7)), null));
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.CreateProjectionRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.CreateProjectionRequest.class);
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getPlayerIdSpace()).isEqualTo(
+                com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN);
     }
 }

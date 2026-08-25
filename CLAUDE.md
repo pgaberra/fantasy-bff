@@ -133,7 +133,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     **not the same player ids**. A stored projection is keyed by the ids that were in use when
     it was saved, so flipping the flag goes together with migrating those rows. `PlayerService`,
     `ProjectionSeedService` and `PlayerSplitContextProvider` all read the pool through this
-    seam, so the switch reaches every one of them at once.
+    seam, so the switch reaches every one of them at once. The source also answers
+    `playerIdSpace()`, which is what a new projection is stamped with on create — asked of the
+    pool rather than read off config, because the pool is what produced the numbers, and a
+    projection stamped with the wrong space is only found out when a remap translates ids that
+    were never in it.
   - `PlayerIdRemapService` — the one-off that goes with flipping that flag: it matches the
     Yahoo pool to the ESPN one with `PlayerIdResolver` and hands the crosswalk to db-service,
     which rewrites the ids in every saved projection, draft pick and share. This is the only
