@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -60,6 +61,9 @@ class ProjectionServiceTest {
     private PlayerService playerService;
 
     @Mock
+    private PlayerPoolSource playerPool;
+
+    @Mock
     private ProjectionPoolReconciler reconciler;
 
     @Mock
@@ -72,9 +76,11 @@ class ProjectionServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(playerPool.playerIdSpace()).thenReturn(PlayerIdSpace.YAHOO);
         projectionService = new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
+                playerPool,
                 reconciler,
                 seedService,
                 SEASON,
@@ -295,6 +301,25 @@ class ProjectionServiceTest {
 
     private static ProjectionData dataWith(PlayerProjection player) {
         return new ProjectionData().settings(new ProjectionSettings()).players(List.of(player));
+    }
+
+    /**
+     * The stamp has to follow whichever pool is wired in. Stored as Yahoo's while the rows are
+     * ESPN's, a later id remap picks the projection up and translates ids that were never in
+     * the space it assumed.
+     */
+    @Test
+    void stampsTheCreateWithTheIdSpaceOfThePoolThatIsWiredIn() {
+        when(playerPool.playerIdSpace()).thenReturn(PlayerIdSpace.ESPN);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(dataWith(new PlayerProjection().playerId(7)), null));
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.CreateProjectionRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.CreateProjectionRequest.class);
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getPlayerIdSpace()).isEqualTo(
+                com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN);
     }
 
     @Test

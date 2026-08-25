@@ -30,6 +30,11 @@ import java.util.Set;
 @ConditionalOnProperty(name = "players.source", havingValue = "espn")
 public class EspnPlayerPoolSource implements PlayerPoolSource {
 
+    @Override
+    public PlayerIdSpace playerIdSpace() {
+        return PlayerIdSpace.ESPN;
+    }
+
     /**
      * ESPN's own player id is the path segment, so nothing a payload says can steer this
      * request anywhere else. The size is the one the player table draws at.

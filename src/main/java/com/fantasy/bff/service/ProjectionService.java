@@ -37,6 +37,7 @@ public class ProjectionService {
 
     private final DatabaseServiceClient databaseServiceClient;
     private final PlayerPoolRows playerPoolRows;
+    private final PlayerPoolSource playerPool;
     private final ProjectionPoolReconciler reconciler;
     private final ProjectionSeedService seedService;
     private final int projectionSeason;
@@ -44,12 +45,14 @@ public class ProjectionService {
 
     public ProjectionService(DatabaseServiceClient databaseServiceClient,
                              PlayerPoolRows playerPoolRows,
+                             PlayerPoolSource playerPool,
                              ProjectionPoolReconciler reconciler,
                              ProjectionSeedService seedService,
                              @Value("${services.projection.season}") int projectionSeason,
                              @Value("${services.projection.model-version}") String projectionModelVersion) {
         this.databaseServiceClient = databaseServiceClient;
         this.playerPoolRows = playerPoolRows;
+        this.playerPool = playerPool;
         this.reconciler = reconciler;
         this.seedService = seedService;
         this.projectionSeason = projectionSeason;
@@ -118,7 +121,8 @@ public class ProjectionService {
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
                         .kind(kindOf(request.kind()))
-                        .data(data)));
+                        .data(data)
+                        .playerIdSpace(idSpaceOf(playerPool.playerIdSpace()))));
     }
 
     /**
@@ -137,6 +141,18 @@ public class ProjectionService {
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
         return ProjectionResponse.of(
                 databaseServiceClient.updateProjection(userId, projectionId, request));
+    }
+
+    /**
+     * The rows are keyed by whichever pool is wired in, so that is what the stored projection is
+     * stamped with. Rows the client sent rather than the server filling them in are keyed the
+     * same way: they came from this BFF's player endpoints in the first place.
+     */
+    private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum
+            idSpaceOf(PlayerIdSpace space) {
+        return space == PlayerIdSpace.ESPN
+                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN
+                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.YAHOO;
     }
 
     /**
