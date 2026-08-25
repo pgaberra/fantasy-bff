@@ -1,0 +1,58 @@
+# The PR check only fails a branch that itself put a pinned spec out of step; a producer merge
+# staling one is reported there as a warning, because it is not the PR author's doing and
+# blocking every open PR on it cost more than it caught. That leaves nobody owning the news
+# that a pin has gone stale, which is this workflow's job.
+#
+# A matrix rather than four steps in one job: a stale db-service spec should not stop the run
+# before it has looked at the other three.
+name: Spec freshness
+
+on:
+  schedule:
+    # Weekday mornings, Stockholm time. Nothing here is urgent enough to want a weekend alarm.
+    - cron: '15 6 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-spec:
+    name: ${{ matrix.service }} spec still matches
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: db-service
+            producer: pgaberra/fantasy-db-service
+            producer_path: specs/openapi.yaml
+            pinned_path: specs/fantasy-db-service-openapi.yaml
+            remedy: ./gradlew openApiGenerate and fix any compile errors
+          - service: yahoo-service
+            producer: pgaberra/fantasy-yahoo-service
+            producer_path: specs/openapi.yaml
+            pinned_path: specs/fantasy-yahoo-service-openapi.yaml
+            remedy: ./gradlew generateYahooClient and fix any compile errors
+          - service: espn-service
+            producer: pgaberra/fantasy-espn-service
+            producer_path: specs/openapi.yaml
+            pinned_path: specs/fantasy-espn-service-openapi.yaml
+            remedy: ./gradlew generateEspnClient and fix any compile errors
+          - service: projection-service
+            producer: pgaberra/fantasy-projection-service
+            producer_path: specs/openapi.json
+            pinned_path: specs/fantasy-projection-service-openapi.json
+            remedy: ./gradlew generateProjectionClient and fix any compile errors
+    steps:
+      - uses: actions/checkout@v7
+
+      # No BASE_SHA: there is no branch to blame here, so any drift at all is the finding.
+      - name: Verify pinned ${{ matrix.service }} spec is in sync
+        env:
+          PRODUCER_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/check-pinned-spec.sh \
+            "${{ matrix.producer }}" "${{ matrix.producer_path }}" "${{ matrix.pinned_path }}" \
+            "${{ matrix.remedy }}"
