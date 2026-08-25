@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.ProjectionResponse;
@@ -102,6 +103,19 @@ public class ProjectionService {
                         .name(nameOf(request))
                         .kind(kindOf(request.kind()))
                         .data(data)));
+    }
+
+    /**
+     * Copies a shared board into the user's own projections. The rows come across as they were
+     * published, which is a snapshot of the author's player pool rather than the current one —
+     * squaring them with it is left to the first read, which does that for every projection
+     * anyway.
+     */
+    public ProjectionResponse importFromShare(UUID userId, ImportProjectionRequest request) {
+        return ProjectionResponse.of(databaseServiceClient.importProjection(userId,
+                new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
+                        .token(request.token())
+                        .name(request.name())));
     }
 
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {

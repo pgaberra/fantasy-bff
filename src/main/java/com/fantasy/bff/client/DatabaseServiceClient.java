@@ -2,6 +2,7 @@ package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
+import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.ShareResponse;
@@ -71,6 +72,8 @@ public interface DatabaseServiceClient {
     ProjectionResponse getProjection(UUID userId, UUID projectionId);
 
     ProjectionResponse createProjection(UUID userId, CreateProjectionRequest request);
+
+    ProjectionResponse importProjection(UUID userId, ImportProjectionRequest request);
 
     ProjectionResponse updateProjection(UUID userId, UUID projectionId, UpdateProjectionRequest request);
 

@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * What a projection is for. A preset draft is not a projection the user made — it only exists
  * to hold the picks of a draft started from a preset (currently last season's stats), so it is
- * kept out of the projections the app lists as their own.
+ * kept out of the projections the app lists as their own. Neither is an imported board: it is a
+ * copy of someone else's, taken from their share link.
  */
 public enum ProjectionKind {
 
@@ -15,5 +16,9 @@ public enum ProjectionKind {
 
     /** Storage for a draft started from a preset rather than from a projection. */
     @JsonProperty("preset_draft")
-    PRESET_DRAFT
+    PRESET_DRAFT,
+
+    /** A copy of a board someone published under a share link. */
+    @JsonProperty("imported")
+    IMPORTED
 }

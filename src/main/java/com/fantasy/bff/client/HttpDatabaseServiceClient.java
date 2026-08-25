@@ -4,6 +4,7 @@ import com.fantasy.bff.generated.db.model.CreateEmailVerificationTokenRequest;
 import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
+import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.EmailVerificationTokenResponse;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
@@ -247,6 +248,16 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     public ProjectionResponse createProjection(UUID userId, CreateProjectionRequest request) {
         return restClient.post()
                 .uri("/api/v1/users/{userId}/projections", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(ProjectionResponse.class);
+    }
+
+    @Override
+    public ProjectionResponse importProjection(UUID userId, ImportProjectionRequest request) {
+        return restClient.post()
+                .uri("/api/v1/users/{userId}/projections/imports", userId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
