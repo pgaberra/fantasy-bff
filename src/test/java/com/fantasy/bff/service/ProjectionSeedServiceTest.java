@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -33,7 +32,7 @@ import org.mockito.quality.Strictness;
 class ProjectionSeedServiceTest {
 
     @Mock private ProjectionServiceClient projectionServiceClient;
-    @Mock private PlayerServiceClient playerServiceClient;
+    @Mock private PlayerPoolSource playerPool;
 
     private ProjectionSeedService service;
 
@@ -41,7 +40,7 @@ class ProjectionSeedServiceTest {
     void setUp() {
         service = new ProjectionSeedService(
                 projectionServiceClient,
-                playerServiceClient,
+                playerPool,
                 new PlayerIdResolver(),
                 new PlayerIdOverrides(""));
     }
@@ -99,9 +98,9 @@ class ProjectionSeedServiceTest {
     void seedsUnderPlatformId() {
         when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(nhlPlayer(8478402, "Connor McDavid", "EDM", 97)));
-        when(playerServiceClient.getSkaters())
+        when(playerPool.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerPool.getGoalies()).thenReturn(List.of());
         when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
                 .thenReturn(List.of(skater(8478402)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
@@ -120,9 +119,9 @@ class ProjectionSeedServiceTest {
     void translatesStatKeys() {
         when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(nhlPlayer(1, "Connor McDavid", "EDM", 97)));
-        when(playerServiceClient.getSkaters())
+        when(playerPool.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerPool.getGoalies()).thenReturn(List.of());
         when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
                 .thenReturn(List.of(skater(1)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
@@ -144,8 +143,8 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(
                         nhlPlayer(1, "Connor Hellebuyck", "WPG", 37),
                         nhlPlayer(2, "Third Stringer", "WPG", 50)));
-        when(playerServiceClient.getSkaters()).thenReturn(List.of());
-        when(playerServiceClient.getGoalies())
+        when(playerPool.getSkaters()).thenReturn(List.of());
+        when(playerPool.getGoalies())
                 .thenReturn(List.of(
                         platformGoalie(6000, "Connor Hellebuyck", "WPG"),
                         platformGoalie(6001, "Third Stringer", "WPG")));
@@ -170,9 +169,9 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(
                         nhlPlayer(1, "Connor McDavid", "EDM", 97),
                         nhlPlayer(2, "Jake Lucchini", "NSH", 15)));
-        when(playerServiceClient.getSkaters())
+        when(playerPool.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerPool.getGoalies()).thenReturn(List.of());
         when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
                 .thenReturn(List.of(skater(1), skater(2)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
@@ -193,11 +192,11 @@ class ProjectionSeedServiceTest {
                 .thenReturn(List.of(
                         nhlPlayer(1, "Elias Pettersson", "VAN", 40),
                         nhlPlayer(2, "Elias Pettersson", "VAN", 25)));
-        when(playerServiceClient.getSkaters())
+        when(playerPool.getSkaters())
                 .thenReturn(List.of(
                         platformSkater(7520, "Elias Pettersson", "VAN", 40),
                         platformSkater(32762, "Elias Pettersson", "VAN", 25)));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerPool.getGoalies()).thenReturn(List.of());
         when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
                 .thenReturn(List.of(skater(1), skater(2)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
@@ -216,9 +215,9 @@ class ProjectionSeedServiceTest {
         // A zero is a claim; an absent value is not. Blocks aren't set on this projection.
         when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(nhlPlayer(1, "Connor McDavid", "EDM", 97)));
-        when(playerServiceClient.getSkaters())
+        when(playerPool.getSkaters())
                 .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerPool.getGoalies()).thenReturn(List.of());
         when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
                 .thenReturn(List.of(skater(1)));
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());

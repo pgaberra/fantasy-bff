@@ -1,6 +1,5 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -39,17 +38,17 @@ public class ProjectionSeedService {
     private static final Logger log = LoggerFactory.getLogger(ProjectionSeedService.class);
 
     private final ProjectionServiceClient projectionServiceClient;
-    private final PlayerServiceClient playerServiceClient;
+    private final PlayerPoolSource playerPool;
     private final PlayerIdResolver resolver;
     private final PlayerIdOverrides overrides;
 
     public ProjectionSeedService(
             ProjectionServiceClient projectionServiceClient,
-            PlayerServiceClient playerServiceClient,
+            PlayerPoolSource playerPool,
             PlayerIdResolver resolver,
             PlayerIdOverrides overrides) {
         this.projectionServiceClient = projectionServiceClient;
-        this.playerServiceClient = playerServiceClient;
+        this.playerPool = playerPool;
         this.resolver = resolver;
         this.overrides = overrides;
     }
@@ -124,11 +123,11 @@ public class ProjectionSeedService {
 
     private List<Candidate> platformCandidates() {
         List<Candidate> candidates = new ArrayList<>();
-        for (SkaterResponse skater : playerServiceClient.getSkaters()) {
+        for (SkaterResponse skater : playerPool.getSkaters()) {
             candidates.add(new Candidate(
                     skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
         }
-        for (GoalieResponse goalie : playerServiceClient.getGoalies()) {
+        for (GoalieResponse goalie : playerPool.getGoalies()) {
             candidates.add(new Candidate(
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }

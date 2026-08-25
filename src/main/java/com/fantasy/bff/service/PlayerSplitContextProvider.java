@@ -1,6 +1,5 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
@@ -78,7 +77,7 @@ public class PlayerSplitContextProvider {
     private record Cached(Context context, Instant expiresAt) {}
 
     private final ProjectionServiceClient projectionServiceClient;
-    private final PlayerServiceClient playerServiceClient;
+    private final PlayerPoolSource playerPool;
     private final PlayerIdResolver resolver;
     private final PlayerIdOverrides overrides;
     private final Duration ttl;
@@ -87,13 +86,13 @@ public class PlayerSplitContextProvider {
 
     public PlayerSplitContextProvider(
             ProjectionServiceClient projectionServiceClient,
-            PlayerServiceClient playerServiceClient,
+            PlayerPoolSource playerPool,
             PlayerIdResolver resolver,
             PlayerIdOverrides overrides,
             @Value("${services.projection.player-mapping-ttl-ms:1800000}") long ttlMs,
             @Value("${services.projection.season}") int season) {
         this.projectionServiceClient = projectionServiceClient;
-        this.playerServiceClient = playerServiceClient;
+        this.playerPool = playerPool;
         this.resolver = resolver;
         this.overrides = overrides;
         this.ttl = Duration.ofMillis(ttlMs);
@@ -136,14 +135,14 @@ public class PlayerSplitContextProvider {
 
         List<Candidate> platform = new ArrayList<>();
         Set<Integer> defenceEligible = new HashSet<>();
-        for (SkaterResponse skater : playerServiceClient.getSkaters()) {
+        for (SkaterResponse skater : playerPool.getSkaters()) {
             platform.add(new Candidate(
                     skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
             if (skater.positions() != null && skater.positions().contains(SkaterPosition.D)) {
                 defenceEligible.add(skater.id());
             }
         }
-        for (GoalieResponse goalie : playerServiceClient.getGoalies()) {
+        for (GoalieResponse goalie : playerPool.getGoalies()) {
             platform.add(new Candidate(
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
