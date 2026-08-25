@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -59,22 +60,25 @@ public class ProjectionSeedService {
      * @param goaliesSeeded how many goalies made it through
      * @param unmapped players the model projected that the platform doesn't carry
      * @param withoutWorkload goalies the model projects no starts for, left out on purpose
+     * @param retiredZeroed pool players who have left the league, seeded at zero
      */
     public record Seed(
             List<PlayerProjection> players,
             int skatersSeeded,
             int goaliesSeeded,
             int unmapped,
-            int withoutWorkload) {}
+            int withoutWorkload,
+            int retiredZeroed) {}
 
     public Seed seed(int season, String modelVersion) {
         List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers(null);
         Map<Long, PlayerResponse> byNhlId = nhlPlayers.stream()
                 .collect(Collectors.toMap(p -> p.getNhlId().longValue(), Function.identity(), (a, b) -> a));
 
+        List<Candidate> pool = platformCandidates();
         PlayerIdMapping mapping = resolver.resolve(
                 nhlPlayers.stream().map(ProjectionSeedService::nhlCandidate).toList(),
-                platformCandidates(),
+                pool,
                 overrides.asMap());
 
         List<PlayerProjection> seeded = new ArrayList<>();
@@ -106,10 +110,15 @@ public class ProjectionSeedService {
             seeded.add(goalieLine(platformId, projection));
         }
 
-        Seed seed = new Seed(seeded, skaters, seeded.size() - skaters, unmapped, withoutWorkload);
+        int goalies = seeded.size() - skaters;
+        int retiredZeroed = seedRetired(seeded, pool);
+
+        Seed seed =
+                new Seed(seeded, skaters, goalies, unmapped, withoutWorkload, retiredZeroed);
         log.info(
                 "Seeded {} projections for {} ({}): {} skaters, {} goalies; {} unmapped, "
-                        + "{} goalies without a projected workload. Player pool: {}",
+                        + "{} goalies without a projected workload, {} retired zeroed. "
+                        + "Player pool: {}",
                 seed.players().size(),
                 season,
                 forLog(modelVersion),
@@ -117,9 +126,86 @@ public class ProjectionSeedService {
                 seed.goaliesSeeded(),
                 seed.unmapped(),
                 seed.withoutWorkload(),
+                seed.retiredZeroed(),
                 byNhlId.size());
         return seed;
     }
+
+    /**
+     * Seeds a zero line for every pool player who has left the league.
+     *
+     * <p>A platform keeps carrying a player for a while after they retire, and the model does
+     * not project them, so they would otherwise arrive as an untouched row — indistinguishable
+     * from a player the model simply could not reach. Zero is the honest number: they will not
+     * play. A prospect is the opposite case and must not be caught here, which is why this
+     * matches against the store's inactive players rather than against whoever went unmapped:
+     * a prospect who has never played an NHL game is not in the store at all.
+     *
+     * <p>Matching runs only over pool players nothing has claimed yet, so an active player who
+     * shares a name with a retired one keeps his projection. That ordering is the safeguard —
+     * there are two Sebastian Ahos, and only one of them has retired.
+     *
+     * @return how many rows were zeroed
+     */
+    private int seedRetired(List<PlayerProjection> seeded, List<Candidate> pool) {
+        Set<Integer> claimed =
+                seeded.stream().map(PlayerProjection::getPlayerId).collect(Collectors.toSet());
+        List<Candidate> unclaimed =
+                pool.stream().filter(c -> !claimed.contains((int) c.id())).toList();
+        if (unclaimed.isEmpty()) {
+            return 0;
+        }
+
+        List<Candidate> retired =
+                projectionServiceClient.retiredPlayers().stream()
+                        .map(ProjectionSeedService::nhlCandidate)
+                        .toList();
+        // No overrides here: they pin a player to his projection, and pinning one to a zero
+        // line would be a way to silently delete him.
+        PlayerIdMapping retiredMapping = resolver.resolve(retired, unclaimed, Map.of());
+
+        Set<Integer> goalieIds = goaliePlatformIds();
+        for (Integer platformId : retiredMapping.nhlIdToPlatformId().values()) {
+            seeded.add(
+                    goalieIds.contains(platformId)
+                            ? zeroLine(platformId, PlayerProjection.TypeEnum.GOALIE, GOALIE_STATS)
+                            : zeroLine(platformId, PlayerProjection.TypeEnum.SKATER, SKATER_STATS));
+        }
+        return retiredMapping.matched();
+    }
+
+    private Set<Integer> goaliePlatformIds() {
+        return playerPool.getGoalies().stream().map(GoalieResponse::id).collect(Collectors.toSet());
+    }
+
+    private PlayerProjection zeroLine(
+            int platformId, PlayerProjection.TypeEnum type, Stats stats) {
+        Map<String, Double> utility = new HashMap<>();
+        for (String key : stats.utility()) {
+            utility.put(key, 0.0);
+        }
+        Map<String, Double> scoring = new HashMap<>();
+        for (String key : stats.scoring()) {
+            scoring.put(key, 0.0);
+        }
+        return line(platformId, type, utility, scoring);
+    }
+
+    /** The stat keys a zero line has to fill, so the row is complete rather than half-blank. */
+    private record Stats(List<String> utility, List<String> scoring) {}
+
+    private static final Stats SKATER_STATS =
+            new Stats(
+                    List.of("gp", "toiPerGame"),
+                    List.of(
+                            "goals", "assists", "points", "plusMinus", "pim", "ppg", "ppa", "ppp",
+                            "shg", "sha", "shp", "gwg", "sog", "shPct", "fw", "fl", "hits",
+                            "blocks"));
+
+    private static final Stats GOALIE_STATS =
+            new Stats(
+                    List.of("gp"),
+                    List.of("gs", "w", "l", "sho", "sa", "sv", "ga", "gaa", "svPct"));
 
     private List<Candidate> platformCandidates() {
         List<Candidate> candidates = new ArrayList<>();

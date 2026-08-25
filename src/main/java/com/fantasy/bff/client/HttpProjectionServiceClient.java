@@ -85,6 +85,20 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     }
 
     @Override
+    public List<PlayerResponse> retiredPlayers() {
+        // active=false lifts the filter rather than inverting it, so the endpoint hands back
+        // everyone and the inactive ones are picked out here.
+        List<PlayerResponse> all = restClient
+                .get()
+                .uri(b -> b.path("/api/v1/players").queryParam("active", false).build())
+                .retrieve()
+                .body(PLAYER_LIST);
+        return all == null
+                ? List.of()
+                : all.stream().filter(p -> !Boolean.TRUE.equals(p.getIsActive())).toList();
+    }
+
+    @Override
     public List<SkaterSplitResponse> skaterSplits(int season, GameRange range, int limit) {
         return restClient.get()
                 .uri(b -> splits(b, "/api/v1/splits/skaters", season, range, limit))
