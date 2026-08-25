@@ -63,6 +63,19 @@ public class RestClientConfig {
         return builder.build();
     }
 
+    /**
+     * ESPN's public image CDN, which is where an ESPN-sourced player's headshot lives. It is
+     * read straight through {@code /api/v1/players/{id}/headshot} rather than handed to the
+     * browser as a URL, so the frontend keeps being given a path relative to this API — the
+     * one contract it has about headshots — no matter which platform the pool came from.
+     */
+    @Bean
+    public RestClient espnImageClient(
+            @Value("${services.espn-images.base-url}") String baseUrl,
+            @Value("${services.espn-images.timeout-ms}") int timeoutMs) {
+        return buildRestClientBuilder(baseUrl, timeoutMs).build();
+    }
+
     private RestClient.Builder buildRestClientBuilder(String baseUrl, int timeoutMs) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(timeoutMs))

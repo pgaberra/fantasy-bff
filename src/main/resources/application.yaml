@@ -23,6 +23,13 @@ email:
     base-url: ${RESEND_BASE_URL:https://api.resend.com}
     timeout-ms: 5000
 
+# Which platform the player pool comes from: `yahoo`, which the app was built on, or `espn`,
+# which took over when Yahoo stopped serving its game-wide player collection. Both serve the
+# same shape, but not the same player ids — a stored projection is keyed by the ids that were
+# in use when it was saved, so this flips only together with migrating those rows.
+players:
+  source: ${PLAYERS_SOURCE:yahoo}
+
 services:
   # Per-downstream read/connect timeouts (ms). These apply in every environment:
   # locally the services run on localhost, and on the deployed Coolify environments
@@ -48,6 +55,15 @@ services:
     # espn-service refreshes them nightly, so re-fetching per request would be pure overhead
     # on the hottest endpoint in the app.
     player-stats-ttl-ms: ${ESPN_PLAYER_STATS_TTL_MS:1800000}
+    # Which season's stat line the player reads carry when espn-service is the pool source, as
+    # a start year. Mirrors services.yahoo-fantasy.stats-season and must hold the same value:
+    # switching the source must not change which season is on screen.
+    stats-season: ${ESPN_STATS_SEASON:2025}
+  # ESPN's public image CDN, read only to serve /api/v1/players/{id}/headshot when the pool
+  # comes from ESPN. No key, no user data, and the only thing that varies is a player id.
+  espn-images:
+    base-url: ${ESPN_IMAGE_BASE_URL:https://a.espncdn.com}
+    timeout-ms: 5000
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000

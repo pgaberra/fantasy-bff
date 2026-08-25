@@ -9,7 +9,8 @@ servers:
 - url: /
 tags:
 - name: ESPN Players
-  description: Cached ESPN season stat lines for stats Yahoo does not report
+  description: "Cached player read model: the pool as ESPN lists it now, with a chosen\
+    \ season's stats"
 - name: ESPN Leagues
   description: A user's ESPN fantasy hockey league settings and teams
 - name: ESPN Credentials
@@ -75,7 +76,7 @@ paths:
     post:
       tags:
       - ESPN Players
-      summary: Refresh the cached stat lines from ESPN
+      summary: Refresh the cached player read model from ESPN
       operationId: sync
       responses:
         "200":
@@ -94,8 +95,8 @@ paths:
     get:
       tags:
       - ESPN Players
-      summary: "Every cached ESPN stat line (hat tricks, shifts, goalie OT losses,\
-        \ time on ice)"
+      summary: "Reference-season stat lines for the stats Yahoo does not report (hat\
+        \ tricks, shifts, goalie OT losses, time on ice)"
       operationId: players
       responses:
         "200":
@@ -104,6 +105,73 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlayerStatsResponse"
+  /api/v1/espn/players/sync/latest:
+    get:
+      tags:
+      - ESPN Players
+      summary: "When the cached pool was last refreshed, and how many players it holds"
+      description: "For callers that only need to know whether the pool has moved,\
+        \ so they do not have to fetch the pool to find out."
+      operationId: lastSync
+      responses:
+        "200":
+          description: Sync status returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSyncStatusResponse"
+  /api/v1/espn/players/skaters:
+    get:
+      tags:
+      - ESPN Players
+      summary: All skaters with eligible positions and a season's stats
+      operationId: skaters
+      parameters:
+      - name: season
+        in: query
+        description: "Season start year — 2025 is the 2025-26 season. Required: the\
+          \ season being collected and the season a caller wants to show are deliberately\
+          \ different for most of the year, so there is no sensible default. A player\
+          \ with no line for it comes back with no stats rather than being left out."
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Skaters returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+  /api/v1/espn/players/goalies:
+    get:
+      tags:
+      - ESPN Players
+      summary: All goalies with eligible positions and a season's stats
+      operationId: goalies
+      parameters:
+      - name: season
+        in: query
+        description: "Season start year — 2025 is the 2025-26 season. Required: the\
+          \ season being collected and the season a caller wants to show are deliberately\
+          \ different for most of the year, so there is no sensible default. A player\
+          \ with no line for it comes back with no stats rather than being left out."
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Goalies returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
   /api/v1/espn/leagues/{leagueId}/teams:
     get:
       tags:
@@ -300,6 +368,191 @@ components:
             while no sync has succeeded yet
       required:
       - players
+    PlayerSyncStatusResponse:
+      type: object
+      properties:
+        syncedAt:
+          type: string
+          format: date-time
+          description: When the pool was last refreshed from ESPN; absent while no
+            sync has succeeded yet
+        players:
+          type: integer
+          format: int64
+          description: Players stored
+      required:
+      - players
+    SkaterResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ESPN's player id
+        firstName:
+          type: string
+        lastName:
+          type: string
+        position:
+          type: string
+        eligiblePositions:
+          type: array
+          description: "ESPN fantasy eligible positions (e.g. [\"C\",\"LW\"])"
+          items:
+            type: string
+        sweaterNumber:
+          type: integer
+          format: int32
+        teamAbbrev:
+          type: string
+        headshot:
+          type: string
+          description: "ESPN image CDN URL for the player's headshot, already sized\
+            \ for the player table"
+        gamesPlayed:
+          type: integer
+          format: int32
+        goals:
+          type: integer
+          format: int32
+        assists:
+          type: integer
+          format: int32
+        points:
+          type: integer
+          format: int32
+        plusMinus:
+          type: integer
+          format: int32
+        pim:
+          type: integer
+          format: int32
+        powerPlayGoals:
+          type: integer
+          format: int32
+        powerPlayPoints:
+          type: integer
+          format: int32
+        shorthandedGoals:
+          type: integer
+          format: int32
+        shorthandedPoints:
+          type: integer
+          format: int32
+        gameWinningGoals:
+          type: integer
+          format: int32
+        shots:
+          type: integer
+          format: int32
+        shootingPctg:
+          type: number
+          format: double
+        avgToi:
+          type: string
+        faceoffWinningPctg:
+          type: number
+          format: double
+        hits:
+          type: integer
+          format: int32
+        blockedShots:
+          type: integer
+          format: int32
+        totalFaceoffWins:
+          type: integer
+          format: int32
+        totalFaceoffLosses:
+          type: integer
+          format: int32
+        hatTricks:
+          type: integer
+          format: int32
+          description: Stats Yahoo does not report at all
+        shifts:
+          type: integer
+          format: int32
+        timeOnIce:
+          type: integer
+          format: int32
+          description: "Total time on ice for the season, in seconds"
+      required:
+      - eligiblePositions
+      - firstName
+      - id
+      - lastName
+      - position
+    GoalieResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ESPN's player id
+        firstName:
+          type: string
+        lastName:
+          type: string
+        position:
+          type: string
+        eligiblePositions:
+          type: array
+          description: "ESPN fantasy eligible positions (e.g. [\"G\"])"
+          items:
+            type: string
+        sweaterNumber:
+          type: integer
+          format: int32
+        teamAbbrev:
+          type: string
+        headshot:
+          type: string
+          description: "ESPN image CDN URL for the player's headshot, already sized\
+            \ for the player table"
+        gamesPlayed:
+          type: integer
+          format: int32
+        gamesStarted:
+          type: integer
+          format: int32
+        wins:
+          type: integer
+          format: int32
+        losses:
+          type: integer
+          format: int32
+        shutouts:
+          type: integer
+          format: int32
+        shotsAgainst:
+          type: integer
+          format: int32
+        saves:
+          type: integer
+          format: int32
+        goalsAgainst:
+          type: integer
+          format: int32
+        goalsAgainstAvg:
+          type: number
+          format: double
+        savePctg:
+          type: number
+          format: double
+        overtimeLosses:
+          type: integer
+          format: int32
+          description: Stats Yahoo does not report at all
+        timeOnIce:
+          type: integer
+          format: int32
+          description: "Total time on ice for the season, in seconds"
+      required:
+      - eligiblePositions
+      - firstName
+      - id
+      - lastName
+      - position
     LeagueTeam:
       type: object
       properties:

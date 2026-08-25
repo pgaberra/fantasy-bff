@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
@@ -14,11 +15,15 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+
+import static com.fantasy.bff.service.mapping.PlayerFieldMapping.round1;
+import static com.fantasy.bff.service.mapping.PlayerFieldMapping.round2;
+import static com.fantasy.bff.service.mapping.PlayerFieldMapping.round3;
+import static com.fantasy.bff.service.mapping.PlayerFieldMapping.toiToSeconds;
+import static com.fantasy.bff.service.mapping.PlayerFieldMapping.zero;
 
 /**
  * {@link PlayerServiceClient} that talks to fantasy-player-service over HTTP.
@@ -137,7 +142,8 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
         int sha = shp - shg;
         int gamesPlayed = zero(s.getGamesPlayed());
         int toiPerGame = toiToSeconds(s.getAvgToi());
-        Set<SkaterPosition> positions = toPositions(s.getEligiblePositions(), s.getPosition());
+        Set<SkaterPosition> positions =
+                PlayerFieldMapping.positions(s.getEligiblePositions(), s.getPosition());
         return new SkaterResponse(
                 (int) (long) s.getId(),
                 s.getFirstName() + " " + s.getLastName(),
@@ -223,78 +229,5 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
             return null;
         }
         return "/players/" + playerId + "/headshot";
-    }
-
-    /** Yahoo eligible positions → frontend enum; falls back to the NHL position if none map. */
-    private static Set<SkaterPosition> toPositions(List<String> eligiblePositions, String nhlPosition) {
-        Set<SkaterPosition> positions = new LinkedHashSet<>();
-        if (eligiblePositions != null) {
-            for (String position : eligiblePositions) {
-                SkaterPosition mapped = mapFantasyPosition(position);
-                if (mapped != null) {
-                    positions.add(mapped);
-                }
-            }
-        }
-        if (positions.isEmpty()) {
-            positions.add(mapNhlPosition(nhlPosition));
-        }
-        return positions;
-    }
-
-    private static SkaterPosition mapFantasyPosition(String position) {
-        return switch (position == null ? "" : position.toUpperCase(Locale.ROOT)) {
-            case "C" -> SkaterPosition.C;
-            case "LW", "L" -> SkaterPosition.LW;
-            case "RW", "R" -> SkaterPosition.RW;
-            case "D" -> SkaterPosition.D;
-            default -> null;
-        };
-    }
-
-    /** NHL position codes are C/L/R/D; the frontend uses C/LW/RW/D. */
-    private static SkaterPosition mapNhlPosition(String positionCode) {
-        return switch (positionCode == null ? "" : positionCode) {
-            case "L" -> SkaterPosition.LW;
-            case "R" -> SkaterPosition.RW;
-            case "D" -> SkaterPosition.D;
-            default -> SkaterPosition.C;
-        };
-    }
-
-    /** NHL avgToi is "MM:SS" (e.g. "22:59"); the frontend wants seconds per game. */
-    private static int toiToSeconds(String avgToi) {
-        if (avgToi == null || avgToi.isBlank()) {
-            return 0;
-        }
-        String[] parts = avgToi.split(":");
-        if (parts.length != 2) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private static int zero(Integer value) {
-        return value == null ? 0 : value;
-    }
-
-    private static double zero(Double value) {
-        return value == null ? 0.0 : value;
-    }
-
-    private static double round1(double value) {
-        return Math.round(value * 10.0) / 10.0;
-    }
-
-    private static double round2(double value) {
-        return Math.round(value * 100.0) / 100.0;
-    }
-
-    private static double round3(double value) {
-        return Math.round(value * 1000.0) / 1000.0;
     }
 }

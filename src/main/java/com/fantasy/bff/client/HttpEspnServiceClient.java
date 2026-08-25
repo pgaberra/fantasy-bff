@@ -5,10 +5,14 @@ import com.fantasy.bff.generated.espn.model.CredentialValuesResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
+import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.espn.model.SaveCredentialsRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+
+import java.util.List;
 
 /**
  * {@link EspnServiceClient} that talks to fantasy-espn-service over HTTP.
@@ -79,6 +83,39 @@ public class HttpEspnServiceClient implements EspnServiceClient {
                         .queryParam("appUserId", appUserId).build(leagueId))
                 .retrieve()
                 .body(LeagueTeamsResponse.class);
+    }
+
+    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.espn.model.SkaterResponse>>
+            SKATER_LIST = new ParameterizedTypeReference<>() {
+            };
+    private static final ParameterizedTypeReference<List<com.fantasy.bff.generated.espn.model.GoalieResponse>>
+            GOALIE_LIST = new ParameterizedTypeReference<>() {
+            };
+
+    @Override
+    public List<com.fantasy.bff.generated.espn.model.SkaterResponse> skaters(int season) {
+        List<com.fantasy.bff.generated.espn.model.SkaterResponse> skaters = restClient.get()
+                .uri(b -> b.path("/api/v1/espn/players/skaters").queryParam("season", season).build())
+                .retrieve()
+                .body(SKATER_LIST);
+        return skaters == null ? List.of() : skaters;
+    }
+
+    @Override
+    public List<com.fantasy.bff.generated.espn.model.GoalieResponse> goalies(int season) {
+        List<com.fantasy.bff.generated.espn.model.GoalieResponse> goalies = restClient.get()
+                .uri(b -> b.path("/api/v1/espn/players/goalies").queryParam("season", season).build())
+                .retrieve()
+                .body(GOALIE_LIST);
+        return goalies == null ? List.of() : goalies;
+    }
+
+    @Override
+    public PlayerSyncStatusResponse lastPlayerSync() {
+        return restClient.get()
+                .uri("/api/v1/espn/players/sync/latest")
+                .retrieve()
+                .body(PlayerSyncStatusResponse.class);
     }
 
     @Override

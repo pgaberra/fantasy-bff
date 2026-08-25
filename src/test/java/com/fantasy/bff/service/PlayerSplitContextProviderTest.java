@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
@@ -37,19 +36,19 @@ class PlayerSplitContextProviderTest {
     private static final int SEASON = 2026;
 
     @Mock private ProjectionServiceClient projectionServiceClient;
-    @Mock private PlayerServiceClient playerServiceClient;
+    @Mock private PlayerPoolSource playerPool;
 
     @BeforeEach
     void setUp() {
         when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(nhlMcDavid()));
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(platformMcDavid()));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerPool.getSkaters()).thenReturn(List.of(platformMcDavid()));
+        when(playerPool.getGoalies()).thenReturn(List.of());
     }
 
     private PlayerSplitContextProvider provider(long ttlMs) {
         return new PlayerSplitContextProvider(
                 projectionServiceClient,
-                playerServiceClient,
+                playerPool,
                 new PlayerIdResolver(),
                 new PlayerIdOverrides(""),
                 ttlMs,
@@ -74,8 +73,8 @@ class PlayerSplitContextProviderTest {
         provider.context();
 
         verify(projectionServiceClient, times(1)).activePlayers(any());
-        verify(playerServiceClient, times(1)).getSkaters();
-        verify(playerServiceClient, times(1)).getGoalies();
+        verify(playerPool, times(1)).getSkaters();
+        verify(playerPool, times(1)).getGoalies();
     }
 
     @Test

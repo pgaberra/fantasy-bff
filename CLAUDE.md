@@ -3,9 +3,10 @@
 Backend-for-Frontend (BFF) for the fantasy hockey draft tool. It is the only
 service the Angular frontend (`fantasy-web`) talks to. It handles auth (JWT),
 serves player data, and orchestrates calls to downstream services
-(`fantasy-db-service` for users/persistence, `fantasy-yahoo-service` for the player read
-model and Yahoo leagues, `fantasy-espn-service` for ESPN leagues and the stats Yahoo does not
-report, `fantasy-projection-service` for the projection model).
+(`fantasy-db-service` for users/persistence, `fantasy-yahoo-service` for Yahoo leagues,
+`fantasy-espn-service` for ESPN leagues, `fantasy-projection-service` for the projection
+model). The **player pool** comes from whichever platform `players.source` names — see
+`PlayerPoolSource`.
 
 ## Design rules
 
@@ -118,6 +119,24 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     back `reachable: false` rather than failing the response — the endpoint exists to show
     that, so it must survive it.
 - `service/` — business logic (`AuthService`, `PlayerService`)
+  - `PlayerPoolSource` — where the player pool comes from, chosen by `players.source`:
+    `YahooPlayerPoolSource` (yahoo-service, with the four ESPN-only stats matched in by name)
+    or `EspnPlayerPoolSource` (espn-service, where every stat is already on the player's own
+    row). Both hand back the same shape, so nothing downstream can tell which answered — but
+    **not the same player ids**. A stored projection is keyed by the ids that were in use when
+    it was saved, so flipping the flag goes together with migrating those rows. `PlayerService`,
+    `ProjectionSeedService` and `PlayerSplitContextProvider` all read the pool through this
+    seam, so the switch reaches every one of them at once.
+  - `PlayerIdRemapService` — the one-off that goes with flipping that flag: it matches the
+    Yahoo pool to the ESPN one with `PlayerIdResolver` and hands the crosswalk to db-service,
+    which rewrites the ids in every saved projection, draft pick and share. This is the only
+    service that can see both pools — the Yahoo one is still readable from yahoo-service's
+    cache even though Yahoo no longer serves players. Admin-only, dry run by default, and it
+    refuses to apply if either pool came back short or too little of it matched, because a row
+    left behind comes back marked as migrated and a rerun cannot reach it.
+  - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
+    seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
+    exactly: a projection is keyed by the stat names these produce.
   - `AdminController`'s `GET /api/v1/admin/yahoo/probe` proxies yahoo-service's live Yahoo probe
     (see its `YahooProbeService`): one call for a chosen game key and season, reporting the status
     Yahoo answered with and its own error wording. A failing sync only says that *something* was
@@ -170,10 +189,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     `GoalieResponse` (positions from Yahoo eligibility, `avgToi` → seconds, shooting pct
     fraction → percent, ppa/sha derived from points − goals, special teams summed, null stats
     → zeroed blocks for rookies).
-  - `EspnServiceClient` — ESPN leagues, plus the cached ESPN stat lines for the four stats
-    Yahoo does not report at all (hat tricks, shifts, goalie overtime losses, time on ice).
-    `PlayerService` merges those onto the Yahoo line; see `EspnStatLineIndex` for how the two
-    sides are matched, and why a line that two players answer to goes to neither.
+  - `EspnServiceClient` — ESPN leagues, the whole ESPN-sourced player pool
+    (`skaters`/`goalies`), and the cached ESPN stat lines for the four stats Yahoo does not
+    report at all (hat tricks, shifts, goalie overtime losses, time on ice).
+    `YahooPlayerPoolSource` merges those four onto the Yahoo line; see `EspnStatLineIndex` for
+    how the two sides are matched, and why a line that two players answer to goes to neither.
   - `YahooServiceClient` — a user's Yahoo OAuth connection and league settings.
   - `DatabaseServiceClient` — `HttpDatabaseServiceClient` talks to `fantasy-db-service`.
 - `config/` — `SecurityConfig`, `RestClientConfig` (downstream `RestClient` beans),

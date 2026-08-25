@@ -14,6 +14,9 @@ tags:
   description: Single-use password reset token issuance and consumption
 - name: Subscriptions
   description: "A user's billing subscription, at most one per user"
+- name: Player ids
+  description: "One-off: rewrite stored player ids from one platform's numbering to\
+    \ another's"
 - name: User projections
   description: "Saved player projections, scoped to a user"
 - name: Users
@@ -599,6 +602,35 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/EmailVerificationTokenResponse"
+  /api/v1/admin/player-ids/remap:
+    post:
+      tags:
+      - Player ids
+      summary: Remap the player ids in saved projections and shares
+      description: "Applies a crosswalk of old id → new id to every projection and\
+        \ share still keyed by Yahoo's ids, and marks them as keyed by ESPN's. Ids\
+        \ the crosswalk does not cover are left as they are, never dropped. Defaults\
+        \ to a dry run: pass dryRun=false to actually write."
+      operationId: remap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerIdRemapRequest"
+        required: true
+      responses:
+        "200":
+          description: "Remap reported, and applied unless it was a dry run"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PlayerIdRemapResponse"
+        "400":
+          description: "The crosswalk is empty, oversized, or maps one id two ways"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PlayerIdRemapResponse"
   /api/v1/users/{userId}:
     get:
       tags:
@@ -1382,6 +1414,84 @@ components:
       required:
       - expiresAt
       - token
+    PlayerIdPair:
+      type: object
+      properties:
+        from:
+          type: integer
+          format: int32
+          description: The stored id
+          minimum: 1
+        to:
+          type: integer
+          format: int32
+          description: The id to store instead
+          minimum: 1
+      required:
+      - from
+      - to
+    PlayerIdRemapRequest:
+      type: object
+      properties:
+        mappings:
+          type: array
+          description: "Old id → new id, one entry per player. Ids not listed are\
+            \ left exactly as they are."
+          items:
+            $ref: "#/components/schemas/PlayerIdPair"
+          maxItems: 5000
+          minItems: 0
+        dryRun:
+          type: boolean
+          description: "Report what would change and write nothing. Defaults to true,\
+            \ so an unqualified call cannot rewrite anyone's projection."
+      required:
+      - mappings
+    PlayerIdRemapCounts:
+      type: object
+      properties:
+        remapped:
+          type: integer
+          format: int32
+        unmapped:
+          type: integer
+          format: int32
+      required:
+      - remapped
+      - unmapped
+    PlayerIdRemapResponse:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+          description: Nothing was written
+        projectionsScanned:
+          type: integer
+          format: int32
+        playerRows:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+        draftPicks:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+        sharesScanned:
+          type: integer
+          format: int32
+        sharedRows:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+        unmappedPlayerIds:
+          type: array
+          description: "Distinct stored ids the crosswalk had no entry for, at most\
+            \ 50 of them"
+          items:
+            type: integer
+            format: int32
+      required:
+      - draftPicks
+      - dryRun
+      - playerRows
+      - projectionsScanned
+      - sharedRows
+      - sharesScanned
+      - unmappedPlayerIds
     ProjectionSummaryResponse:
       type: object
       properties:

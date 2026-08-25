@@ -3,6 +3,9 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.db.model.CreateEmailVerificationTokenRequest;
 import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.generated.db.model.PlayerIdPair;
+import com.fantasy.bff.generated.db.model.PlayerIdRemapRequest;
+import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.EmailVerificationTokenResponse;
@@ -322,5 +325,14 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(request)
                 .retrieve()
                 .body(SubscriptionResponse.class);
+    }
+
+    @Override
+    public PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun) {
+        return restClient.post()
+                .uri("/api/v1/admin/player-ids/remap")
+                .body(new PlayerIdRemapRequest().mappings(mappings).dryRun(dryRun))
+                .retrieve()
+                .body(PlayerIdRemapResponse.class);
     }
 }
