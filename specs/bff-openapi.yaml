@@ -1846,6 +1846,7 @@ components:
           enum:
           - default
           - blank
+          - model
       required:
       - data
       - name
