@@ -25,6 +25,15 @@ public interface ProjectionServiceClient {
     List<PlayerResponse> activePlayers(Integer season);
 
     /**
+     * Players the NHL no longer lists as active — retired, or gone from the league.
+     *
+     * <p>Every player the store holds has real season history behind them, so an inactive one
+     * is someone who played and stopped. A prospect who has never played an NHL game is not in
+     * the store at all, which is what separates the two cases the platform cannot tell apart.
+     */
+    List<PlayerResponse> retiredPlayers();
+
+    /**
      * Measured totals over a stretch of a team's schedule — what a player actually did over
      * that stretch, not a forecast.
      */

@@ -226,4 +226,80 @@ class ProjectionSeedServiceTest {
 
         assertThat(scoring).doesNotContainKey("blocks");
     }
+
+    private static PlayerResponse retiredPlayer(
+            int nhlId, String name, String team, Integer sweater) {
+        PlayerResponse player = nhlPlayer(nhlId, name, team, sweater);
+        player.setIsActive(false);
+        return player;
+    }
+
+    @Test
+    @DisplayName("a player who has left the league is seeded at zero, not left blank")
+    void retiredPlayerIsZeroed() {
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of());
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.retiredPlayers())
+                .thenReturn(List.of(retiredPlayer(8471685, "Anze Kopitar", "LA", 11)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(platformSkater(500, "Anze Kopitar", "LA", 11)));
+        when(playerPool.getGoalies()).thenReturn(List.of());
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
+
+        assertThat(seed.retiredZeroed()).isEqualTo(1);
+        assertThat(seed.players()).hasSize(1);
+        PlayerProjection zeroed = seed.players().get(0);
+        assertThat(zeroed.getPlayerId()).isEqualTo(500);
+        assertThat(zeroed.getStats().getScoring()).containsEntry("goals", 0.0);
+        assertThat(zeroed.getStats().getScoring()).containsEntry("points", 0.0);
+        assertThat(zeroed.getStats().getUtility()).containsEntry("gp", 0.0);
+        // A complete row, so no stat is left for the UI to guess at.
+        assertThat(zeroed.getStats().getScoring().values()).allMatch(v -> v == 0.0);
+    }
+
+    @Test
+    @DisplayName("an active player keeps his projection when a retired one shares his name")
+    void activeNamesakeIsNotZeroed() {
+        // There really are two Sebastian Ahos. Zeroing the wrong one would wipe a first-round
+        // forward off the board, so the active pass has to claim him before the retired pass runs.
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(nhlPlayer(8478427, "Sebastian Aho", "CAR", 20)));
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(8478427)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.retiredPlayers())
+                .thenReturn(List.of(retiredPlayer(8480222, "Sebastian Aho", "NYI", 28)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(platformSkater(600, "Sebastian Aho", "CAR", 20)));
+        when(playerPool.getGoalies()).thenReturn(List.of());
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
+
+        assertThat(seed.retiredZeroed()).isZero();
+        assertThat(seed.players()).hasSize(1);
+        assertThat(seed.players().get(0).getStats().getScoring())
+                .containsEntry("points", 100.0);
+    }
+
+    @Test
+    @DisplayName("a prospect with no NHL history is left alone, not zeroed")
+    void prospectIsNotZeroed() {
+        // A prospect is absent from the store entirely, so nothing on the retired side can
+        // match him. Zeroing him would assert the model expects nothing, which it does not.
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of());
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.retiredPlayers())
+                .thenReturn(List.of(retiredPlayer(8471685, "Anze Kopitar", "LA", 11)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(platformSkater(700, "Gavin McKenna", "PIT", 9)));
+        when(playerPool.getGoalies()).thenReturn(List.of());
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
+
+        assertThat(seed.retiredZeroed()).isZero();
+        assertThat(seed.players()).isEmpty();
+    }
 }
