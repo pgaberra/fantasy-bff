@@ -2468,8 +2468,10 @@ components:
           type: string
         headshot:
           type: string
-          description: "Path to the player's headshot, relative to the API base URL\
-            \ (e.g. /players/9245/headshot). Absent when the player has no picture."
+          description: "The player's headshot: an absolute URL when the picture lives\
+            \ on the platform's image CDN, or a path relative to the API base URL\
+            \ (e.g. /players/9245/headshot) when this service serves it. Absent when\
+            \ the player has no picture."
         sweaterNumber:
           type: integer
           format: int32
@@ -2655,8 +2657,10 @@ components:
           type: string
         headshot:
           type: string
-          description: "Path to the player's headshot, relative to the API base URL\
-            \ (e.g. /players/9245/headshot). Absent when the player has no picture."
+          description: "The player's headshot: an absolute URL when the picture lives\
+            \ on the platform's image CDN, or a path relative to the API base URL\
+            \ (e.g. /players/9245/headshot) when this service serves it. Absent when\
+            \ the player has no picture."
         sweaterNumber:
           type: integer
           format: int32
