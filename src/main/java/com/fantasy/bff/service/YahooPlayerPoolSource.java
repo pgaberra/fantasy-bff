@@ -47,6 +47,11 @@ public class YahooPlayerPoolSource implements PlayerPoolSource {
     }
 
     @Override
+    public String platform() {
+        return "yahoo";
+    }
+
+    @Override
     public List<SkaterResponse> getSkaters() {
         List<SkaterResponse> skaters = playerServiceClient.getSkaters();
         Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(

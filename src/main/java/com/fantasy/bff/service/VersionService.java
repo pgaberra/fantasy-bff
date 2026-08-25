@@ -23,24 +23,36 @@ public class VersionService {
     private final String ownVersion;
     private final RestClient databaseServiceClient;
     private final RestClient yahooFantasyServiceClient;
+    private final RestClient espnFantasyServiceClient;
+    private final PlayerPoolSource playerPool;
 
     public VersionService(
             @Value("${info.app.version:dev}") String ownVersion,
             RestClient databaseServiceClient,
-            RestClient yahooFantasyServiceClient) {
+            RestClient yahooFantasyServiceClient,
+            RestClient espnFantasyServiceClient,
+            PlayerPoolSource playerPool) {
         this.ownVersion = ownVersion;
         this.databaseServiceClient = databaseServiceClient;
         this.yahooFantasyServiceClient = yahooFantasyServiceClient;
+        this.espnFantasyServiceClient = espnFantasyServiceClient;
+        this.playerPool = playerPool;
     }
 
     public VersionsResponse getVersions() {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<ServiceVersion> db = executor.submit(probe("fantasy-db-service", databaseServiceClient));
             Future<ServiceVersion> yahoo = executor.submit(probe("fantasy-yahoo-service", yahooFantasyServiceClient));
-            return new VersionsResponse(List.of(
-                    new ServiceVersion("fantasy-bff", true, ownVersion),
-                    awaitResult(db),
-                    awaitResult(yahoo)));
+            Future<ServiceVersion> espn = executor.submit(probe("fantasy-espn-service", espnFantasyServiceClient));
+            // projection-service is deliberately absent: it is FastAPI, serves no /actuator/info
+            // and stamps no deployed version, so probing it would report it down forever.
+            return new VersionsResponse(
+                    List.of(
+                            new ServiceVersion("fantasy-bff", true, ownVersion),
+                            awaitResult(db),
+                            awaitResult(yahoo),
+                            awaitResult(espn)),
+                    playerPool.platform());
         }
     }
 

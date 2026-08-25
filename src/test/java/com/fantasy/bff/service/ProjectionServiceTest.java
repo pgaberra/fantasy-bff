@@ -16,6 +16,7 @@ import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.service.ProjectionPoolReconciler.Reconciliation;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -49,6 +51,8 @@ class ProjectionServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID PROJECTION_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final int SEASON = 2026;
+    private static final String MODEL_VERSION = "marcel-v3";
 
     @Mock
     private DatabaseServiceClient databaseServiceClient;
@@ -57,7 +61,13 @@ class ProjectionServiceTest {
     private PlayerService playerService;
 
     @Mock
+    private PlayerPoolSource playerPool;
+
+    @Mock
     private ProjectionPoolReconciler reconciler;
+
+    @Mock
+    private ProjectionSeedService seedService;
 
     @Captor
     private ArgumentCaptor<com.fantasy.bff.generated.db.model.CreateProjectionRequest> sentRequest;
@@ -66,10 +76,15 @@ class ProjectionServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(playerPool.playerIdSpace()).thenReturn(PlayerIdSpace.YAHOO);
         projectionService = new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
-                reconciler);
+                playerPool,
+                reconciler,
+                seedService,
+                SEASON,
+                MODEL_VERSION);
     }
 
     @Test
@@ -200,11 +215,7 @@ class ProjectionServiceTest {
         projectionService.create(USER_ID, request(dataWith(own), null));
 
         assertThat(capturedPlayers()).containsExactly(own);
-        // The point is that the pool is not downloaded, not that the service is never spoken to:
-        // the rows still have to be stamped with the space they are keyed by, and asking which
-        // one that is costs nothing.
-        verify(playerService, never()).getSkaters();
-        verify(playerService, never()).getGoalies();
+        verifyNoInteractions(playerService);
     }
 
     // Silently dropping the rows a client did send would lose a copied or demo projection.
@@ -299,7 +310,7 @@ class ProjectionServiceTest {
      */
     @Test
     void stampsTheCreateWithTheIdSpaceOfThePoolThatIsWiredIn() {
-        when(playerService.playerIdSpace()).thenReturn(PlayerIdSpace.ESPN);
+        when(playerPool.playerIdSpace()).thenReturn(PlayerIdSpace.ESPN);
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(dataWith(new PlayerProjection().playerId(7)), null));
@@ -309,5 +320,67 @@ class ProjectionServiceTest {
         verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
         assertThat(sent.getValue().getPlayerIdSpace()).isEqualTo(
                 com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN);
+    }
+
+    @Test
+    @DisplayName("model source fills the rows from the projection model, not the read model")
+    void withModelSource_fillsPlayersFromTheModel() {
+        PlayerProjection projected = new PlayerProjection();
+        projected.setPlayerId(4242);
+        projected.setType(PlayerProjection.TypeEnum.SKATER);
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), 1, 0, 0, 0, 0));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getData().getPlayers())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactly(4242);
+        // The read model must not be consulted at all for this source.
+        verifyNoInteractions(playerService);
+    }
+
+    @Test
+    @DisplayName("a model-seeded projection records no player basis rather than a wrong one")
+    void withModelSource_leavesPlayerBasisUnset() {
+        // playerBasis answers "what should a player who joins the pool later be seeded with".
+        // The reconciler reads the player pool, not the model, so it cannot answer that here —
+        // and storing last_season would be a lie the next reconciliation acts on.
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), 0, 0, 0, 0, 0));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getData().getSettings().getPlayerBasis()).isNull();
+    }
+
+    @Test
+    @DisplayName("a preset draft may be started from the model, and is named for it")
+    void presetDraftFromModel_isNamedForThePreset() {
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), 0, 0, 0, 0, 0));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(
+                USER_ID,
+                request(emptyData(), ProjectionSource.MODEL, ProjectionKind.PRESET_DRAFT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        // The board heading comes from here, so it must name the preset actually drafted against.
+        assertThat(sentRequest.getValue().getName()).isEqualTo("AI Projection");
+    }
+
+    @Test
+    @DisplayName("a preset draft still cannot be started from a blank pool")
+    void presetDraftFromBlank_isRejected() {
+        assertThatThrownBy(() -> projectionService.create(
+                        USER_ID,
+                        request(emptyData(), ProjectionSource.BLANK, ProjectionKind.PRESET_DRAFT)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source=default or source=model");
     }
 }

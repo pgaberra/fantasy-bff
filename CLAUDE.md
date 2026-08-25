@@ -124,7 +124,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show
-    that, so it must survive it.
+    that, so it must survive it. It also reports `playerSource`, the platform the pool is
+    **actually** being served from, read off the wired `PlayerPoolSource` rather than the
+    configured value: the switch is an environment variable, and one that did not take looks
+    exactly like one that was never set. projection-service is absent on purpose — it is
+    FastAPI, serves no `/actuator/info` and stamps no deployed version, so probing it would
+    report it down forever.
 - `service/` — business logic (`AuthService`, `PlayerService`)
   - `PlayerPoolSource` — where the player pool comes from, chosen by `players.source`:
     `YahooPlayerPoolSource` (yahoo-service, with the four ESPN-only stats matched in by name)

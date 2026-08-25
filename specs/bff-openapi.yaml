@@ -1846,6 +1846,7 @@ components:
           enum:
           - default
           - blank
+          - model
       required:
       - data
       - name
@@ -2275,7 +2276,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ServiceVersion"
+        playerSource:
+          type: string
+          description: "Which platform the player pool is being served from — the\
+            \ live wiring, not the configured value, so a setting that did not take\
+            \ is visible rather than assumed."
+          enum:
+          - yahoo
+          - espn
       required:
+      - playerSource
       - services
     SharedProjectionData:
       type: object

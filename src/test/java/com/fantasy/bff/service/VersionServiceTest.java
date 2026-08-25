@@ -15,22 +15,34 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class VersionServiceTest {
 
     private WireMockServer dbServer;
     private WireMockServer yahooServer;
+    private WireMockServer espnServer;
 
     @BeforeEach
     void setUp() {
         dbServer = startServer("1.0.0");
         yahooServer = startServer("3.0.0");
+        espnServer = startServer("0.5.0");
     }
 
     @AfterEach
     void tearDown() {
         dbServer.stop();
         yahooServer.stop();
+        espnServer.stop();
+    }
+
+    /** Stands in for whichever pool source is wired in; only its name matters here. */
+    private static PlayerPoolSource poolFrom(String platform) {
+        PlayerPoolSource pool = mock(PlayerPoolSource.class);
+        when(pool.platform()).thenReturn(platform);
+        return pool;
     }
 
     private WireMockServer startServer(String version) {
@@ -51,17 +63,30 @@ class VersionServiceTest {
     @Test
     void reportsOwnVersionAndEachDownstreamVersionInOrder() {
         VersionService service = new VersionService("1.2.3-bff",
-                client(dbServer), client(yahooServer));
+                client(dbServer), client(yahooServer), client(espnServer), poolFrom("yahoo"));
 
         VersionsResponse response = service.getVersions();
 
         assertThat(response.services())
                 .extracting(ServiceVersion::name)
-                .containsExactly("fantasy-bff", "fantasy-db-service", "fantasy-yahoo-service");
+                .containsExactly("fantasy-bff", "fantasy-db-service", "fantasy-yahoo-service",
+                        "fantasy-espn-service");
         assertThat(response.services())
                 .extracting(ServiceVersion::version)
-                .containsExactly("1.2.3-bff", "1.0.0", "3.0.0");
+                .containsExactly("1.2.3-bff", "1.0.0", "3.0.0", "0.5.0");
         assertThat(response.services()).allSatisfy(version -> assertThat(version.up()).isTrue());
+    }
+
+    /**
+     * The whole point of reporting it: the switch is an environment variable, and one that did
+     * not take looks exactly like one that was never set.
+     */
+    @Test
+    void reportsWhichPlatformThePoolIsActuallyServedFrom() {
+        VersionService service = new VersionService("1.2.3-bff",
+                client(dbServer), client(yahooServer), client(espnServer), poolFrom("espn"));
+
+        assertThat(service.getVersions().playerSource()).isEqualTo("espn");
     }
 
     @Test
@@ -71,7 +96,7 @@ class VersionServiceTest {
         dead.stubFor(get(urlPathEqualTo("/actuator/info")).willReturn(aResponse().withStatus(500)));
 
         VersionService service = new VersionService("1.2.3-bff",
-                client(dead), client(yahooServer));
+                client(dead), client(yahooServer), client(espnServer), poolFrom("yahoo"));
 
         VersionsResponse response = service.getVersions();
         dead.stop();

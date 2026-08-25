@@ -55,6 +55,11 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
     }
 
     @Override
+    public String platform() {
+        return "espn";
+    }
+
+    @Override
     public List<SkaterResponse> getSkaters() {
         return espnServiceClient.skaters(statsSeason).stream()
                 .map(EspnPlayerPoolSource::toSkater)
