@@ -17,6 +17,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.time.Duration;
 import java.util.List;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +25,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final Duration PREFLIGHT_CACHE = Duration.ofMinutes(30);
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitFilter rateLimitFilter;
@@ -95,6 +98,13 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
         config.setAllowCredentials(true);
+        // Without this Spring sends no Access-Control-Max-Age at all, and the browser falls back
+        // to its own default of a few seconds — so every authenticated call pays for a preflight
+        // of its own, and a page that varies a query parameter (Who's hot moving its game range)
+        // doubles its request count for nothing. The cache is keyed per URL, so this only ever
+        // saves the second ask for a URL already cleared; half an hour is what Spring itself uses
+        // for its permit-default configuration.
+        config.setMaxAge(PREFLIGHT_CACHE);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
