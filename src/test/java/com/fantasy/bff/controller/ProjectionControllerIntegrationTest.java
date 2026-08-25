@@ -6,6 +6,8 @@ import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
+import com.fantasy.bff.generated.db.model.ProjectionOrigin;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -262,5 +264,53 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(delete("/api/v1/projections/{id}", PROJECTION_ID)
                         .header("Authorization", "Bearer " + token()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void importFromShare_copiesTheBoardAndReportsWhoseItWas() throws Exception {
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse()
+                        .season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString())
+                        .name("Their league")
+                        .kind(ProjectionResponse.KindEnum.IMPORTED)
+                        .origin(new ProjectionOrigin()
+                                .shareToken("s0mErAnd0mT0k3nV4lu3ab")
+                                .authorUsername("alex")));
+
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.kind").value("imported"))
+                .andExpect(jsonPath("$.origin.authorUsername").value("alex"))
+                .andExpect(jsonPath("$.origin.shareToken").value("s0mErAnd0mT0k3nV4lu3ab"));
+
+        ArgumentCaptor<ImportProjectionRequest> sent =
+                ArgumentCaptor.forClass(ImportProjectionRequest.class);
+        verify(databaseServiceClient).importProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getToken()).isEqualTo("s0mErAnd0mT0k3nV4lu3ab");
+    }
+
+    @Test
+    void importFromShare_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
+                .andExpect(status().isUnauthorized());
+
+        verify(databaseServiceClient, never()).importProjection(any(), any());
+    }
+
+    @Test
+    void importFromShare_withBlankToken_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \" \" }"))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).importProjection(any(), any());
     }
 }

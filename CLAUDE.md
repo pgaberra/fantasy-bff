@@ -70,6 +70,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   `preset_draft` must be created with `source=default` and is named server-side, so a
   draft cannot claim to be drafted against something it wasn't). Reading one runs it
   through `ProjectionPoolReconciler` first — see below
+  - `POST /api/v1/projections/imports` on `ProjectionController` — copying a shared board into
+    the caller's own projections by its share token. Anyone signed in who holds a link may take
+    a copy; it arrives as `kind: imported`, carries the author's rows but none of their draft,
+    and reports `origin` (share token + the author's name as it read at import time) so the app
+    can say whose numbers it holds. The rows come across as they were published, i.e. against
+    the author's player pool — squaring them with the current one is left to the first read,
+    which reconciles every projection anyway.
   - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
     public link, which is a one-way action: there is no endpoint to refresh or withdraw a
     published snapshot. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
