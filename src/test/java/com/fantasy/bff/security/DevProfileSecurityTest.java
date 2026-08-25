@@ -50,6 +50,16 @@ public class DevProfileSecurityTest extends BaseIntegrationTest {
     }
 
     @Test
+    void corsPreflight_tellsTheBrowserHowLongItMayCacheTheAnswer() throws Exception {
+        // Left unset, browsers cache a preflight for a few seconds and re-ask for every URL that
+        // carries an Authorization header — Who's hot alone would double its requests.
+        mockMvc.perform(options("/api/v1/auth/login")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "1800"));
+    }
+
+    @Test
     void corsPreflightFromUnknownOrigin_isNotAllowed() throws Exception {
         mockMvc.perform(options("/api/v1/auth/login")
                         .header(HttpHeaders.ORIGIN, "http://evil.com")
