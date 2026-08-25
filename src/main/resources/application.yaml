@@ -67,6 +67,12 @@ services:
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
     timeout-ms: 3000
+    # The one-off player-id remap is not an ordinary call: it reads, rewrites and writes back
+    # every stored projection in a single request — on staging that is 110 projections and some
+    # 164 000 player rows of jsonb. Three seconds is the right ceiling for the calls a user is
+    # waiting on and far too short for this one, which timed out against a freshly restarted
+    # db-service while the write was still running.
+    migration-timeout-ms: ${DB_MIGRATION_TIMEOUT_MS:180000}
     api-key: ${DB_INTERNAL_API_KEY:}
   # projection-service serves AI-generated player projections (NHL-id-keyed, league-agnostic)
   # and the measured game-range splits behind Who's hot. Internal-only.

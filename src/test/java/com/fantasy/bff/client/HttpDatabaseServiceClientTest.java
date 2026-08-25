@@ -1,6 +1,8 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
+import com.fantasy.bff.generated.db.model.PlayerIdPair;
+import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
@@ -14,6 +16,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -45,7 +48,8 @@ class HttpDatabaseServiceClientTest {
                 .baseUrl(server.baseUrl())
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
-        client = new HttpDatabaseServiceClient(restClient);
+        // Both clients point at the same WireMock; only their timeouts differ in production.
+        client = new HttpDatabaseServiceClient(restClient, restClient);
     }
 
     @AfterEach
@@ -211,5 +215,26 @@ class HttpDatabaseServiceClientTest {
         server.verify(postRequestedFor(
                         urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
                 .withRequestBody(equalToJson("{\"token\":\"t0k3n\"}", true, true)));
+    }
+
+    @Test
+    void remapPlayerIds_postsTheCrosswalkAndTheDryRunFlag() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/admin/player-ids/remap"))
+                .willReturn(okJson("{\"dryRun\":true,\"projectionsScanned\":110,"
+                        + "\"playerRows\":{\"remapped\":136990,\"unmapped\":26677},"
+                        + "\"draftPicks\":{\"remapped\":1676,\"unmapped\":0},"
+                        + "\"sharesScanned\":1,"
+                        + "\"sharedRows\":{\"remapped\":100,\"unmapped\":0},"
+                        + "\"unmappedPlayerIds\":[3988]}")));
+
+        PlayerIdRemapResponse response = client.remapPlayerIds(
+                List.of(new PlayerIdPair().from(6743).to(3895074)), true);
+
+        assertThat(response.getProjectionsScanned()).isEqualTo(110);
+        assertThat(response.getDraftPicks().getUnmapped()).isZero();
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/admin/player-ids/remap"))
+                .withRequestBody(equalToJson(
+                        "{\"mappings\":[{\"from\":6743,\"to\":3895074}],\"dryRun\":true}",
+                        true, true)));
     }
 }

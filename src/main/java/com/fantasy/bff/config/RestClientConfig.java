@@ -51,6 +51,24 @@ public class RestClientConfig {
         return builder.build();
     }
 
+    /**
+     * db-service again, with a timeout measured for the one-off player-id remap rather than for
+     * a request someone is waiting on. That call rewrites every stored projection in one go, so
+     * the ordinary three seconds cuts it off mid-write — and db-service, which does not know the
+     * caller has gone, commits anyway.
+     */
+    @Bean
+    public RestClient databaseMigrationClient(
+            @Value("${services.database.base-url}") String baseUrl,
+            @Value("${services.database.migration-timeout-ms}") int timeoutMs,
+            @Value("${services.database.api-key:}") String apiKey) {
+        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader("X-Internal-Api-Key", apiKey);
+        }
+        return builder.build();
+    }
+
     @Bean
     public RestClient projectionServiceClient(
             @Value("${services.projection.base-url}") String baseUrl,

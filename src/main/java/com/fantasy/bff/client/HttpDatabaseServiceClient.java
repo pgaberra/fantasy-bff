@@ -49,9 +49,12 @@ import java.util.UUID;
 public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     private final RestClient restClient;
+    private final RestClient migrationClient;
 
-    public HttpDatabaseServiceClient(@Qualifier("databaseServiceClient") RestClient restClient) {
+    public HttpDatabaseServiceClient(@Qualifier("databaseServiceClient") RestClient restClient,
+                                     @Qualifier("databaseMigrationClient") RestClient migrationClient) {
         this.restClient = restClient;
+        this.migrationClient = migrationClient;
     }
 
     @Override
@@ -340,7 +343,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun) {
-        return restClient.post()
+        return migrationClient.post()
                 .uri("/api/v1/admin/player-ids/remap")
                 .body(new PlayerIdRemapRequest().mappings(mappings).dryRun(dryRun))
                 .retrieve()
