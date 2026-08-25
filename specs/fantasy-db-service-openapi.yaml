@@ -14,6 +14,8 @@ tags:
   description: Single-use password reset token issuance and consumption
 - name: Subscriptions
   description: "A user's billing subscription, at most one per user"
+- name: Projection imports
+  description: Copying a shared board into a user's own projections
 - name: Player ids
   description: "One-off: rewrite stored player ids from one platform's numbering to\
     \ another's"
@@ -433,6 +435,52 @@ paths:
         "409":
           description: "The user already has a projection of that kind, or one with\
             \ that name"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/users/{userId}/projections/imports:
+    post:
+      tags:
+      - Projection imports
+      summary: "Copy a shared projection into the user's own, by its share token"
+      description: "Anyone holding the token may copy it. The copy is of the snapshot\
+        \ as it was published, carries no draft, and is stamped with who shared it."
+      operationId: importFromShare
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportProjectionRequest"
+        required: true
+      responses:
+        "201":
+          description: Projection imported
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "400":
+          description: Validation failed (blank or oversized token/name)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "404":
+          description: No share with that token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "409":
+          description: The user already has an imported projection with that name
           content:
             '*/*':
               schema:
@@ -1251,6 +1299,20 @@ components:
       required:
       - players
       - settings
+    ProjectionOrigin:
+      type: object
+      properties:
+        shareToken:
+          type: string
+          description: "The share the board was copied from. Still set once that share\
+            \ is gone, so a stale token here is expected."
+        authorUsername:
+          type: string
+          description: "The author's public name as it read at import time. Snapshotted\
+            \ with the rows, unlike the live name on the public page."
+      required:
+      - authorUsername
+      - shareToken
     ProjectionResponse:
       type: object
       properties:
@@ -1263,6 +1325,7 @@ components:
           enum:
           - projection
           - preset_draft
+          - imported
         season:
           type: string
           enum:
@@ -1278,6 +1341,10 @@ components:
         updatedAt:
           type: string
           format: date-time
+        origin:
+          $ref: "#/components/schemas/ProjectionOrigin"
+          description: "Who the board was copied from, on an imported projection.\
+            \ Absent on the user's own."
       required:
       - createdAt
       - data
@@ -1314,11 +1381,27 @@ components:
           enum:
           - projection
           - preset_draft
+          - imported
         data:
           $ref: "#/components/schemas/ProjectionData"
       required:
       - data
       - name
+    ImportProjectionRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The share link's token.
+          maxLength: 64
+          minLength: 0
+        name:
+          type: string
+          description: What to call the copy. Defaults to the name it was shared under.
+          maxLength: 100
+          minLength: 0
+      required:
+      - token
     PasswordResetRequest:
       type: object
       properties:
@@ -1477,6 +1560,10 @@ components:
           format: int32
         sharedRows:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
+          description: The ranked rows a share's public page shows
+        sharedBoardRows:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+          description: "The full board behind a share, which is what an import copies"
         unmappedPlayerIds:
           type: array
           description: "Distinct stored ids the crosswalk had no entry for, at most\
@@ -1489,6 +1576,7 @@ components:
       - dryRun
       - playerRows
       - projectionsScanned
+      - sharedBoardRows
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds
@@ -1504,6 +1592,7 @@ components:
           enum:
           - projection
           - preset_draft
+          - imported
         season:
           type: string
           enum:
@@ -1523,6 +1612,10 @@ components:
           - none
           - in_progress
           - finished
+        origin:
+          $ref: "#/components/schemas/ProjectionOrigin"
+          description: "Who the board was copied from, on an imported projection.\
+            \ Absent on the user's own."
       required:
       - createdAt
       - draftStatus

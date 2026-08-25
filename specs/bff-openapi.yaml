@@ -2063,6 +2063,8 @@ components:
           format: int32
         sharedRows:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
+        sharedBoardRows:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
         unmappedPlayerIds:
           type: array
           items:
@@ -2073,6 +2075,7 @@ components:
       - dryRun
       - playerRows
       - projectionsScanned
+      - sharedBoardRows
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds
@@ -2248,6 +2251,16 @@ components:
       - season
       - token
       - updatedAt
+    ProjectionOrigin:
+      type: object
+      properties:
+        shareToken:
+          type: string
+        authorUsername:
+          type: string
+      required:
+      - authorUsername
+      - shareToken
     ProjectionSummaryResponse:
       type: object
       properties:
@@ -2260,6 +2273,7 @@ components:
           enum:
           - projection
           - preset_draft
+          - imported
         season:
           type: string
           enum:
@@ -2279,6 +2293,8 @@ components:
           - none
           - in_progress
           - finished
+        origin:
+          $ref: "#/components/schemas/ProjectionOrigin"
       required:
       - createdAt
       - draftStatus
