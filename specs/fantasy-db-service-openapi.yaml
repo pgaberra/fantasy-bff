@@ -1291,8 +1291,13 @@ components:
           $ref: "#/components/schemas/ProjectionSettings"
         players:
           type: array
+          description: "One row per player the projection covers. The cap is a safety\
+            \ limit sized above the largest player pool, not the product rule — a\
+            \ full board is every player in the league."
           items:
             $ref: "#/components/schemas/PlayerProjection"
+          maxItems: 2000
+          minItems: 0
         draft:
           $ref: "#/components/schemas/DraftState"
           description: "In-draft state for this projection — the league's teams, the\
@@ -1571,10 +1576,8 @@ components:
           format: int32
         sharedRows:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
-          description: The ranked rows a share's public page shows
-        sharedBoardRows:
-          $ref: "#/components/schemas/PlayerIdRemapCounts"
-          description: "The full board behind a share, which is what an import copies"
+          description: The rows a share published — what its public page shows and
+            what an import copies
         unmappedPlayerIds:
           type: array
           description: "Distinct stored ids the crosswalk had no entry for, at most\
@@ -1587,7 +1590,6 @@ components:
       - dryRun
       - playerRows
       - projectionsScanned
-      - sharedBoardRows
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds
