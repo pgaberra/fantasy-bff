@@ -5,6 +5,7 @@ import com.fantasy.bff.generated.espn.model.CredentialValuesResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
+import com.fantasy.bff.generated.espn.model.PlayerSyncResponse;
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.espn.model.SaveCredentialsRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,9 +29,12 @@ import java.util.List;
 public class HttpEspnServiceClient implements EspnServiceClient {
 
     private final RestClient restClient;
+    private final RestClient syncClient;
 
-    public HttpEspnServiceClient(@Qualifier("espnFantasyServiceClient") RestClient restClient) {
+    public HttpEspnServiceClient(@Qualifier("espnFantasyServiceClient") RestClient restClient,
+                                 @Qualifier("espnSyncClient") RestClient syncClient) {
         this.restClient = restClient;
+        this.syncClient = syncClient;
     }
 
     @Override
@@ -116,6 +120,14 @@ public class HttpEspnServiceClient implements EspnServiceClient {
                 .uri("/api/v1/espn/players/sync/latest")
                 .retrieve()
                 .body(PlayerSyncStatusResponse.class);
+    }
+
+    @Override
+    public PlayerSyncResponse triggerPlayerSync() {
+        return syncClient.post()
+                .uri("/api/v1/espn/players/sync")
+                .retrieve()
+                .body(PlayerSyncResponse.class);
     }
 
     @Override

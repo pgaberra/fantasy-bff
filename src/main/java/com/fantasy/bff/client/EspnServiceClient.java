@@ -5,6 +5,7 @@ import com.fantasy.bff.generated.espn.model.CredentialValuesResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
+import com.fantasy.bff.generated.espn.model.PlayerSyncResponse;
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 
 import java.util.List;
@@ -39,4 +40,10 @@ public interface EspnServiceClient {
 
     /** When espn-service last refreshed its cached pool. Cheap enough to ask on every read. */
     PlayerSyncStatusResponse lastPlayerSync();
+
+    /**
+     * Refreshes the cached player pool from ESPN and waits for it. Minutes, not seconds: the
+     * whole player universe is fetched, parsed and checked against the image CDN.
+     */
+    PlayerSyncResponse triggerPlayerSync();
 }

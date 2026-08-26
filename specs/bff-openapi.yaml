@@ -739,6 +739,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlayerIdRemapReport"
+  /api/v1/admin/espn/players/sync:
+    post:
+      tags:
+      - Admin
+      summary: Trigger an ESPN player sync
+      description: "Refreshes the cached player pool from ESPN — which is where the\
+        \ pool comes from — and waits for it. Minutes, not seconds: the whole player\
+        \ universe is fetched, parsed and checked against the image CDN. Otherwise\
+        \ the pool only moves on the nightly run, which is a long wait for a deployment\
+        \ that changed what the sync stores."
+      operationId: triggerEspnPlayerSync
+      responses:
+        "200":
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSyncResponse"
+        "502":
+          description: "ESPN was unreachable, or returned too little to trust"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSyncResponse"
   /api/v1/yahoo/leagues:
     get:
       tags:
@@ -2196,6 +2220,18 @@ components:
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds
+    PlayerSyncResponse:
+      type: object
+      properties:
+        players:
+          type: integer
+          format: int32
+        syncedAt:
+          type: string
+          format: date-time
+      required:
+      - players
+      - syncedAt
     LeagueSummary:
       type: object
       properties:

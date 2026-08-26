@@ -59,6 +59,10 @@ services:
     # a start year. Mirrors services.yahoo-fantasy.stats-season and must hold the same value:
     # switching the source must not change which season is on screen.
     stats-season: ${ESPN_STATS_SEASON:2025}
+    # Triggering a player sync is not an ordinary call: espn-service fetches tens of megabytes
+    # from ESPN, parses it, and asks the image CDN about every player in the pool. Minutes, not
+    # seconds — and the ten above is right for everything a user waits on.
+    sync-timeout-ms: ${ESPN_SYNC_TIMEOUT_MS:600000}
   # ESPN's public image CDN, read only to serve /api/v1/players/{id}/headshot when the pool
   # comes from ESPN. No key, no user data, and the only thing that varies is a player id.
   espn-images:
