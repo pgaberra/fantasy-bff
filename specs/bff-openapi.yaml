@@ -1054,12 +1054,32 @@ paths:
     get:
       tags:
       - Players
-      summary: Get all skaters
-      description: Returns all skaters with full season stats
+      summary: Get skaters
+      description: "Skaters with full season stats, highest scoring first. `limit`\
+        \ returns only that many, for a caller that wants the top of the board rather\
+        \ than the whole pool — the editor needs every player, a preview needs five."
       operationId: getSkaters
+      parameters:
+      - name: limit
+        in: query
+        description: How many skaters to return; all of them when absent
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 500
+          minimum: 1
       responses:
         "200":
           description: Skaters retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+        "400":
+          description: limit is not between 1 and 500
           content:
             application/json:
               schema:
@@ -1095,12 +1115,31 @@ paths:
     get:
       tags:
       - Players
-      summary: Get all goalies
-      description: Returns all goalies with full season stats
+      summary: Get goalies
+      description: "Goalies with full season stats, most wins first. `limit` returns\
+        \ only that many, the same way it does for skaters."
       operationId: getGoalies
+      parameters:
+      - name: limit
+        in: query
+        description: How many goalies to return; all of them when absent
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 500
+          minimum: 1
       responses:
         "200":
           description: Goalies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
+        "400":
+          description: limit is not between 1 and 500
           content:
             application/json:
               schema:
