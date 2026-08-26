@@ -50,14 +50,14 @@ if ! gh api "repos/${GITHUB_REPOSITORY}/contents/${pinned_path}?ref=${BASE_SHA}"
 fi
 
 if diff -q "$base_copy" "$pinned_path" > /dev/null; then
-  echo "::warning::${pinned_path} is behind ${producer_repo}, and was already behind on the base branch — this PR did not cause it and does not have to fix it. Someone should land a re-pin: copy ${producer_path} into ${pinned_path} and run ${remedy}."
+  echo "::warning::${pinned_path} is behind ${producer_repo}, and was already behind on the base branch — this PR did not cause it and does not have to fix it. Someone should land a re-pin: copy ${producer_path} from ${producer_repo} into ${pinned_path} and run ${remedy}."
   {
     echo "### \`${pinned_path}\` is behind \`${producer_repo}\`"
     echo
-    echo "Not caused by this PR — the base branch is already behind. A separate re-pin PR should copy \`${producer_path}\` over it and run \`${remedy}\`."
+    echo "Not caused by this PR — the base branch is already behind. A separate re-pin PR should copy \`${producer_path}\` from \`${producer_repo}\` over it and run \`${remedy}\`."
   } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
   exit 0
 fi
 
-echo "::error::This branch changed ${pinned_path} to something that is not ${producer_repo}'s current ${producer_path}. Either it was edited by hand, or it re-pinned and the producer has merged again since. Copy ${producer_path} over it and run ${remedy}."
+echo "::error::This branch changed ${pinned_path} to something that is not ${producer_repo}'s current ${producer_path}. Either it was edited by hand, or it re-pinned and the producer has merged again since. Copy ${producer_path} from ${producer_repo} over it and run ${remedy}."
 exit 1
