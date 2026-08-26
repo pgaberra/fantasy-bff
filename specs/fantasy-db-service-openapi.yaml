@@ -888,11 +888,13 @@ components:
       properties:
         players:
           type: array
-          description: "The ranked rows to publish, in display order. The caller decides\
-            \ how many to include; the cap is a safety limit, not the product rule."
+          description: "The ranked rows to publish, in display order. A share carries\
+            \ the whole board so a signed-in visitor can read all of it; the cap is\
+            \ a safety limit sized above the largest player pool, not the product\
+            \ rule."
           items:
             $ref: "#/components/schemas/SharedPlayer"
-          maxItems: 200
+          maxItems: 2000
           minItems: 0
       required:
       - players
@@ -1384,9 +1386,18 @@ components:
           - imported
         data:
           $ref: "#/components/schemas/ProjectionData"
+        playerIdSpace:
+          type: string
+          description: "Which platform's player ids the rows are keyed by. Required\
+            \ rather than defaulted: a wrong value here is silent until a remap translates\
+            \ ids that were never in the space it assumed."
+          enum:
+          - yahoo
+          - espn
       required:
       - data
       - name
+      - playerIdSpace
     ImportProjectionRequest:
       type: object
       properties:
