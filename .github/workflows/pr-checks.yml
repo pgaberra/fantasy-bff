@@ -24,73 +24,52 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Passing BASE_SHA is what makes these only blame the branch: a producer merge staled the
+      # pinned copy in every open PR at once, and with four producers that happened four times as
+      # often. The script carries the whole argument.
       - name: Verify pinned db-service spec is in sync
         if: github.actor != 'dependabot[bot]'
         env:
-          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          PRODUCER_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::SPEC_READ_TOKEN is not set. Add a fine-grained PAT with read access to fantasy-db-service contents as a repo secret."
-            exit 1
-          fi
-          if ! gh api repos/pgaberra/fantasy-db-service/contents/specs/openapi.yaml \
-                -H "Accept: application/vnd.github.raw" > /tmp/db-openapi.yaml 2> /tmp/gh-err.txt; then
-            echo "::error::Could not fetch the db-service spec — SPEC_READ_TOKEN is likely invalid or expired. Rotate it and update the repo secret. (This is an auth failure, not a spec mismatch.)"
-            cat /tmp/gh-err.txt
-            exit 1
-          fi
-          if ! diff -u specs/fantasy-db-service-openapi.yaml /tmp/db-openapi.yaml; then
-            echo "::error::Pinned db-service spec is stale. Copy fantasy-db-service/specs/openapi.yaml into specs/fantasy-db-service-openapi.yaml, run ./gradlew openApiGenerate, and fix any compile errors."
-            exit 1
-          fi
+          bash .github/scripts/check-pinned-spec.sh \
+            pgaberra/fantasy-db-service specs/openapi.yaml specs/fantasy-db-service-openapi.yaml \
+            './gradlew openApiGenerate and fix any compile errors'
 
       - name: Verify pinned yahoo-service spec is in sync
         if: github.actor != 'dependabot[bot]'
         env:
-          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          PRODUCER_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if ! gh api repos/pgaberra/fantasy-yahoo-service/contents/specs/openapi.yaml \
-                -H "Accept: application/vnd.github.raw" > /tmp/yahoo-openapi.yaml 2> /tmp/gh-err.txt; then
-            echo "::error::Could not fetch the yahoo-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-yahoo-service. (This is an auth failure, not a spec mismatch.)"
-            cat /tmp/gh-err.txt
-            exit 1
-          fi
-          if ! diff -u specs/fantasy-yahoo-service-openapi.yaml /tmp/yahoo-openapi.yaml; then
-            echo "::error::Pinned yahoo-service spec is stale. Copy fantasy-yahoo-service/specs/openapi.yaml into specs/fantasy-yahoo-service-openapi.yaml, run ./gradlew generateYahooClient, and fix any compile errors."
-            exit 1
-          fi
+          bash .github/scripts/check-pinned-spec.sh \
+            pgaberra/fantasy-yahoo-service specs/openapi.yaml specs/fantasy-yahoo-service-openapi.yaml \
+            './gradlew generateYahooClient and fix any compile errors'
 
       - name: Verify pinned espn-service spec is in sync
         if: github.actor != 'dependabot[bot]'
         env:
-          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          PRODUCER_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if ! gh api repos/pgaberra/fantasy-espn-service/contents/specs/openapi.yaml \
-                -H "Accept: application/vnd.github.raw" > /tmp/espn-openapi.yaml 2> /tmp/gh-err.txt; then
-            echo "::error::Could not fetch the espn-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-espn-service. (This is an auth failure, not a spec mismatch.)"
-            cat /tmp/gh-err.txt
-            exit 1
-          fi
-          if ! diff -u specs/fantasy-espn-service-openapi.yaml /tmp/espn-openapi.yaml; then
-            echo "::error::Pinned espn-service spec is stale. Copy fantasy-espn-service/specs/openapi.yaml into specs/fantasy-espn-service-openapi.yaml, run ./gradlew generateEspnClient, and fix any compile errors."
-            exit 1
-          fi
+          bash .github/scripts/check-pinned-spec.sh \
+            pgaberra/fantasy-espn-service specs/openapi.yaml specs/fantasy-espn-service-openapi.yaml \
+            './gradlew generateEspnClient and fix any compile errors'
 
       - name: Verify pinned projection-service spec is in sync
         if: github.actor != 'dependabot[bot]'
         env:
-          GH_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          PRODUCER_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if ! gh api repos/pgaberra/fantasy-projection-service/contents/specs/openapi.json \
-                -H "Accept: application/vnd.github.raw" > /tmp/projection-openapi.json 2> /tmp/gh-err.txt; then
-            echo "::error::Could not fetch the projection-service spec — SPEC_READ_TOKEN is likely invalid, expired, or lacks read access to fantasy-projection-service. (This is an auth failure, not a spec mismatch.)"
-            cat /tmp/gh-err.txt
-            exit 1
-          fi
-          if ! diff -u specs/fantasy-projection-service-openapi.json /tmp/projection-openapi.json; then
-            echo "::error::Pinned projection-service spec is stale. Copy fantasy-projection-service/specs/openapi.json into specs/fantasy-projection-service-openapi.json, run ./gradlew generateProjectionClient, and fix any compile errors."
-            exit 1
-          fi
+          bash .github/scripts/check-pinned-spec.sh \
+            pgaberra/fantasy-projection-service specs/openapi.json specs/fantasy-projection-service-openapi.json \
+            './gradlew generateProjectionClient and fix any compile errors'
 
       - name: Set up JDK
         uses: actions/setup-java@v5

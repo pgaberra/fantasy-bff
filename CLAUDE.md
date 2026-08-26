@@ -124,7 +124,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show
-    that, so it must survive it.
+    that, so it must survive it. It also reports `playerSource`, the platform the pool is
+    **actually** being served from, read off the wired `PlayerPoolSource` rather than the
+    configured value: the switch is an environment variable, and one that did not take looks
+    exactly like one that was never set. projection-service is absent on purpose — it is
+    FastAPI, serves no `/actuator/info` and stamps no deployed version, so probing it would
+    report it down forever.
 - `service/` — business logic (`AuthService`, `PlayerService`)
   - `PlayerPoolSource` — where the player pool comes from, chosen by `players.source`:
     `YahooPlayerPoolSource` (yahoo-service, with the four ESPN-only stats matched in by name)
@@ -133,7 +138,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     **not the same player ids**. A stored projection is keyed by the ids that were in use when
     it was saved, so flipping the flag goes together with migrating those rows. `PlayerService`,
     `ProjectionSeedService` and `PlayerSplitContextProvider` all read the pool through this
-    seam, so the switch reaches every one of them at once.
+    seam, so the switch reaches every one of them at once. The source also answers
+    `playerIdSpace()`, which is what a new projection is stamped with on create — asked of the
+    pool rather than read off config, because the pool is what produced the numbers, and a
+    projection stamped with the wrong space is only found out when a remap translates ids that
+    were never in it.
   - `PlayerIdRemapService` — the one-off that goes with flipping that flag: it matches the
     Yahoo pool to the ESPN one with `PlayerIdResolver` and hands the crosswalk to db-service,
     which rewrites the ids in every saved projection, draft pick and share. This is the only
@@ -145,6 +154,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     and hundreds of its players never got into a game, so they are correctly absent from ESPN's
     active list (measured on staging: 83.7% of the pool matched, and every one of the 259 that
     did not had played nothing).
+  - Headshots differ by source, and the frontend takes both: the Yahoo pool's are thumbnails
+    this service stores and serves at `/api/v1/players/{id}/headshot`, while the ESPN pool's
+    are **ESPN's own CDN URLs, handed straight to the browser**. Proxying those put a page's
+    worth of image requests — some sixteen hundred — through one host, and the edge started
+    refusing them; a CDN is the thing that is good at serving the same small picture to
+    everyone. The proxy endpoint stays for the Yahoo pool and for anything holding an older
+    link. espn-service has already dropped the URL for the roughly one player in seven it has
+    no picture for, so an address that arrives is one that resolves.
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.

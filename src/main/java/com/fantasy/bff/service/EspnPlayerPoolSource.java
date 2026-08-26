@@ -30,6 +30,11 @@ import java.util.Set;
 @ConditionalOnProperty(name = "players.source", havingValue = "espn")
 public class EspnPlayerPoolSource implements PlayerPoolSource {
 
+    @Override
+    public PlayerIdSpace playerIdSpace() {
+        return PlayerIdSpace.ESPN;
+    }
+
     /**
      * ESPN's own player id is the path segment, so nothing a payload says can steer this
      * request anywhere else. The size is the one the player table draws at.
@@ -47,6 +52,11 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
         this.espnServiceClient = espnServiceClient;
         this.espnImageClient = espnImageClient;
         this.statsSeason = statsSeason;
+    }
+
+    @Override
+    public String platform() {
+        return "espn";
     }
 
     @Override
@@ -103,7 +113,7 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
                 (int) (long) s.getId(),
                 s.getFirstName() + " " + s.getLastName(),
                 s.getTeamAbbrev(),
-                headshotPath(s.getId(), s.getHeadshot()),
+                headshotUrl(s.getHeadshot()),
                 s.getSweaterNumber(),
                 positions,
                 new SkaterResponse.Stats(
@@ -154,7 +164,7 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
                 (int) (long) g.getId(),
                 g.getFirstName() + " " + g.getLastName(),
                 g.getTeamAbbrev(),
-                headshotPath(g.getId(), g.getHeadshot()),
+                headshotUrl(g.getHeadshot()),
                 g.getSweaterNumber(),
                 new GoalieResponse.Stats(
                         new GoalieResponse.UtilityStats(PlayerFieldMapping.zero(g.getGamesPlayed())),
@@ -176,14 +186,22 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
     }
 
     /**
-     * The frontend gets the path this service serves the headshot from, never ESPN's own image
-     * URL: the frontend prefixes whatever it is given with the API base, and it should not be
-     * fetching from a third party on the app's behalf either way.
+     * ESPN's own image URL, handed to the browser to fetch directly.
+     *
+     * <p>It used to be rewritten to a path on this API and proxied. That put roughly sixteen
+     * hundred image requests per page load through one host, and the edge started refusing them
+     * — a burst of eighty came back with seven 429s, which the browser draws as broken images.
+     * A CDN is the thing that is good at serving the same small picture to everyone, so the
+     * browser goes there.
+     *
+     * <p>espn-service has already dropped the URL for players it has no picture for, so an
+     * address here is one that resolves. {@code /api/v1/players/{id}/headshot} still works and
+     * still serves it, for the Yahoo pool and for anything holding an older link.
      */
-    private static String headshotPath(Long playerId, String espnSourceUrl) {
+    private static String headshotUrl(String espnSourceUrl) {
         if (espnSourceUrl == null || espnSourceUrl.isBlank()) {
             return null;
         }
-        return "/players/" + playerId + "/headshot";
+        return espnSourceUrl;
     }
 }

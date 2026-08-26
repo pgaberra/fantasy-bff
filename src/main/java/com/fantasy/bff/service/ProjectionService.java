@@ -14,6 +14,7 @@ import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.service.ProjectionPoolReconciler.Reconciliation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,19 +26,37 @@ public class ProjectionService {
 
     private static final Logger log = LoggerFactory.getLogger(ProjectionService.class);
 
-    /** The only preset a draft can be started from today. */
+    /**
+     * The presets a draft can be started from. The name is what the draft board shows as its
+     * heading, so it is decided here rather than by the caller — otherwise a draft could claim
+     * to have been drafted against something it was not.
+     */
     private static final String LAST_SEASON_PRESET_NAME = "Last Season's Stats";
+
+    private static final String MODEL_PRESET_NAME = "AI Projection";
 
     private final DatabaseServiceClient databaseServiceClient;
     private final PlayerPoolRows playerPoolRows;
+    private final PlayerPoolSource playerPool;
     private final ProjectionPoolReconciler reconciler;
+    private final ProjectionSeedService seedService;
+    private final int projectionSeason;
+    private final String projectionModelVersion;
 
     public ProjectionService(DatabaseServiceClient databaseServiceClient,
                              PlayerPoolRows playerPoolRows,
-                             ProjectionPoolReconciler reconciler) {
+                             PlayerPoolSource playerPool,
+                             ProjectionPoolReconciler reconciler,
+                             ProjectionSeedService seedService,
+                             @Value("${services.projection.season}") int projectionSeason,
+                             @Value("${services.projection.model-version}") String projectionModelVersion) {
         this.databaseServiceClient = databaseServiceClient;
         this.playerPoolRows = playerPoolRows;
+        this.playerPool = playerPool;
         this.reconciler = reconciler;
+        this.seedService = seedService;
+        this.projectionSeason = projectionSeason;
+        this.projectionModelVersion = projectionModelVersion;
     }
 
     /**
@@ -82,10 +101,10 @@ public class ProjectionService {
 
     public ProjectionResponse create(UUID userId, CreateProjectionRequest request) {
         ProjectionData data = request.data();
-        if (request.kind() == ProjectionKind.PRESET_DRAFT && request.source() != ProjectionSource.DEFAULT) {
+        if (request.kind() == ProjectionKind.PRESET_DRAFT && !isPreset(request.source())) {
             throw new IllegalArgumentException(
-                    "a preset draft is defined by the server: send source=default and let it fill "
-                            + "in the player rows");
+                    "a preset draft is defined by the server: send source=default or source=model "
+                            + "and let it fill in the player rows");
         }
         if (request.source() != null) {
             if (!data.getPlayers().isEmpty()) {
@@ -102,7 +121,8 @@ public class ProjectionService {
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
                         .kind(kindOf(request.kind()))
-                        .data(data)));
+                        .data(data)
+                        .playerIdSpace(idSpaceOf(playerPool.playerIdSpace()))));
     }
 
     /**
@@ -124,14 +144,34 @@ public class ProjectionService {
     }
 
     /**
+     * The rows are keyed by whichever pool is wired in, so that is what the stored projection is
+     * stamped with. Rows the client sent rather than the server filling them in are keyed the
+     * same way: they came from this BFF's player endpoints in the first place.
+     */
+    private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum
+            idSpaceOf(PlayerIdSpace space) {
+        return space == PlayerIdSpace.ESPN
+                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN
+                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.YAHOO;
+    }
+
+    /**
      * A preset draft is named here rather than by the caller. The name is what the draft board
      * shows as its heading, so letting a client choose it would let a draft claim to be drafted
      * against something it wasn't.
      */
     private static String nameOf(CreateProjectionRequest request) {
-        return request.kind() == ProjectionKind.PRESET_DRAFT
-                ? LAST_SEASON_PRESET_NAME
-                : request.name();
+        if (request.kind() != ProjectionKind.PRESET_DRAFT) {
+            return request.name();
+        }
+        return request.source() == ProjectionSource.MODEL
+                ? MODEL_PRESET_NAME
+                : LAST_SEASON_PRESET_NAME;
+    }
+
+    /** Which sources define a preset: one that fills every row from something the server owns. */
+    private static boolean isPreset(ProjectionSource source) {
+        return source == ProjectionSource.DEFAULT || source == ProjectionSource.MODEL;
     }
 
     private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum kindOf(
@@ -147,15 +187,27 @@ public class ProjectionService {
      * a copy, or a projection carried over from the demo — brings the basis with them.
      */
     private static PlayerBasisEnum basisOf(ProjectionSource source) {
-        return source == ProjectionSource.BLANK ? PlayerBasisEnum.BLANK : PlayerBasisEnum.LAST_SEASON;
+        return switch (source) {
+            case BLANK -> PlayerBasisEnum.BLANK;
+            case DEFAULT -> PlayerBasisEnum.LAST_SEASON;
+            // No basis fits a model-seeded projection. The field answers "what should a player
+            // who joins the pool later be seeded with", and the reconciler cannot answer that
+            // from the model — it reads the player pool, not the projection service. Saying
+            // last_season would be a lie stored in the row; the field is already documented as
+            // absent on projections that predate it, and the reconciler infers when it is null.
+            case MODEL -> null;
+        };
     }
 
     /**
      * The player rows a new projection starts from. {@code DEFAULT} keeps each player's current
-     * stats, {@code BLANK} zeroes them — the same two starting points the client used to build
-     * locally and upload.
+     * stats and {@code BLANK} zeroes them — the two starting points the client used to build
+     * locally and upload. {@code MODEL} instead takes the projection model's lines.
      */
     private List<com.fantasy.bff.generated.db.model.PlayerProjection> playersFrom(ProjectionSource source) {
+        if (source == ProjectionSource.MODEL) {
+            return seedService.seed(projectionSeason, projectionModelVersion).players();
+        }
         return playerPoolRows.read().all(source == ProjectionSource.BLANK);
     }
 }
