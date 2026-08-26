@@ -1676,6 +1676,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlayerProjection"
+          maxItems: 2000
+          minItems: 0
         draft:
           $ref: "#/components/schemas/DraftState"
         tings:
@@ -2181,8 +2183,6 @@ components:
           format: int32
         sharedRows:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
-        sharedBoardRows:
-          $ref: "#/components/schemas/PlayerIdRemapCounts"
         unmappedPlayerIds:
           type: array
           items:
@@ -2193,7 +2193,6 @@ components:
       - dryRun
       - playerRows
       - projectionsScanned
-      - sharedBoardRows
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds

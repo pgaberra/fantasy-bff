@@ -25,6 +25,8 @@ import org.springframework.web.client.RestClientResponseException;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -128,6 +130,49 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                         .content(VALID_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("My league"));
+    }
+
+    /**
+     * The cap comes from the pinned spec rather than from an annotation written here — the
+     * generator emits {@code @Size} for {@code maxItems} — so it is worth a test that this
+     * boundary actually rejects, instead of trusting that db-service will.
+     */
+    @Test
+    void create_withMorePlayerRowsThanAnyLeagueHas_returns400AndNeverReachesDownstream()
+            throws Exception {
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithPlayerRows(2001)))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).createProjection(any(), any());
+    }
+
+    @Test
+    void create_withAsManyRowsAsTheLargestPlayerPoolHas_isAccepted() throws Exception {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString()).name("My league"));
+
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithPlayerRows(2000)))
+                .andExpect(status().isCreated());
+    }
+
+    /** Built rather than patched into {@link #VALID_BODY}, so it does not depend on that layout. */
+    private static String bodyWithPlayerRows(int rows) {
+        String players = IntStream.rangeClosed(1, rows)
+                .mapToObj(id -> ("{\"playerId\":%d,\"type\":\"skater\","
+                        + "\"stats\":{\"utility\":{\"gp\":82},\"scoring\":{\"goals\":64}}}").formatted(id))
+                .collect(Collectors.joining(","));
+        return ("{\"name\":\"My league\",\"data\":{"
+                + "\"settings\":{\"scoringType\":\"points\",\"statWeights\":{\"goals\":4.5},"
+                + "\"activeScoringColumns\":[\"goals\"],\"activeUtilityColumns\":[\"gp\"],"
+                + "\"scaleSettings\":{},\"decimalSettings\":{\"goals\":0},\"useDefaultDecimals\":true},"
+                + "\"players\":[%s]}}").formatted(players);
     }
 
     /**
