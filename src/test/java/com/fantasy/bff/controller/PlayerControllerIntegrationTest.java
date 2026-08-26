@@ -116,6 +116,40 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    // A preview wants the top of the board, not the pool — the whole point of the parameter is
+    // that the browser stops downloading half a megabyte to draw five rows.
+    @Test
+    void getSkaters_withALimit_returnsThatMany() throws Exception {
+        when(playerServiceClient.getSkaters()).thenReturn(List.of(
+                skater(1, "First", 120), skater(2, "Second", 90), skater(3, "Third", 60)));
+
+        mockMvc.perform(get("/api/v1/players/skaters").param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("First"));
+    }
+
+    @Test
+    void getSkaters_withALimitOfZero_returns400() throws Exception {
+        mockMvc.perform(get("/api/v1/players/skaters").param("limit", "0"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getSkaters_withALimitOverTheCap_returns400() throws Exception {
+        mockMvc.perform(get("/api/v1/players/skaters").param("limit", "501"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private static SkaterResponse skater(int id, String name, int points) {
+        return new SkaterResponse(id, name, "EDM", "/players/" + id + "/headshot", 97,
+                Set.of(SkaterPosition.C),
+                new SkaterResponse.Stats(
+                        new SkaterResponse.UtilityStats(82, 1320),
+                        new SkaterResponse.ScoringStats(0, 0, points, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0)));
+    }
+
     @Test
     void getSkaters_whenServiceFails_returns502() throws Exception {
         when(playerServiceClient.getSkaters()).thenThrow(new RuntimeException("player service down"));

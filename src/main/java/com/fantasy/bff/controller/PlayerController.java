@@ -6,15 +6,20 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.service.PlayerService;
 import com.fantasy.bff.service.RookieService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -23,8 +28,15 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/players")
+@Validated
 @Tag(name = "Players", description = "NHL player stats endpoints (public, read-only)")
 public class PlayerController {
+
+    /**
+     * The largest slice a caller may ask for. Above this the response is most of the pool anyway,
+     * so the cap costs a caller nothing and keeps the parameter from being read as paging.
+     */
+    private static final int MAX_LIMIT = 500;
 
     private static final Duration HEADSHOT_MAX_AGE = Duration.ofDays(7);
 
@@ -49,27 +61,44 @@ public class PlayerController {
     }
 
     @GetMapping("/skaters")
-    @Operation(summary = "Get all skaters", description = "Returns all skaters with full season stats")
+    @Operation(summary = "Get skaters",
+            description = "Skaters with full season stats, highest scoring first. `limit` returns "
+                    + "only that many, for a caller that wants the top of the board rather than "
+                    + "the whole pool — the editor needs every player, a preview needs five.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Skaters retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "limit is not between 1 and 500"),
             @ApiResponse(responseCode = "502", description = "NHL service unavailable")
     })
-    public ResponseEntity<List<SkaterResponse>> getSkaters() {
+    public ResponseEntity<List<SkaterResponse>> getSkaters(
+            @Parameter(description = "How many skaters to return; all of them when absent")
+                    @RequestParam(required = false)
+                    @Min(1)
+                    @Max(MAX_LIMIT)
+                    Integer limit) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(PLAYER_POOL_MAX_AGE).cachePublic())
-                .body(playerService.getSkaters());
+                .body(playerService.getSkaters(limit));
     }
 
     @GetMapping("/goalies")
-    @Operation(summary = "Get all goalies", description = "Returns all goalies with full season stats")
+    @Operation(summary = "Get goalies",
+            description = "Goalies with full season stats, most wins first. `limit` returns only "
+                    + "that many, the same way it does for skaters.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Goalies retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "limit is not between 1 and 500"),
             @ApiResponse(responseCode = "502", description = "NHL service unavailable")
     })
-    public ResponseEntity<List<GoalieResponse>> getGoalies() {
+    public ResponseEntity<List<GoalieResponse>> getGoalies(
+            @Parameter(description = "How many goalies to return; all of them when absent")
+                    @RequestParam(required = false)
+                    @Min(1)
+                    @Max(MAX_LIMIT)
+                    Integer limit) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(PLAYER_POOL_MAX_AGE).cachePublic())
-                .body(playerService.getGoalies());
+                .body(playerService.getGoalies(limit));
     }
 
     @GetMapping("/rookies")
