@@ -100,7 +100,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .authorUsername(username)
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
                 .data(new SharedProjectionData()
-                        .settings(new ProjectionSettings()
+                        .projectionSettings(new ProjectionSettings()
                                 .scoringType(ProjectionSettings.ScoringTypeEnum.POINTS)
                                 .statWeights(Map.of("goals", 4.5))
                                 .activeScoringColumns(List.of("goals"))

@@ -1583,9 +1583,6 @@ components:
             $ref: "#/components/schemas/PlayerProjection"
         draft:
           $ref: "#/components/schemas/DraftState"
-        tings:
-          $ref: "#/components/schemas/UpdateProjectionData"
-          writeOnly: true
       required:
       - settings
     UpdateProjectionRequest:
@@ -1637,9 +1634,6 @@ components:
             $ref: "#/components/schemas/PlayerProjection"
         draft:
           $ref: "#/components/schemas/DraftState"
-        tings:
-          $ref: "#/components/schemas/ProjectionData"
-          writeOnly: true
       required:
       - players
       - settings
@@ -2296,9 +2290,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SharedPlayer"
-        tings:
-          $ref: "#/components/schemas/SharedProjectionData"
-          writeOnly: true
       required:
       - players
       - settings

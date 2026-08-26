@@ -89,7 +89,7 @@ public class ProjectionService {
             return databaseServiceClient.updateProjection(userId, projectionId, new UpdateProjectionRequest()
                     .name(stored.getName())
                     .data(new UpdateProjectionData()
-                            .settings(stored.getData().getSettings())
+                            .projectionSettings(stored.getData().getProjectionSettings())
                             .players(stored.getData().getPlayers())
                             .draft(stored.getData().getDraft())));
         } catch (RuntimeException e) {
@@ -113,7 +113,7 @@ public class ProjectionService {
                                 + "server fill them in, or omit source to send your own");
             }
             data.setPlayers(playersFrom(request.source()));
-            data.getSettings().setPlayerBasis(basisOf(request.source()));
+            data.getProjectionSettings().setPlayerBasis(basisOf(request.source()));
         } else if (data.getPlayers().isEmpty()) {
             throw new IllegalArgumentException("data.players must not be empty unless source is set");
         }

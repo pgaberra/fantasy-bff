@@ -142,7 +142,7 @@ public class ShareCardRenderer {
     private String subtitle(SharedProjectionResponse shared) {
         String author = shared.getAuthorUsername();
         String scoring = isPointsLeague(shared) ? "Points league" : "Category league";
-        Integer leagueSize = shared.getData().getSettings().getLeagueSize();
+        Integer leagueSize = shared.getData().getProjectionSettings().getLeagueSize();
         return leagueSize == null
                 ? "by " + author + " · " + scoring
                 : "by " + author + " · " + scoring + " · " + leagueSize + " teams";
@@ -153,7 +153,7 @@ public class ShareCardRenderer {
     }
 
     private boolean isPointsLeague(SharedProjectionResponse shared) {
-        return ProjectionSettings.ScoringTypeEnum.POINTS == shared.getData().getSettings().getScoringType();
+        return ProjectionSettings.ScoringTypeEnum.POINTS == shared.getData().getProjectionSettings().getScoringType();
     }
 
     /**

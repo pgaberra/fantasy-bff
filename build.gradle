@@ -104,6 +104,17 @@ openApiGenerate {
 	generateModelTests = false
 	generateApiDocumentation = false
 	generateModelDocumentation = false
+	// `settings` is renamed in Java only — the wire name is kept by the generated
+	// @JsonProperty, so nothing about the HTTP contract moves. It has to be renamed because
+	// the generator writes a fluent setter named after the property, `settings(...)`, and
+	// Jackson reads any single-argument method beginning with "set" as a mutator: it stripped
+	// the prefix and invented a property called `tings`. Springdoc then published that
+	// invention in our own spec, typed by the fluent method's return type, so three schemas
+	// carried a self-referencing `tings` — and, worse than the noise, an undocumented second
+	// way to set `settings` on an inbound request body. Any property named `set*` would do the
+	// same; today `settings` is the only one, in ProjectionData, UpdateProjectionData and
+	// SharedProjectionData. `OpenApiSpecSnapshotTest` is what would catch a new one.
+	nameMappings = [settings: 'projectionSettings']
 	configOptions = [
 		openApiNullable: 'false',
 		useJakartaEe: 'true',
