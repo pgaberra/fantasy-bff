@@ -1,9 +1,11 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.PlayerServiceClient;
+import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.PlayerIdRemapReport;
 import com.fantasy.bff.service.PlayerIdRemapService;
+import com.fantasy.bff.generated.espn.model.PlayerSyncResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
@@ -38,10 +40,13 @@ public class AdminController {
     private final YahooServiceClient yahooServiceClient;
     private final PlayerServiceClient playerServiceClient;
     private final PlayerIdRemapService playerIdRemapService;
+    private final EspnServiceClient espnServiceClient;
 
     public AdminController(YahooServiceClient yahooServiceClient,
                            PlayerServiceClient playerServiceClient,
-                           PlayerIdRemapService playerIdRemapService) {
+                           PlayerIdRemapService playerIdRemapService,
+                           EspnServiceClient espnServiceClient) {
+        this.espnServiceClient = espnServiceClient;
         this.playerIdRemapService = playerIdRemapService;
         this.yahooServiceClient = yahooServiceClient;
         this.playerServiceClient = playerServiceClient;
@@ -69,6 +74,19 @@ public class AdminController {
     @PostMapping("/player/sync")
     public SyncAcceptedResponse triggerPlayerSync() {
         return playerServiceClient.triggerSync();
+    }
+
+    @Operation(summary = "Trigger an ESPN player sync",
+            description = "Refreshes the cached player pool from ESPN — which is where the pool "
+                    + "comes from — and waits for it. Minutes, not seconds: the whole player "
+                    + "universe is fetched, parsed and checked against the image CDN. Otherwise "
+                    + "the pool only moves on the nightly run, which is a long wait for a "
+                    + "deployment that changed what the sync stores.")
+    @ApiResponse(responseCode = "200", description = "Sync completed")
+    @ApiResponse(responseCode = "502", description = "ESPN was unreachable, or returned too little to trust")
+    @PostMapping("/espn/players/sync")
+    public PlayerSyncResponse triggerEspnPlayerSync() {
+        return espnServiceClient.triggerPlayerSync();
     }
 
     @Operation(summary = "Recent player sync runs",

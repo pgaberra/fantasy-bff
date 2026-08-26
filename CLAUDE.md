@@ -165,6 +165,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.
+  - `AdminController`'s `POST /api/v1/admin/espn/players/sync` refreshes the ESPN player pool —
+    which is *the* player pool — and waits for it, on a timeout measured in minutes rather than
+    the ten seconds every other espn-service call gets. Without it the pool only moves on
+    espn-service's nightly run, and a deployment that changes what the sync stores has to wait
+    for morning to show its effect; there was no lever on the ESPN side at all while the retired
+    Yahoo one had three.
   - `AdminController`'s `GET /api/v1/admin/yahoo/probe` proxies yahoo-service's live Yahoo probe
     (see its `YahooProbeService`): one call for a chosen game key and season, reporting the status
     Yahoo answered with and its own error wording. A failing sync only says that *something* was
