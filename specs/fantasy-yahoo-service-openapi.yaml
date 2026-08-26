@@ -355,7 +355,8 @@ paths:
     get:
       tags:
       - Players
-      summary: All skaters with eligible positions and a season's stats
+      summary: Skaters with eligible positions and a season's stats
+      description: "The whole pool, or its highest scoring when `limit` is given."
       operationId: skaters
       parameters:
       - name: season
@@ -368,9 +369,29 @@ paths:
         schema:
           type: integer
           format: int32
+      - name: limit
+        in: query
+        description: "How many to return, highest scoring first (most wins, for goalies).\
+          \ Absent returns the whole pool in name order, which is what a caller ranking\
+          \ every player wants; a caller drawing a handful of rows should ask for\
+          \ a handful."
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 500
+          minimum: 1
       responses:
         "200":
           description: Skaters returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkaterResponse"
+        "400":
+          description: limit is not between 1 and 500
           content:
             application/json:
               schema:
@@ -381,7 +402,8 @@ paths:
     get:
       tags:
       - Players
-      summary: All goalies with eligible positions and a season's stats
+      summary: Goalies with eligible positions and a season's stats
+      description: "The whole pool, or its winningest when `limit` is given."
       operationId: goalies
       parameters:
       - name: season
@@ -394,9 +416,29 @@ paths:
         schema:
           type: integer
           format: int32
+      - name: limit
+        in: query
+        description: "How many to return, highest scoring first (most wins, for goalies).\
+          \ Absent returns the whole pool in name order, which is what a caller ranking\
+          \ every player wants; a caller drawing a handful of rows should ask for\
+          \ a handful."
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 500
+          minimum: 1
       responses:
         "200":
           description: Goalies returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalieResponse"
+        "400":
+          description: limit is not between 1 and 500
           content:
             application/json:
               schema:

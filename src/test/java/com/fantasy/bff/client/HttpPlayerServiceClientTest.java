@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClient;
 import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -96,6 +97,29 @@ class HttpPlayerServiceClientTest {
 
         server.verify(getRequestedFor(urlPathEqualTo("/api/v1/players/skaters"))
                 .withQueryParam("season", equalTo(String.valueOf(STATS_SEASON))));
+    }
+
+    // The whole point of the parameter is that the rows never leave yahoo-service; sending it
+    // when there is none would be a parameter it has to reject rather than a request for all.
+    @Test
+    void asksYahooServiceForOnlyTheSliceItWants() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/skaters")).willReturn(okJson("[]")));
+
+        client.getSkaters(25);
+
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/players/skaters"))
+                .withQueryParam("season", equalTo(String.valueOf(STATS_SEASON)))
+                .withQueryParam("limit", equalTo("25")));
+    }
+
+    @Test
+    void sendsNoLimitWhenTheWholePoolIsWanted() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/goalies")).willReturn(okJson("[]")));
+
+        client.getGoalies(null);
+
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/players/goalies"))
+                .withQueryParam("limit", absent()));
     }
 
     @Test

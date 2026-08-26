@@ -32,7 +32,10 @@ public class PlayerService {
      */
     public List<SkaterResponse> getSkaters(Integer limit) {
         try {
-            return capped(playerPool.getSkaters().stream()
+            // The limit goes to the source as well as being applied here: a source that can ask
+            // its upstream for a slice keeps the rest off the wire, and one that cannot is cut
+            // here as before. The sort is what makes the answer the same either way.
+            return capped(playerPool.getSkaters(limit).stream()
                     .sorted(Comparator
                             .comparingInt((SkaterResponse skater) -> skater.stats().scoring().points())
                             .reversed()
@@ -47,7 +50,7 @@ public class PlayerService {
     /** Goalies, most wins first (then most saves), capped at {@code limit} when one is given. */
     public List<GoalieResponse> getGoalies(Integer limit) {
         try {
-            return capped(playerPool.getGoalies().stream()
+            return capped(playerPool.getGoalies(limit).stream()
                     .sorted(Comparator
                             .comparingInt((GoalieResponse goalie) -> goalie.stats().scoring().w())
                             .thenComparingInt(goalie -> goalie.stats().scoring().sv())

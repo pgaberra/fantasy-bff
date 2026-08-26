@@ -51,9 +51,14 @@ public class YahooPlayerPoolSource implements PlayerPoolSource {
         return "yahoo";
     }
 
+    /**
+     * The limit goes all the way to yahoo-service, so a preview's five rows no longer arrive as
+     * fifteen hundred players — and the ESPN stat lines are matched against the handful that come
+     * back rather than against the pool.
+     */
     @Override
-    public List<SkaterResponse> getSkaters() {
-        List<SkaterResponse> skaters = playerServiceClient.getSkaters();
+    public List<SkaterResponse> getSkaters(Integer limit) {
+        List<SkaterResponse> skaters = playerServiceClient.getSkaters(limit);
         Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(
                 skaters.stream()
                         .map(skater -> new EspnStatLineIndex.Subject(
@@ -64,8 +69,8 @@ public class YahooPlayerPoolSource implements PlayerPoolSource {
     }
 
     @Override
-    public List<GoalieResponse> getGoalies() {
-        List<GoalieResponse> goalies = playerServiceClient.getGoalies();
+    public List<GoalieResponse> getGoalies(Integer limit) {
+        List<GoalieResponse> goalies = playerServiceClient.getGoalies(limit);
         Map<Integer, PlayerStatLine> statLines = espnPlayerStats.index().matchAll(
                 goalies.stream()
                         .map(goalie -> new EspnStatLineIndex.Subject(

@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -63,9 +64,9 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
         mcdavid.setSweaterNumber(97);
         mcdavid.setIsActive(true);
         when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(mcdavid));
-        when(playerServiceClient.getSkaters())
+        when(playerServiceClient.getSkaters(nullable(Integer.class)))
                 .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, 97, Set.of(), null)));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
 
         SkaterProjectionResponse projection = new SkaterProjectionResponse();
         projection.setNhlId(8478402);
