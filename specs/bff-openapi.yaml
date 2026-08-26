@@ -744,25 +744,26 @@ paths:
       tags:
       - Admin
       summary: Trigger an ESPN player sync
-      description: "Refreshes the cached player pool from ESPN — which is where the\
-        \ pool comes from — and waits for it. Minutes, not seconds: the whole player\
-        \ universe is fetched, parsed and checked against the image CDN. Otherwise\
-        \ the pool only moves on the nightly run, which is a long wait for a deployment\
-        \ that changed what the sync stores."
+      description: "Starts a refresh of the ESPN player pool — which is where the\
+        \ pool comes from — and answers as soon as it is under way. The work runs\
+        \ for minutes; watch it with GET /api/v1/admin/espn/players/sync/latest until\
+        \ running is false and syncedAt has moved. Otherwise the pool only moves on\
+        \ espn-service's nightly run, a long wait for a deployment that changed what\
+        \ the sync stores."
       operationId: triggerEspnPlayerSync
       responses:
-        "200":
-          description: Sync completed
+        "202":
+          description: Sync started
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlayerSyncResponse"
-        "502":
-          description: "ESPN was unreachable, or returned too little to trust"
+                $ref: "#/components/schemas/SyncAcceptedResponse"
+        "409":
+          description: A sync is already running
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlayerSyncResponse"
+                $ref: "#/components/schemas/SyncAcceptedResponse"
   /api/v1/yahoo/leagues:
     get:
       tags:
@@ -1387,6 +1388,21 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SyncRunResponse"
+  /api/v1/admin/espn/players/sync/latest:
+    get:
+      tags:
+      - Admin
+      summary: When the ESPN player pool was last refreshed
+      description: "And whether a sync is running right now, which is how a triggered\
+        \ one is watched to completion."
+      operationId: espnPlayerSyncStatus
+      responses:
+        "200":
+          description: Status returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSyncStatusResponse"
   /api/v1/account:
     get:
       tags:
@@ -2212,18 +2228,6 @@ components:
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds
-    PlayerSyncResponse:
-      type: object
-      properties:
-        players:
-          type: integer
-          format: int32
-        syncedAt:
-          type: string
-          format: date-time
-      required:
-      - players
-      - syncedAt
     LeagueSummary:
       type: object
       properties:
@@ -2945,6 +2949,20 @@ components:
       - removedCount
       - startedAt
       - status
+    PlayerSyncStatusResponse:
+      type: object
+      properties:
+        syncedAt:
+          type: string
+          format: date-time
+        players:
+          type: integer
+          format: int64
+        running:
+          type: boolean
+      required:
+      - players
+      - running
   securitySchemes:
     bearerAuth:
       type: http

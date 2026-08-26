@@ -1,6 +1,7 @@
 package com.fantasy.bff.client;
 
-import com.fantasy.bff.generated.espn.model.PlayerSyncResponse;
+import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
+import com.fantasy.bff.generated.espn.model.SyncAcceptedResponse;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -28,8 +31,7 @@ class HttpEspnServiceClientTest {
                 .baseUrl(server.baseUrl())
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
-        // The two differ only in their timeouts; one WireMock serves both here.
-        client = new HttpEspnServiceClient(restClient, restClient);
+        client = new HttpEspnServiceClient(restClient);
     }
 
     @AfterEach
@@ -38,13 +40,28 @@ class HttpEspnServiceClientTest {
     }
 
     @Test
-    void triggerPlayerSync_asksEspnServiceToRefreshThePool() {
+    void triggerPlayerSync_asksEspnServiceToStartOne() {
         server.stubFor(post(urlPathEqualTo("/api/v1/espn/players/sync"))
-                .willReturn(okJson("{\"players\":1659,\"syncedAt\":\"2026-08-26T07:45:00Z\"}")));
+                .willReturn(aResponse().withStatus(202)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"status\":\"started\"}")));
 
-        PlayerSyncResponse response = client.triggerPlayerSync();
+        SyncAcceptedResponse response = client.triggerPlayerSync();
 
-        assertThat(response.getPlayers()).isEqualTo(1659);
+        assertThat(response.getStatus()).isEqualTo("started");
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/espn/players/sync")));
+    }
+
+    /** How a triggered sync is watched: poll until it stops running and the stamp has moved. */
+    @Test
+    void lastPlayerSync_readsWhetherOneIsStillRunning() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/espn/players/sync/latest"))
+                .willReturn(okJson("{\"syncedAt\":\"2026-08-26T07:45:00Z\",\"players\":1659,"
+                        + "\"running\":true}")));
+
+        PlayerSyncStatusResponse status = client.lastPlayerSync();
+
+        assertThat(status.getRunning()).isTrue();
+        assertThat(status.getPlayers()).isEqualTo(1659);
     }
 }

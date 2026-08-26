@@ -77,20 +77,24 @@ paths:
       tags:
       - ESPN Players
       summary: Refresh the cached player read model from ESPN
+      description: "Runs asynchronously and answers as soon as it is under way: the\
+        \ whole player universe is fetched, parsed and checked against the image CDN,\
+        \ which takes minutes. Watch it with GET /api/v1/espn/players/sync/latest\
+        \ until running is false and syncedAt has moved."
       operationId: sync
       responses:
-        "200":
-          description: Sync completed
+        "202":
+          description: Sync started
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlayerSyncResponse"
-        "502":
-          description: ESPN was unreachable or returned nothing
+                $ref: "#/components/schemas/SyncAcceptedResponse"
+        "409":
+          description: A sync is already running
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlayerSyncResponse"
+                $ref: "#/components/schemas/SyncAcceptedResponse"
   /api/v1/espn/players:
     get:
       tags:
@@ -303,19 +307,14 @@ components:
       required:
       - espnS2
       - swid
-    PlayerSyncResponse:
+    SyncAcceptedResponse:
       type: object
       properties:
-        players:
-          type: integer
-          format: int32
-          description: Stat lines stored
-        syncedAt:
+        status:
           type: string
-          format: date-time
+          description: "started, or running when one was already under way"
       required:
-      - players
-      - syncedAt
+      - status
     PlayerStatLine:
       type: object
       properties:
@@ -380,8 +379,13 @@ components:
           type: integer
           format: int64
           description: Players stored
+        running:
+          type: boolean
+          description: Whether a sync is running right now. A triggered sync is watched
+            by polling this until it is false and syncedAt has moved.
       required:
       - players
+      - running
     SkaterResponse:
       type: object
       properties:
