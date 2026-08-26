@@ -1,6 +1,6 @@
 package com.fantasy.bff.dto.request;
 
-import com.fantasy.bff.generated.db.model.SharedPlayer;
+import com.fantasy.bff.dto.response.SharedPlayer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +14,9 @@ import java.util.List;
  * which the server ranks today. Everything else on the public page (name, season, settings) is
  * copied from the stored projection downstream, and the page is credited to the owner's account
  * username, so a client cannot publish a page that claims to be something — or someone — it is not.
+ *
+ * <p>The row type lives beside the response because it is the same row: what is published here is
+ * exactly what a visitor reads back.
  */
 public record ShareProjectionRequest(
 

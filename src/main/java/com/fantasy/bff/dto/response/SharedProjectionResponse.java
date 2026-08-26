@@ -1,7 +1,5 @@
 package com.fantasy.bff.dto.response;
 
-import com.fantasy.bff.generated.db.model.SharedPlayer;
-import com.fantasy.bff.generated.db.model.SharedProjectionData;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
@@ -54,29 +52,30 @@ public record SharedProjectionResponse(
     /** Every row the owner published. */
     public static SharedProjectionResponse full(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
-        List<SharedPlayer> players = shared.getData().getPlayers();
+        List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
         return of(shared, players, players.size(), false);
     }
 
     /** The top {@code rows} of the board, for a reader who is not signed in. */
     public static SharedProjectionResponse preview(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared, int rows) {
-        List<SharedPlayer> players = shared.getData().getPlayers();
+        List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
         int visible = Math.min(rows, players.size());
         return of(shared, players.subList(0, visible), players.size(), visible < players.size());
     }
 
     private static SharedProjectionResponse of(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
-            List<SharedPlayer> players, int totalPlayers, boolean truncated) {
+            List<com.fantasy.bff.generated.db.model.SharedPlayer> players,
+            int totalPlayers, boolean truncated) {
         return new SharedProjectionResponse(
                 shared.getToken(),
                 shared.getName(),
                 shared.getAuthorUsername(),
                 shared.getSeason().getValue(),
-                new SharedProjectionData()
-                        .settings(shared.getData().getSettings())
-                        .players(List.copyOf(players)),
+                new SharedProjectionData(
+                        shared.getData().getSettings(),
+                        players.stream().map(SharedPlayer::from).toList()),
                 totalPlayers,
                 truncated,
                 shared.getCreatedAt(),

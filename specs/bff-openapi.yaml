@@ -2340,9 +2340,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SharedPlayer"
-        tings:
-          $ref: "#/components/schemas/SharedProjectionData"
-          writeOnly: true
       required:
       - players
       - settings

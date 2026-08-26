@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.ShareProjectionRequest;
+import com.fantasy.bff.dto.response.SharedPlayer;
 import com.fantasy.bff.dto.response.ShareLinkResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,7 +59,8 @@ public class ProjectionShareController {
     @PutMapping
     public ShareLinkResponse share(@AuthenticationPrincipal String userId, @PathVariable UUID id,
                                    @Valid @RequestBody ShareProjectionRequest request) {
-        CreateShareRequest downstream = new CreateShareRequest().players(request.players());
+        CreateShareRequest downstream = new CreateShareRequest()
+                .players(request.players().stream().map(SharedPlayer::toDownstream).toList());
         return ShareLinkResponse.from(
                 databaseServiceClient.shareProjection(UUID.fromString(userId), id, downstream), webBaseUrl);
     }
