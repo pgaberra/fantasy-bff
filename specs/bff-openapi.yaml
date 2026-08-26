@@ -844,8 +844,10 @@ paths:
       tags:
       - Shared projections
       summary: Fetch a shared projection by its token
-      description: "Public: anyone holding the link can read it. Returns the snapshot\
-        \ as it was when shared, with no identity beyond the alias the owner chose."
+      description: "Public: anyone holding the link can read it. A signed-in reader\
+        \ gets the whole published board; anyone else gets its top rows, with `truncated`\
+        \ set and `totalPlayers` saying what the board holds. Returns the snapshot\
+        \ as it was when shared, with no identity beyond the owner's public username."
       operationId: getSharedProjection
       parameters:
       - name: token
@@ -1701,10 +1703,13 @@ components:
       properties:
         players:
           type: array
-          description: "The ranked rows to publish, in display order."
+          description: "The ranked rows to publish, in display order. A share carries\
+            \ the whole board, so this is the client's entire ranking rather than\
+            \ the top of it; the cap is a safety limit sized above the largest player\
+            \ pool."
           items:
             $ref: "#/components/schemas/SharedPlayer"
-          maxItems: 200
+          maxItems: 2000
           minItems: 0
       required:
       - players
@@ -2311,15 +2316,24 @@ components:
           type: string
         authorUsername:
           type: string
+          description: "The owner's public name. Read live rather than snapshotted:\
+            \ a rename should follow onto links already shared."
         season:
           type: string
-          enum:
-          - "20252026"
-          - "20262027"
-          - "20272028"
-          - "20282029"
+          description: "The season this projection is for, as its 8-digit code."
         data:
           $ref: "#/components/schemas/SharedProjectionData"
+          description: "The snapshot. Its rows are the whole published board for a\
+            \ signed-in reader, and the top of it otherwise."
+        totalPlayers:
+          type: integer
+          format: int32
+          description: "How many rows the published board has in total, whether or\
+            \ not this response carries them all."
+        truncated:
+          type: boolean
+          description: True when rows were withheld because the reader is not signed
+            in.
         createdAt:
           type: string
           format: date-time
@@ -2333,6 +2347,8 @@ components:
       - name
       - season
       - token
+      - totalPlayers
+      - truncated
       - updatedAt
     ProjectionSummaryResponse:
       type: object

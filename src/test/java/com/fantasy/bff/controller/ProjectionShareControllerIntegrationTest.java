@@ -26,6 +26,7 @@ import java.io.ByteArrayInputStream;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.Map;
 import java.util.UUID;
 
@@ -83,17 +84,24 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     private static SharedProjectionResponse sharedProjection(String name, String username) {
-        SharedPlayer mcDavid = new SharedPlayer()
-                .playerId(1)
-                .name("Connor McDavid")
-                .teamAbbrev("EDM")
-                .positions(List.of("C"))
-                .type(SharedPlayer.TypeEnum.SKATER)
-                .rank(1)
-                .value(412.5)
-                .stats(new PlayerStats()
-                        .utility(Map.of("gp", 82.0))
-                        .scoring(Map.of("goals", 64.0)));
+        return sharedProjection(name, username, 1);
+    }
+
+    /** A published board of {@code rows} rows, the first of which is always McDavid at rank 1. */
+    private static SharedProjectionResponse sharedProjection(String name, String username, int rows) {
+        List<SharedPlayer> board = IntStream.rangeClosed(1, rows)
+                .mapToObj(rank -> new SharedPlayer()
+                        .playerId(rank)
+                        .name(rank == 1 ? "Connor McDavid" : "Player " + rank)
+                        .teamAbbrev("EDM")
+                        .positions(List.of("C"))
+                        .type(SharedPlayer.TypeEnum.SKATER)
+                        .rank(rank)
+                        .value(500.0 - rank)
+                        .stats(new PlayerStats()
+                                .utility(Map.of("gp", 82.0))
+                                .scoring(Map.of("goals", 64.0))))
+                .toList();
         return new SharedProjectionResponse()
                 .token(TOKEN)
                 .name(name)
@@ -109,7 +117,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                                 .decimalSettings(Map.of("goals", 0))
                                 .useDefaultDecimals(true)
                                 .leagueSize(12))
-                        .players(List.of(mcDavid)))
+                        .players(board))
                 .createdAt(OffsetDateTime.of(2026, 8, 1, 10, 0, 0, 0, ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.of(2026, 8, 2, 10, 0, 0, 0, ZoneOffset.UTC));
     }
@@ -166,6 +174,56 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.name").value("My league"))
                 .andExpect(jsonPath("$.authorUsername").value("Alex"))
                 .andExpect(jsonPath("$.data.players[0].name").value("Connor McDavid"));
+    }
+
+    @Test
+    void publicRead_withoutSignIn_stopsAtTheTopOfTheBoard() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(25))
+                .andExpect(jsonPath("$.totalPlayers").value(400))
+                .andExpect(jsonPath("$.truncated").value(true));
+    }
+
+    @Test
+    void publicRead_whenSignedIn_carriesTheWholeBoard() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
+                        .header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(400))
+                .andExpect(jsonPath("$.totalPlayers").value(400))
+                .andExpect(jsonPath("$.truncated").value(false));
+    }
+
+    @Test
+    void publicRead_withoutSignIn_isNotTruncatedWhenTheBoardIsShorterThanThePreview()
+            throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 10));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(10))
+                .andExpect(jsonPath("$.totalPlayers").value(10))
+                .andExpect(jsonPath("$.truncated").value(false));
+    }
+
+    @Test
+    void publicRead_withAnExpiredToken_isTreatedAsAnonymousRatherThanRejected() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
+                        .header("Authorization", "Bearer not-a-jwt"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(25))
+                .andExpect(jsonPath("$.truncated").value(true));
     }
 
     @Test

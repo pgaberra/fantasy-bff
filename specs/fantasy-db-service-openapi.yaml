@@ -888,11 +888,13 @@ components:
       properties:
         players:
           type: array
-          description: "The ranked rows to publish, in display order. The caller decides\
-            \ how many to include; the cap is a safety limit, not the product rule."
+          description: "The ranked rows to publish, in display order. A share carries\
+            \ the whole board so a signed-in visitor can read all of it; the cap is\
+            \ a safety limit sized above the largest player pool, not the product\
+            \ rule."
           items:
             $ref: "#/components/schemas/SharedPlayer"
-          maxItems: 200
+          maxItems: 2000
           minItems: 0
       required:
       - players
