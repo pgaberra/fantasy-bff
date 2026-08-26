@@ -4,8 +4,8 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.response.ProjectionResponse;
-import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
-import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.dto.request.UpdateProjectionRequest;
+import com.fantasy.bff.dto.response.ProjectionSummaryResponse;
 import com.fantasy.bff.service.ProjectionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -45,7 +45,9 @@ public class ProjectionController {
     @ApiResponse(responseCode = "200", description = "The user's projections, newest first")
     @GetMapping
     public List<ProjectionSummaryResponse> list(@AuthenticationPrincipal String userId) {
-        return databaseServiceClient.listProjections(UUID.fromString(userId));
+        return databaseServiceClient.listProjections(UUID.fromString(userId)).stream()
+                .map(ProjectionSummaryResponse::from)
+                .toList();
     }
 
     @Operation(summary = "Fetch one of the current user's saved projections, including its data")
@@ -103,7 +105,7 @@ public class ProjectionController {
     @PutMapping("/{id}")
     public ProjectionResponse update(@AuthenticationPrincipal String userId, @PathVariable UUID id,
                                      @Valid @RequestBody UpdateProjectionRequest request) {
-        return projectionService.update(UUID.fromString(userId), id, request);
+        return projectionService.update(UUID.fromString(userId), id, request.toDownstream());
     }
 
     @Operation(summary = "Delete one of the current user's saved projections")

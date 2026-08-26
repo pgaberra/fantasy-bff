@@ -188,7 +188,8 @@ class ProjectionServiceTest {
 
         var response = projectionService.get(USER_ID, PROJECTION_ID);
 
-        assertThat(response.data()).isEqualTo(stored.getData());
+        assertThat(response.data())
+                .isEqualTo(com.fantasy.bff.dto.response.ProjectionData.from(stored.getData()));
         assertThat(response.poolReconciliation().added()).isEqualTo(12);
     }
 

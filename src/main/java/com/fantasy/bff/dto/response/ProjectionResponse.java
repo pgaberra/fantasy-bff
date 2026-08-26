@@ -1,7 +1,6 @@
 package com.fantasy.bff.dto.response;
 
 import com.fantasy.bff.dto.request.ProjectionKind;
-import com.fantasy.bff.generated.db.model.ProjectionData;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
@@ -68,7 +67,7 @@ public record ProjectionResponse(
                 stored.getName(),
                 kindOf(stored.getKind()),
                 stored.getSeason().getValue(),
-                stored.getData(),
+                ProjectionData.from(stored.getData()),
                 stored.getCreatedAt(),
                 stored.getUpdatedAt(),
                 originOf(stored.getOrigin()),
