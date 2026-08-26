@@ -81,16 +81,18 @@ class EspnPlayerPoolSourceTest {
     }
 
     /**
-     * The frontend prefixes whatever it is handed with the API base, so a headshot has to stay
-     * a path on this API even though ESPN's own URL is a perfectly good image.
+     * Straight to the CDN. Proxying every picture through this service put a page's worth of
+     * image requests through one host and the edge started refusing them.
      */
     @Test
-    void getSkaters_reportsHeadshotsAsAPathOnThisApi() {
+    void getSkaters_handsOutEspnsOwnImageUrl() {
         when(espnServiceClient.skaters(STATS_SEASON))
                 .thenReturn(List.of(mcDavid(), mcDavid().id(2L).headshot(null)));
 
         assertThat(source.getSkaters()).extracting(SkaterResponse::headshot)
-                .containsExactly("/players/3895074/headshot", null);
+                .containsExactly(
+                        "https://a.espncdn.com/combiner/i?img=/i/headshots/nhl/players/full/3895074.png",
+                        null);
     }
 
     @Test
@@ -144,7 +146,8 @@ class EspnPlayerPoolSourceTest {
         GoalieResponse.ScoringStats scoring = goalie.stats().scoring();
 
         assertThat(goalie.name()).isEqualTo("Andrei Vasilevskiy");
-        assertThat(goalie.headshot()).isEqualTo("/players/2976847/headshot");
+        assertThat(goalie.headshot())
+                .isEqualTo("https://a.espncdn.com/combiner/i?img=/i/headshots/nhl/players/full/2976847.png");
         assertThat(scoring.w()).isEqualTo(39);
         assertThat(scoring.otl()).isEqualTo(4);
         assertThat(scoring.toi()).isEqualTo(205845);

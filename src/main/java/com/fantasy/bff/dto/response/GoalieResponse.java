@@ -6,8 +6,10 @@ public record GoalieResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int id,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
         String teamAbbrev,
-        @Schema(description = "Path to the player's headshot, relative to the API base URL "
-                + "(e.g. /players/9245/headshot). Absent when the player has no picture.")
+        @Schema(description = "The player's headshot: an absolute URL when the picture lives on "
+                + "the platform's image CDN, or a path relative to the API base URL "
+                + "(e.g. /players/9245/headshot) when this service serves it. Absent when the "
+                + "player has no picture.")
         String headshot,
         @Schema(description = "Jersey number; absent for players the platform has not assigned one")
                 Integer sweaterNumber,
