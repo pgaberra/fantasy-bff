@@ -74,7 +74,7 @@ public record SharedProjectionResponse(
                 shared.getAuthorUsername(),
                 shared.getSeason().getValue(),
                 new SharedProjectionData(
-                        ProjectionSettings.from(shared.getData().getSettings()),
+                        ProjectionSettings.from(shared.getData().getProjectionSettings()),
                         players.stream().map(SharedPlayer::from).toList()),
                 totalPlayers,
                 truncated,

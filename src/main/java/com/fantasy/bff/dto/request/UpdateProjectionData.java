@@ -26,7 +26,7 @@ public record UpdateProjectionData(
 
     public com.fantasy.bff.generated.db.model.UpdateProjectionData toDownstream() {
         return new com.fantasy.bff.generated.db.model.UpdateProjectionData()
-                .settings(settings.toDownstream())
+                .projectionSettings(settings.toDownstream())
                 .players(players == null
                         ? null
                         : players.stream().map(PlayerProjection::toDownstream).toList())

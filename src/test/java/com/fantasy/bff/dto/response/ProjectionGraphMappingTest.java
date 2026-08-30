@@ -140,7 +140,7 @@ class ProjectionGraphMappingTest {
 
         var downstream = owned.toDownstream();
 
-        assertThat(downstream.getSettings()).isEqualTo(settings());
+        assertThat(downstream.getProjectionSettings()).isEqualTo(settings());
         assertThat(downstream.getPlayers()).containsExactly(
                 row(8478402, PlayerProjection.TypeEnum.SKATER),
                 row(8479973, PlayerProjection.TypeEnum.GOALIE));
@@ -155,7 +155,7 @@ class ProjectionGraphMappingTest {
 
         var downstream = owned.toDownstream();
 
-        assertThat(downstream.getSettings()).isEqualTo(settings());
+        assertThat(downstream.getProjectionSettings()).isEqualTo(settings());
         assertThat(downstream.getPlayers()).isNull();
         assertThat(downstream.getDraft()).isNull();
     }

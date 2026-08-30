@@ -22,7 +22,7 @@ public record ProjectionData(
             return null;
         }
         return new ProjectionData(
-                ProjectionSettings.from(data.getSettings()),
+                ProjectionSettings.from(data.getProjectionSettings()),
                 data.getPlayers().stream().map(PlayerProjection::from).toList(),
                 DraftState.from(data.getDraft()));
     }
