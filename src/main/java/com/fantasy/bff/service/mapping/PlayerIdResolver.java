@@ -2,6 +2,7 @@ package com.fantasy.bff.service.mapping;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,9 +21,10 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li><b>Normalised full name</b> — matched 97.4%.
- *   <li><b>Last name plus first initial</b>, only where that form is unique on both sides —
- *       recovered a further 1.3%. These are familiar forms: Yahoo's <i>Freddy</i> Gaudreau for
- *       Frederick, <i>Samuel</i> Blais for Sammy.
+ *   <li><b>Last name plus first initial</b>, only where that form is unique on both sides and
+ *       the platform player it would claim has no NHL namesake of his own — recovered a
+ *       further 1.3%. These are familiar forms: Yahoo's <i>Freddy</i> Gaudreau for Frederick,
+ *       <i>Samuel</i> Blais for Sammy.
  *   <li><b>Sweater number</b> breaks a genuine collision. There is exactly one among active
  *       skaters: two Elias Petterssons, both on Vancouver. Their team doesn't separate them.
  *   <li><b>Team is not a matching key.</b> Requiring it dropped coverage to 77.9%, because the
@@ -32,6 +34,14 @@ import org.springframework.stereotype.Component;
  *
  * <p>Whatever is left over stays unmatched on purpose. A platform only carries players with
  * fantasy relevance, so fringe and long-term absent players have no counterpart to find.
+ *
+ * <p>The fallback's two guards are what keep that honest, and they were bought the hard way.
+ * The NHL side used to hold only players who had already played, so a prospect could not
+ * collide with anyone; once the projection store started listing everyone on a roster, Cole
+ * Brown took Connor Brown's id, Daniil Orlov took Dmitry Orlov's, and Blake Smith took Brendan
+ * Smith's — each an unplayed prospect handed a veteran's row, which then showed the veteran as
+ * a rookie. A near-miss on a name is not evidence of the same person when the exact name is
+ * sitting right there on the other side.
  */
 @Component
 public class PlayerIdResolver {
@@ -65,6 +75,19 @@ public class PlayerIdResolver {
         Map<String, List<Candidate>> byFallback = index(
                 platformPlayers, key -> key.hasFallback() ? key.lastNameInitial() : null);
 
+        // Every full name the NHL side carries, and how many of them share each fallback form.
+        // The fallback is a guess at a nickname, and both counts are there to stop it firing
+        // where it would be guessing between people rather than between spellings.
+        Set<String> nhlFullNames = new HashSet<>();
+        Map<String, Integer> nhlFallbackCounts = new HashMap<>();
+        for (Candidate nhl : nhlPlayers) {
+            PlayerNameKey key = PlayerNameKey.of(nhl.name());
+            nhlFullNames.add(key.fullName());
+            if (key.hasFallback()) {
+                nhlFallbackCounts.merge(key.lastNameInitial(), 1, Integer::sum);
+            }
+        }
+
         Map<Long, Integer> resolved = new LinkedHashMap<>();
         List<PlayerIdMapping.Unmatched> unmatched = new ArrayList<>();
         int onName = 0;
@@ -96,15 +119,21 @@ public class PlayerIdResolver {
                 continue;
             }
 
-            if (key.hasFallback()) {
+            if (key.hasFallback() && nhlFallbackCounts.getOrDefault(key.lastNameInitial(), 0) == 1) {
                 List<Candidate> fallbackCandidates = byFallback.get(key.lastNameInitial());
                 // Only when the fallback form is unique on the platform side: 19 last name and
                 // initial pairs are shared there, and a familiar-form guess isn't worth a
-                // wrong match.
+                // wrong match. Unique on the NHL side too (the guard above), or two players
+                // would each be told they are the platform's only candidate.
                 if (fallbackCandidates != null && fallbackCandidates.size() == 1) {
-                    resolved.put(nhl.id(), (int) fallbackCandidates.get(0).id());
-                    onFallback++;
-                    continue;
+                    Candidate candidate = fallbackCandidates.get(0);
+                    // ...and never a platform player who has an NHL namesake of his own. He is
+                    // that man's row, whether or not that man has been reached yet.
+                    if (!nhlFullNames.contains(PlayerNameKey.of(candidate.name()).fullName())) {
+                        resolved.put(nhl.id(), (int) candidate.id());
+                        onFallback++;
+                        continue;
+                    }
                 }
             }
 
@@ -124,7 +153,34 @@ public class PlayerIdResolver {
                 onFallback,
                 onOverride,
                 unmatched.size());
+        warnOnSharedPlatformIds(resolved);
         return mapping;
+    }
+
+    /**
+     * Two NHL players mapped to one platform row is always a bad match — the platform has one
+     * row per person. It is silent in every downstream reading except the ones that combine
+     * players, where the wrong man's answer quietly wins; the rookie flag is a union, so one
+     * unplayed prospect sharing a veteran's id is enough to mark the veteran a rookie. Nothing
+     * here can tell which of the two is right, so this warns rather than dropping either.
+     */
+    private void warnOnSharedPlatformIds(Map<Long, Integer> resolved) {
+        Map<Integer, Long> claims = new HashMap<>();
+        for (Map.Entry<Long, Integer> entry : resolved.entrySet()) {
+            claims.merge(entry.getValue(), 1L, Long::sum);
+        }
+        List<Integer> shared = claims.entrySet().stream()
+                .filter(entry -> entry.getValue() > 1)
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+        if (!shared.isEmpty()) {
+            log.warn(
+                    "{} platform ids are claimed by more than one NHL player, so at least one "
+                            + "match is wrong: {}",
+                    shared.size(),
+                    shared);
+        }
     }
 
     /**
