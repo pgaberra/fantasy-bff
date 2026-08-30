@@ -70,13 +70,14 @@ public class RestClientConfig {
     }
 
     /**
-     * db-service again, with a timeout measured for saving a projection rather than for a call
-     * that carries an id and returns a row. The body is the whole pool the user has been editing
-     * and db-service writes all of it before answering, so the ordinary three seconds gave up on
-     * a save that was still perfectly on its way — and the user, not the service, paid for it.
+     * db-service again, with a timeout measured for moving a whole projection rather than for a
+     * call that carries an id and returns a row. The payload is the entire pool the user has been
+     * editing, and db-service reads or writes all of it before the response completes, so the
+     * ordinary three seconds gave up on calls that were still perfectly on their way — and the
+     * user, not the service, paid for it: a save lost, or a projection that would not open.
      *
      * <p>Separate from the migration client because the two are not the same trade: nobody is
-     * waiting on the remap, and someone is very much waiting on this.
+     * waiting on the remap, and someone is very much waiting on these.
      */
     @Bean
     public RestClient databaseProjectionClient(
