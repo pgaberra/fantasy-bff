@@ -51,10 +51,18 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     private final RestClient restClient;
     private final RestClient migrationClient;
 
+    /**
+     * Writing a whole projection gets its own client, with a timeout sized for the payload rather
+     * than for the calls that carry an id and return a row. See databaseProjectionClient.
+     */
+    private final RestClient projectionClient;
+
     public HttpDatabaseServiceClient(@Qualifier("databaseServiceClient") RestClient restClient,
-                                     @Qualifier("databaseMigrationClient") RestClient migrationClient) {
+                                     @Qualifier("databaseMigrationClient") RestClient migrationClient,
+                                     @Qualifier("databaseProjectionClient") RestClient projectionClient) {
         this.restClient = restClient;
         this.migrationClient = migrationClient;
+        this.projectionClient = projectionClient;
     }
 
     @Override
@@ -252,7 +260,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public ProjectionResponse createProjection(UUID userId, CreateProjectionRequest request) {
-        return restClient.post()
+        return projectionClient.post()
                 .uri("/api/v1/users/{userId}/projections", userId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
@@ -262,7 +270,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public ProjectionResponse importProjection(UUID userId, ImportProjectionRequest request) {
-        return restClient.post()
+        return projectionClient.post()
                 .uri("/api/v1/users/{userId}/projections/imports", userId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
@@ -272,7 +280,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public ProjectionResponse updateProjection(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
-        return restClient.put()
+        return projectionClient.put()
                 .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
