@@ -5,6 +5,7 @@ import com.fantasy.bff.service.ShareCardRenderer;
 import com.fantasy.bff.dto.response.SharedProjectionResponse;
 import com.fantasy.bff.generated.db.model.SharedPlayer;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
 
@@ -93,7 +95,9 @@ public class SharedProjectionController {
             summary = "Fetch a shared projection by its token",
             description = "Public: anyone holding the link can read it. A signed-in reader gets "
                     + "the whole published board; anyone else gets its top rows, with "
-                    + "`truncated` set and `totalPlayers` saying what the board holds. Returns "
+                    + "`truncated` set and `totalPlayers` saying what the board holds. Which "
+                    + "top rows those are follows `position`, `sort` and `direction`, so a "
+                    + "column sorts the board rather than the rows already sent. Returns "
                     + "the snapshot as it was when shared, with no identity beyond the owner's "
                     + "public username.")
     @ApiResponses({
@@ -102,12 +106,29 @@ public class SharedProjectionController {
     })
     @GetMapping("/{token}")
     public SharedProjectionResponse get(Authentication authentication,
-                                        @PathVariable String token) {
+                                        @PathVariable String token,
+                                        @Parameter(description = "Position to filter the board by "
+                                                + "before its top rows are taken: `ALL`, `SKATER`, "
+                                                + "`G`, or one of a skater's positions. Read only "
+                                                + "for a reader who is not signed in — one holding "
+                                                + "the whole board filters it in the browser.")
+                                        @RequestParam(required = false) String position,
+                                        @Parameter(description = "Column to order the board by "
+                                                + "before its top rows are taken: `summary` (the "
+                                                + "published ranking), `name`, or a stat key. Read "
+                                                + "only for a reader who is not signed in. An "
+                                                + "unknown column leaves the published order.")
+                                        @RequestParam(required = false) String sort,
+                                        @Parameter(description = "`asc` or `desc`; anything else "
+                                                + "reads as `desc`, which is best-first for every "
+                                                + "column the page opens in.")
+                                        @RequestParam(required = false) String direction) {
         com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
                 databaseServiceClient.getSharedProjection(token);
         return isSignedIn(authentication)
                 ? SharedProjectionResponse.full(shared)
-                : SharedProjectionResponse.preview(shared, ANONYMOUS_PREVIEW_ROWS);
+                : SharedProjectionResponse.preview(
+                        shared, position, sort, direction, ANONYMOUS_PREVIEW_ROWS);
     }
 
     /**

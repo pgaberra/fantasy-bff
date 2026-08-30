@@ -1,5 +1,6 @@
 package com.fantasy.bff.dto.response;
 
+import com.fantasy.bff.service.SharedBoardPreview;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
@@ -56,12 +57,21 @@ public record SharedProjectionResponse(
         return of(shared, players, players.size(), false);
     }
 
-    /** The top {@code rows} of the board, for a reader who is not signed in. */
+    /**
+     * The top {@code rows} of the board, for a reader who is not signed in — the top of the order
+     * they asked for, not of the published one, so a column sorts the board rather than the
+     * preview. {@link SharedBoardPreview} is where that selection is made.
+     *
+     * <p>{@code truncated} is about the gate and not about the filter: it says rows were withheld
+     * because the reader is not signed in, which stays true of a board longer than the preview
+     * however few rows one position happens to match.
+     */
     public static SharedProjectionResponse preview(
-            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared, int rows) {
+            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
+            String position, String sort, String direction, int rows) {
         List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
-        int visible = Math.min(rows, players.size());
-        return of(shared, players.subList(0, visible), players.size(), visible < players.size());
+        return of(shared, SharedBoardPreview.select(players, position, sort, direction, rows),
+                players.size(), players.size() > rows);
     }
 
     private static SharedProjectionResponse of(

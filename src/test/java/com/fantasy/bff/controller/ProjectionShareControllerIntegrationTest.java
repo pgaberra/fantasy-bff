@@ -188,6 +188,95 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.truncated").value(true));
     }
 
+    /**
+     * A board whose best players sit at the bottom of the published ranking: goals climb with the
+     * rank, and the defencemen are every even row. A preview cut before the sort was applied could
+     * not answer either question correctly, which is the point.
+     */
+    private static SharedProjectionResponse boardOrderedAgainstItself(int rows) {
+        SharedProjectionResponse shared = sharedProjection("My league", "Alex", rows);
+        List<SharedPlayer> board = IntStream.rangeClosed(1, rows)
+                .mapToObj(rank -> new SharedPlayer()
+                        .playerId(rank)
+                        .name("Player " + rank)
+                        .teamAbbrev("EDM")
+                        .positions(List.of(rank % 2 == 0 ? "D" : "C"))
+                        .type(SharedPlayer.TypeEnum.SKATER)
+                        .rank(rank)
+                        .value(500.0 - rank)
+                        .stats(new PlayerStats()
+                                .utility(Map.of("gp", 82.0))
+                                .scoring(Map.of("goals", (double) rank))))
+                .toList();
+        shared.getData().players(board);
+        return shared;
+    }
+
+    @Test
+    void publicRead_withoutSignIn_sortsTheWholeBoardBeforeTakingItsTop() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
+                        .param("sort", "goals")
+                        .param("direction", "desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(25))
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 400"))
+                .andExpect(jsonPath("$.totalPlayers").value(400))
+                .andExpect(jsonPath("$.truncated").value(true));
+    }
+
+    @Test
+    void publicRead_withoutSignIn_filtersTheWholeBoardBeforeTakingItsTop() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("position", "D"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(25))
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 2"))
+                .andExpect(jsonPath("$.data.players[1].name").value("Player 4"));
+    }
+
+    /** The gate is about the reader, not the filter: a board longer than the preview is cut. */
+    @Test
+    void publicRead_withoutSignIn_staysTruncatedUnderAFilterThatMatchesFewRows() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("position", "G"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(0))
+                .andExpect(jsonPath("$.truncated").value(true));
+    }
+
+    @Test
+    void publicRead_withAnUnknownColumn_keepsThePublishedOrder() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("sort", "not-a-stat"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 1"));
+    }
+
+    /** Someone holding the whole board sorts it in the browser; the params are not theirs. */
+    @Test
+    void publicRead_whenSignedIn_ignoresTheOrderAskedForAndSendsEverything() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
+                        .header("Authorization", "Bearer " + token())
+                        .param("sort", "goals")
+                        .param("direction", "desc")
+                        .param("position", "D"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(400))
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 1"));
+    }
+
     @Test
     void publicRead_whenSignedIn_carriesTheWholeBoard() throws Exception {
         when(databaseServiceClient.getSharedProjection(TOKEN))

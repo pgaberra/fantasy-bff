@@ -871,13 +871,40 @@ paths:
       summary: Fetch a shared projection by its token
       description: "Public: anyone holding the link can read it. A signed-in reader\
         \ gets the whole published board; anyone else gets its top rows, with `truncated`\
-        \ set and `totalPlayers` saying what the board holds. Returns the snapshot\
-        \ as it was when shared, with no identity beyond the owner's public username."
+        \ set and `totalPlayers` saying what the board holds. Which top rows those\
+        \ are follows `position`, `sort` and `direction`, so a column sorts the board\
+        \ rather than the rows already sent. Returns the snapshot as it was when shared,\
+        \ with no identity beyond the owner's public username."
       operationId: getSharedProjection
       parameters:
       - name: token
         in: path
         required: true
+        schema:
+          type: string
+      - name: position
+        in: query
+        description: "Position to filter the board by before its top rows are taken:\
+          \ `ALL`, `SKATER`, `G`, or one of a skater's positions. Read only for a\
+          \ reader who is not signed in — one holding the whole board filters it in\
+          \ the browser."
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: "Column to order the board by before its top rows are taken:\
+          \ `summary` (the published ranking), `name`, or a stat key. Read only for\
+          \ a reader who is not signed in. An unknown column leaves the published\
+          \ order."
+        required: false
+        schema:
+          type: string
+      - name: direction
+        in: query
+        description: "`asc` or `desc`; anything else reads as `desc`, which is best-first\
+          \ for every column the page opens in."
+        required: false
         schema:
           type: string
       responses:
