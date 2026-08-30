@@ -182,6 +182,21 @@ class EspnPlayerPoolSourceTest {
         imageServer.verify();
     }
 
+    /**
+     * Handed a width and a height with no scaling mode, ESPN's combiner squeezes the picture into
+     * the box. The source is a 600x436 landscape frame, so a square came back with every face
+     * about 27% too narrow — the avatars read as long and thin. Asking it to crop is the whole
+     * difference, which makes it worth pinning.
+     */
+    @Test
+    void getHeadshot_asksEspnToCropTheSquareRatherThanSquashTheFaceIntoIt() {
+        imageServer.expect(requestTo(containsString("scale=crop")))
+                .andRespond(withSuccess(new byte[] {1, 2, 3}, MediaType.IMAGE_PNG));
+
+        assertThat(source.getHeadshot(3895074)).contains(new byte[] {1, 2, 3});
+        imageServer.verify();
+    }
+
     @Test
     void getHeadshot_isEmptyWhenEspnHasNoPictureForThem() {
         imageServer.expect(requestTo(containsString("/i/headshots")))
