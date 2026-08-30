@@ -36,17 +36,18 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
     }
 
     /**
-     * ESPN's own player id is the path segment, so nothing a payload says can steer this
-     * request anywhere else. The size is the one the player table draws at.
+     * ESPN's own player id is the path segment, so nothing a payload says can steer this request
+     * anywhere else.
      *
-     * <p>{@code scale=crop} is what keeps the face in proportion. Handed both a width and a
-     * height without it, ESPN's combiner squeezes the picture into the box rather than cropping
-     * to it — and the source is a 600x436 landscape frame, so every face came back 27% too
-     * narrow. Asking for one dimension only would preserve the shape too, but then the avatar is
-     * not square and the table has to crop it a second time in the browser.
+     * <p>A single dimension, and a larger one than the avatar: given both a width and a height
+     * ESPN's combiner squeezes the picture into the box rather than cropping to it, and the source
+     * is a landscape frame, so a square came back with every face about 27% too narrow. Given one
+     * it scales in proportion. 192 tall is around 56 kB and three times the avatar, which leaves
+     * {@link HeadshotThumbnailer} enough of a picture to find the head in and enough detail to
+     * scale down from.
      */
     private static final String HEADSHOT_PATH =
-            "/combiner/i?img=/i/headshots/nhl/players/full/{playerId}.png&w=64&h=64&scale=crop";
+            "/combiner/i?img=/i/headshots/nhl/players/full/{playerId}.png&h=192";
 
     private final EspnServiceClient espnServiceClient;
     private final RestClient espnImageClient;

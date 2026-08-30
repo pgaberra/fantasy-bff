@@ -2,6 +2,8 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -14,6 +16,8 @@ import java.util.Optional;
  */
 @Service
 public class PlayerService {
+
+    private static final Logger log = LoggerFactory.getLogger(PlayerService.class);
 
     private final PlayerPoolSource playerPool;
 
@@ -76,11 +80,43 @@ public class PlayerService {
         return limit == null || limit >= players.size() ? players : players.subList(0, limit);
     }
 
+    /**
+     * A player's headshot, framed on the face and sized for the avatar the table draws.
+     *
+     * <p>The framing happens here rather than in a {@link PlayerPoolSource} because both sources
+     * need it and neither can see the other: Yahoo and ESPN both serve a wide frame of the upper
+     * body, both need the same square cut out of it, and a rule kept in one of them leaves the
+     * other with its own answer. This is where the two meet, so this is where the rule lives.
+     *
+     * <p>Nothing is held between requests. The source is a couple of hundred pixels and the crop
+     * is arithmetic on it, while the response already carries a week of {@code Cache-Control} and
+     * an ETag — so a browser asks once and a cache in here would mostly hold pictures nobody is
+     * asking for, and hold them past the sync that replaced them.
+     */
     public Optional<byte[]> getHeadshot(int playerId) {
         try {
-            return playerPool.getHeadshot(playerId);
+            return playerPool.getHeadshot(playerId).map(image -> framed(playerId, image));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to retrieve a headshot from player service", e);
         }
+    }
+
+    /**
+     * One picture that will not decode is not worth a 502 — the player keeps whatever the source
+     * handed over, which is a real picture, just framed the way that platform framed it.
+     */
+    private static byte[] framed(int playerId, byte[] source) {
+        try {
+            return HeadshotThumbnailer.toThumbnail(source);
+        } catch (Exception e) {
+            log.warn("Could not frame the headshot for player {}, serving it as it came: {}",
+                    playerId, sanitizeForLog(e.toString()));
+            return source;
+        }
+    }
+
+    /** Keeps a message from an upstream image out of the shape of our own log lines. */
+    private static String sanitizeForLog(String message) {
+        return message.replace('\r', ' ').replace('\n', ' ');
     }
 }

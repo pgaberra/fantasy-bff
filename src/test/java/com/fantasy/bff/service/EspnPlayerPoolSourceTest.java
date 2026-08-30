@@ -15,7 +15,9 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -183,14 +185,14 @@ class EspnPlayerPoolSourceTest {
     }
 
     /**
-     * Handed a width and a height with no scaling mode, ESPN's combiner squeezes the picture into
-     * the box. The source is a 600x436 landscape frame, so a square came back with every face
-     * about 27% too narrow — the avatars read as long and thin. Asking it to crop is the whole
-     * difference, which makes it worth pinning.
+     * Handed both a width and a height, ESPN's combiner squeezes the picture into the box rather
+     * than cropping to it — the source is a landscape frame, so faces came back about 27% too
+     * narrow. Asking for one dimension keeps the shape, and asking for a larger one than the
+     * avatar leaves the thumbnailer a picture to find the head in.
      */
     @Test
-    void getHeadshot_asksEspnToCropTheSquareRatherThanSquashTheFaceIntoIt() {
-        imageServer.expect(requestTo(containsString("scale=crop")))
+    void getHeadshot_asksEspnForOneDimensionSoTheFaceKeepsItsShape() {
+        imageServer.expect(requestTo(allOf(containsString("h=192"), not(containsString("w=")))))
                 .andRespond(withSuccess(new byte[] {1, 2, 3}, MediaType.IMAGE_PNG));
 
         assertThat(source.getHeadshot(3895074)).contains(new byte[] {1, 2, 3});

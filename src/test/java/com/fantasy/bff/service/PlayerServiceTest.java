@@ -9,6 +9,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -148,11 +154,52 @@ class PlayerServiceTest {
         verify(playerPool).getGoalies(1);
     }
 
+    /**
+     * Both pools serve a wide frame of the upper body and both need the same square cut out of it,
+     * so the framing is done here rather than in either of them.
+     */
     @Test
-    void getHeadshot_passesThroughWhatTheSourceHas() {
+    void getHeadshot_framesWhateverTheSourceServes() throws Exception {
+        when(playerPool.getHeadshot(1)).thenReturn(Optional.of(wideCutout()));
+
+        byte[] served = playerService.getHeadshot(1).orElseThrow();
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(served));
+        assertThat(image.getWidth()).isEqualTo(HeadshotThumbnailer.SIZE);
+        assertThat(image.getHeight()).isEqualTo(HeadshotThumbnailer.SIZE);
+    }
+
+    /**
+     * One picture that will not decode is not worth failing the request over — the player keeps
+     * what the source handed over, which is a real picture, just framed the way that platform
+     * framed it.
+     */
+    @Test
+    void getHeadshot_servesWhatItCannotFrameRatherThanFailing() {
         when(playerPool.getHeadshot(1)).thenReturn(Optional.of(new byte[] {1, 2, 3}));
 
         assertThat(playerService.getHeadshot(1)).contains(new byte[] {1, 2, 3});
+    }
+
+    @Test
+    void getHeadshot_isEmptyWhenTheSourceHasNoPicture() {
+        when(playerPool.getHeadshot(1)).thenReturn(Optional.empty());
+
+        assertThat(playerService.getHeadshot(1)).isEmpty();
+    }
+
+    /** A wide frame with a narrow head near the top, as both platforms serve. */
+    private static byte[] wideCutout() throws Exception {
+        BufferedImage image = new BufferedImage(600, 436, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(Color.GREEN);
+        graphics.fillRect(216, 22, 168, 240);
+        graphics.setColor(Color.BLUE);
+        graphics.fillRect(30, 340, 540, 96);
+        graphics.dispose();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", out);
+        return out.toByteArray();
     }
 
     @Test

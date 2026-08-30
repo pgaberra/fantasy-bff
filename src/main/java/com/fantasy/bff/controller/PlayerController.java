@@ -114,9 +114,10 @@ public class PlayerController {
 
     @GetMapping(value = "/{playerId}/headshot", produces = MediaType.IMAGE_PNG_VALUE)
     @Operation(summary = "Get a player's headshot",
-            description = "The thumbnail yahoo-service renders from the player's headshot. This is "
-                    + "what the `headshot` path on a skater or goalie points at; the source images "
-                    + "themselves are multi-megapixel originals and are never served to a browser.")
+            description = "The player's headshot, framed on the face and scaled to the avatar the "
+                    + "table draws. This is what the `headshot` path on a skater or goalie points "
+                    + "at; the sources themselves are wide, heavy originals and are never served "
+                    + "to a browser.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Headshot returned"),
             @ApiResponse(responseCode = "404", description = "No headshot for this player"),
