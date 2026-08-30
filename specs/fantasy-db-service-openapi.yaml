@@ -1389,6 +1389,13 @@ components:
           - projection
           - preset_draft
           - imported
+        preset:
+          type: string
+          description: Which preset a preset draft was started from. A user may hold
+            one draft per preset. Ignored on any other kind.
+          enum:
+          - last_season
+          - model
         data:
           $ref: "#/components/schemas/ProjectionData"
         playerIdSpace:
@@ -1606,6 +1613,13 @@ components:
           - projection
           - preset_draft
           - imported
+        preset:
+          type: string
+          description: "Which preset a preset draft was started from. Absent on any\
+            \ other kind, and on preset drafts stored before this was recorded."
+          enum:
+          - last_season
+          - model
         season:
           type: string
           enum:

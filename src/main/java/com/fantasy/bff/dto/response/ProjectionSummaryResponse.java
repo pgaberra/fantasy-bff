@@ -19,6 +19,11 @@ public record ProjectionSummaryResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProjectionKind kind,
 
+        @Schema(description = "Which shared starting point a preset draft was started from. "
+                + "Absent on any other kind, and on preset drafts saved before this was "
+                + "recorded. This, not the name, is what tells two preset drafts apart.")
+        ProjectionPreset preset,
+
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Season season,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime createdAt,
@@ -42,6 +47,17 @@ public record ProjectionSummaryResponse(
         SEASON_2028_2029
     }
 
+    /**
+     * Which shared starting point a preset draft came from. A draft records that it came from a
+     * preset in its kind; this says which, so nothing has to read it back out of the name.
+     */
+    public enum ProjectionPreset {
+        @JsonProperty("last_season")
+        LAST_SEASON,
+        @JsonProperty("model")
+        MODEL
+    }
+
     /** How far a draft against this projection has got, if one was ever started. */
     public enum DraftStatus {
         @JsonProperty("none")
@@ -59,6 +75,7 @@ public record ProjectionSummaryResponse(
                 summary.getId(),
                 summary.getName(),
                 kindOf(summary.getKind()),
+                presetOf(summary.getPreset()),
                 seasonOf(summary.getSeason()),
                 summary.getCreatedAt(),
                 summary.getUpdatedAt(),
@@ -78,6 +95,17 @@ public record ProjectionSummaryResponse(
             case PRESET_DRAFT -> ProjectionKind.PRESET_DRAFT;
             case IMPORTED -> ProjectionKind.IMPORTED;
             case PROJECTION -> ProjectionKind.PROJECTION;
+        };
+    }
+
+    private static ProjectionPreset presetOf(
+            com.fantasy.bff.generated.db.model.ProjectionSummaryResponse.PresetEnum preset) {
+        if (preset == null) {
+            return null;
+        }
+        return switch (preset) {
+            case LAST_SEASON -> ProjectionPreset.LAST_SEASON;
+            case MODEL -> ProjectionPreset.MODEL;
         };
     }
 
