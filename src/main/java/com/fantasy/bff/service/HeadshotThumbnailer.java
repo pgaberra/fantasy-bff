@@ -12,6 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Locale;
 
 /**
  * Turns a platform's headshot into the small square PNG the player table draws, framed on the
@@ -57,6 +58,21 @@ public final class HeadshotThumbnailer {
     private static final double AIR_ABOVE_HAIR = 0.04;
 
     private static final int OPAQUE_ENOUGH = 128;
+
+    /**
+     * How this avatar was rendered, for the caller to hang on the URL it hands the browser.
+     *
+     * <p>The picture behind a headshot URL is cached hard and the URL says nothing but which
+     * player it is, so changing the framing or the size leaves every browser showing the old one
+     * until its cache lets go — a week, here. Putting the recipe in the address means a change to
+     * either is a different address, fetched fresh.
+     *
+     * <p>It is built from the numbers rather than written out beside them so that it cannot be
+     * forgotten: there is no way to change what this class draws without changing what it is
+     * called. Nothing reads it apart, so its shape is free to change with them.
+     */
+    public static final String RECIPE =
+            String.format(Locale.ROOT, "%d-%s-%s", SIZE, FRAME_TO_HEAD, AIR_ABOVE_HAIR);
 
     private HeadshotThumbnailer() {
     }

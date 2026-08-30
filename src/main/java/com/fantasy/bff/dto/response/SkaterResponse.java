@@ -10,7 +10,9 @@ public record SkaterResponse(
         String teamAbbrev,
         @Schema(description = "The player's headshot: an absolute URL when the picture lives on "
                 + "the platform's image CDN, or a path relative to the API base URL "
-                + "(e.g. /players/9245/headshot) when this service serves it. Absent when the "
+                + "(e.g. /players/9245/headshot?v=96-1.55-0.04) when this service serves it. The "
+                + "query string is opaque and marks how the avatar was drawn, so that reframing it "
+                + "does not leave a cached picture behind: use the value as given. Absent when the "
                 + "player has no picture.")
         String headshot,
         @Schema(description = "Jersey number; absent for players the platform has not assigned one")

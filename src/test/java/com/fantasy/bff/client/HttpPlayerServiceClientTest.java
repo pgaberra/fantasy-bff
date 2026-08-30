@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import com.fantasy.bff.service.HeadshotThumbnailer;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -152,7 +153,24 @@ class HttpPlayerServiceClientTest {
                   "headshot":"https://s.yimg.com/xe/i/us/sp/v/nhl_cutout/players_l/10132025/6743.png"}]
                 """)));
 
-        assertThat(client.getSkaters().getFirst().headshot()).isEqualTo("/players/1/headshot");
+        assertThat(client.getSkaters().getFirst().headshot()).startsWith("/players/1/headshot");
+    }
+
+    /**
+     * The picture is cached for a week behind an address that otherwise names only the player, so
+     * a reframed or resized avatar would go unseen until the cache let go. Carrying the recipe in
+     * the address makes a redrawn avatar a different one to fetch.
+     */
+    @Test
+    void marksTheHeadshotAddressWithTheRecipeItWasDrawnBy() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/players/skaters")).willReturn(okJson("""
+                [{"id":1,"firstName":"Connor","lastName":"McDavid","position":"C",
+                  "eligiblePositions":["C"],"teamAbbrev":"EDM",
+                  "headshot":"https://s.yimg.com/xe/i/us/sp/v/nhl_cutout/players_l/10132025/6743.png"}]
+                """)));
+
+        assertThat(client.getSkaters().getFirst().headshot())
+                .isEqualTo("/players/1/headshot?v=" + HeadshotThumbnailer.RECIPE);
     }
 
     @Test

@@ -218,6 +218,21 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(header().exists("ETag"));
     }
 
+    /**
+     * The address the player list hands out carries the recipe the avatar was drawn by, so that a
+     * redrawn avatar is a different thing for the browser to fetch. The endpoint itself has no use
+     * for it and serves whatever it draws today — including for an old link that names an older one.
+     */
+    @Test
+    void getHeadshot_servesThePngWhateverRecipeTheAddressAsksFor() throws Exception {
+        byte[] thumbnail = {(byte) 0x89, 'P', 'N', 'G'};
+        when(playerServiceClient.getHeadshot(1)).thenReturn(Optional.of(thumbnail));
+
+        mockMvc.perform(get("/api/v1/players/1/headshot").param("v", "64-1.85-0.06"))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes(thumbnail));
+    }
+
     @Test
     void getHeadshot_returns404WhenThePlayerHasNone() throws Exception {
         when(playerServiceClient.getHeadshot(1)).thenReturn(Optional.empty());
