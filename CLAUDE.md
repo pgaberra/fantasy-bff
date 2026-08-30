@@ -113,6 +113,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     a stretch of games — measured, not projected. Ranges are team game numbers so the same
     range means the same stretch for everyone, and splits default one season *back* from the
     projected one, since that is the season with games in it.
+    `/seed` **404s unless `ai-projection.enabled`** (`AI_PROJECTION_ENABLED`, on by default),
+    which is the same switch that refuses `source=model` in `ProjectionService.create` and
+    that the web reads to drop the AI preset. It does **not** cover the splits: those are
+    measured numbers behind Who's hot and stay up. Whether anyone may read the prefix at all
+    is the separate `security.projection-model-enabled`.
   - `YahooController` / `EspnController` — the signed-in user's league integrations, both
     forwarding the JWT subject to the service that owns the data and both ending at the same
     place: `…/leagues/{id}/projection-settings`, the league's scoring mapped into *our*
