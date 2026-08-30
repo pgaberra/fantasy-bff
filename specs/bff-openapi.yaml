@@ -2486,6 +2486,14 @@ components:
           - projection
           - preset_draft
           - imported
+        preset:
+          type: string
+          description: "Which shared starting point a preset draft was started from.\
+            \ Absent on any other kind, and on preset drafts saved before this was\
+            \ recorded. This, not the name, is what tells two preset drafts apart."
+          enum:
+          - last_season
+          - model
         season:
           type: string
           enum:

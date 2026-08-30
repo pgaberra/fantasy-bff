@@ -121,6 +121,7 @@ public class ProjectionService {
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
                         .kind(kindOf(request.kind()))
+                        .preset(presetOf(request))
                         .data(data)
                         .playerIdSpace(idSpaceOf(playerPool.playerIdSpace()))));
     }
@@ -167,6 +168,20 @@ public class ProjectionService {
         return request.source() == ProjectionSource.MODEL
                 ? MODEL_PRESET_NAME
                 : LAST_SEASON_PRESET_NAME;
+    }
+
+    /**
+     * Which preset a draft was started from, stored so nothing has to work it out from the name
+     * later. Null unless this is a preset draft: the field says which preset, and there is none.
+     */
+    private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum presetOf(
+            CreateProjectionRequest request) {
+        if (request.kind() != ProjectionKind.PRESET_DRAFT) {
+            return null;
+        }
+        return request.source() == ProjectionSource.MODEL
+                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.MODEL
+                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.LAST_SEASON;
     }
 
     /** Which sources define a preset: one that fills every row from something the server owns. */

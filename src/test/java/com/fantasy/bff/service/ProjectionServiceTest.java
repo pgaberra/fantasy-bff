@@ -373,6 +373,35 @@ class ProjectionServiceTest {
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
         // The board heading comes from here, so it must name the preset actually drafted against.
         assertThat(sentRequest.getValue().getName()).isEqualTo("AI Projection");
+        // And the preset is stored outright, so nothing downstream has to read it back out of
+        // that name — which is also what lets a user hold a draft against each preset at once.
+        assertThat(sentRequest.getValue().getPreset())
+                .isEqualTo(com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.MODEL);
+    }
+
+    @Test
+    @DisplayName("a preset draft from last season's stats records that preset")
+    void presetDraftFromDefault_recordsThePreset() {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(
+                USER_ID,
+                request(emptyData(), ProjectionSource.DEFAULT, ProjectionKind.PRESET_DRAFT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getPreset())
+                .isEqualTo(com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.LAST_SEASON);
+    }
+
+    @Test
+    @DisplayName("a projection the user made carries no preset")
+    void ownProjection_hasNoPreset() {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getPreset()).isNull();
     }
 
     @Test
