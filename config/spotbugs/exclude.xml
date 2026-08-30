@@ -37,4 +37,14 @@
             <Class name="com.fantasy.bff.config.DownstreamKeyVerifier"/>
         </Or>
     </Match>
+
+    <!-- CRLF_INJECTION_LOGS in PlayerIdResolver: a different reason from the block
+         above, so it is kept separate rather than folded in. Nothing is stripped here
+         because nothing needs to be — the only interpolated values are a count and a
+         list of platform ids, both ints, and an int has no CR/LF to inject. The taint
+         analysis sees a List passed as Object and flags the site anyway. -->
+    <Match>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+        <Class name="com.fantasy.bff.service.mapping.PlayerIdResolver"/>
+    </Match>
 </FindBugsFilter>

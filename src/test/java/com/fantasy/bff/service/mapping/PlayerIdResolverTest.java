@@ -100,6 +100,56 @@ class PlayerIdResolverTest {
     }
 
     @Test
+    @DisplayName("the fallback never takes a platform player who has an NHL namesake")
+    void fallbackLeavesAMatchedPlayerAlone() {
+        // The three real cases, from staging the day the projection store started listing
+        // players who had never played. Each prospect has no platform row of his own and used
+        // to be handed the veteran's, which then read as a rookie because the prospect is one.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(
+                        nhl(8477015, "Connor Brown", "NJD", 28),
+                        nhl(8484446, "Cole Brown", "NJD", null),
+                        nhl(8475200, "Dmitry Orlov", "SJS", 81),
+                        nhl(8483689, "Daniil Orlov", "NJD", null)),
+                List.of(platform(10, "Connor Brown", "NJD", 28), platform(20, "Dmitry Orlov", "SJS", 81)),
+                Map.of());
+
+        assertThat(mapping.platformId(8477015)).contains(10);
+        assertThat(mapping.platformId(8475200)).contains(20);
+        assertThat(mapping.platformId(8484446)).isEmpty();
+        assertThat(mapping.platformId(8483689)).isEmpty();
+        assertThat(mapping.matchedOnFallback()).isZero();
+    }
+
+    @Test
+    @DisplayName("the fallback stands down when two NHL players share the form")
+    void fallbackSkipsAmbiguityOnTheNhlSide() {
+        // Neither prospect is more entitled to the one platform row than the other, and the
+        // platform-side uniqueness check alone would have handed it to whichever came first.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(nhl(1, "Blake Smith", "TOR", null), nhl(2, "Bryce Smith", "TOR", null)),
+                List.of(platform(10, "Brendan Smith", "TOR", 2)),
+                Map.of());
+
+        assertThat(mapping.matched()).isZero();
+        assertThat(mapping.matchedOnFallback()).isZero();
+    }
+
+    @Test
+    @DisplayName("a nickname is still rescued when nobody on the NHL side owns that row")
+    void fallbackStillRescuesARealNickname() {
+        // The guard must not cost the case the fallback exists for: the NHL calls him
+        // Frederick and the platform calls him Freddy, so no NHL player carries "Freddy".
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(nhl(1, "Frederick Gaudreau", "SEA", 89), nhl(2, "Cole Brown", "NJD", null)),
+                List.of(platform(10, "Freddy Gaudreau", "SEA", 89)),
+                Map.of());
+
+        assertThat(mapping.platformId(1)).contains(10);
+        assertThat(mapping.matchedOnFallback()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("separates two players sharing a name and a team by sweater number")
     void sweaterBreaksTheRealCollision() {
         // The one genuine collision among active skaters: two Elias Petterssons on Vancouver.
