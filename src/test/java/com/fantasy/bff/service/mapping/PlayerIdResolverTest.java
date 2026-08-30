@@ -215,6 +215,57 @@ class PlayerIdResolverTest {
     }
 
     @Test
+    @DisplayName("one row and two namesakes goes to the one the sweater identifies")
+    void oneRowIsNotSharedBetweenNamesakes() {
+        // The live shape, and the one the single-candidate shortcut got wrong: ESPN carries one
+        // Elias Pettersson, the NHL has two on Vancouver, and both were handed that row without
+        // the sweater ever being read. The 40 is his; the 25 has no row on the platform at all.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(
+                        nhl(8480012, "Elias Pettersson", "VAN", 40),
+                        nhl(8483678, "Elias Pettersson", "VAN", 25)),
+                List.of(platform(4233566, "Elias Pettersson", "VAN", 40)),
+                Map.of());
+
+        assertThat(mapping.platformId(8480012)).contains(4233566);
+        assertThat(mapping.platformId(8483678)).isEmpty();
+        assertThat(mapping.unmatched())
+                .singleElement()
+                .extracting(PlayerIdMapping.Unmatched::reason)
+                .isEqualTo(PlayerIdMapping.Unmatched.Reason.AMBIGUOUS);
+    }
+
+    @Test
+    @DisplayName("namesakes on different teams are separated by the team")
+    void namesakesOnDifferentTeamsAreSeparatedByTeam() {
+        // Sharing a name does not demand a sweater number — it demands something that picks
+        // one of them out. Different clubs do that; the same club would not.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(nhl(1, "Sebastian Aho", "CAR", null), nhl(2, "Sebastian Aho", "NYI", null)),
+                List.of(platform(10, "Sebastian Aho", "CAR", 20)),
+                Map.of());
+
+        assertThat(mapping.platformId(1)).contains(10);
+        assertThat(mapping.platformId(2)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a team both namesakes share separates neither of them")
+    void aSharedTeamDiscriminatesNobody() {
+        // Without sweater numbers there is nothing left: "we are both Vancouver" is true of
+        // each of them, so neither gets the row.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(
+                        nhl(1, "Elias Pettersson", "VAN", null),
+                        nhl(2, "Elias Pettersson", "VAN", null)),
+                List.of(platform(10, "Elias Pettersson", "VAN", 40)),
+                Map.of());
+
+        assertThat(mapping.matched()).isZero();
+        assertThat(mapping.unmatched()).hasSize(2);
+    }
+
+    @Test
     @DisplayName("separates players sharing a name by team when the sweater number is unknown")
     void teamBreaksTiesWhenSweaterIsMissing() {
         // The two Sebastian Ahos play for different teams, so the team settles it even though
