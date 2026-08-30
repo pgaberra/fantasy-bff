@@ -1059,7 +1059,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v3",
+              "default": "marcel-v4",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1144,7 +1144,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v3",
+              "default": "marcel-v4",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1216,7 +1216,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v3",
+              "default": "marcel-v4",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1301,7 +1301,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v3",
+              "default": "marcel-v4",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
