@@ -21,12 +21,15 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Writing a whole projection goes through its own RestClient, because that is the only place the
- * longer timeout lives — a save routed back through the ordinary client would silently be back on
- * three seconds, which is what lost a user their save in JAVA-SPRING-BOOT-17.
+ * Moving a whole projection goes through its own RestClient, because that is the only place the
+ * longer timeout lives — a call routed back through the ordinary client would silently be back on
+ * three seconds, which is what lost a user their save in JAVA-SPRING-BOOT-17 and what stopped a
+ * projection opening in JAVA-SPRING-BOOT-1S and 1C.
  *
  * <p>A timeout cannot be asserted without making the suite wait, so this pins the wiring instead:
  * the two clients are pointed at different servers and each call has to arrive at the right one.
+ * The negative cases matter as much as the positive ones — this must not quietly become a raise
+ * of every call to db-service.
  */
 class HttpDatabaseServiceClientProjectionClientTest {
 
@@ -76,6 +79,44 @@ class HttpDatabaseServiceClientProjectionClientTest {
         assertThat(requestsTo(ordinary)).isZero();
     }
 
+    @Test
+    void getProjection_goesThroughTheProjectionClient() {
+        client.getProjection(USER_ID, PROJECTION_ID);
+
+        assertThat(requestsTo(projections)).isEqualTo(1);
+        assertThat(requestsTo(ordinary)).isZero();
+    }
+
+    /** The same whole-pool payload, read by someone following a share link. */
+    @Test
+    void getSharedProjection_goesThroughTheProjectionClient() {
+        client.getSharedProjection("share-token");
+
+        assertThat(requestsTo(projections)).isEqualTo(1);
+        assertThat(requestsTo(ordinary)).isZero();
+    }
+
+    /**
+     * The summary list is a read too, but it carries names and dates rather than a pool, so it
+     * keeps the three seconds. A slow failure on a small call is worse than a fast one.
+     */
+    @Test
+    void listProjections_staysOnTheOrdinaryClient() {
+        client.listProjections(USER_ID);
+
+        assertThat(requestsTo(ordinary)).isEqualTo(1);
+        assertThat(requestsTo(projections)).isZero();
+    }
+
+    /** Likewise the share token itself: a row about a projection, not the projection. */
+    @Test
+    void getProjectionShare_staysOnTheOrdinaryClient() {
+        client.getProjectionShare(USER_ID, PROJECTION_ID);
+
+        assertThat(requestsTo(ordinary)).isEqualTo(1);
+        assertThat(requestsTo(projections)).isZero();
+    }
+
     /**
      * The other side of the same wiring: a call that carries an id and returns a row keeps the
      * ordinary client, so raising the save timeout has not quietly raised everything.
@@ -94,6 +135,9 @@ class HttpDatabaseServiceClientProjectionClientTest {
         server.stubFor(post(urlPathMatching("/api/v1/.*")).willReturn(okJson("{}")));
         server.stubFor(put(urlPathMatching("/api/v1/.*")).willReturn(okJson("{}")));
         server.stubFor(get(urlPathMatching("/api/v1/.*")).willReturn(okJson("{}")));
+        // Registered after the catch-all above: the summary list deserialises into an array, and
+        // WireMock lets the most recently added matching stub win.
+        server.stubFor(get(urlPathMatching("/api/v1/users/[^/]+/projections")).willReturn(okJson("[]")));
         server.stubFor(com.github.tomakehurst.wiremock.client.WireMock
                 .delete(urlPathMatching("/api/v1/.*")).willReturn(okJson("{}")));
         return server;

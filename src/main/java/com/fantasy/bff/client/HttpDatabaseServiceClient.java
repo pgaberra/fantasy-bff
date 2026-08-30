@@ -52,8 +52,10 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     private final RestClient migrationClient;
 
     /**
-     * Writing a whole projection gets its own client, with a timeout sized for the payload rather
-     * than for the calls that carry an id and return a row. See databaseProjectionClient.
+     * Moving a whole projection — in either direction — gets its own client, with a timeout sized
+     * for the payload rather than for the calls that carry an id and return a row. The summary
+     * list and the share-token calls stay on the ordinary client: they are small, and a slow
+     * failure there is worse than a fast one. See databaseProjectionClient.
      */
     private final RestClient projectionClient;
 
@@ -252,7 +254,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public ProjectionResponse getProjection(UUID userId, UUID projectionId) {
-        return restClient.get()
+        return projectionClient.get()
                 .uri("/api/v1/users/{userId}/projections/{id}", userId, projectionId)
                 .retrieve()
                 .body(ProjectionResponse.class);
@@ -317,7 +319,7 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public SharedProjectionResponse getSharedProjection(String token) {
-        return restClient.get()
+        return projectionClient.get()
                 .uri("/api/v1/shares/{token}", token)
                 .retrieve()
                 .body(SharedProjectionResponse.class);
