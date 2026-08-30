@@ -47,7 +47,7 @@ class ShareCardRendererTest {
                 .name(name)
                 .authorUsername(username)
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
-                .data(new SharedProjectionData().settings(settings).players(players));
+                .data(new SharedProjectionData().projectionSettings(settings).players(players));
     }
 
     private static List<SharedPlayer> fivePlayers() {

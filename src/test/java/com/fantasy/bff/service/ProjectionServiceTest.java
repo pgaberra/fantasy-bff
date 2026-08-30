@@ -262,7 +262,7 @@ class ProjectionServiceTest {
     }
 
     private ProjectionSettings capturedSettings() {
-        return capturedData().getSettings();
+        return capturedData().getProjectionSettings();
     }
 
     private ProjectionData capturedData() {
@@ -296,11 +296,11 @@ class ProjectionServiceTest {
     }
 
     private static ProjectionData emptyData() {
-        return new ProjectionData().settings(new ProjectionSettings());
+        return new ProjectionData().projectionSettings(new ProjectionSettings());
     }
 
     private static ProjectionData dataWith(PlayerProjection player) {
-        return new ProjectionData().settings(new ProjectionSettings()).players(List.of(player));
+        return new ProjectionData().projectionSettings(new ProjectionSettings()).players(List.of(player));
     }
 
     /**
@@ -355,7 +355,7 @@ class ProjectionServiceTest {
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
 
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
-        assertThat(sentRequest.getValue().getData().getSettings().getPlayerBasis()).isNull();
+        assertThat(sentRequest.getValue().getData().getProjectionSettings().getPlayerBasis()).isNull();
     }
 
     @Test

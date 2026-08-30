@@ -125,7 +125,7 @@ class ProjectionPoolReconcilerTest {
 
         reconciler.reconcile(allZeros);
 
-        assertThat(allZeros.getSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.BLANK);
+        assertThat(allZeros.getProjectionSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.BLANK);
         assertThat(gained(allZeros, 2).getStats().getScoring().values()).containsOnly(0.0);
     }
 
@@ -135,7 +135,7 @@ class ProjectionPoolReconcilerTest {
 
         reconciler.reconcile(scored);
 
-        assertThat(scored.getSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
+        assertThat(scored.getProjectionSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
     }
 
     @Test
@@ -144,7 +144,7 @@ class ProjectionPoolReconcilerTest {
 
         reconciler.reconcile(data);
 
-        assertThat(data.getSettings().getPlayerPoolSyncedAt()).isEqualTo(LAST_SYNC);
+        assertThat(data.getProjectionSettings().getPlayerPoolSyncedAt()).isEqualTo(LAST_SYNC);
     }
 
     /** The guard: rows already squared with the latest sync must not cost a pool read at all. */
@@ -171,7 +171,7 @@ class ProjectionPoolReconcilerTest {
         ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1));
 
         reconciler.reconcile(data);
-        data.getSettings().setPlayerPoolSyncedAt(null);
+        data.getProjectionSettings().setPlayerPoolSyncedAt(null);
         Reconciliation again = reconciler.reconcile(data).orElseThrow();
 
         assertThat(again.added()).isZero();
@@ -237,7 +237,7 @@ class ProjectionPoolReconcilerTest {
     private static ProjectionData projection(PlayerBasisEnum basis, OffsetDateTime syncedAt,
                                              PlayerProjection... players) {
         return new ProjectionData()
-                .settings(new ProjectionSettings().playerBasis(basis).playerPoolSyncedAt(syncedAt))
+                .projectionSettings(new ProjectionSettings().playerBasis(basis).playerPoolSyncedAt(syncedAt))
                 .players(new ArrayList<>(List.of(players)));
     }
 

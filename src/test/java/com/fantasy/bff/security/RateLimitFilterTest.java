@@ -99,7 +99,7 @@ class RateLimitFilterTest {
         return new SharedProjectionResponse()
                 .token("abc123").name("My league").authorUsername("alex")
                 .season(SharedProjectionResponse.SeasonEnum._20262027)
-                .data(new SharedProjectionData().settings(settings).players(List.of(mcDavid)));
+                .data(new SharedProjectionData().projectionSettings(settings).players(List.of(mcDavid)));
     }
 
     @Test

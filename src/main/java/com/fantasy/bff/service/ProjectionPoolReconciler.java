@@ -74,7 +74,7 @@ public class ProjectionPoolReconciler {
         if (syncedAt == null) {
             return Optional.empty();
         }
-        ProjectionSettings settings = data.getSettings();
+        ProjectionSettings settings = data.getProjectionSettings();
         if (settings.getPlayerBasis() != null && syncedAt.isEqual(orMin(settings.getPlayerPoolSyncedAt()))) {
             return Optional.empty();
         }
