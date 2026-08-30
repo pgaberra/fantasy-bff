@@ -21,10 +21,10 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li><b>Normalised full name</b> — matched 97.4%.
- *   <li><b>Last name plus first initial</b>, only where that form is unique on both sides and
- *       the platform player it would claim has no NHL namesake of his own — recovered a
- *       further 1.3%. These are familiar forms: Yahoo's <i>Freddy</i> Gaudreau for Frederick,
- *       <i>Samuel</i> Blais for Sammy.
+ *   <li><b>Last name plus first initial</b>, only where that form is unique on both sides, the
+ *       platform player it would claim has no NHL namesake of his own, and a sweater number or
+ *       team still agrees — recovered a further 1.3%. These are familiar forms: Yahoo's
+ *       <i>Freddy</i> Gaudreau for Frederick, <i>Samuel</i> Blais for Sammy.
  *   <li><b>Sweater number</b> breaks a genuine collision. There is exactly one among active
  *       skaters: two Elias Petterssons, both on Vancouver. Their team doesn't separate them.
  *   <li><b>Team is not a matching key.</b> Requiring it dropped coverage to 77.9%, because the
@@ -41,7 +41,8 @@ import org.springframework.stereotype.Component;
  * Brown took Connor Brown's id, Daniil Orlov took Dmitry Orlov's, and Blake Smith took Brendan
  * Smith's — each an unplayed prospect handed a veteran's row, which then showed the veteran as
  * a rookie. A near-miss on a name is not evidence of the same person when the exact name is
- * sitting right there on the other side.
+ * sitting right there on the other side, and on a surname like Smith it is barely evidence at
+ * all without a sweater number or a team behind it.
  */
 @Component
 public class PlayerIdResolver {
@@ -129,7 +130,9 @@ public class PlayerIdResolver {
                     Candidate candidate = fallbackCandidates.get(0);
                     // ...and never a platform player who has an NHL namesake of his own. He is
                     // that man's row, whether or not that man has been reached yet.
-                    if (!nhlFullNames.contains(PlayerNameKey.of(candidate.name()).fullName())) {
+                    boolean spokenFor =
+                            nhlFullNames.contains(PlayerNameKey.of(candidate.name()).fullName());
+                    if (!spokenFor && corroborates(nhl, candidate)) {
                         resolved.put(nhl.id(), (int) candidate.id());
                         onFallback++;
                         continue;
@@ -155,6 +158,28 @@ public class PlayerIdResolver {
                 unmatched.size());
         warnOnSharedPlatformIds(resolved);
         return mapping;
+    }
+
+    /**
+     * Whether something other than the near-miss on the name says these are the same person.
+     *
+     * <p>An exact name is evidence on its own; "same last name, same first initial" is not, and
+     * on the commonest surnames it is barely evidence at all. Measured over staging's 1145
+     * matches, the twelve the fallback made split perfectly on this test: the nine where a
+     * sweater number or a team agreed were all real — Sam for Samuel Montembeault, Zack for
+     * Zachary Bolduc, Danny for Danil Zhilkin — and the three where neither did were all
+     * different people, every one of them a Smith. A nickname changes the first name and leaves
+     * the rest of the man alone, so requiring one of them to still line up costs the real
+     * rescues nothing.
+     *
+     * <p>Team is a weak signal on its own — the platform's rows are a sync snapshot, so a recent
+     * trade disagrees — which is why it is not a matching key. As corroboration for a name that
+     * already nearly matches, agreeing is what counts; disagreeing only withholds a guess.
+     */
+    private boolean corroborates(Candidate nhl, Candidate candidate) {
+        boolean sameSweater = nhl.sweaterNumber() != null
+                && nhl.sweaterNumber().equals(candidate.sweaterNumber());
+        return sameSweater || sameTeam(nhl.team(), candidate.team());
     }
 
     /**

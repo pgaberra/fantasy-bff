@@ -150,6 +150,53 @@ class PlayerIdResolverTest {
     }
 
     @Test
+    @DisplayName("the fallback needs a sweater or a team to agree before it will fire")
+    void fallbackNeedsCorroboration() {
+        // The three the fallback still got wrong on staging, all Smiths, none of them the same
+        // person. Nothing but "same surname, same initial" ever connected them.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(
+                        nhl(1, "Blake Smith", "TOR", null),
+                        nhl(2, "Jack Smith", "MTL", null),
+                        nhl(3, "Tarin Smith", "ANA", 54)),
+                List.of(
+                        platform(10, "Brendan Smith", "CBJ", 7),
+                        platform(20, "Jackson Smith", "CBJ", null),
+                        platform(30, "Ty Smith", "CAR", 42)),
+                Map.of());
+
+        assertThat(mapping.matched()).isZero();
+        assertThat(mapping.matchedOnFallback()).isZero();
+    }
+
+    @Test
+    @DisplayName("a sweater number alone corroborates a nickname after a trade")
+    void sweaterAloneIsEnough() {
+        // The platform's rows are a sync snapshot, so a fresh trade disagrees on the team. The
+        // number following him is enough on its own; requiring both would lose a real match.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(nhl(1, "Zachary Bolduc", "MTL", 76)),
+                List.of(platform(10, "Zack Bolduc", "STL", 76)),
+                Map.of());
+
+        assertThat(mapping.platformId(1)).contains(10);
+        assertThat(mapping.matchedOnFallback()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a team alone corroborates a nickname when the number changed")
+    void teamAloneIsEnough() {
+        // Samuel Poulin is 8 on the NHL side and 22 on the platform's; the club still agrees.
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(nhl(1, "Samuel Poulin", "MTL", 8)),
+                List.of(platform(10, "Sam Poulin", "MTL", 22)),
+                Map.of());
+
+        assertThat(mapping.platformId(1)).contains(10);
+        assertThat(mapping.matchedOnFallback()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("separates two players sharing a name and a team by sweater number")
     void sweaterBreaksTheRealCollision() {
         // The one genuine collision among active skaters: two Elias Petterssons on Vancouver.
