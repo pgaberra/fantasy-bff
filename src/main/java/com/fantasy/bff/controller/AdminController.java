@@ -5,7 +5,7 @@ import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.PlayerIdRemapReport;
 import com.fantasy.bff.service.PlayerIdRemapService;
-import com.fantasy.bff.generated.espn.model.PlayerSyncResponse;
+import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
@@ -15,6 +15,7 @@ import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -77,16 +78,27 @@ public class AdminController {
     }
 
     @Operation(summary = "Trigger an ESPN player sync",
-            description = "Refreshes the cached player pool from ESPN — which is where the pool "
-                    + "comes from — and waits for it. Minutes, not seconds: the whole player "
-                    + "universe is fetched, parsed and checked against the image CDN. Otherwise "
-                    + "the pool only moves on the nightly run, which is a long wait for a "
-                    + "deployment that changed what the sync stores.")
-    @ApiResponse(responseCode = "200", description = "Sync completed")
-    @ApiResponse(responseCode = "502", description = "ESPN was unreachable, or returned too little to trust")
+            description = "Starts a refresh of the ESPN player pool — which is where the pool "
+                    + "comes from — and answers as soon as it is under way. The work runs for "
+                    + "minutes; watch it with GET /api/v1/admin/espn/players/sync/latest until "
+                    + "running is false and syncedAt has moved. Otherwise the pool only moves on "
+                    + "espn-service's nightly run, a long wait for a deployment that changed what "
+                    + "the sync stores.")
+    @ApiResponse(responseCode = "202", description = "Sync started")
+    @ApiResponse(responseCode = "409", description = "A sync is already running")
     @PostMapping("/espn/players/sync")
-    public PlayerSyncResponse triggerEspnPlayerSync() {
-        return espnServiceClient.triggerPlayerSync();
+    public ResponseEntity<com.fantasy.bff.generated.espn.model.SyncAcceptedResponse>
+            triggerEspnPlayerSync() {
+        return ResponseEntity.accepted().body(espnServiceClient.triggerPlayerSync());
+    }
+
+    @Operation(summary = "When the ESPN player pool was last refreshed",
+            description = "And whether a sync is running right now, which is how a triggered one "
+                    + "is watched to completion.")
+    @ApiResponse(responseCode = "200", description = "Status returned")
+    @GetMapping("/espn/players/sync/latest")
+    public PlayerSyncStatusResponse espnPlayerSyncStatus() {
+        return espnServiceClient.lastPlayerSync();
     }
 
     @Operation(summary = "Recent player sync runs",

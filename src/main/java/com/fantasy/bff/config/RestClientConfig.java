@@ -82,25 +82,6 @@ public class RestClientConfig {
     }
 
     /**
-     * espn-service again, with a timeout measured for the player sync rather than for a request
-     * someone is waiting on. That call fetches tens of megabytes from ESPN, parses it and then
-     * asks the image CDN about every player in the pool; the ordinary ten seconds cuts it off
-     * long before it is done, and espn-service, which does not know the caller has gone, carries
-     * on and writes anyway.
-     */
-    @Bean
-    public RestClient espnSyncClient(
-            @Value("${services.espn-fantasy.base-url}") String baseUrl,
-            @Value("${services.espn-fantasy.sync-timeout-ms}") int timeoutMs,
-            @Value("${services.espn-fantasy.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
-    }
-
-    /**
      * ESPN's public image CDN, which is where an ESPN-sourced player's headshot lives. It is
      * read straight through {@code /api/v1/players/{id}/headshot} rather than handed to the
      * browser as a URL, so the frontend keeps being given a path relative to this API — the
