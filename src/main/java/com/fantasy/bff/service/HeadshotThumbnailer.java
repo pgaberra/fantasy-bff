@@ -25,7 +25,12 @@ import java.util.Iterator;
  */
 public final class HeadshotThumbnailer {
 
-    public static final int SIZE = 64;
+    /**
+     * How wide the square avatar is. The table draws it at 36 CSS pixels, and a browser on a
+     * retina screen asks for two device pixels per one of those — 64 was under that and read as
+     * soft. 96 clears it, and is the same 2.7x over its own avatar that Yahoo serves for theirs.
+     */
+    public static final int SIZE = 96;
 
     /**
      * Decoding a source at full size is the expensive part. The reader subsamples instead, down

@@ -192,7 +192,7 @@ class EspnPlayerPoolSourceTest {
      */
     @Test
     void getHeadshot_asksEspnForOneDimensionSoTheFaceKeepsItsShape() {
-        imageServer.expect(requestTo(allOf(containsString("h=192"), not(containsString("w=")))))
+        imageServer.expect(requestTo(allOf(containsString("h=288"), not(containsString("w=")))))
                 .andRespond(withSuccess(new byte[] {1, 2, 3}, MediaType.IMAGE_PNG));
 
         assertThat(source.getHeadshot(3895074)).contains(new byte[] {1, 2, 3});
