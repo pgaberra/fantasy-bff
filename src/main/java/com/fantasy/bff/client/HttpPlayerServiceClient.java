@@ -5,7 +5,7 @@ import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
-import com.fantasy.bff.service.HeadshotThumbnailer;
+import com.fantasy.bff.service.PlayerPoolSource;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -239,15 +239,13 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
      * 28px. yahoo-service reports a source only for players it holds a thumbnail for, which is
      * what makes the path safe to hand out.
      *
-     * <p>The recipe rides along because the picture is cached for a week and the rest of the
-     * address says only which player it is: reframe or resize the avatar and every browser would
-     * go on showing the old one until its cache let go. It is opaque to the caller, which passes
-     * it back untouched; the endpoint ignores it and serves whatever it draws today.
+     * <p>The address itself, recipe and all, is {@link PlayerPoolSource#headshotPath}: both pools
+     * hand out the same one, and it is written down once.
      */
     private static String headshotPath(Long playerId, String yahooSourceUrl) {
         if (yahooSourceUrl == null || yahooSourceUrl.isBlank()) {
             return null;
         }
-        return "/players/" + playerId + "/headshot?v=" + HeadshotThumbnailer.RECIPE;
+        return PlayerPoolSource.headshotPath(playerId);
     }
 }
