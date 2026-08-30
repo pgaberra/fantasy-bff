@@ -1,6 +1,7 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
@@ -77,12 +78,17 @@ class ProjectionServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(playerPool.playerIdSpace()).thenReturn(PlayerIdSpace.YAHOO);
-        projectionService = new ProjectionService(
+        projectionService = serviceWithAiProjection(true);
+    }
+
+    private ProjectionService serviceWithAiProjection(boolean enabled) {
+        return new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
                 playerPool,
                 reconciler,
                 seedService,
+                new AiProjectionProperties(enabled),
                 SEASON,
                 MODEL_VERSION);
     }
@@ -341,6 +347,34 @@ class ProjectionServiceTest {
                 .containsExactly(4242);
         // The read model must not be consulted at all for this source.
         verifyNoInteractions(playerService);
+    }
+
+    @Test
+    @DisplayName("model source is refused when the AI projection is switched off")
+    void withModelSource_whenAiProjectionIsOff_isRefused() {
+        ProjectionService service = serviceWithAiProjection(false);
+
+        assertThatThrownBy(() -> service.create(USER_ID, request(emptyData(), ProjectionSource.MODEL)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("switched off");
+
+        // The refusal comes before anything else the request would do, so the model is never
+        // asked and nothing reaches the database.
+        verifyNoInteractions(seedService);
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
+    @DisplayName("switching the AI projection off leaves the other starting points alone")
+    void whenAiProjectionIsOff_theOtherSourcesStillFillTheirRows() {
+        ProjectionService service = serviceWithAiProjection(false);
+        givenOneSkaterAndOneGoalie();
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        service.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getData().getPlayers()).hasSize(2);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
@@ -40,6 +41,7 @@ public class ProjectionService {
     private final PlayerPoolSource playerPool;
     private final ProjectionPoolReconciler reconciler;
     private final ProjectionSeedService seedService;
+    private final AiProjectionProperties aiProjection;
     private final int projectionSeason;
     private final String projectionModelVersion;
 
@@ -48,6 +50,7 @@ public class ProjectionService {
                              PlayerPoolSource playerPool,
                              ProjectionPoolReconciler reconciler,
                              ProjectionSeedService seedService,
+                             AiProjectionProperties aiProjection,
                              @Value("${services.projection.season}") int projectionSeason,
                              @Value("${services.projection.model-version}") String projectionModelVersion) {
         this.databaseServiceClient = databaseServiceClient;
@@ -55,6 +58,7 @@ public class ProjectionService {
         this.playerPool = playerPool;
         this.reconciler = reconciler;
         this.seedService = seedService;
+        this.aiProjection = aiProjection;
         this.projectionSeason = projectionSeason;
         this.projectionModelVersion = projectionModelVersion;
     }
@@ -101,6 +105,15 @@ public class ProjectionService {
 
     public ProjectionResponse create(UUID userId, CreateProjectionRequest request) {
         ProjectionData data = request.data();
+        // Checked before anything else a model-seeded request would go on to do, so an
+        // environment with the AI projection switched off never reaches the projection service.
+        // The web drops the preset from its lists on the same switch; this is what makes it a
+        // refusal rather than a hidden button.
+        if (request.source() == ProjectionSource.MODEL && !aiProjection.enabled()) {
+            throw new IllegalArgumentException(
+                    "source=model is unavailable: the AI projection is switched off in this "
+                            + "environment");
+        }
         if (request.kind() == ProjectionKind.PRESET_DRAFT && !isPreset(request.source())) {
             throw new IllegalArgumentException(
                     "a preset draft is defined by the server: send source=default or source=model "

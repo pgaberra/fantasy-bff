@@ -1092,6 +1092,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SeededProjectionResponse"
+        "404":
+          description: The AI projection is switched off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeededProjectionResponse"
   /api/v1/players/{playerId}/headshot:
     get:
       tags:

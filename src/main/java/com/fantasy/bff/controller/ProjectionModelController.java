@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,16 +36,19 @@ public class ProjectionModelController {
 
     private final ProjectionSeedService seedService;
     private final PlayerSplitService splitService;
+    private final AiProjectionProperties aiProjection;
     private final int defaultSeason;
     private final String defaultModelVersion;
 
     public ProjectionModelController(
             ProjectionSeedService seedService,
             PlayerSplitService splitService,
+            AiProjectionProperties aiProjection,
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
         this.seedService = seedService;
         this.splitService = splitService;
+        this.aiProjection = aiProjection;
         this.defaultSeason = defaultSeason;
         this.defaultModelVersion = defaultModelVersion;
     }
@@ -63,7 +68,8 @@ public class ProjectionModelController {
                             + "that is.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Generated lines plus a summary of what was skipped"),
-        @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500")
+        @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500"),
+        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
     })
     @GetMapping("/seed")
     public SeededProjectionResponse seed(
@@ -80,6 +86,11 @@ public class ProjectionModelController {
                     @Min(1)
                     @Max(MAX_LIMIT)
                     Integer goalieLimit) {
+        // These are the model's own lines, which is the whole of what the AI projection is. The
+        // splits below are not: they are measured totals behind Who's hot, and stay up either way.
+        if (!aiProjection.enabled()) {
+            throw new NoSuchElementException("The AI projection is not enabled");
+        }
         int target = season == null ? defaultSeason : season;
         ProjectionSeedService.Seed seed =
                 seedService.seed(target, defaultModelVersion, skaterLimit, goalieLimit);
