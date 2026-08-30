@@ -43,8 +43,8 @@ class SharedPlayerTest {
         assertThat(row.type()).isEqualTo(SharedPlayer.Type.SKATER);
         assertThat(row.rank()).isEqualTo(1);
         assertThat(row.value()).isEqualTo(742.5);
-        assertThat(row.stats().getScoring()).containsEntry("goals", 64.0);
-        assertThat(row.stats().getUtility()).containsEntry("hits", 41.0);
+        assertThat(row.stats().scoring()).containsEntry("goals", 64.0);
+        assertThat(row.stats().utility()).containsEntry("hits", 41.0);
     }
 
     /**

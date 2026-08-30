@@ -1,6 +1,5 @@
 package com.fantasy.bff.dto.response;
 
-import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -24,8 +23,6 @@ import java.util.List;
  * are what stop an oversized payload being stored and served back on a public page. They match
  * what db-service enforces on the same fields; both ends check, neither trusts the other.
  *
- * <p>{@code stats} is still db-service's {@link PlayerStats} — it is shared with
- * {@code PlayerProjection} on the projection endpoints, so it moves when those do, not before.
  */
 public record SharedPlayer(
 
@@ -87,7 +84,7 @@ public record SharedPlayer(
                         : Type.SKATER,
                 row.getRank(),
                 row.getValue(),
-                row.getStats());
+                PlayerStats.from(row.getStats()));
     }
 
     /** The same row on its way down to db-service, when the owner publishes. */
@@ -101,6 +98,6 @@ public record SharedPlayer(
                 .type(com.fantasy.bff.generated.db.model.SharedPlayer.TypeEnum.fromValue(type.getValue()))
                 .rank(rank)
                 .value(value)
-                .stats(stats);
+                .stats(stats.toDownstream());
     }
 }

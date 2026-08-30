@@ -1697,8 +1697,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlayerProjection"
-          maxItems: 2000
-          minItems: 0
         draft:
           $ref: "#/components/schemas/DraftState"
       required:
