@@ -25,8 +25,10 @@ import org.springframework.stereotype.Component;
  *       platform player it would claim has no NHL namesake of his own, and a sweater number or
  *       team still agrees — recovered a further 1.3%. These are familiar forms: Yahoo's
  *       <i>Freddy</i> Gaudreau for Frederick, <i>Samuel</i> Blais for Sammy.
- *   <li><b>Sweater number</b> breaks a genuine collision. There is exactly one among active
- *       skaters: two Elias Petterssons, both on Vancouver. Their team doesn't separate them.
+ *   <li><b>Sweater number</b> breaks a genuine collision, and is <em>required</em> to, where two
+ *       NHL players carry one name — a shared name is not enough to claim a row, however few
+ *       rows the platform offers. There is exactly one such collision in the live data: two
+ *       Elias Petterssons, both on Vancouver, where the team separates nobody.
  *   <li><b>Team is not a matching key.</b> Requiring it dropped coverage to 77.9%, because the
  *       platform's rows are a sync snapshot while the NHL's team is live — every trade and
  *       signing disagrees until the next sync. It is used only to break ties.
@@ -81,9 +83,11 @@ public class PlayerIdResolver {
         // where it would be guessing between people rather than between spellings.
         Set<String> nhlFullNames = new HashSet<>();
         Map<String, Integer> nhlFallbackCounts = new HashMap<>();
+        Map<String, List<Candidate>> nhlByFullName = new HashMap<>();
         for (Candidate nhl : nhlPlayers) {
             PlayerNameKey key = PlayerNameKey.of(nhl.name());
             nhlFullNames.add(key.fullName());
+            nhlByFullName.computeIfAbsent(key.fullName(), k -> new ArrayList<>()).add(nhl);
             if (key.hasFallback()) {
                 nhlFallbackCounts.merge(key.lastNameInitial(), 1, Integer::sum);
             }
@@ -104,7 +108,8 @@ public class PlayerIdResolver {
             }
 
             PlayerNameKey key = PlayerNameKey.of(nhl.name());
-            Candidate match = pick(byFullName.get(key.fullName()), nhl);
+            List<Candidate> namesakes = nhlByFullName.get(key.fullName());
+            Candidate match = pick(byFullName.get(key.fullName()), nhl, namesakes);
             if (match != null) {
                 resolved.put(nhl.id(), (int) match.id());
                 onName++;
@@ -161,6 +166,55 @@ public class PlayerIdResolver {
     }
 
     /**
+     * Picks a row for a player who shares his name with another NHL player.
+     *
+     * <p>The single-candidate shortcut cannot apply here, and that was the bug: the platform
+     * carries one Elias Pettersson, the NHL has two on Vancouver, and each of them was handed
+     * that one row without the sweater number ever being consulted. One of the two then had the
+     * other's numbers, silently — the flag that reveals it is the same double-claim warning
+     * below.
+     *
+     * <p>What a namesake needs is not corroboration but <em>discrimination</em>: a signal that
+     * picks him out from the others carrying his name. A sweater number usually does. A shared
+     * team usually does not — namesakes on one roster are precisely the case that makes the
+     * collision visible, and "we are both Vancouver" separates nobody. So each signal is
+     * required to be unique among the namesakes before it counts, and a player nothing
+     * distinguishes is reported unmatched rather than given a coin flip.
+     */
+    private Candidate pickAmongNamesakes(
+            List<Candidate> candidates, Candidate nhl, List<Candidate> namesakes) {
+        List<Candidate> bySweater = candidates.stream()
+                .filter(c -> distinguishesBySweater(nhl, c, namesakes))
+                .toList();
+        if (bySweater.size() == 1) {
+            return bySweater.get(0);
+        }
+        List<Candidate> byTeam = candidates.stream()
+                .filter(c -> distinguishesByTeam(nhl, c, namesakes))
+                .toList();
+        return byTeam.size() == 1 ? byTeam.get(0) : null;
+    }
+
+    private boolean distinguishesBySweater(
+            Candidate nhl, Candidate candidate, List<Candidate> namesakes) {
+        if (nhl.sweaterNumber() == null || !nhl.sweaterNumber().equals(candidate.sweaterNumber())) {
+            return false;
+        }
+        return namesakes.stream()
+                .noneMatch(other -> other.id() != nhl.id()
+                        && nhl.sweaterNumber().equals(other.sweaterNumber()));
+    }
+
+    private boolean distinguishesByTeam(
+            Candidate nhl, Candidate candidate, List<Candidate> namesakes) {
+        if (!sameTeam(nhl.team(), candidate.team())) {
+            return false;
+        }
+        return namesakes.stream()
+                .noneMatch(other -> other.id() != nhl.id() && sameTeam(other.team(), candidate.team()));
+    }
+
+    /**
      * Whether something other than the near-miss on the name says these are the same person.
      *
      * <p>An exact name is evidence on its own; "same last name, same first initial" is not, and
@@ -212,9 +266,12 @@ public class PlayerIdResolver {
      * Picks the one candidate a player matches, using sweater number and then team to separate
      * a genuine collision. Returns null when nothing decides it.
      */
-    private Candidate pick(List<Candidate> candidates, Candidate nhl) {
+    private Candidate pick(List<Candidate> candidates, Candidate nhl, List<Candidate> namesakes) {
         if (candidates == null || candidates.isEmpty()) {
             return null;
+        }
+        if (namesakes != null && namesakes.size() > 1) {
+            return pickAmongNamesakes(candidates, nhl, namesakes);
         }
         if (candidates.size() == 1) {
             return candidates.get(0);
