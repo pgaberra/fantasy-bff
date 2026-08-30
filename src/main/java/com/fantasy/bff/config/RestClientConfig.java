@@ -69,6 +69,27 @@ public class RestClientConfig {
         return builder.build();
     }
 
+    /**
+     * db-service again, with a timeout measured for saving a projection rather than for a call
+     * that carries an id and returns a row. The body is the whole pool the user has been editing
+     * and db-service writes all of it before answering, so the ordinary three seconds gave up on
+     * a save that was still perfectly on its way — and the user, not the service, paid for it.
+     *
+     * <p>Separate from the migration client because the two are not the same trade: nobody is
+     * waiting on the remap, and someone is very much waiting on this.
+     */
+    @Bean
+    public RestClient databaseProjectionClient(
+            @Value("${services.database.base-url}") String baseUrl,
+            @Value("${services.database.projection-timeout-ms}") int timeoutMs,
+            @Value("${services.database.api-key:}") String apiKey) {
+        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader("X-Internal-Api-Key", apiKey);
+        }
+        return builder.build();
+    }
+
     @Bean
     public RestClient projectionServiceClient(
             @Value("${services.projection.base-url}") String baseUrl,

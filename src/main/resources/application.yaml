@@ -73,6 +73,14 @@ services:
     # waiting on and far too short for this one, which timed out against a freshly restarted
     # db-service while the write was still running.
     migration-timeout-ms: ${DB_MIGRATION_TIMEOUT_MS:180000}
+    # Saving a projection is not an ordinary call either. The body is the whole player pool the
+    # user has been editing — some 460 rows and around half a megabyte of jsonb — and db-service
+    # has to write all of it before it answers. Three seconds is the ceiling for calls that carry
+    # an id and return a row; it was too tight for this one, which timed out against a db-service
+    # that was merely slow rather than broken and lost the user the save (JAVA-SPRING-BOOT-17).
+    # Fifteen seconds is deliberately generous for someone sitting in front of it: the cost of
+    # waiting is a spinner, the cost of giving up too early is their work.
+    projection-timeout-ms: ${DB_PROJECTION_TIMEOUT_MS:15000}
     api-key: ${DB_INTERNAL_API_KEY:}
   # projection-service serves AI-generated player projections (NHL-id-keyed, league-agnostic)
   # and the measured game-range splits behind Who's hot. Internal-only.
