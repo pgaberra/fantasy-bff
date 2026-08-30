@@ -449,6 +449,28 @@
             ],
             "title": "Goals"
           },
+          "goals_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals High"
+          },
+          "goals_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Low"
+          },
           "gw_goals": {
             "anyOf": [
               {
@@ -511,6 +533,28 @@
               }
             ],
             "title": "Points"
+          },
+          "points_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points High"
+          },
+          "points_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points Low"
           },
           "pp_assists": {
             "anyOf": [
@@ -639,7 +683,11 @@
           "faceoffs_won",
           "faceoffs_lost",
           "hits",
-          "blocks"
+          "blocks",
+          "goals_low",
+          "goals_high",
+          "points_low",
+          "points_high"
         ],
         "title": "SkaterProjectionResponse",
         "type": "object"
