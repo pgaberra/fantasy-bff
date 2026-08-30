@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -181,13 +182,13 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void create_withSource_fillsPlayersServerSide() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(new SkaterResponse(
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of(new SkaterResponse(
                 1, "Connor McDavid", "EDM", "https://example.test/1.png", 97, Set.of(SkaterPosition.C),
                 new SkaterResponse.Stats(
                         new SkaterResponse.UtilityStats(82, 1320),
                         new SkaterResponse.ScoringStats(64, 89, 153, 33, 36, 22, 38, 60, 1, 0, 1, 23, 38, 61,
                                 8, 2, 348, 18.4, 812, 623, 42, 28, 0, 1408, 92400)))));
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
                 new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("My league"));
 
@@ -210,8 +211,8 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void create_withPresetDraftKind_forwardsTheKindDownstream() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of());
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
                 new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("Last Season's Stats"));
 
@@ -233,8 +234,8 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void create_asPresetDraft_isNamedByTheServerNotTheCaller() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of());
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
                 new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("Last Season's Stats"));
 

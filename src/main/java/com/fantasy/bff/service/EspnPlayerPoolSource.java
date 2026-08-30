@@ -59,15 +59,20 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
         return "espn";
     }
 
+    /**
+     * The limit is ignored: espn-service has no such parameter, so the pool arrives whole and
+     * {@link PlayerService} cuts it. Correct, just without the saving the Yahoo source gets.
+     */
     @Override
-    public List<SkaterResponse> getSkaters() {
+    public List<SkaterResponse> getSkaters(Integer limit) {
         return espnServiceClient.skaters(statsSeason).stream()
                 .map(EspnPlayerPoolSource::toSkater)
                 .toList();
     }
 
+    /** Ignores the limit, for the reason given on {@link #getSkaters(Integer)}. */
     @Override
-    public List<GoalieResponse> getGoalies() {
+    public List<GoalieResponse> getGoalies(Integer limit) {
         return espnServiceClient.goalies(statsSeason).stream()
                 .map(EspnPlayerPoolSource::toGoalie)
                 .toList();

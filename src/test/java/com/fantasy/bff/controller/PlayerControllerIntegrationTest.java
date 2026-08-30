@@ -21,6 +21,7 @@ import java.util.Set;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -51,7 +52,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSkaters_withValidToken_returns200() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of(
                 new SkaterResponse(1, "Connor McDavid", "EDM",
                         "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png", 97, Set.of(SkaterPosition.C),
                         new SkaterResponse.Stats(
@@ -74,7 +75,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSkaters_withoutToken_returns200() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/players/skaters"))
                 .andExpect(status().isOk());
@@ -82,7 +83,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSkaters_withInvalidToken_returns200() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/players/skaters")
                         .header("Authorization", "Bearer invalid.token.here"))
@@ -91,7 +92,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getGoalies_withValidToken_returns200() throws Exception {
-        when(playerServiceClient.getGoalies()).thenReturn(List.of(
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of(
                 new GoalieResponse(101, "Igor Shesterkin", "NYR",
                         "https://assets.nhle.com/mugs/nhl/20242025/NYR/8478048.png", 31,
                         new GoalieResponse.Stats(
@@ -110,7 +111,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getGoalies_withoutToken_returns200() throws Exception {
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/players/goalies"))
                 .andExpect(status().isOk());
@@ -120,7 +121,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
     // that the browser stops downloading half a megabyte to draw five rows.
     @Test
     void getSkaters_withALimit_returnsThatMany() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of(
                 skater(1, "First", 120), skater(2, "Second", 90), skater(3, "Third", 60)));
 
         mockMvc.perform(get("/api/v1/players/skaters").param("limit", "2"))
@@ -152,7 +153,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSkaters_whenServiceFails_returns502() throws Exception {
-        when(playerServiceClient.getSkaters()).thenThrow(new RuntimeException("player service down"));
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenThrow(new RuntimeException("player service down"));
 
         String token = jwtTokenValidator.generateToken("user-1", "test@example.com");
 
@@ -170,7 +171,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void getSkaters_letsTheBrowserHoldOntoThePoolBriefly() throws Exception {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of());
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/players/skaters"))
                 .andExpect(status().isOk())
@@ -182,7 +183,7 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getGoalies_letsTheBrowserHoldOntoThePoolBriefly() throws Exception {
-        when(playerServiceClient.getGoalies()).thenReturn(List.of());
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/players/goalies"))
                 .andExpect(status().isOk())

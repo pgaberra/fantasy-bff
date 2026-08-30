@@ -14,7 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -61,21 +63,33 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
             };
 
     @Override
-    public List<SkaterResponse> getSkaters() {
+    public List<SkaterResponse> getSkaters(Integer limit) {
         List<com.fantasy.bff.generated.yahoo.model.SkaterResponse> response = restClient.get()
-                .uri(b -> b.path("/api/v1/players/skaters").queryParam("season", statsSeason).build())
+                .uri(b -> limited(b.path("/api/v1/players/skaters"), limit))
                 .retrieve()
                 .body(SKATER_LIST);
         return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toSkater).toList();
     }
 
     @Override
-    public List<GoalieResponse> getGoalies() {
+    public List<GoalieResponse> getGoalies(Integer limit) {
         List<com.fantasy.bff.generated.yahoo.model.GoalieResponse> response = restClient.get()
-                .uri(b -> b.path("/api/v1/players/goalies").queryParam("season", statsSeason).build())
+                .uri(b -> limited(b.path("/api/v1/players/goalies"), limit))
                 .retrieve()
                 .body(GOALIE_LIST);
         return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toGoalie).toList();
+    }
+
+    /**
+     * The season is always asked for; the limit only when there is one, since sending an empty
+     * one would be a parameter yahoo-service has to reject rather than a request for everything.
+     */
+    private URI limited(UriBuilder builder, Integer limit) {
+        builder.queryParam("season", statsSeason);
+        if (limit != null) {
+            builder.queryParam("limit", limit);
+        }
+        return builder.build();
     }
 
     @Override

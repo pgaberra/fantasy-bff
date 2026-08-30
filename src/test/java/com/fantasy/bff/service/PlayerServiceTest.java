@@ -15,6 +15,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +47,7 @@ class PlayerServiceTest {
 
     @Test
     void getSkaters_servesWhateverTheConfiguredSourceHolds() {
-        when(playerPool.getSkaters()).thenReturn(List.of(mcDavid()));
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
 
         List<SkaterResponse> result = playerService.getSkaters();
 
@@ -55,7 +57,7 @@ class PlayerServiceTest {
 
     @Test
     void getGoalies_servesWhateverTheConfiguredSourceHolds() {
-        when(playerPool.getGoalies()).thenReturn(List.of(shesterkin()));
+        when(playerPool.getGoalies(nullable(Integer.class))).thenReturn(List.of(shesterkin()));
 
         assertThat(playerService.getGoalies()).singleElement()
                 .satisfies(goalie -> assertThat(goalie.name()).isEqualTo("Igor Shesterkin"));
@@ -80,7 +82,7 @@ class PlayerServiceTest {
 
     @Test
     void getSkaters_servesTheHighestScoringFirst() {
-        when(playerPool.getSkaters()).thenReturn(List.of(
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(
                 skater(1, "Middle", 80), skater(2, "Best", 120), skater(3, "Worst", 40)));
 
         assertThat(playerService.getSkaters()).extracting(SkaterResponse::name)
@@ -91,7 +93,7 @@ class PlayerServiceTest {
     // board opens with, not five arbitrary players.
     @Test
     void getSkaters_withALimit_servesThatManyFromTheTop() {
-        when(playerPool.getSkaters()).thenReturn(List.of(
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(
                 skater(1, "Middle", 80), skater(2, "Best", 120), skater(3, "Worst", 40)));
 
         assertThat(playerService.getSkaters(2)).extracting(SkaterResponse::name)
@@ -100,14 +102,14 @@ class PlayerServiceTest {
 
     @Test
     void getSkaters_withALimitLargerThanThePool_servesThePool() {
-        when(playerPool.getSkaters()).thenReturn(List.of(skater(1, "Only", 80)));
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(skater(1, "Only", 80)));
 
         assertThat(playerService.getSkaters(50)).hasSize(1);
     }
 
     @Test
     void getGoalies_servesTheMostWinsFirstAndHonoursTheLimit() {
-        when(playerPool.getGoalies()).thenReturn(List.of(
+        when(playerPool.getGoalies(nullable(Integer.class))).thenReturn(List.of(
                 goalie(1, "Fewest", 12, 900), goalie(2, "Most", 39, 1300),
                 goalie(3, "Middle", 30, 1400)));
 
@@ -119,11 +121,31 @@ class PlayerServiceTest {
     // has to answer the same way twice, or a cached page and a fresh one disagree.
     @Test
     void getGoalies_breaksTiesOnSaves() {
-        when(playerPool.getGoalies()).thenReturn(List.of(
+        when(playerPool.getGoalies(nullable(Integer.class))).thenReturn(List.of(
                 goalie(1, "Fewer saves", 30, 1200), goalie(2, "More saves", 30, 1400)));
 
         assertThat(playerService.getGoalies(null)).extracting(GoalieResponse::name)
                 .containsExactly("More saves", "Fewer saves");
+    }
+
+    // Asking the source for the slice is what keeps the rest of the pool off the wire between
+    // the services; cutting it here as well is what keeps the answer right when a source can't.
+    @Test
+    void getSkaters_asksTheSourceForOnlyTheSliceItWillKeep() {
+        when(playerPool.getSkaters(2)).thenReturn(List.of(
+                skater(1, "Middle", 80), skater(2, "Best", 120), skater(3, "Worst", 40)));
+
+        assertThat(playerService.getSkaters(2)).extracting(SkaterResponse::name)
+                .containsExactly("Best", "Middle");
+        verify(playerPool).getSkaters(2);
+    }
+
+    @Test
+    void getGoalies_asksTheSourceForOnlyTheSliceItWillKeep() {
+        when(playerPool.getGoalies(1)).thenReturn(List.of(goalie(1, "Most", 39, 1300)));
+
+        assertThat(playerService.getGoalies(1)).hasSize(1);
+        verify(playerPool).getGoalies(1);
     }
 
     @Test
@@ -135,7 +157,7 @@ class PlayerServiceTest {
 
     @Test
     void getSkaters_whenTheSourceThrows_throwsIllegalStateException() {
-        when(playerPool.getSkaters()).thenThrow(new RuntimeException("Connection refused"));
+        when(playerPool.getSkaters(nullable(Integer.class))).thenThrow(new RuntimeException("Connection refused"));
 
         assertThatThrownBy(() -> playerService.getSkaters())
                 .isInstanceOf(IllegalStateException.class)
@@ -144,7 +166,7 @@ class PlayerServiceTest {
 
     @Test
     void getGoalies_whenTheSourceThrows_throwsIllegalStateException() {
-        when(playerPool.getGoalies()).thenThrow(new RuntimeException("Connection refused"));
+        when(playerPool.getGoalies(nullable(Integer.class))).thenThrow(new RuntimeException("Connection refused"));
 
         assertThatThrownBy(() -> playerService.getGoalies())
                 .isInstanceOf(IllegalStateException.class)

@@ -11,9 +11,22 @@ import java.util.Optional;
 
 public interface PlayerServiceClient {
 
-    List<SkaterResponse> getSkaters();
+    /**
+     * @param limit how many to ask yahoo-service for — the highest scoring, by its own ordering
+     *     — or null for the whole pool.
+     */
+    List<SkaterResponse> getSkaters(Integer limit);
 
-    List<GoalieResponse> getGoalies();
+    default List<SkaterResponse> getSkaters() {
+        return getSkaters(null);
+    }
+
+    /** @param limit as for {@link #getSkaters(Integer)}; goalies come back by wins. */
+    List<GoalieResponse> getGoalies(Integer limit);
+
+    default List<GoalieResponse> getGoalies() {
+        return getGoalies(null);
+    }
 
     /** The player's headshot thumbnail as PNG bytes, empty when none is stored for them. */
     Optional<byte[]> getHeadshot(int playerId);

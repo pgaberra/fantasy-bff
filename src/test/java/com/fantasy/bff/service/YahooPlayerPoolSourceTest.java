@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,7 +52,7 @@ class YahooPlayerPoolSourceTest {
 
     @Test
     void getSkaters_returnsSkatersFromClient() {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(mcDavid()));
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
         when(espnPlayerStats.index()).thenReturn(EspnStatLineIndex.empty());
 
         List<SkaterResponse> result = source.getSkaters();
@@ -63,7 +64,7 @@ class YahooPlayerPoolSourceTest {
 
     @Test
     void getSkaters_fillsInTheStatsOnlyEspnReports() {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(mcDavid()));
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
         when(espnPlayerStats.index()).thenReturn(new EspnStatLineIndex(List.of(
                 new PlayerStatLine().id(3895074L).fullName("Connor McDavid").position("C")
                         .gamesPlayed(82).hatTricks(2).shifts(1413).timeOnIce(88566))));
@@ -78,7 +79,7 @@ class YahooPlayerPoolSourceTest {
 
     @Test
     void getSkaters_keepsTheYahooLineWhenEspnHasNoMatch() {
-        when(playerServiceClient.getSkaters()).thenReturn(List.of(mcDavid()));
+        when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
         when(espnPlayerStats.index()).thenReturn(new EspnStatLineIndex(List.of(
                 new PlayerStatLine().id(1L).fullName("Someone Else").position("D").hatTricks(9))));
 
@@ -91,7 +92,7 @@ class YahooPlayerPoolSourceTest {
 
     @Test
     void getGoalies_returnsGoaliesFromClient() {
-        when(playerServiceClient.getGoalies()).thenReturn(List.of(shesterkin()));
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of(shesterkin()));
         when(espnPlayerStats.index()).thenReturn(EspnStatLineIndex.empty());
 
         List<GoalieResponse> result = source.getGoalies();
@@ -102,7 +103,7 @@ class YahooPlayerPoolSourceTest {
 
     @Test
     void getGoalies_fillsInOvertimeLossesAndDerivesWinPercentage() {
-        when(playerServiceClient.getGoalies()).thenReturn(List.of(shesterkin()));
+        when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of(shesterkin()));
         when(espnPlayerStats.index()).thenReturn(new EspnStatLineIndex(List.of(
                 new PlayerStatLine().id(1L).fullName("Igor Shesterkin").position("G")
                         .overtimeLosses(5).timeOnIce(209000))));

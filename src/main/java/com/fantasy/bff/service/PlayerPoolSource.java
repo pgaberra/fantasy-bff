@@ -34,9 +34,24 @@ public interface PlayerPoolSource {
      */
     PlayerIdSpace playerIdSpace();
 
-    List<SkaterResponse> getSkaters();
+    /**
+     * @param limit how many of them the caller means to keep, or null for the whole pool. A hint
+     *     rather than a promise: a source whose upstream cannot serve a slice returns everything
+     *     and the caller cuts it, which is why {@link PlayerService} sorts and cuts regardless.
+     *     Passing it lets a source that can — yahoo-service — keep the rest off the wire.
+     */
+    List<SkaterResponse> getSkaters(Integer limit);
 
-    List<GoalieResponse> getGoalies();
+    default List<SkaterResponse> getSkaters() {
+        return getSkaters(null);
+    }
+
+    /** @param limit as for {@link #getSkaters(Integer)}. */
+    List<GoalieResponse> getGoalies(Integer limit);
+
+    default List<GoalieResponse> getGoalies() {
+        return getGoalies(null);
+    }
 
     /** The player's headshot as PNG bytes, empty when the source has no picture for them. */
     Optional<byte[]> getHeadshot(int playerId);
