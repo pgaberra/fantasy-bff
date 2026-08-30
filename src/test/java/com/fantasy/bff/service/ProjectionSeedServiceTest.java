@@ -81,6 +81,18 @@ class ProjectionSeedServiceTest {
         return p;
     }
 
+    private static SkaterProjectionResponse skater(int nhlId, double points) {
+        SkaterProjectionResponse p = skater(nhlId);
+        p.setPoints(BigDecimal.valueOf(points));
+        return p;
+    }
+
+    private static GoalieProjectionResponse goalie(int nhlId, double wins) {
+        GoalieProjectionResponse p = goalie(nhlId, true);
+        p.setWins(BigDecimal.valueOf(wins));
+        return p;
+    }
+
     private static SkaterResponse platformSkater(int id, String name, String team) {
         return platformSkater(id, name, team, null);
     }
@@ -301,5 +313,79 @@ class ProjectionSeedServiceTest {
 
         assertThat(seed.retiredZeroed()).isZero();
         assertThat(seed.players()).isEmpty();
+    }
+    @Test
+    @DisplayName("a limit returns the top of the board, skaters by points and goalies by wins")
+    void limitReturnsTheTop() {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(
+                        nhlPlayer(1, "Low Skater", "TOR", 11),
+                        nhlPlayer(2, "High Skater", "TOR", 12),
+                        nhlPlayer(3, "Mid Skater", "TOR", 13),
+                        nhlPlayer(4, "Low Goalie", "WPG", 31),
+                        nhlPlayer(5, "High Goalie", "WPG", 32)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(
+                        platformSkater(5001, "Low Skater", "TOR"),
+                        platformSkater(5002, "High Skater", "TOR"),
+                        platformSkater(5003, "Mid Skater", "TOR")));
+        when(playerPool.getGoalies())
+                .thenReturn(List.of(
+                        platformGoalie(6001, "Low Goalie", "WPG"),
+                        platformGoalie(6002, "High Goalie", "WPG")));
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(1, 30), skater(2, 90), skater(3, 60)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString()))
+                .thenReturn(List.of(goalie(4, 10), goalie(5, 40)));
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3", 2, 1);
+
+        assertThat(seed.players())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactly(5002, 5003, 6002);
+    }
+
+    @Test
+    @DisplayName("a limit trims the rows, never the coverage it reports")
+    void limitLeavesTheCountsAlone() {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(
+                        nhlPlayer(1, "One", "TOR", 11),
+                        nhlPlayer(2, "Two", "TOR", 12),
+                        nhlPlayer(3, "Keeper", "WPG", 31)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(platformSkater(5001, "One", "TOR"), platformSkater(5002, "Two", "TOR")));
+        when(playerPool.getGoalies()).thenReturn(List.of(platformGoalie(6001, "Keeper", "WPG")));
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(1, 30), skater(2, 90)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString()))
+                .thenReturn(List.of(goalie(3, 40)));
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3", 1, null);
+
+        // One skater row asked for, but the preview drawing it still needs to say the model
+        // reached two skaters and a goalie.
+        assertThat(seed.players()).hasSize(2);
+        assertThat(seed.skatersSeeded()).isEqualTo(2);
+        assertThat(seed.goaliesSeeded()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("no limit leaves the board as it was built")
+    void noLimitIsUntouched() {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(nhlPlayer(1, "One", "TOR", 11), nhlPlayer(2, "Two", "TOR", 12)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(platformSkater(5001, "One", "TOR"), platformSkater(5002, "Two", "TOR")));
+        when(playerPool.getGoalies()).thenReturn(List.of());
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(1, 30), skater(2, 90)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
+
+        ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
+
+        assertThat(seed.players())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactly(5001, 5002);
     }
 }

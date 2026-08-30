@@ -8,6 +8,7 @@ import com.fantasy.bff.service.ProjectionSeedService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -28,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/projection-model")
 @Validated
 public class ProjectionModelController {
+
+    private static final int MAX_LIMIT = 500;
 
     private final ProjectionSeedService seedService;
     private final PlayerSplitService splitService;
@@ -51,15 +54,35 @@ public class ProjectionModelController {
                     "Returns the model's projected stat lines keyed by this platform's player id, "
                             + "ready to be saved as a new projection. Scoring settings are not "
                             + "included — those belong to the user's league, so the client supplies "
-                            + "them when saving.")
-    @ApiResponse(responseCode = "200", description = "Generated lines plus a summary of what was skipped")
+                            + "them when saving. `skaterLimit` and `goalieLimit` return only the "
+                            + "top of the board — skaters by projected points, goalies by projected "
+                            + "wins, the same order the player pool is served in — for a caller "
+                            + "drawing a preview rather than seeding a projection. They trim the "
+                            + "rows and nothing else: the counts still report everything the model "
+                            + "reached, so a five-row preview can still say how much of the league "
+                            + "that is.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Generated lines plus a summary of what was skipped"),
+        @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500")
+    })
     @GetMapping("/seed")
     public SeededProjectionResponse seed(
             @Parameter(description = "Season to project; defaults to the configured one")
                     @RequestParam(required = false)
-                    Integer season) {
+                    Integer season,
+            @Parameter(description = "How many skater lines to return; all of them when absent")
+                    @RequestParam(required = false)
+                    @Min(1)
+                    @Max(MAX_LIMIT)
+                    Integer skaterLimit,
+            @Parameter(description = "How many goalie lines to return; all of them when absent")
+                    @RequestParam(required = false)
+                    @Min(1)
+                    @Max(MAX_LIMIT)
+                    Integer goalieLimit) {
         int target = season == null ? defaultSeason : season;
-        ProjectionSeedService.Seed seed = seedService.seed(target, defaultModelVersion);
+        ProjectionSeedService.Seed seed =
+                seedService.seed(target, defaultModelVersion, skaterLimit, goalieLimit);
         return new SeededProjectionResponse(
                 seed.players(),
                 target,

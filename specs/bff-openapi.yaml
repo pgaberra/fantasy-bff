@@ -1046,7 +1046,12 @@ paths:
       description: "Returns the model's projected stat lines keyed by this platform's\
         \ player id, ready to be saved as a new projection. Scoring settings are not\
         \ included — those belong to the user's league, so the client supplies them\
-        \ when saving."
+        \ when saving. `skaterLimit` and `goalieLimit` return only the top of the\
+        \ board — skaters by projected points, goalies by projected wins, the same\
+        \ order the player pool is served in — for a caller drawing a preview rather\
+        \ than seeding a projection. They trim the rows and nothing else: the counts\
+        \ still report everything the model reached, so a five-row preview can still\
+        \ say how much of the league that is."
       operationId: seed
       parameters:
       - name: season
@@ -1056,9 +1061,33 @@ paths:
         schema:
           type: integer
           format: int32
+      - name: skaterLimit
+        in: query
+        description: How many skater lines to return; all of them when absent
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 500
+          minimum: 1
+      - name: goalieLimit
+        in: query
+        description: How many goalie lines to return; all of them when absent
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 500
+          minimum: 1
       responses:
         "200":
           description: Generated lines plus a summary of what was skipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeededProjectionResponse"
+        "400":
+          description: A limit is not between 1 and 500
           content:
             application/json:
               schema:
