@@ -3,9 +3,9 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -22,6 +22,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,8 +32,12 @@ class PlayerServiceTest {
     @Mock
     private PlayerPoolSource playerPool;
 
-    @InjectMocks
     private PlayerService playerService;
+
+    @BeforeEach
+    void setUp() {
+        playerService = new PlayerService(playerPool, new HeadshotCache());
+    }
 
     private static SkaterResponse mcDavid() {
         return new SkaterResponse(1, "Connor McDavid", "EDM", "/players/1/headshot", 97,
@@ -167,6 +172,36 @@ class PlayerServiceTest {
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(served));
         assertThat(image.getWidth()).isEqualTo(HeadshotThumbnailer.SIZE);
         assertThat(image.getHeight()).isEqualTo(HeadshotThumbnailer.SIZE);
+    }
+
+    /**
+     * The point of holding one: a page of avatars asks for fifty at once, and the expensive part
+     * is fetching each source from the platform, not framing it. The second reader must not send
+     * the pool asking again.
+     */
+    @Test
+    void getHeadshot_drawsItOnceAndServesTheSameBytesAfter() throws Exception {
+        when(playerPool.getHeadshot(1)).thenReturn(Optional.of(wideCutout()));
+
+        byte[] first = playerService.getHeadshot(1).orElseThrow();
+        byte[] second = playerService.getHeadshot(1).orElseThrow();
+
+        assertThat(second).isSameAs(first);
+        verify(playerPool, times(1)).getHeadshot(1);
+    }
+
+    /**
+     * A pool with no picture for a player is one whose sync is expected to fill it in later, so a
+     * remembered miss would outlive the reason for it.
+     */
+    @Test
+    void getHeadshot_doesNotRememberThatThereWasNoPicture() {
+        when(playerPool.getHeadshot(1)).thenReturn(Optional.empty());
+
+        assertThat(playerService.getHeadshot(1)).isEmpty();
+        assertThat(playerService.getHeadshot(1)).isEmpty();
+
+        verify(playerPool, times(2)).getHeadshot(1);
     }
 
     /**

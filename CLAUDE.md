@@ -159,14 +159,18 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     and hundreds of its players never got into a game, so they are correctly absent from ESPN's
     active list (measured on staging: 83.7% of the pool matched, and every one of the 259 that
     did not had played nothing).
-  - Headshots differ by source, and the frontend takes both: the Yahoo pool's are thumbnails
-    this service stores and serves at `/api/v1/players/{id}/headshot`, while the ESPN pool's
-    are **ESPN's own CDN URLs, handed straight to the browser**. Proxying those put a page's
-    worth of image requests — some sixteen hundred — through one host, and the edge started
-    refusing them; a CDN is the thing that is good at serving the same small picture to
-    everyone. The proxy endpoint stays for the Yahoo pool and for anything holding an older
-    link. espn-service has already dropped the URL for the roughly one player in seven it has
-    no picture for, so an address that arrives is one that resolves.
+  - Headshots come from `/api/v1/players/{id}/headshot` for **both** pools, framed on the face
+    by `HeadshotThumbnailer` and held by `HeadshotCache`. The ESPN pool's used to be ESPN's own
+    CDN URLs handed straight to the browser, because proxying put a page's worth of image
+    requests — some sixteen hundred — through one host and the edge refused a share of them;
+    what that cost was the framing, since nothing we wrote ever saw those pictures. The refusals
+    were Traefik's `api-ratelimit` (15/s) on a route that has no business behind it, and that
+    route now has its own laxer limiter (see the monorepo `INFRASTRUCTURE.md`). The address
+    carries the recipe the avatar was drawn by (`?v=96-1.55-0.04`) so that reframing or
+    resizing it is a different thing to fetch rather than something a week-old browser cache
+    hides. Each pool drops the URL for a player it has no picture for — roughly one in seven on
+    ESPN — so an address that arrives is one that resolves, and the web falls back to initials
+    for the rest.
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.
