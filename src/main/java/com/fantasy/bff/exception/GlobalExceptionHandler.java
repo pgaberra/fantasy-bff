@@ -40,6 +40,17 @@ public class GlobalExceptionHandler {
                 .body(ErrorDto.of("NOT_FOUND", ex.getMessage()));
     }
 
+    /**
+     * Signed in, and asking for something a premium subscription pays for. 403 rather than 402,
+     * which is reserved and unimplemented: the request was understood and is refused for this
+     * account. An expected outcome, so it is not logged, like the other 4xx above and below it.
+     */
+    @ExceptionHandler(PremiumRequiredException.class)
+    public ResponseEntity<ErrorDto> handlePremiumRequired(PremiumRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorDto.of("PREMIUM_REQUIRED", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDto> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

@@ -931,7 +931,8 @@ paths:
         \ schedule — measured, not projected. Ranges are in team game numbers, so\
         \ the same range covers the same stretch for every player; one who missed\
         \ some of them shows fewer games. Give either fromGame/toGame or lastGames;\
-        \ with neither, the whole season is covered."
+        \ with neither, the whole season is covered. Reading further back than the\
+        \ last 10 games needs a premium subscription."
       operationId: skaterSplits
       parameters:
       - name: season
@@ -985,11 +986,20 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PlayerSplitResponse"
+        "403":
+          description: The range needs premium and this account has none
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSplitResponse"
   /api/v1/projection-model/splits/goalies:
     get:
       tags:
       - Projection model
       summary: Goalies' measured totals over a range of a season's games
+      description: Reading further back than the last 10 games needs a premium subscription.
       operationId: goalieSplits
       parameters:
       - name: season
@@ -1034,6 +1044,14 @@ paths:
       responses:
         "200":
           description: Totals over the range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSplitResponse"
+        "403":
+          description: The range needs premium and this account has none
           content:
             application/json:
               schema:

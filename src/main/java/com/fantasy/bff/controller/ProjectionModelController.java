@@ -4,6 +4,8 @@ import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
+import com.fantasy.bff.exception.PremiumRequiredException;
+import com.fantasy.bff.service.EntitlementService;
 import com.fantasy.bff.service.PlayerSplitService;
 import com.fantasy.bff.service.ProjectionSeedService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +18,7 @@ import jakarta.validation.constraints.Min;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,9 +37,21 @@ public class ProjectionModelController {
 
     private static final int MAX_LIMIT = 500;
 
+    /**
+     * The stretch a free account may measure, in team game numbers. Every NHL season is the same
+     * 82 games, so "the last ten" is games 73-82 for every team in every season — the same
+     * constant the web resolves its presets against, and the reason this needs no lookup.
+     */
+    private static final int SEASON_SCHEDULE_GAMES = 82;
+
+    private static final int FREE_RANGE_LENGTH = 10;
+
+    private static final int FIRST_FREE_GAME = SEASON_SCHEDULE_GAMES - FREE_RANGE_LENGTH + 1;
+
     private final ProjectionSeedService seedService;
     private final PlayerSplitService splitService;
     private final AiProjectionProperties aiProjection;
+    private final EntitlementService entitlementService;
     private final int defaultSeason;
     private final String defaultModelVersion;
 
@@ -44,11 +59,13 @@ public class ProjectionModelController {
             ProjectionSeedService seedService,
             PlayerSplitService splitService,
             AiProjectionProperties aiProjection,
+            EntitlementService entitlementService,
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
         this.seedService = seedService;
         this.splitService = splitService;
         this.aiProjection = aiProjection;
+        this.entitlementService = entitlementService;
         this.defaultSeason = defaultSeason;
         this.defaultModelVersion = defaultModelVersion;
     }
@@ -111,10 +128,15 @@ public class ProjectionModelController {
                             + "measured, not projected. Ranges are in team game numbers, so the same "
                             + "range covers the same stretch for every player; one who missed some "
                             + "of them shows fewer games. Give either fromGame/toGame or lastGames; "
-                            + "with neither, the whole season is covered.")
-    @ApiResponse(responseCode = "200", description = "Totals over the range, highest scoring first")
+                            + "with neither, the whole season is covered. Reading further back than "
+                            + "the last 10 games needs a premium subscription.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Totals over the range, highest scoring first"),
+            @ApiResponse(responseCode = "403", description = "The range needs premium and this account has none")
+    })
     @GetMapping("/splits/skaters")
     public List<PlayerSplitResponse> skaterSplits(
+            @AuthenticationPrincipal String userId,
             @RequestParam(required = false) Integer season,
             @Parameter(description = "First team game in the range (1-based)")
                     @RequestParam(required = false)
@@ -132,21 +154,65 @@ public class ProjectionModelController {
                     @Max(84)
                     Integer lastGames,
             @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
-        return splitService.skaterSplits(
-                splitSeason(season), new GameRange(fromGame, toGame, lastGames), limit);
+        GameRange range = new GameRange(fromGame, toGame, lastGames);
+        requireEntitlementFor(userId, range);
+        return splitService.skaterSplits(splitSeason(season), range, limit);
     }
 
-    @Operation(summary = "Goalies' measured totals over a range of a season's games")
-    @ApiResponse(responseCode = "200", description = "Totals over the range")
+    @Operation(
+            summary = "Goalies' measured totals over a range of a season's games",
+            description = "Reading further back than the last 10 games needs a premium subscription.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Totals over the range"),
+            @ApiResponse(responseCode = "403", description = "The range needs premium and this account has none")
+    })
     @GetMapping("/splits/goalies")
     public List<PlayerSplitResponse> goalieSplits(
+            @AuthenticationPrincipal String userId,
             @RequestParam(required = false) Integer season,
             @RequestParam(required = false) @Min(1) @Max(84) Integer fromGame,
             @RequestParam(required = false) @Min(1) @Max(84) Integer toGame,
             @RequestParam(required = false) @Min(1) @Max(84) Integer lastGames,
             @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
-        return splitService.goalieSplits(
-                splitSeason(season), new GameRange(fromGame, toGame, lastGames), limit);
+        GameRange range = new GameRange(fromGame, toGame, lastGames);
+        requireEntitlementFor(userId, range);
+        return splitService.goalieSplits(splitSeason(season), range, limit);
+    }
+
+    /**
+     * Picking which stretch of the season to measure is what premium buys; the most recent form
+     * is free. The web draws the same line, but a switch in a browser is an offer withdrawn
+     * rather than a refusal — this endpoint is reachable without it.
+     *
+     * <p>The range is judged before the subscription is looked up, so the free case (every
+     * request the web makes on behalf of an account that has not paid) costs no call to
+     * db-service.
+     */
+    private void requireEntitlementFor(String userId, GameRange range) {
+        if (isFree(range) || entitlementService.hasPremiumAccess(userId)) {
+            return;
+        }
+        throw new PremiumRequiredException(
+                "A free account can measure the last " + FREE_RANGE_LENGTH
+                        + " games. Choosing any other range needs a premium subscription.");
+    }
+
+    /**
+     * Whether the range asks for nothing a free account cannot already see. A shorter window
+     * inside the free one passes: it reveals no game the account is not entitled to, and holding
+     * it to exactly ten would turn every off-by-one between client and server into a refusal.
+     *
+     * <p>An open range means the whole season, which is not it.
+     */
+    private static boolean isFree(GameRange range) {
+        if (range.lastGames() != null) {
+            return range.lastGames() <= FREE_RANGE_LENGTH;
+        }
+        if (range.fromGame() == null || range.toGame() == null) {
+            return false;
+        }
+        return range.fromGame() >= FIRST_FREE_GAME
+                && range.toGame() - range.fromGame() + 1 <= FREE_RANGE_LENGTH;
     }
 
     /** Splits default one season back from the projected one — that is the season with games in it. */

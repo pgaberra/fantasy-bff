@@ -14,6 +14,7 @@ import com.fantasy.bff.payments.PortalRequest;
 import com.fantasy.bff.payments.PortalSession;
 import com.fantasy.bff.payments.SubscriptionSnapshot;
 import com.fantasy.bff.payments.WebhookEvent;
+import com.fantasy.bff.service.EntitlementService;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -48,14 +49,16 @@ public class BillingController {
 
     private final PaymentProvider paymentProvider;
     private final DatabaseServiceClient databaseServiceClient;
+    private final EntitlementService entitlementService;
     private final PaymentsProperties paymentsProperties;
     private final String webBaseUrl;
 
     public BillingController(PaymentProvider paymentProvider, DatabaseServiceClient databaseServiceClient,
-                             PaymentsProperties paymentsProperties,
+                             EntitlementService entitlementService, PaymentsProperties paymentsProperties,
                              @Value("${app.web-base-url}") String webBaseUrl) {
         this.paymentProvider = paymentProvider;
         this.databaseServiceClient = databaseServiceClient;
+        this.entitlementService = entitlementService;
         this.paymentsProperties = paymentsProperties;
         this.webBaseUrl = webBaseUrl;
     }
@@ -97,12 +100,7 @@ public class BillingController {
     @ApiResponse(responseCode = "200", description = "Entitlement returned")
     @GetMapping("/entitlements")
     public EntitlementsResponse entitlements(@AuthenticationPrincipal String userId) {
-        if (!paymentsProperties.enabled()) {
-            return EntitlementsResponse.none();
-        }
-        return databaseServiceClient.getSubscription(UUID.fromString(userId))
-                .map(EntitlementsResponse::from)
-                .orElseGet(EntitlementsResponse::none);
+        return entitlementService.entitlements(userId);
     }
 
     @Hidden
