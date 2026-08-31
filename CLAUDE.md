@@ -118,6 +118,16 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     that the web reads to drop the AI preset. It does **not** cover the splits: those are
     measured numbers behind Who's hot and stay up. Whether anyone may read the prefix at all
     is the separate `security.projection-model-enabled`.
+    The splits carry a switch of their own: **which stretch** they measure is premium. A free
+    account gets the last 10 games (`lastGames<=10`, or a `fromGame`/`toGame` window inside
+    games 73-82 — every NHL season is 82 games, so that needs no lookup); anything else is
+    **403 `PREMIUM_REQUIRED`**, including an open range, which means the whole season. Two
+    orderings matter and are tested: the range is judged *before* the subscription is read, so
+    a free account's own requests cost db-service nothing, and `payments.enabled` is read
+    before that, so an environment that sells no premium gates nothing at all. Entitlement
+    comes from `EntitlementService`, which `BillingController` shares — `entitlements()` is
+    what to *report*, `hasPremiumAccess()` is what to *allow*, and they differ exactly when
+    payments are off.
   - `YahooController` / `EspnController` — the signed-in user's league integrations, both
     forwarding the JWT subject to the service that owns the data and both ending at the same
     place: `…/leagues/{id}/projection-settings`, the league's scoring mapped into *our*
