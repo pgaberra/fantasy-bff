@@ -57,6 +57,25 @@ public interface PlayerPoolSource {
     Optional<byte[]> getHeadshot(int playerId);
 
     /**
+     * The address the frontend is given for a player's avatar: this service's own, never the
+     * platform's image URL.
+     *
+     * <p>Both pools' own pictures are wide frames of the upper body, sized for something other
+     * than a 36px circle, and neither is framed on the face. Sending the browser to them means
+     * the avatar is whatever that platform happened to serve — which is how the two pools came
+     * to look different from each other. Pointing both here instead means
+     * {@link HeadshotThumbnailer} frames every avatar, once, by one rule.
+     *
+     * <p>The recipe rides along because the picture is cached for a week and the rest of the
+     * address says only which player it is: reframe or resize the avatar and every browser would
+     * go on showing the old one until its cache let go. It is opaque to the caller, which passes
+     * it back untouched; the endpoint ignores it and serves whatever it draws today.
+     */
+    static String headshotPath(long playerId) {
+        return "/players/" + playerId + "/headshot?v=" + HeadshotThumbnailer.RECIPE;
+    }
+
+    /**
      * When the source last refreshed its pool, empty when it has never managed to or could not
      * be asked. It is the watermark a saved projection is squared against, so it has to come
      * from whichever source is actually serving the pool — the other one's last sync says

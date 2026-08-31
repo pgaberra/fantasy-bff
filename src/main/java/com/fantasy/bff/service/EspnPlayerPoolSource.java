@@ -42,12 +42,13 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
      * <p>A single dimension, and a larger one than the avatar: given both a width and a height
      * ESPN's combiner squeezes the picture into the box rather than cropping to it, and the source
      * is a landscape frame, so a square came back with every face about 27% too narrow. Given one
-     * it scales in proportion. 192 tall is around 56 kB and three times the avatar, which leaves
+     * it scales in proportion. 288 tall is around 120 kB and three times the avatar, which leaves
      * {@link HeadshotThumbnailer} enough of a picture to find the head in and enough detail to
-     * scale down from.
+     * scale down from: the square it frames comes out between a half and four fifths of the
+     * source's height, so this keeps even the tightest of them above the avatar it scales to.
      */
     private static final String HEADSHOT_PATH =
-            "/combiner/i?img=/i/headshots/nhl/players/full/{playerId}.png&h=192";
+            "/combiner/i?img=/i/headshots/nhl/players/full/{playerId}.png&h=288";
 
     private final EspnServiceClient espnServiceClient;
     private final RestClient espnImageClient;
@@ -125,7 +126,7 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
                 (int) (long) s.getId(),
                 s.getFirstName() + " " + s.getLastName(),
                 s.getTeamAbbrev(),
-                headshotUrl(s.getHeadshot()),
+                headshotPath(s.getId(), s.getHeadshot()),
                 s.getSweaterNumber(),
                 positions,
                 new SkaterResponse.Stats(
@@ -176,7 +177,7 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
                 (int) (long) g.getId(),
                 g.getFirstName() + " " + g.getLastName(),
                 g.getTeamAbbrev(),
-                headshotUrl(g.getHeadshot()),
+                headshotPath(g.getId(), g.getHeadshot()),
                 g.getSweaterNumber(),
                 new GoalieResponse.Stats(
                         new GoalieResponse.UtilityStats(PlayerFieldMapping.zero(g.getGamesPlayed())),
@@ -200,20 +201,25 @@ public class EspnPlayerPoolSource implements PlayerPoolSource {
     /**
      * ESPN's own image URL, handed to the browser to fetch directly.
      *
-     * <p>It used to be rewritten to a path on this API and proxied. That put roughly sixteen
-     * hundred image requests per page load through one host, and the edge started refusing them
-     * — a burst of eighty came back with seven 429s, which the browser draws as broken images.
-     * A CDN is the thing that is good at serving the same small picture to everyone, so the
-     * browser goes there.
+     * <p>It went to ESPN's CDN directly for a while. Sending it here had put roughly sixteen
+     * hundred image requests per page load through one host and the edge started refusing them —
+     * a burst of eighty came back with seven 429s, which the browser draws as broken images — so
+     * the browser was pointed at the CDN, which is good at serving the same small picture to
+     * everyone. What that cost is the framing: {@link HeadshotThumbnailer} never saw these, so
+     * this pool's avatars were whatever ESPN's combiner returned, squeezed into a square and
+     * framed on the middle of the picture rather than on the face, and visibly unlike the Yahoo
+     * pool's. The 429s were the edge's {@code api-ratelimit} (15/s, burst 40) doing its job on a
+     * route that has no business behind it: a public, unauthenticated GET of a small PNG out of a
+     * bounded set of ids, cached for a week. That limiter now lets this route through, so the
+     * pictures come back through the framing.
      *
-     * <p>espn-service has already dropped the URL for players it has no picture for, so an
-     * address here is one that resolves. {@code /api/v1/players/{id}/headshot} still works and
-     * still serves it, for the Yahoo pool and for anything holding an older link.
+     * <p>espn-service has already dropped the URL for players it has no picture for, so a source
+     * URL here means there is a picture to serve; the path is only handed out when there is.
      */
-    private static String headshotUrl(String espnSourceUrl) {
+    private static String headshotPath(long playerId, String espnSourceUrl) {
         if (espnSourceUrl == null || espnSourceUrl.isBlank()) {
             return null;
         }
-        return espnSourceUrl;
+        return PlayerPoolSource.headshotPath(playerId);
     }
 }

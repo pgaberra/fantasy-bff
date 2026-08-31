@@ -95,7 +95,8 @@ public class ProjectionService {
                     .data(new UpdateProjectionData()
                             .projectionSettings(stored.getData().getProjectionSettings())
                             .players(stored.getData().getPlayers())
-                            .draft(stored.getData().getDraft())));
+                            .draft(stored.getData().getDraft())
+                            .positionOverrides(stored.getData().getPositionOverrides())));
         } catch (RuntimeException e) {
             log.error("Could not save a projection reconciled against the player pool; "
                     + "serving it unsaved", e);

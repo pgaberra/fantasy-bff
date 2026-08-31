@@ -12,6 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Locale;
 
 /**
  * Turns a platform's headshot into the small square PNG the player table draws, framed on the
@@ -25,7 +26,12 @@ import java.util.Iterator;
  */
 public final class HeadshotThumbnailer {
 
-    public static final int SIZE = 64;
+    /**
+     * How wide the square avatar is. The table draws it at 36 CSS pixels, and a browser on a
+     * retina screen asks for two device pixels per one of those — 64 was under that and read as
+     * soft. 96 clears it, and is the same 2.7x over its own avatar that Yahoo serves for theirs.
+     */
+    public static final int SIZE = 96;
 
     /**
      * Decoding a source at full size is the expensive part. The reader subsamples instead, down
@@ -37,13 +43,36 @@ public final class HeadshotThumbnailer {
     /** Fraction of the frame's height that holds head and neck and no shoulder. */
     private static final double HEAD_BAND = 0.6;
 
-    /** How wide the square is relative to the head in it — a portrait's worth of air around it. */
-    private static final double FRAME_TO_HEAD = 1.85;
+    /**
+     * How wide the square is relative to the head in it — a portrait's worth of air around it.
+     *
+     * <p>1.55 is what Yahoo's own fantasy avatar works out to on the same pictures, and it is
+     * about as tight as the set allows: below roughly 1.45 the taller hair starts losing its top.
+     * It also clamps less often than a wider frame does — a square wider than the source's short
+     * side gets cut back to it, which quietly hands the widest heads a different framing from
+     * everyone else's.
+     */
+    private static final double FRAME_TO_HEAD = 1.55;
 
     /** How much of the square sits above the hair. */
-    private static final double AIR_ABOVE_HAIR = 0.06;
+    private static final double AIR_ABOVE_HAIR = 0.04;
 
     private static final int OPAQUE_ENOUGH = 128;
+
+    /**
+     * How this avatar was rendered, for the caller to hang on the URL it hands the browser.
+     *
+     * <p>The picture behind a headshot URL is cached hard and the URL says nothing but which
+     * player it is, so changing the framing or the size leaves every browser showing the old one
+     * until its cache lets go — a week, here. Putting the recipe in the address means a change to
+     * either is a different address, fetched fresh.
+     *
+     * <p>It is built from the numbers rather than written out beside them so that it cannot be
+     * forgotten: there is no way to change what this class draws without changing what it is
+     * called. Nothing reads it apart, so its shape is free to change with them.
+     */
+    public static final String RECIPE =
+            String.format(Locale.ROOT, "%d-%s-%s", SIZE, FRAME_TO_HEAD, AIR_ABOVE_HAIR);
 
     private HeadshotThumbnailer() {
     }
