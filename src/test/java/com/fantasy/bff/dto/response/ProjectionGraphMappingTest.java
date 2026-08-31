@@ -6,6 +6,7 @@ import com.fantasy.bff.generated.db.model.DraftState;
 import com.fantasy.bff.generated.db.model.DraftTeam;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
+import com.fantasy.bff.generated.db.model.PositionOverride;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.RosterSlots;
 import com.fantasy.bff.generated.db.model.ScaleConfig;
@@ -136,7 +137,10 @@ class ProjectionGraphMappingTest {
                                 row(8478402, PlayerProjection.TypeEnum.SKATER)),
                         com.fantasy.bff.dto.response.PlayerProjection.from(
                                 row(8479973, PlayerProjection.TypeEnum.GOALIE))),
-                com.fantasy.bff.dto.response.DraftState.from(draft()));
+                com.fantasy.bff.dto.response.DraftState.from(draft()),
+                List.of(new com.fantasy.bff.dto.response.PositionOverride(8478402,
+                        List.of(com.fantasy.bff.dto.response.SkaterPosition.C,
+                                com.fantasy.bff.dto.response.SkaterPosition.LW))));
 
         var downstream = owned.toDownstream();
 
@@ -145,18 +149,37 @@ class ProjectionGraphMappingTest {
                 row(8478402, PlayerProjection.TypeEnum.SKATER),
                 row(8479973, PlayerProjection.TypeEnum.GOALIE));
         assertThat(downstream.getDraft()).isEqualTo(draft());
+        assertThat(downstream.getPositionOverrides()).containsExactly(
+                new PositionOverride()
+                        .playerId(8478402)
+                        .positions(List.of(PositionOverride.PositionsEnum.C,
+                                PositionOverride.PositionsEnum.LW)));
+    }
+
+    /**
+     * Resetting every player back to the read model's positions is a save that carries an empty
+     * list, and it has to arrive as one: dropped to null it would read as "unchanged" downstream.
+     */
+    @Test
+    void carriesAnEmptyOverrideListAsItself() {
+        var owned = new UpdateProjectionData(
+                com.fantasy.bff.dto.response.ProjectionSettings.from(settings()), null, null,
+                List.of());
+
+        assertThat(owned.toDownstream().getPositionOverrides()).isEmpty();
     }
 
     /** An autosave that only changed the scoring sends neither the board nor the draft. */
     @Test
     void carriesASaveThatIsOnlySettings() {
         var owned = new UpdateProjectionData(
-                com.fantasy.bff.dto.response.ProjectionSettings.from(settings()), null, null);
+                com.fantasy.bff.dto.response.ProjectionSettings.from(settings()), null, null, null);
 
         var downstream = owned.toDownstream();
 
         assertThat(downstream.getProjectionSettings()).isEqualTo(settings());
         assertThat(downstream.getPlayers()).isNull();
         assertThat(downstream.getDraft()).isNull();
+        assertThat(downstream.getPositionOverrides()).isNull();
     }
 }
