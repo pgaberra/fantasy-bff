@@ -3,10 +3,12 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.PlayerServiceClient;
+import com.fantasy.bff.service.HeadshotCache;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -49,6 +51,19 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
      */
     @MockitoBean
     private EspnServiceClient espnServiceClient;
+
+    /**
+     * Framed avatars are held between requests, and the context is shared across these tests, so
+     * one test's picture would otherwise still be there for the next one asking about the same
+     * player.
+     */
+    @Autowired
+    private HeadshotCache headshots;
+
+    @BeforeEach
+    void forgetHeldAvatars() {
+        headshots.clear();
+    }
 
     @Test
     void getSkaters_withValidToken_returns200() throws Exception {
