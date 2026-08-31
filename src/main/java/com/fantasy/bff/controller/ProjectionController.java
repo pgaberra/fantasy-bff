@@ -68,7 +68,9 @@ public class ProjectionController {
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Projection created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
-        @ApiResponse(responseCode = "409", description = "A projection of that kind already exists")
+        @ApiResponse(responseCode = "409",
+                description = "The name is already taken by a projection or an imported board, "
+                        + "or a draft against that preset already exists")
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -86,7 +88,7 @@ public class ProjectionController {
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "404", description = "No share with that token"),
         @ApiResponse(responseCode = "409",
-                description = "An imported projection with that name already exists")
+                description = "The name is already taken by a projection or an imported board")
     })
     @PostMapping("/imports")
     @ResponseStatus(HttpStatus.CREATED)
@@ -100,7 +102,8 @@ public class ProjectionController {
         @ApiResponse(responseCode = "200", description = "Projection updated"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "404", description = "No such projection for this user"),
-        @ApiResponse(responseCode = "409", description = "Another projection with that name already exists")
+        @ApiResponse(responseCode = "409",
+                description = "The name is already taken by another projection or imported board")
     })
     @PutMapping("/{id}")
     public ProjectionResponse update(@AuthenticationPrincipal String userId, @PathVariable UUID id,

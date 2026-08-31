@@ -98,7 +98,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: Another projection with that name already exists
+          description: The name is already taken by another projection or imported
+            board
           content:
             application/json:
               schema:
@@ -320,7 +321,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: A projection of that kind already exists
+          description: "The name is already taken by a projection or an imported board,\
+            \ or a draft against that preset already exists"
           content:
             application/json:
               schema:
@@ -361,7 +363,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: An imported projection with that name already exists
+          description: The name is already taken by a projection or an imported board
           content:
             application/json:
               schema:
