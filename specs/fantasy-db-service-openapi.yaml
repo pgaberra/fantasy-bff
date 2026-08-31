@@ -1084,6 +1084,28 @@ components:
       - playerId
       - stats
       - type
+    PositionOverride:
+      type: object
+      description: "Positions the owner set by hand for one skater, replacing the\
+        \ ones the player read model reports."
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        positions:
+          type: array
+          items:
+            type: string
+            enum:
+            - LW
+            - C
+            - RW
+            - D
+          maxItems: 4
+          minItems: 0
+      required:
+      - playerId
+      - positions
     ProjectionSettings:
       type: object
       properties:
@@ -1252,6 +1274,15 @@ components:
           $ref: "#/components/schemas/DraftState"
           description: In-draft state for this projection. Replaced on every update
             — omit it to clear.
+        positionOverrides:
+          type: array
+          description: "Positions the owner set by hand. Replaced on every update\
+            \ — send an empty list, or omit it, to put every player back on the positions\
+            \ the read model reports."
+          items:
+            $ref: "#/components/schemas/PositionOverride"
+          maxItems: 2000
+          minItems: 0
       required:
       - settings
     UpdateProjectionRequest:
@@ -1303,6 +1334,16 @@ components:
           description: "In-draft state for this projection — the league's teams, the\
             \ snake draft order, and the picks made so far (each attributed to a team)\
             \ in pick order. Absent until a draft is configured."
+        positionOverrides:
+          type: array
+          description: "Positions the owner set by hand, replacing what the player\
+            \ read model reports for that skater. One entry per corrected player;\
+            \ absent or empty means every player keeps its reported positions. The\
+            \ cap matches the player list."
+          items:
+            $ref: "#/components/schemas/PositionOverride"
+          maxItems: 2000
+          minItems: 0
       required:
       - players
       - settings
@@ -1578,6 +1619,10 @@ components:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
         draftPicks:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
+        positionOverrides:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
+          description: The positions an owner corrected by hand; an unmapped one stops
+            reaching the player it was written for
         sharesScanned:
           type: integer
           format: int32
@@ -1596,6 +1641,7 @@ components:
       - draftPicks
       - dryRun
       - playerRows
+      - positionOverrides
       - projectionsScanned
       - sharedRows
       - sharesScanned

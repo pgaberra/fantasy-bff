@@ -2,6 +2,7 @@ package com.fantasy.bff.dto.request;
 
 import com.fantasy.bff.dto.response.DraftState;
 import com.fantasy.bff.dto.response.PlayerProjection;
+import com.fantasy.bff.dto.response.PositionOverride;
 import com.fantasy.bff.dto.response.ProjectionSettings;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -21,7 +22,11 @@ public record UpdateProjectionData(
 
         @Valid List<PlayerProjection> players,
 
-        @Valid DraftState draft
+        @Valid DraftState draft,
+
+        @Schema(description = "Positions the owner set by hand. Replaced on every save, so an "
+                + "empty list puts every player back on the positions the read model reports.")
+        @Valid List<PositionOverride> positionOverrides
 ) {
 
     public com.fantasy.bff.generated.db.model.UpdateProjectionData toDownstream() {
@@ -30,6 +35,9 @@ public record UpdateProjectionData(
                 .players(players == null
                         ? null
                         : players.stream().map(PlayerProjection::toDownstream).toList())
-                .draft(draft == null ? null : draft.toDownstream());
+                .draft(draft == null ? null : draft.toDownstream())
+                .positionOverrides(positionOverrides == null
+                        ? null
+                        : positionOverrides.stream().map(PositionOverride::toDownstream).toList());
     }
 }

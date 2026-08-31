@@ -1589,6 +1589,26 @@ components:
       required:
       - scoring
       - utility
+    PositionOverride:
+      type: object
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        positions:
+          type: array
+          items:
+            type: string
+            enum:
+            - LW
+            - C
+            - RW
+            - D
+          maxItems: 4
+          minItems: 0
+      required:
+      - playerId
+      - positions
     ProjectionSettings:
       type: object
       properties:
@@ -1726,6 +1746,13 @@ components:
             $ref: "#/components/schemas/PlayerProjection"
         draft:
           $ref: "#/components/schemas/DraftState"
+        positionOverrides:
+          type: array
+          description: "Positions the owner set by hand. Replaced on every save, so\
+            \ an empty list puts every player back on the positions the read model\
+            \ reports."
+          items:
+            $ref: "#/components/schemas/PositionOverride"
       required:
       - settings
     UpdateProjectionRequest:
@@ -1777,6 +1804,13 @@ components:
             $ref: "#/components/schemas/PlayerProjection"
         draft:
           $ref: "#/components/schemas/DraftState"
+        positionOverrides:
+          type: array
+          description: "Positions the owner set by hand, replacing what the player\
+            \ read model reports for that skater. Absent or empty means every player\
+            \ keeps its reported positions."
+          items:
+            $ref: "#/components/schemas/PositionOverride"
       required:
       - players
       - settings
@@ -2272,6 +2306,8 @@ components:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
         draftPicks:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
+        positionOverrides:
+          $ref: "#/components/schemas/PlayerIdRemapCounts"
         sharesScanned:
           type: integer
           format: int32
@@ -2286,6 +2322,7 @@ components:
       - draftPicks
       - dryRun
       - playerRows
+      - positionOverrides
       - projectionsScanned
       - sharedRows
       - sharesScanned
