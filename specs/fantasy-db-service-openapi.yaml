@@ -1714,6 +1714,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SharedPlayer"
+        positionOverrides:
+          type: array
+          description: "Positions the author corrected by hand, so an import can inherit\
+            \ them. Absent on a share published before shares carried them, and on\
+            \ one whose author corrected nothing."
+          items:
+            $ref: "#/components/schemas/PositionOverride"
+          maxItems: 2000
+          minItems: 0
       required:
       - players
       - settings
