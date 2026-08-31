@@ -24,8 +24,9 @@ public record UpdateProjectionData(
 
         @Valid DraftState draft,
 
-        @Schema(description = "Positions the owner set by hand. Replaced on every save, so an "
-                + "empty list puts every player back on the positions the read model reports.")
+        @Schema(description = "Positions the owner set by hand. Omit to keep the stored ones, so "
+                + "a save that has nothing to do with positions cannot clear them. Send an empty "
+                + "list to put every player back on the positions the read model reports.")
         @Valid List<PositionOverride> positionOverrides
 ) {
 

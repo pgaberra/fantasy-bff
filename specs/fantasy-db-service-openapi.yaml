@@ -1276,9 +1276,10 @@ components:
             — omit it to clear.
         positionOverrides:
           type: array
-          description: "Positions the owner set by hand. Replaced on every update\
-            \ — send an empty list, or omit it, to put every player back on the positions\
-            \ the read model reports."
+          description: Positions the owner set by hand. Omit to keep the stored ones
+            — a save that has nothing to do with positions must not clear them. Send
+            an empty list to put every player back on the positions the read model
+            reports.
           items:
             $ref: "#/components/schemas/PositionOverride"
           maxItems: 2000
