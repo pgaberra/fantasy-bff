@@ -298,6 +298,97 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "LeaderOddsResponse": {
+        "properties": {
+          "chance": {
+            "title": "Chance",
+            "type": "number"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "projection": {
+            "title": "Projection",
+            "type": "number"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "chance",
+          "projection"
+        ],
+        "title": "LeaderOddsResponse",
+        "type": "object"
+      },
+      "LeaderboardResponse": {
+        "description": "The race for one stat, played out from the projections and their bands.",
+        "properties": {
+          "contenders": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderOddsResponse"
+            },
+            "title": "Contenders",
+            "type": "array"
+          },
+          "expected_leader": {
+            "title": "Expected Leader",
+            "type": "number"
+          },
+          "leader_high": {
+            "title": "Leader High",
+            "type": "number"
+          },
+          "leader_low": {
+            "title": "Leader Low",
+            "type": "number"
+          },
+          "stat": {
+            "title": "Stat",
+            "type": "string"
+          },
+          "top_projection": {
+            "title": "Top Projection",
+            "type": "number"
+          }
+        },
+        "required": [
+          "stat",
+          "expected_leader",
+          "leader_low",
+          "leader_high",
+          "top_projection",
+          "contenders"
+        ],
+        "title": "LeaderboardResponse",
+        "type": "object"
+      },
+      "LeaderboardsResponse": {
+        "properties": {
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardResponse"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "target_season": {
+            "title": "Target Season",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_season",
+          "model_version",
+          "boards"
+        ],
+        "title": "LeaderboardsResponse",
+        "type": "object"
+      },
       "PlayerResponse": {
         "properties": {
           "birth_date": {
@@ -927,6 +1018,93 @@
         ]
       }
     },
+    "/api/v1/leaderboards": {
+      "get": {
+        "description": "Who is likely to lead the league, and with what.\n\nComputed from the stored projections and their uncertainty bands rather than stored itself:\nit is a view of the same rows, and a simulation nobody has to keep in step with them.",
+        "operationId": "leaderboards_api_v1_leaderboards_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Projection model version",
+            "in": "query",
+            "name": "model_version",
+            "required": false,
+            "schema": {
+              "default": "marcel-v8",
+              "description": "Projection model version",
+              "title": "Model Version",
+              "type": "string"
+            }
+          },
+          {
+            "description": "How many contenders to list",
+            "in": "query",
+            "name": "contenders",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "description": "How many contenders to list",
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Contenders",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leaderboards",
+        "tags": [
+          "projections"
+        ]
+      }
+    },
     "/api/v1/players": {
       "get": {
         "operationId": "list_players_api_v1_players_get",
@@ -1107,7 +1285,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v7",
+              "default": "marcel-v8",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1192,7 +1370,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v7",
+              "default": "marcel-v8",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1264,7 +1442,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v7",
+              "default": "marcel-v8",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1349,7 +1527,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v7",
+              "default": "marcel-v8",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
