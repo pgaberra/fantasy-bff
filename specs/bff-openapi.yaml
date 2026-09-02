@@ -1218,6 +1218,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RookiesResponse"
+  /api/v1/players/injuries:
+    get:
+      tags:
+      - Players
+      summary: Who is currently hurt
+      description: "The current injury report for the players a league can roster:\
+        \ status, body part and expected return. Answers known=false when the report\
+        \ cannot be read, which is not the same as nobody being hurt. This describes\
+        \ today and is refreshed nightly, so it is not worth caching for long."
+      operationId: getInjuries
+      responses:
+        "200":
+          description: "Injuries returned, or reported as unknown"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InjuriesResponse"
   /api/v1/players/goalies:
     get:
       tags:
@@ -2858,6 +2875,45 @@ components:
       required:
       - known
       - playerIds
+    InjuriesResponse:
+      type: object
+      properties:
+        known:
+          type: boolean
+          description: "Whether the injury report could be read at all. When false,\
+            \ players is empty and means nothing — hide the marker rather than showing\
+            \ the league as fit."
+        players:
+          type: array
+          description: "One entry per injured player, in the same id space as /api/v1/players/skaters\
+            \ and /goalies."
+          items:
+            $ref: "#/components/schemas/PlayerInjury"
+      required:
+      - known
+      - players
+    PlayerInjury:
+      type: object
+      properties:
+        playerId:
+          type: integer
+          format: int32
+        status:
+          type: string
+          description: "The report's own wording: Out, Injured Reserve, Suspension\
+            \ or Day-To-Day. Day-To-Day usually costs no games."
+        bodyPart:
+          type: string
+          description: "Where he is hurt, as reported: Knee, Upper Body, Undisclosed.\
+            \ Absent when the report gives none."
+        expectedReturn:
+          type: string
+          format: date
+          description: "When he is expected back. A club's guess, so read it as the\
+            \ middle of a range rather than a date. Absent when none is given."
+      required:
+      - playerId
+      - status
     GoalieResponse:
       type: object
       properties:

@@ -322,7 +322,7 @@
         "type": "object"
       },
       "LeaderboardResponse": {
-        "description": "The race for one stat, played out from the projections and their bands.",
+        "description": "The race for one stat: who is likely to win it, and with what.",
         "properties": {
           "contenders": {
             "items": {
@@ -417,6 +417,40 @@
           "full_name": {
             "title": "Full Name",
             "type": "string"
+          },
+          "injury_body_part": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Injury Body Part"
+          },
+          "injury_expected_return": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Injury Expected Return"
+          },
+          "injury_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Injury Status"
           },
           "is_active": {
             "title": "Is Active",
@@ -1040,7 +1074,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v8",
+              "default": "marcel-v9",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1285,7 +1319,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v8",
+              "default": "marcel-v9",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1370,7 +1404,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v8",
+              "default": "marcel-v9",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1442,7 +1476,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v8",
+              "default": "marcel-v9",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
@@ -1527,7 +1561,7 @@
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v8",
+              "default": "marcel-v9",
               "description": "Projection model version",
               "title": "Model Version",
               "type": "string"
