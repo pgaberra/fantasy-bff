@@ -73,6 +73,7 @@ class RookieServiceTest {
                 new PlayerIdMapping(Map.of(), List.of(), 0, 0, 0),
                 Map.<Long, PlayerResponse>of(),
                 Set.of(),
-                rookies));
+                rookies,
+                List.of()));
     }
 }

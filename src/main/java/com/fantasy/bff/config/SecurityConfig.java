@@ -54,6 +54,7 @@ public class SecurityConfig {
                             // open for anyone the player lists already open for.
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/*/headshot").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/rookies").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/players/injuries").permitAll()
                             // A share link has to open for someone who has never signed in — that is
                             // the whole point of it. GET only: publishing and taking a link down stay
                             // with the owner under /api/v1/projections/{id}/share.

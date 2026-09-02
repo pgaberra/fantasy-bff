@@ -1,9 +1,11 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.GoalieResponse;
+import com.fantasy.bff.dto.response.InjuriesResponse;
 import com.fantasy.bff.dto.response.RookiesResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.service.PlayerService;
+import com.fantasy.bff.service.InjuryService;
 import com.fantasy.bff.service.RookieService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,8 +56,11 @@ public class PlayerController {
 
     private final PlayerService playerService;
     private final RookieService rookieService;
+    private final InjuryService injuryService;
 
-    public PlayerController(PlayerService playerService, RookieService rookieService) {
+    public PlayerController(
+            PlayerService playerService, RookieService rookieService, InjuryService injuryService) {
+        this.injuryService = injuryService;
         this.playerService = playerService;
         this.rookieService = rookieService;
     }
@@ -110,6 +115,17 @@ public class PlayerController {
     @ApiResponse(responseCode = "200", description = "Rookies returned, or reported as unknown")
     public ResponseEntity<RookiesResponse> getRookies() {
         return ResponseEntity.ok(rookieService.rookies());
+    }
+
+    @GetMapping("/injuries")
+    @Operation(summary = "Who is currently hurt",
+            description = "The current injury report for the players a league can roster: status, "
+                    + "body part and expected return. Answers known=false when the report cannot "
+                    + "be read, which is not the same as nobody being hurt. This describes today "
+                    + "and is refreshed nightly, so it is not worth caching for long.")
+    @ApiResponse(responseCode = "200", description = "Injuries returned, or reported as unknown")
+    public ResponseEntity<InjuriesResponse> getInjuries() {
+        return ResponseEntity.ok(injuryService.injuries());
     }
 
     @GetMapping(value = "/{playerId}/headshot", produces = MediaType.IMAGE_PNG_VALUE)

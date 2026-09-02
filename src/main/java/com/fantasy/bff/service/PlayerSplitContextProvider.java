@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
+import com.fantasy.bff.dto.response.InjuriesResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
@@ -58,12 +59,16 @@ public class PlayerSplitContextProvider {
      * @param rookies platform ids of players the projection service calls rookies for the season
      *     being projected. Empty when it declined to say — which is not the same as nobody being
      *     one, so callers must be able to tell the two apart.
+     * @param injuries the current injury report, one entry per hurt player. Unlike everything
+     *     else here this describes <b>today</b> rather than a season, so it goes stale with the
+     *     cache: see the ttl this provider is configured with.
      */
     public record Context(
             PlayerIdMapping mapping,
             Map<Long, PlayerResponse> identities,
             Set<Integer> defenceEligible,
-            Optional<Set<Integer>> rookies) {
+            Optional<Set<Integer>> rookies,
+            List<InjuriesResponse.Injury> injuries) {
 
         public Integer platformId(Integer nhlId) {
             return nhlId == null ? null : mapping.nhlIdToPlatformId().get(nhlId.longValue());
@@ -148,7 +153,12 @@ public class PlayerSplitContextProvider {
         }
 
         PlayerIdMapping mapping = resolver.resolve(nhlCandidates, platform, overrides.asMap());
-        return new Context(mapping, identities, defenceEligible, rookies(nhlPlayers, mapping));
+        return new Context(
+                mapping,
+                identities,
+                defenceEligible,
+                rookies(nhlPlayers, mapping),
+                injuries(nhlPlayers, mapping));
     }
 
     /**
@@ -170,5 +180,31 @@ public class PlayerSplitContextProvider {
             }
         }
         return Optional.of(rookies);
+    }
+
+    /**
+     * The injury report, keyed by platform id. A player with no status is simply not on it, and
+     * one the platform does not carry is dropped: there is no row in the app for him to mark.
+     * There is no wholesale unknown here as there is for rookies — an empty report is a real
+     * answer, and the "we could not ask" case is the whole context failing to load.
+     */
+    private static List<InjuriesResponse.Injury> injuries(
+            List<PlayerResponse> nhlPlayers, PlayerIdMapping mapping) {
+        List<InjuriesResponse.Injury> injuries = new ArrayList<>();
+        for (PlayerResponse player : nhlPlayers) {
+            if (player.getInjuryStatus() == null) {
+                continue;
+            }
+            Integer platformId = mapping.nhlIdToPlatformId().get(player.getNhlId().longValue());
+            if (platformId == null) {
+                continue;
+            }
+            injuries.add(new InjuriesResponse.Injury(
+                    platformId,
+                    player.getInjuryStatus(),
+                    player.getInjuryBodyPart(),
+                    player.getInjuryExpectedReturn()));
+        }
+        return injuries;
     }
 }
