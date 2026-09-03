@@ -262,6 +262,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountResponse"
+  /api/v1/account/avatar:
+    get:
+      tags:
+      - Account
+      summary: Fetch the account's profile picture
+      description: "The picture as it was uploaded, served under the type it was checked\
+        \ to be. An account without one gets an empty 204 rather than an error: having\
+        \ no picture is the normal state of a new account, not a failure."
+      operationId: getAvatar
+      responses:
+        "200":
+          description: Picture returned
+          content:
+            image/*:
+              schema:
+                type: string
+                format: byte
+        "204":
+          description: The account has no picture
+          content:
+            image/*:
+              schema:
+                type: string
+                format: byte
+    put:
+      tags:
+      - Account
+      summary: Set the account's profile picture
+      description: "A PNG, JPEG or WebP of at most 512 KB, sent as the `file` part\
+        \ of a multipart form. The app scales the picture down before uploading; what\
+        \ arrives here is stored and served as it is. Replaces any picture the account\
+        \ had."
+      operationId: setAvatar
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        "204":
+          description: Picture set
+        "400":
+          description: "Not a PNG, JPEG or WebP, empty, or larger than 512 KB"
+        "413":
+          description: The upload exceeds the request size limit
+    delete:
+      tags:
+      - Account
+      summary: Remove the account's profile picture
+      operationId: removeAvatar
+      responses:
+        "204":
+          description: "Picture removed, or there was none"
   /api/v1/yahoo/connect:
     post:
       tags:

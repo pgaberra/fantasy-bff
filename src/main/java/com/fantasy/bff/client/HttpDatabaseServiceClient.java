@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.db.model.AvatarResponse;
 import com.fantasy.bff.generated.db.model.CreateEmailVerificationTokenRequest;
 import com.fantasy.bff.generated.db.model.CreatePasswordResetTokenRequest;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
@@ -17,6 +18,7 @@ import com.fantasy.bff.generated.db.model.PasswordResetRequest;
 import com.fantasy.bff.generated.db.model.PasswordResetTokenResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
+import com.fantasy.bff.generated.db.model.SetAvatarRequest;
 import com.fantasy.bff.generated.db.model.SetUsernameRequest;
 import com.fantasy.bff.generated.db.model.ShareResponse;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
@@ -25,6 +27,7 @@ import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
 import com.fantasy.bff.generated.db.model.UserResponse;
 import com.fantasy.bff.generated.db.model.VerifyEmailRequest;
+import com.fantasy.bff.model.downstream.Avatar;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
@@ -236,6 +239,47 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
             throw new IllegalStateException("db-service returned no body when setting the username");
         }
         return toUser(response);
+    }
+
+    @Override
+    public Optional<Avatar> findAvatar(UUID userId) {
+        try {
+            AvatarResponse response = restClient.get()
+                    .uri("/api/v1/users/{userId}/avatar", userId)
+                    .retrieve()
+                    .body(AvatarResponse.class);
+            return Optional.ofNullable(response)
+                    .map(avatar -> new Avatar(avatar.getContentType(), avatar.getData()));
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public void setAvatar(UUID userId, Avatar avatar) {
+        restClient.put()
+                .uri("/api/v1/users/{userId}/avatar", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new SetAvatarRequest().contentType(avatar.contentType()).data(avatar.data()))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
+    public void deleteAvatar(UUID userId) {
+        try {
+            restClient.delete()
+                    .uri("/api/v1/users/{userId}/avatar", userId)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() != 404) {
+                throw e;
+            }
+        }
     }
 
     private static User toUser(UserResponse response) {

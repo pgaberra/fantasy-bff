@@ -12,6 +12,7 @@ import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
+import com.fantasy.bff.model.downstream.Avatar;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
@@ -28,6 +29,15 @@ public interface DatabaseServiceClient {
 
     /** Sets the account's public name. Throws when another account already holds it (409). */
     User setUsername(UUID userId, String username);
+
+    /** The account's profile picture, or empty when it has none. */
+    Optional<Avatar> findAvatar(UUID userId);
+
+    /** Replaces the account's profile picture. The bytes are stored and served as given. */
+    void setAvatar(UUID userId, Avatar avatar);
+
+    /** Removes the account's profile picture; removing one that is not there is not an error. */
+    void deleteAvatar(UUID userId);
 
     User createUser(String email, String passwordHash);
 

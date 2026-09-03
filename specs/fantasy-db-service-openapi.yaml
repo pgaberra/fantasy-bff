@@ -12,6 +12,8 @@ tags:
   description: Single-use email-verification token issuance and consumption
 - name: Password reset
   description: Single-use password reset token issuance and consumption
+- name: User avatars
+  description: The account's profile picture
 - name: Subscriptions
   description: "A user's billing subscription, at most one per user"
 - name: Projection imports
@@ -323,6 +325,88 @@ paths:
           description: Projection deleted
         "404":
           description: No such projection for this user
+  /api/v1/users/{userId}/avatar:
+    get:
+      tags:
+      - User avatars
+      summary: Fetch the account's profile picture
+      operationId: getAvatar
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Avatar returned
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+        "404":
+          description: "The account has no avatar, or there is no such user"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+    put:
+      tags:
+      - User avatars
+      summary: Set the account's profile picture
+      description: Replaces whatever the account had. The caller is trusted to have
+        scaled the image and checked that it is what its content type says.
+      operationId: setAvatar
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvatarRequest"
+        required: true
+      responses:
+        "200":
+          description: Avatar set
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+        "400":
+          description: "Validation failed (content type, or size)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+        "404":
+          description: No such user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+    delete:
+      tags:
+      - User avatars
+      summary: Remove the account's profile picture
+      operationId: deleteAvatar
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Avatar removed
+        "404":
+          description: The account has no avatar
   /api/v1/users:
     get:
       tags:
@@ -1401,6 +1485,41 @@ components:
       - kind
       - name
       - season
+      - updatedAt
+    SetAvatarRequest:
+      type: object
+      properties:
+        contentType:
+          type: string
+          description: "image/png, image/jpeg or image/webp: the type the bytes will\
+            \ be served as"
+          maxLength: 32
+          minLength: 0
+          pattern: ^image/(png|jpeg|webp)$
+        data:
+          type: string
+          format: byte
+          description: "The encoded image, already scaled to the size the app draws;\
+            \ at most 512 KiB"
+          maxLength: 524288
+          minLength: 1
+      required:
+      - contentType
+      - data
+    AvatarResponse:
+      type: object
+      properties:
+        contentType:
+          type: string
+        data:
+          type: string
+          format: byte
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - contentType
+      - data
       - updatedAt
     CreateUserRequest:
       type: object

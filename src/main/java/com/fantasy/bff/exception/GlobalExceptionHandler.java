@@ -8,6 +8,7 @@ import org.apache.catalina.connector.ClientAbortException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.io.EOFException;
@@ -55,6 +57,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorDto> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorDto.of("BAD_REQUEST", ex.getMessage()));
+    }
+
+    /**
+     * A multipart upload past the container's size limit. The app scales a picture down before
+     * uploading it, so this is a hand-built request rather than a fault on our side: a quiet 413,
+     * not the 500 and the ERROR log the catch-all would give it.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorDto> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatusCode.valueOf(413))
+                .body(ErrorDto.of("PAYLOAD_TOO_LARGE", "The upload is larger than allowed"));
     }
 
     @ExceptionHandler(IllegalStateException.class)

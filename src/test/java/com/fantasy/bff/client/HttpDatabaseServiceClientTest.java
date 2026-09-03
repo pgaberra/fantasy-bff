@@ -4,6 +4,7 @@ import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.PlayerIdPair;
 import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
+import com.fantasy.bff.model.downstream.Avatar;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
@@ -20,12 +21,16 @@ import java.util.List;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
+import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,6 +84,56 @@ class HttpDatabaseServiceClientTest {
                 .willReturn(aResponse().withStatus(404)));
 
         assertThat(client.findUserByEmail("missing@b.com")).isEmpty();
+    }
+
+    @Test
+    void findAvatar_decodesTheBytes_on200() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
+                .willReturn(okJson("{\"contentType\":\"image/png\",\"data\":\"AQID\",\"updatedAt\":\"2026-09-03T12:00:00Z\"}")));
+
+        Optional<Avatar> result = client.findAvatar(UUID.fromString(USER_ID));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().contentType()).isEqualTo("image/png");
+        assertThat(result.get().data()).isEqualTo(new byte[]{1, 2, 3});
+    }
+
+    @Test
+    void findAvatar_returnsEmpty_on404() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertThat(client.findAvatar(UUID.fromString(USER_ID))).isEmpty();
+    }
+
+    @Test
+    void setAvatar_putsTheBytesAsBase64WithTheirType() {
+        server.stubFor(put(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
+                .willReturn(okJson("{\"contentType\":\"image/png\",\"data\":\"AQID\",\"updatedAt\":\"2026-09-03T12:00:00Z\"}")));
+
+        client.setAvatar(UUID.fromString(USER_ID), new Avatar("image/png", new byte[]{1, 2, 3}));
+
+        server.verify(putRequestedFor(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
+                .withRequestBody(equalToJson("{\"contentType\":\"image/png\",\"data\":\"AQID\"}")));
+    }
+
+    @Test
+    void deleteAvatar_tolerates404_sinceRemovingNothingIsNotAnError() {
+        server.stubFor(delete(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
+                .willReturn(aResponse().withStatus(404)));
+
+        client.deleteAvatar(UUID.fromString(USER_ID));
+
+        server.verify(deleteRequestedFor(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar")));
+    }
+
+    @Test
+    void deleteAvatar_relaysOtherFailures() {
+        server.stubFor(delete(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
+                .willReturn(aResponse().withStatus(500)));
+
+        assertThatThrownBy(() -> client.deleteAvatar(UUID.fromString(USER_ID)))
+                .isInstanceOf(org.springframework.web.client.RestClientResponseException.class);
     }
 
     @Test
