@@ -70,6 +70,9 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
 
         SkaterProjectionResponse projection = new SkaterProjectionResponse();
         projection.setNhlId(8478402);
+        // Nothing is pinned, so projection-service picks the version and stamps it on the rows.
+        // The response has to report what came back rather than what was configured.
+        projection.setModelVersion("marcel-v14");
         projection.setGamesPlayed(BigDecimal.valueOf(82));
         projection.setGoals(BigDecimal.valueOf(40));
         when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
@@ -115,7 +118,7 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[0].type").value("skater"))
                 .andExpect(jsonPath("$.players[0].stats.scoring.goals").value(40.0))
                 .andExpect(jsonPath("$.skaters").value(1))
-                .andExpect(jsonPath("$.modelVersion").value("marcel-v3"));
+                .andExpect(jsonPath("$.modelVersion").value("marcel-v14"));
     }
 
     @Test

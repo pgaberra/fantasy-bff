@@ -113,6 +113,28 @@
             ],
             "title": "Saves"
           },
+          "saves_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saves High"
+          },
+          "saves_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saves Low"
+          },
           "shots_against": {
             "anyOf": [
               {
@@ -149,6 +171,28 @@
               }
             ],
             "title": "Wins"
+          },
+          "wins_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wins High"
+          },
+          "wins_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wins Low"
           }
         },
         "required": [
@@ -1069,15 +1113,21 @@
             }
           },
           {
-            "description": "Projection model version",
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
             "in": "query",
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v9",
-              "description": "Projection model version",
-              "title": "Model Version",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
             }
           },
           {
@@ -1314,15 +1364,21 @@
             }
           },
           {
-            "description": "Projection model version",
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
             "in": "query",
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v9",
-              "description": "Projection model version",
-              "title": "Model Version",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
             }
           },
           {
@@ -1399,15 +1455,21 @@
             }
           },
           {
-            "description": "Projection model version",
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
             "in": "query",
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v9",
-              "description": "Projection model version",
-              "title": "Model Version",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
             }
           },
           {
@@ -1471,15 +1533,21 @@
             }
           },
           {
-            "description": "Projection model version",
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
             "in": "query",
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v9",
-              "description": "Projection model version",
-              "title": "Model Version",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
             }
           },
           {
@@ -1556,15 +1624,21 @@
             }
           },
           {
-            "description": "Projection model version",
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
             "in": "query",
             "name": "model_version",
             "required": false,
             "schema": {
-              "default": "marcel-v9",
-              "description": "Projection model version",
-              "title": "Model Version",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
             }
           },
           {
