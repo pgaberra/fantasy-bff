@@ -44,16 +44,19 @@ public class ProjectionSeedService {
     private final PlayerPoolSource playerPool;
     private final PlayerIdResolver resolver;
     private final PlayerIdOverrides overrides;
+    private final ProjectionSeedCache cache;
 
     public ProjectionSeedService(
             ProjectionServiceClient projectionServiceClient,
             PlayerPoolSource playerPool,
             PlayerIdResolver resolver,
-            PlayerIdOverrides overrides) {
+            PlayerIdOverrides overrides,
+            ProjectionSeedCache cache) {
         this.projectionServiceClient = projectionServiceClient;
         this.playerPool = playerPool;
         this.resolver = resolver;
         this.overrides = overrides;
+        this.cache = cache;
     }
 
     /**
@@ -86,6 +89,12 @@ public class ProjectionSeedService {
      * the whole board. What they save is sending it: a caller drawing a five-row preview would
      * otherwise download every line to show four of them.
      *
+     * <p>Which is why the full board is what {@link ProjectionSeedCache} holds, and the limits
+     * are applied to what comes back: the preview and the projection it seeds are the same
+     * board, so they share one entry. The rows in it are shared with every other reader and
+     * must not be modified — the list is unmodifiable, the {@code PlayerProjection}s in it are
+     * only read and serialised.
+     *
      * <p>Ordered the way the player pool is, skaters by projected points and goalies by projected
      * wins, so the top of this board is the top of that one. A caller scoring by its own weights
      * will not want exactly these players in exactly this order — ask for enough of them that the
@@ -95,6 +104,28 @@ public class ProjectionSeedService {
      * @param goalieLimit how many goalie lines to return, or null for all of them
      */
     public Seed seed(int season, String modelVersion, Integer skaterLimit, Integer goalieLimit) {
+        Seed whole = cache.get(season, modelVersion).orElseGet(() -> {
+            Seed built = build(season, modelVersion);
+            cache.put(season, modelVersion, built);
+            return built;
+        });
+        if (skaterLimit == null && goalieLimit == null) {
+            return whole;
+        }
+        return new Seed(
+                topOf(whole.players(), skaterLimit, goalieLimit),
+                whole.skatersSeeded(),
+                whole.goaliesSeeded(),
+                whole.unmapped(),
+                whole.withoutWorkload(),
+                whole.retiredZeroed());
+    }
+
+    /**
+     * The whole board, built from the model. Called on a cache miss and nowhere else, so its log
+     * line marks a rebuild rather than a read.
+     */
+    private Seed build(int season, String modelVersion) {
         List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers(null);
         Map<Long, PlayerResponse> byNhlId = nhlPlayers.stream()
                 .collect(Collectors.toMap(p -> p.getNhlId().longValue(), Function.identity(), (a, b) -> a));
@@ -137,8 +168,9 @@ public class ProjectionSeedService {
         int goalies = seeded.size() - skaters;
         int retiredZeroed = seedRetired(seeded, pool);
 
+        // Unmodifiable because it is about to be shared with every reader of this season's seed.
         Seed seed = new Seed(
-                topOf(seeded, skaterLimit, goalieLimit),
+                List.copyOf(seeded),
                 skaters,
                 goalies,
                 unmapped,
