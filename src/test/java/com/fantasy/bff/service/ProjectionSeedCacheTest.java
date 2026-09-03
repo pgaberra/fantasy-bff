@@ -15,7 +15,7 @@ class ProjectionSeedCacheTest {
     private final MovableClock clock = new MovableClock(Instant.parse("2026-09-03T12:00:00Z"));
     private final ProjectionSeedCache cache = new ProjectionSeedCache(clock);
 
-    private static final Seed SEED = new Seed(List.of(), 400, 60, 3, 2, 1);
+    private static final Seed SEED = new Seed(List.of(), "marcel-v3", 400, 60, 3, 2, 1);
 
     @Test
     void handsBackWhatWasPutIn() {

@@ -22,14 +22,20 @@ import org.springframework.stereotype.Component;
  * <p>The seed is the same for everyone: it is the model talking, not a user's own board, so
  * one entry serves every reader. That is also why the entries are keyed by the season and
  * model version they were built from and by nothing else.
+ *
+ * <p>The key is the version **asked for**, which is normally none at all: unpinned,
+ * projection-service serves whichever version it most recently ran, and which one that was is
+ * only known from the rows that come back. So a new run cannot change the key, and the entry
+ * holding the old run's board is dropped by expiry rather than by noticing. That is what the
+ * TTL is for, and what bounds how late a model bump reaches a reader.
  */
 @Component
 public class ProjectionSeedCache {
 
     /**
      * How long a seed is served again before it is rebuilt. The model's lines change only when
-     * the nightly sync re-runs it, so the staleness this can cause is half an hour on one night
-     * a day, against a rebuild on every click of a radio button.
+     * projection-service runs it again, so the staleness this can cause is half an hour on the
+     * night that happens, against a rebuild on every click of a radio button.
      */
     static final Duration TTL = Duration.ofMinutes(30);
 
