@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
@@ -42,7 +44,8 @@ class ProjectionSeedServiceTest {
                 projectionServiceClient,
                 playerPool,
                 new PlayerIdResolver(),
-                new PlayerIdOverrides(""));
+                new PlayerIdOverrides(""),
+                new ProjectionSeedCache());
     }
 
     private static PlayerResponse nhlPlayer(int nhlId, String name, String team, Integer sweater) {
@@ -387,5 +390,78 @@ class ProjectionSeedServiceTest {
         assertThat(seed.players())
                 .extracting(PlayerProjection::getPlayerId)
                 .containsExactly(5001, 5002);
+    }
+
+    /**
+     * The create page asks for a preview every time the AI starting point is picked, and the
+     * limits it passes save no work at all — so the second ask must not repeat a read of every
+     * player and every projection the model has.
+     */
+    @Test
+    @DisplayName("a second reader is served the board the first one built")
+    void buildsTheBoardOnceAndServesItAgain() {
+        stubThreeSkatersAndTwoGoalies();
+
+        service.seed(2026, "marcel-v3", 2, 1);
+        ProjectionSeedService.Seed whole = service.seed(2026, "marcel-v3");
+
+        verify(projectionServiceClient, times(1)).activePlayers(any());
+        verify(projectionServiceClient, times(1)).skaterProjections(anyInt(), anyString());
+        verify(projectionServiceClient, times(1)).goalieProjections(anyInt(), anyString());
+        // Cached whole, so the reader that wants all of it still gets all of it.
+        assertThat(whole.players())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactly(5001, 5002, 5003, 6001, 6002);
+    }
+
+    /** The limits are applied to what the cache hands back, not baked into what it holds. */
+    @Test
+    @DisplayName("a limited read of a cached board still returns the top of it")
+    void limitsApplyToACachedBoard() {
+        stubThreeSkatersAndTwoGoalies();
+
+        service.seed(2026, "marcel-v3");
+        ProjectionSeedService.Seed top = service.seed(2026, "marcel-v3", 2, 1);
+
+        assertThat(top.players())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactly(5002, 5003, 6002);
+        assertThat(top.skatersSeeded()).isEqualTo(3);
+        assertThat(top.goaliesSeeded()).isEqualTo(2);
+    }
+
+    /** A board that is rebuilt every read is one the model has changed under, not one that hasn't. */
+    @Test
+    @DisplayName("a different model version is built rather than read from the last one")
+    void rebuildsForAnotherModelVersion() {
+        stubThreeSkatersAndTwoGoalies();
+
+        service.seed(2026, "marcel-v3");
+        service.seed(2026, "marcel-v4");
+
+        verify(projectionServiceClient, times(2)).activePlayers(any());
+    }
+
+    private void stubThreeSkatersAndTwoGoalies() {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(
+                        nhlPlayer(1, "Low Skater", "TOR", 11),
+                        nhlPlayer(2, "High Skater", "TOR", 12),
+                        nhlPlayer(3, "Mid Skater", "TOR", 13),
+                        nhlPlayer(4, "Low Goalie", "WPG", 31),
+                        nhlPlayer(5, "High Goalie", "WPG", 32)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(
+                        platformSkater(5001, "Low Skater", "TOR"),
+                        platformSkater(5002, "High Skater", "TOR"),
+                        platformSkater(5003, "Mid Skater", "TOR")));
+        when(playerPool.getGoalies())
+                .thenReturn(List.of(
+                        platformGoalie(6001, "Low Goalie", "WPG"),
+                        platformGoalie(6002, "High Goalie", "WPG")));
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(1, 30), skater(2, 90), skater(3, 60)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString()))
+                .thenReturn(List.of(goalie(4, 10), goalie(5, 40)));
     }
 }
