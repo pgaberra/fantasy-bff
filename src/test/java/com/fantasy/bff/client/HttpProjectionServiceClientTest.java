@@ -43,6 +43,38 @@ class HttpProjectionServiceClientTest {
     }
 
     @Test
+    void skaterProjections_leavesTheVersionOutWhenNothingIsPinned() {
+        // Unpinned is the normal setting: projection-service then answers with the season's most
+        // recent run, which is the version that actually has rows. Sending a version we made up
+        // would be asking for rows that may not exist yet.
+        server.stubFor(get(urlPathEqualTo("/api/v1/projections/skaters"))
+                .withQueryParam("season", equalTo("2026"))
+                .withQueryParam("model_version", absent())
+                .willReturn(okJson("""
+                        [{"nhl_id":8478402,"target_season":2026,"model_version":"marcel-v14","goals":51.0}]
+                        """)));
+
+        List<SkaterProjectionResponse> projections = client.skaterProjections(2026, "");
+
+        assertThat(projections).hasSize(1);
+        assertThat(projections.getFirst().getModelVersion()).isEqualTo("marcel-v14");
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/projections/skaters"))
+                .withQueryParam("model_version", absent()));
+    }
+
+    @Test
+    void goalieProjections_leavesTheVersionOutWhenNothingIsPinned() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/projections/goalies"))
+                .withQueryParam("season", equalTo("2026"))
+                .withQueryParam("model_version", absent())
+                .willReturn(okJson("[]")));
+
+        assertThat(client.goalieProjections(2026, null)).isEmpty();
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/projections/goalies"))
+                .withQueryParam("model_version", absent()));
+    }
+
+    @Test
     void skaterProjections_parsesResponseAndSendsQueryParams() {
         server.stubFor(get(urlPathEqualTo("/api/v1/projections/skaters"))
                 .withQueryParam("season", equalTo("2026"))

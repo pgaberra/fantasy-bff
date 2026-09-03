@@ -114,7 +114,9 @@ public class ProjectionModelController {
         return new SeededProjectionResponse(
                 seed.players(),
                 target,
-                defaultModelVersion,
+                // What came back, not what was asked for: with nothing pinned the version is
+                // projection-service's to choose, so echoing the request would be a guess.
+                seed.modelVersion(),
                 seed.skatersSeeded(),
                 seed.goaliesSeeded(),
                 seed.unmapped(),

@@ -51,10 +51,7 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     @Override
     public List<SkaterProjectionResponse> skaterProjections(int season, String modelVersion) {
         return restClient.get()
-                .uri(b -> b.path("/api/v1/projections/skaters")
-                        .queryParam("season", season)
-                        .queryParam("model_version", modelVersion)
-                        .build())
+                .uri(b -> version(b.path("/api/v1/projections/skaters").queryParam("season", season), modelVersion))
                 .retrieve()
                 .body(SKATER_LIST);
     }
@@ -62,12 +59,23 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     @Override
     public List<GoalieProjectionResponse> goalieProjections(int season, String modelVersion) {
         return restClient.get()
-                .uri(b -> b.path("/api/v1/projections/goalies")
-                        .queryParam("season", season)
-                        .queryParam("model_version", modelVersion)
-                        .build())
+                .uri(b -> version(b.path("/api/v1/projections/goalies").queryParam("season", season), modelVersion))
                 .retrieve()
                 .body(GOALIE_LIST);
+    }
+
+    /**
+     * Sends {@code model_version} only when one is pinned. Left off, projection-service answers
+     * with the season's most recent run, which is the version that actually has rows: the model
+     * version the code carries changes the moment it deploys, but its rows do not exist until a
+     * projection run writes them. Asking for a named version is the rollback path, not the
+     * everyday one.
+     */
+    private static URI version(UriBuilder builder, String modelVersion) {
+        if (modelVersion != null && !modelVersion.isBlank()) {
+            builder.queryParam("model_version", modelVersion);
+        }
+        return builder.build();
     }
 
     @Override

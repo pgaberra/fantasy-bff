@@ -58,6 +58,9 @@ public class ProjectionSeedService {
 
     /**
      * @param players the seeded lines, keyed by platform player id
+     * @param modelVersion the version the rows actually came back stamped with, which is not
+     *     necessarily the one asked for: with nothing pinned, projection-service picks the
+     *     season's most recent run and says so on every row
      * @param skatersSeeded how many skaters made it through
      * @param goaliesSeeded how many goalies made it through
      * @param unmapped players the model projected that the platform doesn't carry
@@ -66,6 +69,7 @@ public class ProjectionSeedService {
      */
     public record Seed(
             List<PlayerProjection> players,
+            String modelVersion,
             int skatersSeeded,
             int goaliesSeeded,
             int unmapped,
@@ -108,8 +112,13 @@ public class ProjectionSeedService {
         List<PlayerProjection> seeded = new ArrayList<>();
         int unmapped = 0;
         int withoutWorkload = 0;
+        // What we asked for, until a row tells us otherwise. Unpinned, the version is the
+        // service's to choose, and the only honest way to report it is to read it off what came
+        // back rather than to echo the request.
+        String servedVersion = modelVersion;
 
         for (SkaterProjectionResponse projection : projectionServiceClient.skaterProjections(season, modelVersion)) {
+            servedVersion = stampedOr(projection.getModelVersion(), servedVersion);
             Integer platformId = mapping.nhlIdToPlatformId().get(projection.getNhlId().longValue());
             if (platformId == null) {
                 unmapped++;
@@ -120,6 +129,7 @@ public class ProjectionSeedService {
         int skaters = seeded.size();
 
         for (GoalieProjectionResponse projection : projectionServiceClient.goalieProjections(season, modelVersion)) {
+            servedVersion = stampedOr(projection.getModelVersion(), servedVersion);
             Integer platformId = mapping.nhlIdToPlatformId().get(projection.getNhlId().longValue());
             if (platformId == null) {
                 unmapped++;
@@ -139,6 +149,7 @@ public class ProjectionSeedService {
 
         Seed seed = new Seed(
                 topOf(seeded, skaterLimit, goalieLimit),
+                servedVersion,
                 skaters,
                 goalies,
                 unmapped,
@@ -150,7 +161,7 @@ public class ProjectionSeedService {
                         + "Player pool: {}",
                 seeded.size(),
                 season,
-                forLog(modelVersion),
+                forLog(servedVersion),
                 seed.skatersSeeded(),
                 seed.goaliesSeeded(),
                 seed.unmapped(),
@@ -370,6 +381,11 @@ public class ProjectionSeedService {
      * The model version reaches us from the caller, so it is stripped of line breaks before it
      * reaches the log — otherwise a crafted value could forge log lines around it.
      */
+    /** The version a row was stamped with, keeping what we had if a row does not carry one. */
+    private static String stampedOr(String stamped, String fallback) {
+        return stamped == null || stamped.isBlank() ? fallback : stamped;
+    }
+
     private static String forLog(String value) {
         return value == null ? "" : value.replaceAll("[\r\n]", "");
     }

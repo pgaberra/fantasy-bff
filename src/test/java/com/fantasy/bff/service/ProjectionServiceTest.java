@@ -336,7 +336,7 @@ class ProjectionServiceTest {
         projected.setPlayerId(4242);
         projected.setType(PlayerProjection.TypeEnum.SKATER);
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), 1, 0, 0, 0, 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
@@ -384,7 +384,7 @@ class ProjectionServiceTest {
         // The reconciler reads the player pool, not the model, so it cannot answer that here —
         // and storing last_season would be a lie the next reconciliation acts on.
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(), 0, 0, 0, 0, 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
@@ -397,7 +397,7 @@ class ProjectionServiceTest {
     @DisplayName("a preset draft may be started from the model, and is named for it")
     void presetDraftFromModel_isNamedForThePreset() {
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(), 0, 0, 0, 0, 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(
