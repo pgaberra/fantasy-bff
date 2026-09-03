@@ -90,11 +90,18 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     Java2D from the same snapshot the page shows — which is why the runtime image installs
     `fontconfig` and a font: without them Java2D renders every glyph as a box instead of
     failing, so it would only surface when someone looked at a preview.
-  - `AccountController` — the signed-in account itself: `GET /api/v1/account` and
-    `PUT /api/v1/account/username`. `AccountResponse` is deliberately thinner than what
+  - `AccountController` — the signed-in account itself: `GET /api/v1/account`,
+    `PUT /api/v1/account/username`, and the profile picture under `/api/v1/account/avatar`
+    (`GET` serves the bytes, or an empty 204 for an account without one; `PUT` takes a
+    multipart `file`; `DELETE`). `AccountResponse` is deliberately thinner than what
     db-service returns to its trusted caller — the password hash and social subject ids stop
     here. Sharing a projection requires a username, so the share endpoints relay db-service's
-    409 when an account has not picked one.
+    409 when an account has not picked one. The picture goes through `AvatarService`, the one
+    place user-supplied bytes enter to be served back out as an image: it reads the file's own
+    magic bytes (PNG, JPEG or WebP; never an SVG, which can carry scripts) and caps it at 512 KB,
+    then hands db-service the bytes with the type it found, not the one the upload claimed. The
+    web scales the picture down before uploading, so a real upload is a few tens of KB;
+    `spring.servlet.multipart` bounds the request itself at 1 MB.
   - `BillingController` — `/api/v1/billing`: checkout, the customer portal, the current
     entitlement, and the provider's webhook. Billing **state** lives in db-service; the BFF
     stays stateless and only relays. Everything goes through the `payments/`
