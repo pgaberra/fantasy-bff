@@ -106,7 +106,11 @@ services:
     # Season the model projects, as a start year: 2026 is the 2026-27 season. Game-range
     # splits default to the season before it, since that is the one with games played.
     season: ${PROJECTION_SEASON:2026}
-    model-version: ${PROJECTION_MODEL_VERSION:marcel-v3}
+    # Which model version to read. Empty is the normal setting and means "whichever version
+    # projection-service most recently ran for the season" — a model bump then reaches users
+    # when its rows land, with nothing to set by hand. Naming a version pins it, which is the
+    # rollback path.
+    model-version: ${PROJECTION_MODEL_VERSION:}
     # Manual NHL id → platform id pairs ("8480012:5432,8471234:9876"), for the handful of
     # players name matching cannot reach: shared name + team + jersey number, unrecognisable
     # transliterations, or an ambiguous last-name-and-initial. Non-secret, and normally empty —

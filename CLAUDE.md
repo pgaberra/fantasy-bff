@@ -213,6 +213,15 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     players). `ProjectionSeedService` and `PlayerSplitService` sit on top of it — the seed side
     also refuses to fill an absent stat with a zero, which would read as a terrible goalie
     rather than one the model projects no starts for.
+  - **Which model version the seed reads is not ours to decide.**
+    `PROJECTION_MODEL_VERSION` is empty by default, and empty means "whichever version
+    projection-service most recently ran for the season". It used to name a version, and that
+    made every model bump a manual step here: nothing enforced it, nothing alarmed when it was
+    missed, and the BFF simply went on serving the old version's rows, which are still in the
+    projection database because a run only clears stale rows within its own version. Naming a
+    version still pins it, which is the rollback path. The version in `SeededProjectionResponse`
+    is read off the rows that came back rather than echoed from config, since unpinned we do not
+    know it until we see it.
   - `PlayerPoolRows` — the player read model as projection rows, either keeping each player's
     stats or zeroed. The one place rows are built, so a player added to a projection a season
     after it was written carries exactly the stat keys of the ones created alongside it.
