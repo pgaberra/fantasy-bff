@@ -39,12 +39,12 @@ public class ProjectionModelController {
 
     /**
      * The stretch a free account may measure, in team game numbers. Every NHL season is the same
-     * 82 games, so "the last ten" is games 73-82 for every team in every season — the same
+     * 82 games, so "the last five" is games 78-82 for every team in every season — the same
      * constant the web resolves its presets against, and the reason this needs no lookup.
      */
     private static final int SEASON_SCHEDULE_GAMES = 82;
 
-    private static final int FREE_RANGE_LENGTH = 10;
+    private static final int FREE_RANGE_LENGTH = 5;
 
     private static final int FIRST_FREE_GAME = SEASON_SCHEDULE_GAMES - FREE_RANGE_LENGTH + 1;
 
@@ -131,7 +131,7 @@ public class ProjectionModelController {
                             + "range covers the same stretch for every player; one who missed some "
                             + "of them shows fewer games. Give either fromGame/toGame or lastGames; "
                             + "with neither, the whole season is covered. Reading further back than "
-                            + "the last 10 games needs a premium subscription.")
+                            + "the last 5 games needs a premium subscription.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Totals over the range, highest scoring first"),
             @ApiResponse(responseCode = "403", description = "The range needs premium and this account has none")
@@ -163,7 +163,7 @@ public class ProjectionModelController {
 
     @Operation(
             summary = "Goalies' measured totals over a range of a season's games",
-            description = "Reading further back than the last 10 games needs a premium subscription.")
+            description = "Reading further back than the last 5 games needs a premium subscription.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Totals over the range"),
             @ApiResponse(responseCode = "403", description = "The range needs premium and this account has none")
@@ -202,7 +202,7 @@ public class ProjectionModelController {
     /**
      * Whether the range asks for nothing a free account cannot already see. A shorter window
      * inside the free one passes: it reveals no game the account is not entitled to, and holding
-     * it to exactly ten would turn every off-by-one between client and server into a refusal.
+     * it to exactly five would turn every off-by-one between client and server into a refusal.
      *
      * <p>An open range means the whole season, which is not it.
      */
