@@ -109,6 +109,12 @@ public class BillingController {
         requireEnabled();
         WebhookEvent event = paymentProvider.parseAndVerify(rawBody, headers);
         SubscriptionSnapshot snapshot = event.subscription();
+        // A verified event that says nothing about a subscription is acknowledged and dropped.
+        // Providers let you subscribe to more than we model, and they retry anything we answer
+        // with an error, so a 200 here is what stops an uninteresting event coming back forever.
+        if (snapshot == null) {
+            return;
+        }
         UpsertSubscriptionRequest request = new UpsertSubscriptionRequest()
                 .provider(paymentProvider.id())
                 .providerCustomerId(snapshot.providerCustomerId())

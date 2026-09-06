@@ -912,6 +912,7 @@ components:
           - trialing
           - past_due
           - canceled
+          - paused
           - unpaid
           - incomplete
         currentPeriodEnd:
@@ -942,6 +943,7 @@ components:
           - trialing
           - past_due
           - canceled
+          - paused
           - unpaid
           - incomplete
         currentPeriodEnd:
