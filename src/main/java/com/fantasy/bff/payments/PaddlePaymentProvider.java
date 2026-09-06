@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -15,6 +16,7 @@ import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Paddle Billing as the payment provider.
@@ -71,11 +73,11 @@ public class PaddlePaymentProvider implements PaymentProvider {
             body.put("checkout", Map.of("url", checkoutUrl));
         }
 
-        JsonNode response = paddleClient.post()
+        JsonNode response = call("create a checkout", () -> paddleClient.post()
                 .uri("/transactions")
                 .body(body)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(JsonNode.class));
 
         String url = path(response, "data", "checkout", "url");
         if (!StringUtils.hasText(url)) {
@@ -86,11 +88,11 @@ public class PaddlePaymentProvider implements PaymentProvider {
 
     @Override
     public PortalSession createPortalSession(PortalRequest request) {
-        JsonNode response = paddleClient.post()
+        JsonNode response = call("open the billing portal", () -> paddleClient.post()
                 .uri("/customers/{customerId}/portal-sessions", request.providerCustomerId())
                 .body(Map.of())
                 .retrieve()
-                .body(JsonNode.class);
+                .body(JsonNode.class));
 
         String url = path(response, "data", "urls", "general", "overview");
         if (!StringUtils.hasText(url)) {
@@ -140,6 +142,29 @@ public class PaddlePaymentProvider implements PaymentProvider {
                 cancelScheduled(data));
 
         return new WebhookEvent(text(event.get("event_id")), occurredAt, eventType(eventType), snapshot);
+    }
+
+    /**
+     * Runs a Paddle call and turns any error response into a fault on our side.
+     *
+     * <p>The advice relays a downstream 400, 404 or 409 to the browser, which is right for our
+     * own services: a 409 from db-service really is a verdict about what the user asked for.
+     * Paddle is not that kind of downstream. It answers about <em>our</em> request, so its 4xx
+     * means our key, our payload or our account configuration is wrong, and relaying it tells
+     * the user to try again at something that will never work while logging it as an expected
+     * client outcome, where nothing alerts on it. A checkout that could not be created because
+     * no default payment link was set reached a real user exactly that way.
+     *
+     * <p>{@link IllegalStateException} is what the rest of this class already throws for its own
+     * faults, and the advice answers it with 502 and an ERROR log, so Paddle's own message
+     * reaches the logs through the cause while the caller is told only that we failed.
+     */
+    private static JsonNode call(String what, Supplier<JsonNode> paddleCall) {
+        try {
+            return paddleCall.get();
+        } catch (RestClientResponseException e) {
+            throw new IllegalStateException("Paddle refused to " + what, e);
+        }
     }
 
     /**

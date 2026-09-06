@@ -3,6 +3,7 @@ package com.fantasy.bff.payments;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class PaddlePaymentProviderTest {
@@ -171,6 +173,43 @@ class PaddlePaymentProviderTest {
         assertThatThrownBy(() -> provider.parseAndVerify(body, signedHeaders(body, NOW)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("user_id");
+    }
+
+    /**
+     * Paddle answers about *our* request, not the user's, so a 400 from them means our key,
+     * payload or account configuration is wrong. Relayed as a 400 it would tell the user to
+     * retry something that cannot work, and log as an expected client outcome that nothing
+     * alerts on. IllegalStateException is what the advice turns into a 502 with an ERROR log.
+     */
+    @Test
+    void aRejectionFromPaddleIsOurFaultNotTheCallers() {
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions"))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"error":{"code":"transaction_default_checkout_url_not_set",
+                                 "detail":"No default payment link has been set for this account."}}"""));
+
+        assertThatThrownBy(() -> provider.createCheckoutSession(
+                new CheckoutRequest(USER_ID, "https://slapstat.test/account", "https://slapstat.test/pricing")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("create a checkout")
+                // The caller is told only that we failed. Paddle's own words, which name our
+                // account configuration, reach the log through the cause and go no further.
+                .hasMessageNotContaining("transaction_default_checkout_url_not_set")
+                .cause()
+                .hasMessageContaining("transaction_default_checkout_url_not_set");
+    }
+
+    @Test
+    void aRejectedPortalSessionIsOurFaultToo() {
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/customers/ctm_1/portal-sessions"))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"code\":\"forbidden\"}}"));
+
+        assertThatThrownBy(() -> provider.createPortalSession(
+                new PortalRequest(USER_ID, "ctm_1", "https://slapstat.test/account")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("open the billing portal");
     }
 
     private static byte[] subscriptionEvent(String eventType, String status, String scheduledAction) {
