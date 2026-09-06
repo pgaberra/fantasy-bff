@@ -17,6 +17,14 @@ public record GoalieResponse(
                 Integer sweaterNumber,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
+    /**
+     * The same goalie on a different club. The pool's own label is a sync snapshot, so
+     * {@code PlayerService} replaces it with the club the NHL lists him on today.
+     */
+    public GoalieResponse withTeamAbbrev(String team) {
+        return new GoalieResponse(id, name, team, headshot, sweaterNumber, stats);
+    }
+
     @Schema(name = "GoalieStats")
     public record Stats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,

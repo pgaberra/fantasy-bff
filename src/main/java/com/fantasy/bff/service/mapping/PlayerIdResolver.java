@@ -52,14 +52,24 @@ public class PlayerIdResolver {
     private static final Logger log = LoggerFactory.getLogger(PlayerIdResolver.class);
 
     /**
-     * The platforms abbreviate a handful of teams differently from the NHL. Only used for tie
-     * breaks, but a tie break that compared {@code TBL} against {@code TB} would never fire.
+     * The platforms abbreviate a handful of teams differently from the NHL. Started as a tie
+     * break aid — one that compared {@code TBL} against {@code TB} would never fire — and is now
+     * also how an NHL team reaches the app, since the pool serves the platform's spelling and a
+     * label in the other vocabulary would fall out of the team filter.
      */
     private static final Map<String, String> TEAM_ALIASES = Map.of(
             "TBL", "TB",
             "LAK", "LA",
             "SJS", "SJ",
             "NJD", "NJ");
+
+    /**
+     * An NHL team abbreviation in the platform's vocabulary. The two agree on twenty-eight of
+     * the thirty-two clubs; this is the other four. Null in, null out.
+     */
+    public static String platformTeam(String nhlTeam) {
+        return nhlTeam == null ? null : TEAM_ALIASES.getOrDefault(nhlTeam, nhlTeam);
+    }
 
     /** One player on either side, reduced to what matching needs. */
     public record Candidate(long id, String name, String team, Integer sweaterNumber) {}
@@ -292,8 +302,7 @@ public class PlayerIdResolver {
         if (nhlTeam == null || platformTeam == null) {
             return false;
         }
-        String normalised = TEAM_ALIASES.getOrDefault(nhlTeam, nhlTeam);
-        return normalised.equalsIgnoreCase(platformTeam);
+        return platformTeam(nhlTeam).equalsIgnoreCase(platformTeam);
     }
 
     private Map<String, List<Candidate>> index(

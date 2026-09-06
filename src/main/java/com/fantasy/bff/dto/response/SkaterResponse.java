@@ -20,6 +20,14 @@ public record SkaterResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Set<SkaterPosition> positions,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Stats stats
 ) {
+    /**
+     * The same skater on a different club. The pool's own label is a sync snapshot, so
+     * {@code PlayerService} replaces it with the club the NHL lists him on today.
+     */
+    public SkaterResponse withTeamAbbrev(String team) {
+        return new SkaterResponse(id, name, team, headshot, sweaterNumber, positions, stats);
+    }
+
     @Schema(name = "SkaterStats")
     public record Stats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,
