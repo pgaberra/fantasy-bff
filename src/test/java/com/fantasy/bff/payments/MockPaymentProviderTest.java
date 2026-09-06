@@ -17,10 +17,10 @@ class MockPaymentProviderTest {
     private static final String SELF = "http://localhost:8080";
 
     private final MockBillingCodec codec = new MockBillingCodec(
-            new PaymentsProperties(true, "mock", new PaymentsProperties.Mock(SECRET, SELF)));
+            new PaymentsProperties(true, "mock", new PaymentsProperties.Mock(SECRET, SELF), null));
     private final ObjectMapper objectMapper = JsonMapper.builder().build();
     private final MockPaymentProvider provider = new MockPaymentProvider(codec, objectMapper,
-            new PaymentsProperties(true, "mock", new PaymentsProperties.Mock(SECRET, SELF)));
+            new PaymentsProperties(true, "mock", new PaymentsProperties.Mock(SECRET, SELF), null));
 
     @Test
     void createCheckoutSession_returnsSignedStubUrlCarryingUserId() {

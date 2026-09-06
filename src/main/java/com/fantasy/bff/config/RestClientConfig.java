@@ -116,6 +116,24 @@ public class RestClientConfig {
         return buildRestClientBuilder(baseUrl, timeoutMs).build();
     }
 
+    /**
+     * Paddle Billing's API, when Paddle is the active payment provider. Unlike every other client
+     * here this one leaves the cluster, so it is bearer-authenticated rather than carrying the
+     * internal key, and it is pointed at Paddle's sandbox or live host by configuration - the two
+     * are separate accounts with separate keys, and mixing them is the easy mistake to make.
+     */
+    @Bean
+    public RestClient paddleApiClient(
+            @Value("${payments.paddle.api-base-url:https://sandbox-api.paddle.com}") String baseUrl,
+            @Value("${payments.paddle.timeout-ms:10000}") int timeoutMs,
+            @Value("${payments.paddle.api-key:}") String apiKey) {
+        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey);
+        }
+        return builder.build();
+    }
+
     private RestClient.Builder buildRestClientBuilder(String baseUrl, int timeoutMs) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(timeoutMs))

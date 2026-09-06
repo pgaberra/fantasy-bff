@@ -105,14 +105,25 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `BillingController` — `/api/v1/billing`: checkout, the customer portal, the current
     entitlement, and the provider's webhook. Billing **state** lives in db-service; the BFF
     stays stateless and only relays. Everything goes through the `payments/`
-    `PaymentProvider` interface, so a real provider (Stripe, Paddle) drops in as another
-    implementation without touching this controller, the db-service contract or the web —
-    `MockPaymentProvider` drives the whole lifecycle locally. Two things to know before
-    changing it: every mutating endpoint **404s unless `payments.enabled`** (and
-    `/entitlements` answers "no premium" rather than failing, so the web renders the same
-    either way), and the **webhook is `permitAll`** — the provider calls it unauthenticated,
-    so its only defence is the signature `parseAndVerify` checks over the *raw* body. Take
-    the body as `byte[]`: re-serializing it would change the bytes the signature covers.
+    `PaymentProvider` interface, so which provider is live is a `payments.provider` config
+    change and nothing else — `MockPaymentProvider` drives the whole lifecycle locally,
+    `PaddlePaymentProvider` is the real one. Three things to know before changing it: every
+    mutating endpoint **404s unless `payments.enabled`** (and `/entitlements` answers "no
+    premium" rather than failing, so the web renders the same either way); the **webhook is
+    `permitAll`** — the provider calls it unauthenticated, so its only defence is the
+    signature `parseAndVerify` checks over the *raw* body, and the body stays `byte[]` the
+    whole way down because re-serializing it would change the bytes the signature covers;
+    and a verified event with **no subscription snapshot is acknowledged and dropped**, since
+    a provider sends more event types than we model and retries anything we answer with an
+    error.
+  - `payments/PaddlePaymentProvider` — Paddle Billing. Two things about it are Paddle's shape
+    rather than ours. Its checkout URL points back at **our own** `/pay` page with `?_ptxn=`
+    appended (Paddle's fully hosted checkout is for mobile apps only), and the user is carried
+    through Paddle in the transaction's `custom_data`, which Paddle copies onto the created
+    subscription and then onto every renewal — that, not a customer record kept in step, is
+    how a webhook names the user it belongs to. `PaddleSignatureVerifier` checks the
+    `Paddle-Signature` header, which signs `<timestamp>:<raw body>`; it bounds the timestamp's
+    age too, because a signature on its own stays valid forever and could be replayed.
   - `ProjectionModelController` — `/api/v1/projection-model`: the projection service's output
     made usable here. `/seed` returns model lines keyed by *this* platform's player id, ready
     to save as a new projection — deliberately without scoring settings, which belong to the

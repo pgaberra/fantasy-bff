@@ -142,6 +142,24 @@ payments:
     # Base URL the mock uses to build its stub URLs and to self-POST the webhook. Locally the
     # BFF's own origin; on Coolify the bff service's Docker network alias.
     self-base-url: ${PAYMENTS_MOCK_SELF_BASE_URL:http://localhost:8080}
+  paddle:
+    # Paddle's API host. Sandbox and live are separate accounts with separate keys, so this
+    # moves with the key rather than being derived from the Spring profile.
+    api-base-url: ${PADDLE_API_BASE_URL:https://sandbox-api.paddle.com}
+    timeout-ms: ${PADDLE_TIMEOUT_MS:10000}
+    # Server-side API key. No default (env only), like every other secret.
+    api-key: ${PADDLE_API_KEY:}
+    # Secret for the notification destination, used to verify the Paddle-Signature header.
+    webhook-secret: ${PADDLE_WEBHOOK_SECRET:}
+    # The recurring price a checkout subscribes to, from the Paddle catalog (pri_...).
+    price-id: ${PADDLE_PRICE_ID:}
+    # The page on our own site that hosts Paddle's checkout; Paddle appends ?_ptxn=<id> to it.
+    # Blank falls back to the default payment link configured in Paddle's dashboard.
+    checkout-url: ${PADDLE_CHECKOUT_URL:}
+    # How stale a webhook's own timestamp may be before we treat it as a replay. Paddle's SDKs
+    # default to five seconds, which ordinary clock drift trips; five minutes still bounds a
+    # replay without rejecting genuine events.
+    signature-tolerance-seconds: ${PADDLE_SIGNATURE_TOLERANCE_SECONDS:300}
 
 security:
   permitted-urls:
