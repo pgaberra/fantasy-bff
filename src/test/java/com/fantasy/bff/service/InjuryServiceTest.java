@@ -73,6 +73,7 @@ class InjuryServiceTest {
                 Map.<Long, PlayerResponse>of(),
                 Set.of(),
                 Optional.of(Set.of()),
-                injuries));
+                injuries,
+                Map.of()));
     }
 }

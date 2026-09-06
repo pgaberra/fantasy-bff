@@ -58,7 +58,8 @@ class PlayerSplitServiceTest {
                 Map.of((long) NHL_ID, identity),
                 defenceEligible,
                 Optional.empty(),
-                List.of()));
+                List.of(),
+                Map.of()));
     }
 
     private Map<String, Double> skaterStats() {
@@ -134,7 +135,8 @@ class PlayerSplitServiceTest {
         when(contextProvider.context()).thenReturn(new PlayerSplitContextProvider.Context(
                 new PlayerIdMapping(Map.of(), List.of(), 0, 0, 0), Map.of(), Set.of(),
                 Optional.empty(),
-                List.of()));
+                List.of(),
+                Map.of()));
         when(projectionServiceClient.skaterSplits(anyInt(), any(), anyInt()))
                 .thenReturn(List.of(skater()));
 

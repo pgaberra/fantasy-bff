@@ -62,13 +62,18 @@ public class PlayerSplitContextProvider {
      * @param injuries the current injury report, one entry per hurt player. Unlike everything
      *     else here this describes <b>today</b> rather than a season, so it goes stale with the
      *     cache: see the ttl this provider is configured with.
+     * @param currentTeams the club each player is on today, keyed by platform id and spelled the
+     *     way the platform spells it. Also a description of <b>today</b> rather than of a season.
+     *     Only players the NHL side has a team for appear, so a missing entry means "no better
+     *     answer than the pool's own", never "no team".
      */
     public record Context(
             PlayerIdMapping mapping,
             Map<Long, PlayerResponse> identities,
             Set<Integer> defenceEligible,
             Optional<Set<Integer>> rookies,
-            List<InjuriesResponse.Injury> injuries) {
+            List<InjuriesResponse.Injury> injuries,
+            Map<Integer, String> currentTeams) {
 
         public Integer platformId(Integer nhlId) {
             return nhlId == null ? null : mapping.nhlIdToPlatformId().get(nhlId.longValue());
@@ -88,6 +93,12 @@ public class PlayerSplitContextProvider {
     private final Duration ttl;
     private final int season;
     private final AtomicReference<Cached> cache = new AtomicReference<>();
+    /**
+     * When a cold build may be attempted again. Without it an unreachable upstream is retried on
+     * every single request, and the player pool asks on each one now too — so the outage would
+     * put a downstream timeout in front of the whole app rather than in front of one feature.
+     */
+    private final AtomicReference<Instant> coldRetryAt = new AtomicReference<>(Instant.MIN);
 
     public PlayerSplitContextProvider(
             ProjectionServiceClient projectionServiceClient,
@@ -109,6 +120,11 @@ public class PlayerSplitContextProvider {
         if (cached != null && Instant.now().isBefore(cached.expiresAt())) {
             return cached.context();
         }
+        if (cached == null && Instant.now().isBefore(coldRetryAt.get())) {
+            // Already tried and failed a moment ago. Failing here costs the caller the same 502
+            // it was going to get, without a second timeout to arrive at it.
+            throw new IllegalStateException("The player id mapping is unavailable");
+        }
         try {
             Context refreshed = load();
             cache.set(new Cached(refreshed, Instant.now().plus(ttl)));
@@ -117,11 +133,31 @@ public class PlayerSplitContextProvider {
             if (cached == null) {
                 // Nothing to fall back to, so the caller has to hear about it — an empty mapping
                 // would render as "no players were hot", which is a lie about the data.
+                coldRetryAt.set(Instant.now().plus(RETRY_AFTER_FAILURE));
                 throw new IllegalStateException("Failed to build the player id mapping", e);
             }
             log.error("Failed to refresh the player id mapping; serving the previous one", e);
             cache.set(new Cached(cached.context(), Instant.now().plus(RETRY_AFTER_FAILURE)));
             return cached.context();
+        }
+    }
+
+    /**
+     * The club each player is on today, keyed by platform id, or empty when the model cannot be
+     * reached to say.
+     *
+     * <p>Empty rather than raising, which is the difference between this and {@link #context()}.
+     * Who's hot has nothing to show without the mapping, so it is right for that to fail loudly.
+     * The player pool is the app's spine and it already carries a team for every player — an
+     * older one, from the platform's last sync. Losing the correction costs freshness; losing
+     * the pool costs everything.
+     */
+    public Map<Integer, String> currentTeams() {
+        try {
+            return context().currentTeams();
+        } catch (RuntimeException e) {
+            log.error("Could not read current teams from the model; serving the pool's own", e);
+            return Map.of();
         }
     }
 
@@ -158,7 +194,32 @@ public class PlayerSplitContextProvider {
                 identities,
                 defenceEligible,
                 rookies(nhlPlayers, mapping),
-                injuries(nhlPlayers, mapping));
+                injuries(nhlPlayers, mapping),
+                currentTeams(nhlPlayers, mapping));
+    }
+
+    /**
+     * Which club each player is on now, from the NHL side, keyed by platform id.
+     *
+     * <p>Note that the candidates above are built from the pool's own team and not from this.
+     * The resolver uses team to break a tie between namesakes, and feeding it a team derived
+     * from its own output would be circular — it would make "same team" true by construction
+     * for exactly the players a tie break needs it to discriminate on.
+     */
+    private static Map<Integer, String> currentTeams(
+            List<PlayerResponse> nhlPlayers, PlayerIdMapping mapping) {
+        Map<Integer, String> teams = new HashMap<>();
+        for (PlayerResponse player : nhlPlayers) {
+            String team = PlayerIdResolver.platformTeam(player.getCurrentTeam());
+            if (team == null || team.isBlank()) {
+                continue;
+            }
+            Integer platformId = mapping.nhlIdToPlatformId().get(player.getNhlId().longValue());
+            if (platformId != null) {
+                teams.put(platformId, team);
+            }
+        }
+        return teams;
     }
 
     /**

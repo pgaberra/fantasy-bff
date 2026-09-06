@@ -74,6 +74,7 @@ class RookieServiceTest {
                 Map.<Long, PlayerResponse>of(),
                 Set.of(),
                 rookies,
-                List.of()));
+                List.of(),
+                Map.of()));
     }
 }

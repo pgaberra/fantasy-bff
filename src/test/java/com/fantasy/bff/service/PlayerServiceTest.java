@@ -16,12 +16,14 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,11 +34,21 @@ class PlayerServiceTest {
     @Mock
     private PlayerPoolSource playerPool;
 
+    @Mock
+    private PlayerSplitContextProvider playerContext;
+
     private PlayerService playerService;
 
     @BeforeEach
     void setUp() {
-        playerService = new PlayerService(playerPool, new HeadshotCache());
+        // The model knows no better by default, so every existing case sees the pool untouched.
+        lenient().when(playerContext.currentTeams()).thenReturn(Map.of());
+        playerService = new PlayerService(playerPool, new HeadshotCache(), playerContext);
+    }
+
+    /** What the model would say, keyed by the platform id the pool uses. */
+    private void modelSays(Map<Integer, String> teams) {
+        when(playerContext.currentTeams()).thenReturn(teams);
     }
 
     private static SkaterResponse mcDavid() {
@@ -262,5 +274,87 @@ class PlayerServiceTest {
         assertThatThrownBy(() -> playerService.getHeadshot(1))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to retrieve a headshot from player service");
+    }
+
+    // The pool's team is whatever its platform held at its last sync. The projection service
+    // follows the NHL daily, so where the two disagree the model is the one that is current.
+
+    @Test
+    void getSkaters_movesASkaterToTheTeamTheModelHasHimOn() {
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
+        modelSays(Map.of(1, "FLA"));
+
+        assertThat(playerService.getSkaters()).singleElement()
+                .satisfies(skater -> assertThat(skater.teamAbbrev()).isEqualTo("FLA"));
+    }
+
+    @Test
+    void getGoalies_movesAGoalieToTheTeamTheModelHasHimOn() {
+        when(playerPool.getGoalies(nullable(Integer.class))).thenReturn(List.of(shesterkin()));
+        modelSays(Map.of(101, "FLA"));
+
+        assertThat(playerService.getGoalies()).singleElement()
+                .satisfies(goalie -> assertThat(goalie.teamAbbrev()).isEqualTo("FLA"));
+    }
+
+    @Test
+    void getSkaters_leavesEverythingElseAboutThePlayerAlone() {
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
+        modelSays(Map.of(1, "FLA"));
+
+        assertThat(playerService.getSkaters()).singleElement().satisfies(skater -> {
+            assertThat(skater.id()).isEqualTo(1);
+            assertThat(skater.name()).isEqualTo("Connor McDavid");
+            assertThat(skater.headshot()).isEqualTo("/players/1/headshot");
+            assertThat(skater.sweaterNumber()).isEqualTo(97);
+            assertThat(skater.positions()).containsExactly(SkaterPosition.C);
+            assertThat(skater.stats().scoring().points()).isEqualTo(153);
+        });
+    }
+
+    @Test
+    void getGoalies_leavesEverythingElseAboutThePlayerAlone() {
+        when(playerPool.getGoalies(nullable(Integer.class))).thenReturn(List.of(shesterkin()));
+        modelSays(Map.of(101, "FLA"));
+
+        assertThat(playerService.getGoalies()).singleElement().satisfies(goalie -> {
+            assertThat(goalie.id()).isEqualTo(101);
+            assertThat(goalie.name()).isEqualTo("Igor Shesterkin");
+            assertThat(goalie.headshot()).isEqualTo("/players/101/headshot");
+            assertThat(goalie.sweaterNumber()).isEqualTo(31);
+            assertThat(goalie.stats().scoring().w()).isEqualTo(36);
+        });
+    }
+
+    @Test
+    void getSkaters_keepsThePoolsTeamForAPlayerTheModelHasNoAnswerFor() {
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
+        // An older club is a better answer than none, so a missing entry changes nothing.
+        modelSays(Map.of(999, "FLA"));
+
+        assertThat(playerService.getSkaters()).singleElement()
+                .satisfies(skater -> assertThat(skater.teamAbbrev()).isEqualTo("EDM"));
+    }
+
+    @Test
+    void getSkaters_servesThePoolAsItIsWhenTheModelCannotBeReached() {
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
+        // The provider degrades to an empty map rather than raising: losing the correction must
+        // not cost the pool, which is the app's spine.
+        modelSays(Map.of());
+
+        assertThat(playerService.getSkaters()).singleElement()
+                .satisfies(skater -> assertThat(skater.teamAbbrev()).isEqualTo("EDM"));
+    }
+
+    @Test
+    void getSkaters_asksTheModelOnceForTheWholeList() {
+        when(playerPool.getSkaters(nullable(Integer.class)))
+                .thenReturn(List.of(skater(1, "A", 100), skater(2, "B", 90), skater(3, "C", 80)));
+        modelSays(Map.of(1, "FLA"));
+
+        playerService.getSkaters();
+
+        verify(playerContext, times(1)).currentTeams();
     }
 }

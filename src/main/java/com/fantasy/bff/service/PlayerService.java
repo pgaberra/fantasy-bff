@@ -8,7 +8,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Serves the player read model the projections are built from, from whichever
@@ -21,10 +24,15 @@ public class PlayerService {
 
     private final PlayerPoolSource playerPool;
     private final HeadshotCache headshots;
+    private final PlayerSplitContextProvider playerContext;
 
-    public PlayerService(PlayerPoolSource playerPool, HeadshotCache headshots) {
+    public PlayerService(
+            PlayerPoolSource playerPool,
+            HeadshotCache headshots,
+            PlayerSplitContextProvider playerContext) {
         this.playerPool = playerPool;
         this.headshots = headshots;
+        this.playerContext = playerContext;
     }
 
     /**
@@ -38,10 +46,13 @@ public class PlayerService {
      */
     public List<SkaterResponse> getSkaters(Integer limit) {
         try {
+            Map<Integer, String> teams = playerContext.currentTeams();
             // The limit goes to the source as well as being applied here: a source that can ask
             // its upstream for a slice keeps the rest off the wire, and one that cannot is cut
             // here as before. The sort is what makes the answer the same either way.
             return capped(playerPool.getSkaters(limit).stream()
+                    .map(skater -> onCurrentTeam(skater, teams.get(skater.id()),
+                            SkaterResponse::teamAbbrev, SkaterResponse::withTeamAbbrev))
                     .sorted(Comparator
                             .comparingInt((SkaterResponse skater) -> skater.stats().scoring().points())
                             .reversed()
@@ -56,7 +67,10 @@ public class PlayerService {
     /** Goalies, most wins first (then most saves), capped at {@code limit} when one is given. */
     public List<GoalieResponse> getGoalies(Integer limit) {
         try {
+            Map<Integer, String> teams = playerContext.currentTeams();
             return capped(playerPool.getGoalies(limit).stream()
+                    .map(goalie -> onCurrentTeam(goalie, teams.get(goalie.id()),
+                            GoalieResponse::teamAbbrev, GoalieResponse::withTeamAbbrev))
                     .sorted(Comparator
                             .comparingInt((GoalieResponse goalie) -> goalie.stats().scoring().w())
                             .thenComparingInt(goalie -> goalie.stats().scoring().sv())
@@ -80,6 +94,28 @@ public class PlayerService {
 
     private static <T> List<T> capped(List<T> players, Integer limit) {
         return limit == null || limit >= players.size() ? players : players.subList(0, limit);
+    }
+
+    /**
+     * A pool player on the club the NHL lists him on today.
+     *
+     * <p>The correction happens here rather than in a {@link PlayerPoolSource} for the same
+     * reason the headshot framing below does: both sources need it, neither can see the other,
+     * and neither of them is where the answer comes from. The pool's own team is whatever its
+     * platform held at its last sync, and the sync is not always running — measured on staging
+     * on 2026-09-06, with Yahoo's pool three months old, 18% of skaters and 24% of goalies were
+     * listed on a club they had left. The projection service follows the NHL daily and knows
+     * better, so what it knows is what the app shows.
+     *
+     * <p>Only ever a replacement, never a removal: a player the model has no team for keeps the
+     * pool's answer, because an older club is a better answer than none.
+     */
+    private static <T> T onCurrentTeam(
+            T player, String currentTeam, Function<T, String> teamOf, BiFunction<T, String, T> moveTo) {
+        if (currentTeam == null || currentTeam.equalsIgnoreCase(teamOf.apply(player))) {
+            return player;
+        }
+        return moveTo.apply(player, currentTeam);
     }
 
     /**
