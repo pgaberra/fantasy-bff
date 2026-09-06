@@ -1,5 +1,6 @@
 package com.fantasy.bff.payments;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -33,6 +34,13 @@ public class PaddleSignatureVerifier {
     private final long toleranceSeconds;
     private final Clock clock;
 
+    /**
+     * {@code @Autowired} is not decoration. There are two constructors and neither takes zero
+     * arguments, so without it Spring looks for a default constructor, fails to find one, and
+     * the context will not start at all. The unit tests call the other constructor directly and
+     * never saw it; a deployment did.
+     */
+    @Autowired
     public PaddleSignatureVerifier(PaymentsProperties properties) {
         this(properties, Clock.systemUTC());
     }
