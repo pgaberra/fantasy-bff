@@ -38,7 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Choosing the stretch of schedule Who's hot measures is what premium pays for; the last ten
+ * Choosing the stretch of schedule Who's hot measures is what premium pays for; the last five
  * games are free. The web draws the same line, but it draws it in a browser — a request that
  * skips the UI has to meet the same answer here.
  *
@@ -112,12 +112,12 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("a free account still gets the last ten games, which is the whole free tier")
+    @DisplayName("a free account still gets the last five games, which is the whole free tier")
     void freeRange_isServed() throws Exception {
         withoutASubscription();
         withOneSkaterAndOneGoalie();
 
-        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=73&toGame=82")
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=78&toGame=82")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].playerId").value(5000));
@@ -132,7 +132,7 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     void freeRange_doesNotReadTheSubscription() throws Exception {
         withOneSkaterAndOneGoalie();
 
-        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=73&toGame=82")
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=78&toGame=82")
                 .header("Authorization", "Bearer " + token));
 
         verifyNoInteractions(databaseServiceClient);
@@ -144,7 +144,7 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
         withoutASubscription();
         withOneSkaterAndOneGoalie();
 
-        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=10")
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=5")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }
@@ -159,13 +159,13 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
         withoutASubscription();
         withOneSkaterAndOneGoalie();
 
-        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=78&toGame=82")
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=80&toGame=82")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("reaching further back than the last ten is refused")
+    @DisplayName("reaching further back than the last five is refused")
     void earlierRange_isForbidden() throws Exception {
         withoutASubscription();
 
@@ -191,15 +191,31 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("a window of the right length but the wrong ten games is refused")
-    void tenEarlierGames_areForbidden() throws Exception {
+    @DisplayName("a window of the right length but the wrong five games is refused")
+    void fiveEarlierGames_areForbidden() throws Exception {
         withoutASubscription();
 
-        // Ten games is the free *length*, but games 1-10 are not the free *stretch*: which
-        // ten you get to look at is the thing being sold.
-        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=1&toGame=10")
+        // Five games is the free *length*, but games 1-5 are not the free *stretch*: which
+        // five you get to look at is the thing being sold.
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=1&toGame=5")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
+    }
+
+    /**
+     * The last ten used to be the free window, and the pill that picks it is still the second one
+     * in the row. It is premium now, so an old client, a stored range or a bookmark that still
+     * asks for it has to meet the same refusal as any other paid range.
+     */
+    @Test
+    @DisplayName("the last ten games, which used to be free, is premium now")
+    void formerFreeRange_isForbidden() throws Exception {
+        withoutASubscription();
+
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=73&toGame=82")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
     }
 
     @Test

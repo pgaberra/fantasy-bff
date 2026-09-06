@@ -991,7 +991,7 @@ paths:
         \ the same range covers the same stretch for every player; one who missed\
         \ some of them shows fewer games. Give either fromGame/toGame or lastGames;\
         \ with neither, the whole season is covered. Reading further back than the\
-        \ last 10 games needs a premium subscription."
+        \ last 5 games needs a premium subscription."
       operationId: skaterSplits
       parameters:
       - name: season
@@ -1058,7 +1058,7 @@ paths:
       tags:
       - Projection model
       summary: Goalies' measured totals over a range of a season's games
-      description: Reading further back than the last 10 games needs a premium subscription.
+      description: Reading further back than the last 5 games needs a premium subscription.
       operationId: goalieSplits
       parameters:
       - name: season
