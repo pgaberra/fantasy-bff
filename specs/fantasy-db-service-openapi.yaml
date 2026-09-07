@@ -529,7 +529,9 @@ paths:
       - Projection imports
       summary: "Copy a shared projection into the user's own, by its share token"
       description: "Anyone holding the token may copy it. The copy is of the snapshot\
-        \ as it was published, carries no draft, and is stamped with who shared it."
+        \ as it was published, carries no draft, and is stamped with who shared it.\
+        \ Copying the same board again is allowed: with no `name` given, a taken name\
+        \ is resolved to \"<name> (2)\" rather than refused."
       operationId: importFromShare
       parameters:
       - name: userId
@@ -564,7 +566,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: The user already has an imported projection with that name
+          description: The `name` given is already taken by another projection. Omit
+            it and the server picks a free one.
           content:
             '*/*':
               schema:
