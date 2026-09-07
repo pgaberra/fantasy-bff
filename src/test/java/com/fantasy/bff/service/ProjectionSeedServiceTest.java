@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
+import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
@@ -69,6 +70,13 @@ class ProjectionSeedServiceTest {
         p.setShots(BigDecimal.valueOf(250));
         p.setShootingPct(BigDecimal.valueOf(0.16));
         p.setHatTricks(BigDecimal.valueOf(1.1));
+        p.setShifts(BigDecimal.valueOf(1700));
+        p.setPpGoals(BigDecimal.valueOf(12));
+        p.setPpAssists(BigDecimal.valueOf(20));
+        p.setPpPoints(BigDecimal.valueOf(32));
+        p.setShGoals(BigDecimal.valueOf(2));
+        p.setShAssists(BigDecimal.valueOf(1));
+        p.setShPoints(BigDecimal.valueOf(3));
         return p;
     }
 
@@ -79,8 +87,11 @@ class ProjectionSeedServiceTest {
         if (withWorkload) {
             p.setGamesStarted(BigDecimal.valueOf(54));
             p.setWins(BigDecimal.valueOf(30));
+            p.setLosses(BigDecimal.valueOf(18));
+            p.setOtLosses(BigDecimal.valueOf(6));
             p.setSavePct(BigDecimal.valueOf(0.912));
             p.setGoalsAgainstAvg(BigDecimal.valueOf(2.5));
+            p.setToiSeconds(BigDecimal.valueOf(55 * 58 * 60));
         }
         return p;
     }
@@ -103,6 +114,10 @@ class ProjectionSeedServiceTest {
 
     private static SkaterResponse platformSkater(int id, String name, String team, Integer sweater) {
         return new SkaterResponse(id, name, team, null, sweater, Set.of(), null);
+    }
+
+    private static SkaterResponse platformDefenceman(int id, String name, String team) {
+        return new SkaterResponse(id, name, team, null, null, Set.of(SkaterPosition.D), null);
     }
 
     private static GoalieResponse platformGoalie(int id, String name, String team) {
@@ -151,6 +166,71 @@ class ProjectionSeedServiceTest {
         // A fraction of a hat trick is what the model has to say about one: they are rare
         // enough that a whole number would be a claim it cannot make.
         assertThat(stats.getScoring()).containsEntry("hatTricks", 1.1);
+        assertThat(stats.getScoring()).containsEntry("shifts", 1700.0);
+    }
+
+    @Test
+    @DisplayName("adds up the special-teams categories the model has no column for")
+    void sumsSpecialTeamsCategories() {
+        seedOneSkater(platformSkater(5000, "Connor McDavid", "EDM"));
+
+        var scoring = service.seed(2026, "marcel-v3").players().get(0).getStats().getScoring();
+
+        // Power play plus shorthanded, which is one category in the leagues that score it.
+        assertThat(scoring).containsEntry("stpg", 14.0).containsEntry("stpa", 21.0);
+        assertThat(scoring).containsEntry("stp", 35.0);
+        // The model reports ice time per game; the column is the season's total.
+        assertThat(scoring).containsEntry("toi", 82.0 * 1320);
+    }
+
+    @Test
+    @DisplayName("scores a defenceman's points as defencemen points")
+    void defencePointsForADefenceman() {
+        seedOneSkater(platformDefenceman(5000, "Cale Makar", "COL"));
+
+        assertThat(service.seed(2026, "marcel-v3").players().get(0).getStats().getScoring())
+                .containsEntry("defPoints", 100.0);
+    }
+
+    @Test
+    @DisplayName("leaves defencemen points off a forward rather than seeding a nought")
+    void noDefencePointsForAForward() {
+        // A forward has none of this category, and a nought would be scored as if he had
+        // produced none of something he cannot produce at all.
+        seedOneSkater(platformSkater(5000, "Connor McDavid", "EDM"));
+
+        assertThat(service.seed(2026, "marcel-v3").players().get(0).getStats().getScoring())
+                .doesNotContainKey("defPoints");
+    }
+
+    @Test
+    @DisplayName("seeds a goalie's overtime losses, minutes and win percentage")
+    void seedsGoalieDecisionColumns() {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(nhlPlayer(1, "Igor Shesterkin", "NYR", 31)));
+        when(playerPool.getSkaters()).thenReturn(List.of());
+        when(playerPool.getGoalies())
+                .thenReturn(List.of(platformGoalie(6000, "Igor Shesterkin", "NYR")));
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString()))
+                .thenReturn(List.of(goalie(1, true)));
+
+        var scoring = service.seed(2026, "marcel-v3").players().get(0).getStats().getScoring();
+
+        assertThat(scoring).containsEntry("otl", 6.0);
+        assertThat(scoring).containsEntry("toi", (double) (55 * 58 * 60));
+        // An overtime loss is a decision like any other: 30 of 54.
+        assertThat(scoring).containsEntry("winPct", 0.556);
+    }
+
+    private void seedOneSkater(SkaterResponse platform) {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(nhlPlayer(1, platform.name(), platform.teamAbbrev(), null)));
+        when(playerPool.getSkaters()).thenReturn(List.of(platform));
+        when(playerPool.getGoalies()).thenReturn(List.of());
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(skater(1)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
     }
 
     @Test
@@ -276,6 +356,56 @@ class ProjectionSeedServiceTest {
         assertThat(zeroed.getStats().getUtility()).containsEntry("gp", 0.0);
         // A complete row, so no stat is left for the UI to guess at.
         assertThat(zeroed.getStats().getScoring().values()).allMatch(v -> v == 0.0);
+    }
+
+    @Test
+    @DisplayName("a zeroed row carries every column a played row carries")
+    void zeroLineIsAsCompleteAsAPlayedOne() {
+        // The zero line exists so a retired player is a complete nought rather than a half-blank
+        // row, which means it has to grow whenever the played line does. Comparing the two is
+        // what makes that automatic instead of remembered.
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(nhlPlayer(1, "Connor McDavid", "EDM", 97)));
+        when(projectionServiceClient.skaterProjections(anyInt(), anyString()))
+                .thenReturn(List.of(fullSkater(1)));
+        when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
+        when(projectionServiceClient.retiredPlayers())
+                .thenReturn(List.of(retiredPlayer(8471685, "Anze Kopitar", "LA", 11)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(
+                        platformSkater(5000, "Connor McDavid", "EDM", 97),
+                        platformSkater(500, "Anze Kopitar", "LA", 11)));
+        when(playerPool.getGoalies()).thenReturn(List.of());
+
+        List<PlayerProjection> players = service.seed(2026, "marcel-v3").players();
+        PlayerProjection played = byId(players, 5000);
+        PlayerProjection zeroed = byId(players, 500);
+
+        assertThat(zeroed.getStats().getScoring().keySet())
+                .containsExactlyInAnyOrderElementsOf(played.getStats().getScoring().keySet());
+        assertThat(zeroed.getStats().getUtility().keySet())
+                .containsExactlyInAnyOrderElementsOf(played.getStats().getUtility().keySet());
+        assertThat(zeroed.getStats().getScoring().values()).allMatch(v -> v == 0.0);
+    }
+
+    /** Every column the model emits, so a completeness check is over the whole line. */
+    private static SkaterProjectionResponse fullSkater(int nhlId) {
+        SkaterProjectionResponse p = skater(nhlId);
+        p.setPlusMinus(BigDecimal.valueOf(14));
+        p.setPim(BigDecimal.valueOf(28));
+        p.setGwGoals(BigDecimal.valueOf(6));
+        p.setFaceoffsWon(BigDecimal.valueOf(700));
+        p.setFaceoffsLost(BigDecimal.valueOf(650));
+        p.setHits(BigDecimal.valueOf(90));
+        p.setBlocks(BigDecimal.valueOf(40));
+        return p;
+    }
+
+    private static PlayerProjection byId(List<PlayerProjection> players, int playerId) {
+        return players.stream()
+                .filter(p -> p.getPlayerId() == playerId)
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test
