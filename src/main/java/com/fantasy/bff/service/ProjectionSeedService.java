@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.GoalieResponse;
+import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -135,10 +137,10 @@ public class ProjectionSeedService {
         Map<Long, PlayerResponse> byNhlId = nhlPlayers.stream()
                 .collect(Collectors.toMap(p -> p.getNhlId().longValue(), Function.identity(), (a, b) -> a));
 
-        List<Candidate> pool = platformCandidates();
+        Pool pool = platformPool();
         PlayerIdMapping mapping = resolver.resolve(
                 nhlPlayers.stream().map(ProjectionSeedService::nhlCandidate).toList(),
-                pool,
+                pool.candidates(),
                 overrides.asMap());
 
         List<PlayerProjection> seeded = new ArrayList<>();
@@ -156,7 +158,7 @@ public class ProjectionSeedService {
                 unmapped++;
                 continue;
             }
-            seeded.add(skaterLine(platformId, projection));
+            seeded.add(skaterLine(platformId, projection, pool.playsDefence(platformId)));
         }
         int skaters = seeded.size();
 
@@ -254,11 +256,11 @@ public class ProjectionSeedService {
      *
      * @return how many rows were zeroed
      */
-    private int seedRetired(List<PlayerProjection> seeded, List<Candidate> pool) {
+    private int seedRetired(List<PlayerProjection> seeded, Pool pool) {
         Set<Integer> claimed =
                 seeded.stream().map(PlayerProjection::getPlayerId).collect(Collectors.toSet());
         List<Candidate> unclaimed =
-                pool.stream().filter(c -> !claimed.contains((int) c.id())).toList();
+                pool.candidates().stream().filter(c -> !claimed.contains((int) c.id())).toList();
         if (unclaimed.isEmpty()) {
             return 0;
         }
@@ -276,7 +278,11 @@ public class ProjectionSeedService {
             seeded.add(
                     goalieIds.contains(platformId)
                             ? zeroLine(platformId, PlayerProjection.TypeEnum.GOALIE, GOALIE_STATS)
-                            : zeroLine(platformId, PlayerProjection.TypeEnum.SKATER, SKATER_STATS));
+                            : zeroLine(
+                                    platformId,
+                                    PlayerProjection.TypeEnum.SKATER,
+                                    SKATER_STATS,
+                                    pool.playsDefence(platformId)));
         }
         return retiredMapping.matched();
     }
@@ -287,6 +293,11 @@ public class ProjectionSeedService {
 
     private PlayerProjection zeroLine(
             int platformId, PlayerProjection.TypeEnum type, Stats stats) {
+        return zeroLine(platformId, type, stats, false);
+    }
+
+    private PlayerProjection zeroLine(
+            int platformId, PlayerProjection.TypeEnum type, Stats stats, boolean playsDefence) {
         Map<String, Double> utility = new HashMap<>();
         for (String key : stats.utility()) {
             utility.put(key, 0.0);
@@ -294,6 +305,11 @@ public class ProjectionSeedService {
         Map<String, Double> scoring = new HashMap<>();
         for (String key : stats.scoring()) {
             scoring.put(key, 0.0);
+        }
+        // Same rule as a played line: a forward has none of this category rather than nought of
+        // it, so it is left off him here too.
+        if (playsDefence) {
+            scoring.put("defPoints", 0.0);
         }
         return line(platformId, type, utility, scoring);
     }
@@ -306,25 +322,42 @@ public class ProjectionSeedService {
                     List.of("gp", "toiPerGame"),
                     List.of(
                             "goals", "assists", "points", "plusMinus", "pim", "ppg", "ppa", "ppp",
-                            "shg", "sha", "shp", "gwg", "sog", "shPct", "fw", "fl", "hits",
-                            "blocks"));
+                            "shg", "sha", "shp", "stpg", "stpa", "stp", "gwg", "hatTricks", "sog",
+                            "shPct", "fw", "fl", "hits", "blocks", "shifts", "toi"));
 
     private static final Stats GOALIE_STATS =
             new Stats(
                     List.of("gp"),
-                    List.of("gs", "w", "l", "sho", "sa", "sv", "ga", "gaa", "svPct"));
+                    List.of(
+                            "gs", "w", "l", "otl", "sho", "sa", "sv", "ga", "gaa", "svPct",
+                            "winPct", "toi"));
 
-    private List<Candidate> platformCandidates() {
+    /**
+     * The platform's players, plus which of them a league would slot at defence. Defencemen
+     * points are a category of their own, and eligibility is the platform's answer — the NHL's
+     * listed position doesn't decide what a fantasy league lets you start.
+     */
+    private record Pool(List<Candidate> candidates, Set<Integer> defenceEligible) {
+        boolean playsDefence(int platformId) {
+            return defenceEligible.contains(platformId);
+        }
+    }
+
+    private Pool platformPool() {
         List<Candidate> candidates = new ArrayList<>();
+        Set<Integer> defenceEligible = new HashSet<>();
         for (SkaterResponse skater : playerPool.getSkaters()) {
             candidates.add(new Candidate(
                     skater.id(), skater.name(), skater.teamAbbrev(), skater.sweaterNumber()));
+            if (skater.positions() != null && skater.positions().contains(SkaterPosition.D)) {
+                defenceEligible.add(skater.id());
+            }
         }
         for (GoalieResponse goalie : playerPool.getGoalies()) {
             candidates.add(new Candidate(
                     goalie.id(), goalie.name(), goalie.teamAbbrev(), goalie.sweaterNumber()));
         }
-        return candidates;
+        return new Pool(candidates, defenceEligible);
     }
 
     private static Candidate nhlCandidate(PlayerResponse player) {
@@ -335,7 +368,8 @@ public class ProjectionSeedService {
                 player.getSweaterNumber());
     }
 
-    private PlayerProjection skaterLine(int platformId, SkaterProjectionResponse p) {
+    private PlayerProjection skaterLine(
+            int platformId, SkaterProjectionResponse p, boolean playsDefence) {
         Map<String, Double> utility = new HashMap<>();
         put(utility, "gp", p.getGamesPlayed());
         put(utility, "toiPerGame", p.getToiPerGameSeconds());
@@ -361,6 +395,20 @@ public class ProjectionSeedService {
         put(scoring, "fl", p.getFaceoffsLost());
         put(scoring, "hits", p.getHits());
         put(scoring, "blocks", p.getBlocks());
+        put(scoring, "shifts", p.getShifts());
+        // The model reports ice time per game; the column is the season's total.
+        put(scoring, "toi", product(p.getToiPerGameSeconds(), p.getGamesPlayed()));
+        // A league that scores special teams scores one category, power play plus shorthanded.
+        // The model has no such stat and never will: it is the two it does project, added.
+        putSum(scoring, "stpg", p.getPpGoals(), p.getShGoals());
+        putSum(scoring, "stpa", p.getPpAssists(), p.getShAssists());
+        putSum(scoring, "stp", p.getPpPoints(), p.getShPoints());
+        // Defencemen points count a player's points only while he is eligible at defence, so a
+        // forward's are not a smaller version of the same thing — they are none of it, and the
+        // column is left out rather than seeded at nought.
+        if (playsDefence) {
+            put(scoring, "defPoints", p.getPoints());
+        }
 
         return line(platformId, PlayerProjection.TypeEnum.SKATER, utility, scoring);
     }
@@ -380,6 +428,9 @@ public class ProjectionSeedService {
         put(scoring, "gaa", p.getGoalsAgainstAvg());
         // Save % stays a fraction here, matching the app's goalie column.
         put(scoring, "svPct", p.getSavePct());
+        put(scoring, "otl", p.getOtLosses());
+        put(scoring, "toi", p.getToiSeconds());
+        putWinPct(scoring, p.getWins(), p.getLosses(), p.getOtLosses());
 
         return line(platformId, PlayerProjection.TypeEnum.GOALIE, utility, scoring);
     }
@@ -426,5 +477,33 @@ public class ProjectionSeedService {
 
     private static BigDecimal scale(BigDecimal value, int factor) {
         return value == null ? null : value.multiply(BigDecimal.valueOf(factor));
+    }
+
+    private static BigDecimal product(BigDecimal first, BigDecimal second) {
+        return first == null || second == null ? null : first.multiply(second);
+    }
+
+    /** A stat the model has no column for, because it is two of the ones it does have. */
+    private static void putSum(
+            Map<String, Double> target, String key, BigDecimal first, BigDecimal second) {
+        if (first != null && second != null) {
+            target.put(key, first.add(second).doubleValue());
+        }
+    }
+
+    /**
+     * Share of decisions won. An overtime loss is a decision like any other, so a goalie who
+     * only ever loses past regulation has a win percentage of nought rather than none. Rounded
+     * to the three decimals the column carries, as the split endpoint rounds it.
+     */
+    private static void putWinPct(
+            Map<String, Double> target, BigDecimal wins, BigDecimal losses, BigDecimal otLosses) {
+        if (wins == null || losses == null || otLosses == null) {
+            return;
+        }
+        double decisions = wins.doubleValue() + losses.doubleValue() + otLosses.doubleValue();
+        if (decisions > 0) {
+            target.put("winPct", Math.round(wins.doubleValue() / decisions * 1000.0) / 1000.0);
+        }
     }
 }

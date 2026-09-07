@@ -91,6 +91,17 @@
             "title": "Nhl Id",
             "type": "integer"
           },
+          "ot_losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ot Losses"
+          },
           "save_pct": {
             "anyOf": [
               {
@@ -161,6 +172,17 @@
             "title": "Target Season",
             "type": "integer"
           },
+          "toi_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Seconds"
+          },
           "wins": {
             "anyOf": [
               {
@@ -203,12 +225,14 @@
           "games_started",
           "wins",
           "losses",
+          "ot_losses",
           "shutouts",
           "shots_against",
           "saves",
           "goals_against",
           "goals_against_avg",
-          "save_pct"
+          "save_pct",
+          "toi_seconds"
         ],
         "title": "GoalieProjectionResponse",
         "type": "object"
@@ -802,6 +826,17 @@
             ],
             "title": "Sh Points"
           },
+          "shifts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shifts"
+          },
           "shooting_pct": {
             "anyOf": [
               {
@@ -864,6 +899,7 @@
           "faceoffs_lost",
           "hits",
           "blocks",
+          "shifts",
           "hat_tricks",
           "goals_low",
           "goals_high",
