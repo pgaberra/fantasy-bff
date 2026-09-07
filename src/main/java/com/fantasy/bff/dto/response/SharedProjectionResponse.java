@@ -1,10 +1,13 @@
 package com.fantasy.bff.dto.response;
 
+import com.fantasy.bff.service.SharedBoardFilters;
 import com.fantasy.bff.service.SharedBoardPreview;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A shared projection as a visitor reads it. This mirrors the snapshot db-service stores and adds
@@ -45,6 +48,19 @@ public record SharedProjectionResponse(
                 description = "True when rows were withheld because the reader is not signed in.")
         boolean truncated,
 
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Every team with a player on the published board, alphabetically. "
+                        + "Read off the whole board rather than the rows in this response, so "
+                        + "the team filter offers the same choices to every reader.")
+        List<String> teams,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Which players on the published board are rookies. Rookie status "
+                        + "is not part of the snapshot, so it is read live: empty means nobody "
+                        + "is, or that it could not be determined, and either way the page "
+                        + "offers no rookie filter.")
+        List<Integer> rookieIds,
+
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime createdAt,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime updatedAt
@@ -52,9 +68,10 @@ public record SharedProjectionResponse(
 
     /** Every row the owner published. */
     public static SharedProjectionResponse full(
-            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
+            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
+            Set<Integer> rookieIds) {
         List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
-        return of(shared, players, players.size(), false);
+        return of(shared, players, players.size(), false, rookieIds);
     }
 
     /**
@@ -68,16 +85,17 @@ public record SharedProjectionResponse(
      */
     public static SharedProjectionResponse preview(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
-            String position, String sort, String direction, int rows) {
+            SharedBoardFilters filters, String sort, String direction, int rows,
+            Set<Integer> rookieIds) {
         List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
-        return of(shared, SharedBoardPreview.select(players, position, sort, direction, rows),
-                players.size(), players.size() > rows);
+        return of(shared, SharedBoardPreview.select(players, filters, sort, direction, rows),
+                players.size(), players.size() > rows, rookieIds);
     }
 
     private static SharedProjectionResponse of(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
             List<com.fantasy.bff.generated.db.model.SharedPlayer> players,
-            int totalPlayers, boolean truncated) {
+            int totalPlayers, boolean truncated, Set<Integer> rookieIds) {
         return new SharedProjectionResponse(
                 shared.getToken(),
                 shared.getName(),
@@ -88,7 +106,37 @@ public record SharedProjectionResponse(
                         players.stream().map(SharedPlayer::from).toList()),
                 totalPlayers,
                 truncated,
+                teamsOn(shared),
+                rookiesOn(shared, rookieIds),
                 shared.getCreatedAt(),
                 shared.getUpdatedAt());
+    }
+
+    /**
+     * The teams the filter may offer, taken from the whole board so a reader behind the gate is
+     * not offered only the teams that happen to appear in the rows they were sent.
+     */
+    private static List<String> teamsOn(
+            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
+        return shared.getData().getPlayers().stream()
+                .map(com.fantasy.bff.generated.db.model.SharedPlayer::getTeamAbbrev)
+                .filter(team -> team != null && !team.isBlank())
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .toList();
+    }
+
+    /** The same for the rookie filter: who on the whole board is one, not who on this page is. */
+    private static List<Integer> rookiesOn(
+            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
+            Set<Integer> rookieIds) {
+        if (rookieIds == null || rookieIds.isEmpty()) {
+            return List.of();
+        }
+        return shared.getData().getPlayers().stream()
+                .map(com.fantasy.bff.generated.db.model.SharedPlayer::getPlayerId)
+                .filter(rookieIds::contains)
+                .distinct()
+                .toList();
     }
 }

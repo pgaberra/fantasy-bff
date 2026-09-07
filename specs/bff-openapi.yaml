@@ -942,9 +942,10 @@ paths:
       description: "Public: anyone holding the link can read it. A signed-in reader\
         \ gets the whole published board; anyone else gets its top rows, with `truncated`\
         \ set and `totalPlayers` saying what the board holds. Which top rows those\
-        \ are follows `position`, `sort` and `direction`, so a column sorts the board\
-        \ rather than the rows already sent. Returns the snapshot as it was when shared,\
-        \ with no identity beyond the owner's public username."
+        \ are follows the filters, `sort` and `direction`, so a column sorts the whole\
+        \ board and a search reaches all of it rather than the rows already sent.\
+        \ Returns the snapshot as it was when shared, with no identity beyond the\
+        \ owner's public username."
       operationId: getSharedProjection
       parameters:
       - name: token
@@ -961,6 +962,33 @@ paths:
         required: false
         schema:
           type: string
+      - name: search
+        in: query
+        description: "Name to search the board for, matched as a case-insensitive\
+          \ substring, as the browser matches it. Read only for a reader who is not\
+          \ signed in."
+        required: false
+        schema:
+          type: string
+          maxLength: 100
+          minLength: 0
+      - name: team
+        in: query
+        description: "Team abbreviation to keep, or `ALL`. Read only for a reader\
+          \ who is not signed in."
+        required: false
+        schema:
+          type: string
+          maxLength: 10
+          minLength: 0
+      - name: rookies
+        in: query
+        description: "True to keep only the rookies. Read only for a reader who is\
+          \ not signed in, and ignored where rookie status cannot be determined —\
+          \ `rookieIds` says whether it can."
+        required: false
+        schema:
+          type: boolean
       - name: sort
         in: query
         description: "Column to order the board by before its top rows are taken:\
@@ -2616,6 +2644,22 @@ components:
           type: boolean
           description: True when rows were withheld because the reader is not signed
             in.
+        teams:
+          type: array
+          description: "Every team with a player on the published board, alphabetically.\
+            \ Read off the whole board rather than the rows in this response, so the\
+            \ team filter offers the same choices to every reader."
+          items:
+            type: string
+        rookieIds:
+          type: array
+          description: "Which players on the published board are rookies. Rookie status\
+            \ is not part of the snapshot, so it is read live: empty means nobody\
+            \ is, or that it could not be determined, and either way the page offers\
+            \ no rookie filter."
+          items:
+            type: integer
+            format: int32
         createdAt:
           type: string
           format: date-time
@@ -2627,7 +2671,9 @@ components:
       - createdAt
       - data
       - name
+      - rookieIds
       - season
+      - teams
       - token
       - totalPlayers
       - truncated
