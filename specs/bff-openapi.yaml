@@ -400,7 +400,9 @@ paths:
         \ token"
       description: "Anyone holding a share link may copy the board behind it and draft\
         \ against it. The copy is of the snapshot as it was published, carries none\
-        \ of the author's draft, and records who shared it."
+        \ of the author's draft, and records who shared it. Copying the same board\
+        \ again is allowed: with no `name`, a taken one is numbered (\"<name> (2)\"\
+        ) rather than refused."
       operationId: importFromShare
       requestBody:
         content:
@@ -428,7 +430,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: The name is already taken by a projection or an imported board
+          description: The `name` sent is already taken. Omit it and a free one is
+            chosen.
           content:
             application/json:
               schema:
@@ -2144,8 +2147,11 @@ components:
           minLength: 0
         name:
           type: string
-          description: What to call the copy. Defaults to the name it was shared under;
-            send one to resolve a clash with a projection already imported.
+          description: "What to call the copy. Left out, the server uses the name\
+            \ it was shared under, numbering it (\"<name> (2)\") if that one is taken\
+            \ — so the same board can be copied more than once. Send one to choose\
+            \ the name yourself; a clash on that is refused, since it is yours to\
+            \ change."
           maxLength: 100
           minLength: 0
       required:

@@ -76,7 +76,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     and reports `origin` (share token + the author's name as it read at import time) so the app
     can say whose numbers it holds. The rows come across as they were published, i.e. against
     the author's player pool — squaring them with the current one is left to the first read,
-    which reconciles every projection anyway.
+    which reconciles every projection anyway. **The same board may be copied more than once.**
+    With no `name` in the request, db-service numbers a taken one (`My league (2)`) instead of
+    answering 409, so the share page's two buttons keep working however often they are pressed;
+    a `name` the caller chose is still refused when taken, since that one they can change.
   - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
     public link, which is a one-way action: there is no endpoint to refresh or withdraw a
     published snapshot. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
