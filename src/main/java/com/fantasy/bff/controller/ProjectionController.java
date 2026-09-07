@@ -68,6 +68,7 @@ public class ProjectionController {
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Projection created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
+        @ApiResponse(responseCode = "403", description = "source=model needs premium and this account has none"),
         @ApiResponse(responseCode = "409",
                 description = "The name is already taken by a projection or an imported board, "
                         + "or a draft against that preset already exists")

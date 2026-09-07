@@ -8,6 +8,7 @@ import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import com.fantasy.bff.exception.PremiumRequiredException;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.ProjectionData;
@@ -70,6 +71,9 @@ class ProjectionServiceTest {
     @Mock
     private ProjectionSeedService seedService;
 
+    @Mock
+    private EntitlementService entitlementService;
+
     @Captor
     private ArgumentCaptor<com.fantasy.bff.generated.db.model.CreateProjectionRequest> sentRequest;
 
@@ -78,6 +82,9 @@ class ProjectionServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(playerPool.playerIdSpace()).thenReturn(PlayerIdSpace.YAHOO);
+        // Premium unless a test says otherwise: it is the state every other case here is about,
+        // and the gate has its own tests below.
+        lenient().when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(true);
         projectionService = serviceWithAiProjection(true);
     }
 
@@ -89,6 +96,7 @@ class ProjectionServiceTest {
                 reconciler,
                 seedService,
                 new AiProjectionProperties(enabled),
+                entitlementService,
                 SEASON,
                 MODEL_VERSION);
     }
@@ -446,5 +454,68 @@ class ProjectionServiceTest {
                         request(emptyData(), ProjectionSource.BLANK, ProjectionKind.PRESET_DRAFT)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("source=default or source=model");
+    }
+
+    /**
+     * The model's lines are what premium pays for, and a preset draft seeded from them is a way
+     * to the same numbers that never touches /projection-model/seed. Both doors are locked.
+     */
+    @Test
+    @DisplayName("a model-seeded projection is refused to an account without premium")
+    void modelSource_withoutPremium_isRefused() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+
+        assertThatThrownBy(() -> projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL)))
+                .isInstanceOf(PremiumRequiredException.class)
+                .hasMessageContaining("premium");
+
+        verifyNoInteractions(seedService);
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
+    @DisplayName("and so is a preset draft started from the model, which is the same numbers")
+    void modelPresetDraft_withoutPremium_isRefused() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+
+        CreateProjectionRequest request = new CreateProjectionRequest(
+                "AI Projection", ProjectionKind.PRESET_DRAFT, emptyData(), ProjectionSource.MODEL);
+
+        assertThatThrownBy(() -> projectionService.create(USER_ID, request))
+                .isInstanceOf(PremiumRequiredException.class);
+
+        verifyNoInteractions(seedService);
+    }
+
+    /**
+     * Only the model is sold. Last season's stats are the free starting point and must not be
+     * caught by the same gate, so the subscription is never even looked up for them.
+     */
+    @Test
+    @DisplayName("the free starting point is untouched, and costs no subscription lookup")
+    void defaultSource_withoutPremium_isServed() {
+        givenOneSkaterAndOneGoalie();
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.DEFAULT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), any());
+        verifyNoInteractions(entitlementService);
+    }
+
+    /**
+     * An environment that does not sell the AI projection at all answers about the switch, not
+     * about the plan: "switched off here" is the truth, and "subscribe" would point at a page
+     * that cannot make it appear.
+     */
+    @Test
+    @DisplayName("with the feature switched off the answer is the switch, not the subscription")
+    void modelSource_withFeatureOff_reportsTheSwitch() {
+        projectionService = serviceWithAiProjection(false);
+
+        assertThatThrownBy(() -> projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("switched off");
+        verifyNoInteractions(entitlementService);
     }
 }
