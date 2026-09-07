@@ -68,6 +68,7 @@ class ProjectionSeedServiceTest {
         p.setPoints(BigDecimal.valueOf(100));
         p.setShots(BigDecimal.valueOf(250));
         p.setShootingPct(BigDecimal.valueOf(0.16));
+        p.setHatTricks(BigDecimal.valueOf(1.1));
         return p;
     }
 
@@ -147,6 +148,9 @@ class ProjectionSeedServiceTest {
         assertThat(stats.getScoring()).containsEntry("goals", 40.0).containsEntry("sog", 250.0);
         // The model holds a fraction; the app's column is a percentage.
         assertThat(stats.getScoring().get("shPct")).isEqualTo(16.0);
+        // A fraction of a hat trick is what the model has to say about one: they are rare
+        // enough that a whole number would be a claim it cannot make.
+        assertThat(stats.getScoring()).containsEntry("hatTricks", 1.1);
     }
 
     @Test

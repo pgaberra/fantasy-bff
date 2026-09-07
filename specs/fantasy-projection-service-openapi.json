@@ -651,6 +651,17 @@
             ],
             "title": "Gw Goals"
           },
+          "hat_tricks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hat Tricks"
+          },
           "hits": {
             "anyOf": [
               {
@@ -853,6 +864,7 @@
           "faceoffs_lost",
           "hits",
           "blocks",
+          "hat_tricks",
           "goals_low",
           "goals_high",
           "points_low",

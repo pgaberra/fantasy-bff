@@ -353,6 +353,7 @@ public class ProjectionSeedService {
         put(scoring, "sha", p.getShAssists());
         put(scoring, "shp", p.getShPoints());
         put(scoring, "gwg", p.getGwGoals());
+        put(scoring, "hatTricks", p.getHatTricks());
         put(scoring, "sog", p.getShots());
         // The model works in a fraction; the app's column is a percentage.
         put(scoring, "shPct", scale(p.getShootingPct(), 100));
