@@ -136,9 +136,19 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     that the web reads to drop the AI preset. It does **not** cover the splits: those are
     measured numbers behind Who's hot and stay up. Whether anyone may read the prefix at all
     is the separate `security.projection-model-enabled`.
+    **The model's lines are premium**, and there are two ways to them that share no code, so
+    both are gated: `/seed`, which hands them to the new-projection page, and `source=model`
+    in `ProjectionService.create`, which fills a projection or a preset draft with them
+    server-side without the client ever seeing a row. Either refuses with **403
+    `PREMIUM_REQUIRED`**. The switch is checked first — an environment without the feature
+    answers about the switch, since "subscribe" would point at a page that cannot make it
+    appear — and `source=default` is never gated, so the free starting point costs no
+    subscription lookup. This one is deliberately **not** hidden by the web: the AI projection
+    stays visible to a free account, marked and sold, so the server is what makes it a refusal
+    rather than a missing button, and anyone reading the network tab meets the same answer.
     The splits carry a switch of their own: **which stretch** they measure is premium. A free
-    account gets the last 10 games (`lastGames<=10`, or a `fromGame`/`toGame` window inside
-    games 73-82 — every NHL season is 82 games, so that needs no lookup); anything else is
+    account gets the last 5 games (`lastGames<=5`, or a `fromGame`/`toGame` window inside
+    games 78-82 — every NHL season is 82 games, so that needs no lookup); anything else is
     **403 `PREMIUM_REQUIRED`**, including an open range, which means the whole season. Two
     orderings matter and are tested: the range is judged *before* the subscription is read, so
     a free account's own requests cost db-service nothing, and `payments.enabled` is read

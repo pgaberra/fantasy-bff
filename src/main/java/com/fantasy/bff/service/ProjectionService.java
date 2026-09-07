@@ -7,6 +7,7 @@ import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.ProjectionResponse;
+import com.fantasy.bff.exception.PremiumRequiredException;
 import com.fantasy.bff.dto.response.ProjectionResponse.PoolReconciliation;
 import com.fantasy.bff.generated.db.model.ProjectionData;
 import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
@@ -42,6 +43,7 @@ public class ProjectionService {
     private final ProjectionPoolReconciler reconciler;
     private final ProjectionSeedService seedService;
     private final AiProjectionProperties aiProjection;
+    private final EntitlementService entitlementService;
     private final int projectionSeason;
     private final String projectionModelVersion;
 
@@ -51,6 +53,7 @@ public class ProjectionService {
                              ProjectionPoolReconciler reconciler,
                              ProjectionSeedService seedService,
                              AiProjectionProperties aiProjection,
+                             EntitlementService entitlementService,
                              @Value("${services.projection.season}") int projectionSeason,
                              @Value("${services.projection.model-version}") String projectionModelVersion) {
         this.databaseServiceClient = databaseServiceClient;
@@ -59,6 +62,7 @@ public class ProjectionService {
         this.reconciler = reconciler;
         this.seedService = seedService;
         this.aiProjection = aiProjection;
+        this.entitlementService = entitlementService;
         this.projectionSeason = projectionSeason;
         this.projectionModelVersion = projectionModelVersion;
     }
@@ -110,10 +114,19 @@ public class ProjectionService {
         // environment with the AI projection switched off never reaches the projection service.
         // The web drops the preset from its lists on the same switch; this is what makes it a
         // refusal rather than a hidden button.
-        if (request.source() == ProjectionSource.MODEL && !aiProjection.enabled()) {
-            throw new IllegalArgumentException(
-                    "source=model is unavailable: the AI projection is switched off in this "
-                            + "environment");
+        if (request.source() == ProjectionSource.MODEL) {
+            if (!aiProjection.enabled()) {
+                throw new IllegalArgumentException(
+                        "source=model is unavailable: the AI projection is switched off in this "
+                                + "environment");
+            }
+            // The model's lines are what premium pays for, so a projection seeded from them is
+            // refused here as well as at /projection-model/seed. Both matter: the seed endpoint
+            // is how the new-projection page fills a board, and this is how a preset draft does
+            // — a client that skipped the first would otherwise still get the model through the
+            // second. Checked after the switch above, since an environment without the feature
+            // has nothing to sell.
+            requirePremiumFor(userId);
         }
         if (request.kind() == ProjectionKind.PRESET_DRAFT && !isPreset(request.source())) {
             throw new IllegalArgumentException(
@@ -196,6 +209,19 @@ public class ProjectionService {
         return request.source() == ProjectionSource.MODEL
                 ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.MODEL
                 : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.LAST_SEASON;
+    }
+
+    /**
+     * Refuses a model-seeded projection to an account without premium. The web keeps the AI
+     * projection visible and marked rather than hiding it, so this is the refusal behind a
+     * button a free account can see and is meant to see.
+     */
+    private void requirePremiumFor(UUID userId) {
+        if (!entitlementService.hasPremiumAccess(userId.toString())) {
+            throw new PremiumRequiredException(
+                    "The AI projection is part of premium. Subscribe to start a projection from "
+                            + "the model's own lines.");
+        }
     }
 
     /** Which sources define a preset: one that fills every row from something the server owns. */

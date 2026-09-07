@@ -76,7 +76,7 @@ public class ProjectionModelController {
                     "Returns the model's projected stat lines keyed by this platform's player id, "
                             + "ready to be saved as a new projection. Scoring settings are not "
                             + "included — those belong to the user's league, so the client supplies "
-                            + "them when saving. `skaterLimit` and `goalieLimit` return only the "
+                            + "them when saving. Needs a premium subscription: these are the model's own lines. `skaterLimit` and `goalieLimit` return only the "
                             + "top of the board — skaters by projected points, goalies by projected "
                             + "wins, the same order the player pool is served in — for a caller "
                             + "drawing a preview rather than seeding a projection. They trim the "
@@ -86,10 +86,12 @@ public class ProjectionModelController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Generated lines plus a summary of what was skipped"),
         @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500"),
+        @ApiResponse(responseCode = "403", description = "The AI projection needs premium and this account has none"),
         @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
     })
     @GetMapping("/seed")
     public SeededProjectionResponse seed(
+            @AuthenticationPrincipal String userId,
             @Parameter(description = "Season to project; defaults to the configured one")
                     @RequestParam(required = false)
                     Integer season,
@@ -107,6 +109,13 @@ public class ProjectionModelController {
         // splits below are not: they are measured totals behind Who's hot, and stay up either way.
         if (!aiProjection.enabled()) {
             throw new NoSuchElementException("The AI projection is not enabled");
+        }
+        // Every row here is the model talking, which is the thing premium pays for — including
+        // the handful the new-projection page draws as a preview. The page keeps the starting
+        // point visible to a free account and sells it instead of previewing it.
+        if (!entitlementService.hasPremiumAccess(userId)) {
+            throw new PremiumRequiredException(
+                    "The AI projection is part of premium. Subscribe to see the model's lines.");
         }
         int target = season == null ? defaultSeason : season;
         ProjectionSeedService.Seed seed =
