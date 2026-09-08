@@ -207,7 +207,7 @@ public class SharedProjectionController {
         com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
                 databaseServiceClient.getSharedProjection(token);
         String url = webBaseUrl + "/s/" + token;
-        String title = shared.getName() + " — a fantasy hockey projection on SlapStat";
+        String title = shared.getName() + " - a fantasy hockey projection on SlapStat";
         String description = describe(shared);
 
         return PREVIEW_TEMPLATE
@@ -249,7 +249,7 @@ public class SharedProjectionController {
                     + "scoring settings.";
         }
         return author + "'s player rankings for the upcoming NHL season, tuned to their league's "
-                + "scoring settings. Top of the board: " + top + ".";
+                + "scoring settings. Top players: " + top + ".";
     }
 
     /**

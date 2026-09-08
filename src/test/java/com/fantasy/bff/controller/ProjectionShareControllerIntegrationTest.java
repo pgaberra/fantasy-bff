@@ -426,9 +426,8 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
                 .andReturn().getResponse().getContentAsString();
 
-        // htmlEscape turns non-ASCII into entities, hence &mdash; rather than the literal dash.
         assertThat(html).contains(
-                "og:title\" content=\"My league &mdash; a fantasy hockey projection on SlapStat\"");
+                "og:title\" content=\"My league - a fantasy hockey projection on SlapStat\"");
         assertThat(html).contains("Alex&#39;s player rankings");
         assertThat(html).contains("Connor McDavid");
         assertThat(html).contains("http://localhost:4200/s/" + TOKEN);

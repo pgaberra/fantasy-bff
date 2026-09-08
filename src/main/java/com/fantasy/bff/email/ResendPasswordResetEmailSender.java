@@ -82,13 +82,13 @@ public class ResendPasswordResetEmailSender implements PasswordResetEmailSender 
         return "We received a request to reset your SlapStat password.\n\n"
                 + "Open this link to choose a new password (expires in about " + minutes + " minutes):\n"
                 + resetLink + "\n\n"
-                + "If you didn't request this, you can safely ignore this email.";
+                + "If you didn't request this, you can ignore this email.";
     }
 
     private String htmlBody(String resetLink, long minutes) {
         return "<p>We received a request to reset your SlapStat password.</p>"
                 + "<p><a href=\"" + resetLink + "\">Choose a new password</a> "
                 + "(expires in about " + minutes + " minutes).</p>"
-                + "<p>If you didn't request this, you can safely ignore this email.</p>";
+                + "<p>If you didn't request this, you can ignore this email.</p>";
     }
 }
