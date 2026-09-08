@@ -79,16 +79,16 @@ public class ResendEmailVerificationEmailSender implements EmailVerificationEmai
     }
 
     private String textBody(String verifyLink, long hours) {
-        return "Welcome to SlapStat! Please confirm your email address.\n\n"
-                + "Open this link to verify (expires in about " + hours + " hours):\n"
+        return "Welcome to SlapStat. Please confirm your email address.\n\n"
+                + "Open this link to verify your email address (expires in about " + hours + " hours):\n"
                 + verifyLink + "\n\n"
-                + "If you didn't create a SlapStat account, you can safely ignore this email.";
+                + "If you didn't create a SlapStat account, you can ignore this email.";
     }
 
     private String htmlBody(String verifyLink, long hours) {
-        return "<p>Welcome to SlapStat! Please confirm your email address.</p>"
+        return "<p>Welcome to SlapStat. Please confirm your email address.</p>"
                 + "<p><a href=\"" + verifyLink + "\">Verify your email</a> "
                 + "(expires in about " + hours + " hours).</p>"
-                + "<p>If you didn't create a SlapStat account, you can safely ignore this email.</p>";
+                + "<p>If you didn't create a SlapStat account, you can ignore this email.</p>";
     }
 }
