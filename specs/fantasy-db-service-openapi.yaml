@@ -12,6 +12,9 @@ tags:
   description: Single-use email-verification token issuance and consumption
 - name: Password reset
   description: Single-use password reset token issuance and consumption
+- name: Premium
+  description: "Premium access: what a user is entitled to, and grants handed out\
+    \ by an admin"
 - name: User avatars
   description: The account's profile picture
 - name: Subscriptions
@@ -572,6 +575,82 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/users/{userId}/premium/grants:
+    get:
+      tags:
+      - Premium
+      summary: "Every premium grant a user has been given, newest first"
+      operationId: grants
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Grants returned
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PremiumGrantResponse"
+    post:
+      tags:
+      - Premium
+      summary: "Give a user premium until a date, without a payment"
+      operationId: grant
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantPremiumRequest"
+        required: true
+      responses:
+        "201":
+          description: Grant created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PremiumGrantResponse"
+        "400":
+          description: Validation failed (missing or past expiry)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PremiumGrantResponse"
+        "404":
+          description: No user with that id
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PremiumGrantResponse"
+    delete:
+      tags:
+      - Premium
+      summary: End every grant the user still has
+      description: "Marks them revoked rather than deleting them, so the audit trail\
+        \ survives. A user with no active grant is left as they are."
+      operationId: revokeGrants
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Any active grants were revoked
   /api/v1/users/password-reset:
     post:
       tags:
@@ -792,6 +871,28 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/{userId}/premium:
+    get:
+      tags:
+      - Premium
+      summary: What premium access a user has right now
+      description: "Resolves the user's subscription and any admin grant into one\
+        \ answer. Always 200: a user with neither reads as no premium."
+      operationId: entitlement
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Entitlement returned
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PremiumEntitlementResponse"
   /api/v1/users/exists:
     get:
       tags:
@@ -837,6 +938,23 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SharedProjectionResponse"
+  /api/v1/premium/customers:
+    get:
+      tags:
+      - Premium
+      summary: Everyone with premium access right now
+      description: "Paying subscribers and users on an admin grant, newest account\
+        \ first."
+      operationId: customers
+      responses:
+        "200":
+          description: Customers returned
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PremiumCustomerResponse"
 components:
   schemas:
     SetUsernameRequest:
@@ -1591,6 +1709,64 @@ components:
           minLength: 0
       required:
       - token
+    GrantPremiumRequest:
+      type: object
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the grant stops giving premium access; must be in the
+            future
+        grantedBy:
+          type: string
+          description: "Who handed the grant out, for the audit trail (the admin's\
+            \ email)"
+          maxLength: 255
+          minLength: 0
+        reason:
+          type: string
+          description: Free-text note on why premium was given
+          maxLength: 255
+          minLength: 0
+      required:
+      - expiresAt
+      - grantedBy
+    PremiumGrantResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          description: When the grant was revoked; null while it still stands
+        grantedBy:
+          type: string
+        reason:
+          type: string
+          description: Free-text note on why premium was given
+        active:
+          type: boolean
+          description: Whether the grant gives premium access right now
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - active
+      - createdAt
+      - expiresAt
+      - grantedBy
+      - id
+      - startsAt
+      - userId
     PasswordResetRequest:
       type: object
       properties:
@@ -1822,6 +1998,53 @@ components:
       - name
       - season
       - updatedAt
+    PremiumEntitlementResponse:
+      type: object
+      properties:
+        premium:
+          type: boolean
+          description: "Whether the user has premium access right now, paid for or\
+            \ granted"
+        source:
+          type: string
+          description: "What premium access rests on: a subscription, an admin grant,\
+            \ or both"
+          enum:
+          - none
+          - subscription
+          - grant
+          - both
+        subscriptionStatus:
+          type: string
+          description: Subscription status; null when the user has no subscription
+          enum:
+          - active
+          - trialing
+          - past_due
+          - canceled
+          - paused
+          - unpaid
+          - incomplete
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          description: When the current paid period ends; null when not applicable
+        cancelAtPeriodEnd:
+          type: boolean
+          description: Whether the subscription is set to cancel at period end
+        grantExpiresAt:
+          type: string
+          format: date-time
+          description: When the admin grant runs out; null when there is no active
+            grant
+        premiumUntil:
+          type: string
+          format: date-time
+          description: When premium runs out altogether; null when it is open-ended
+      required:
+      - cancelAtPeriodEnd
+      - premium
+      - source
     ExistsResponse:
       type: object
       properties:
@@ -1884,3 +2107,69 @@ components:
       - season
       - token
       - updatedAt
+    PremiumCustomerResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+          description: The account's public name; null until the user picks one
+        source:
+          type: string
+          description: "What premium access rests on: a subscription, an admin grant,\
+            \ or both"
+          enum:
+          - none
+          - subscription
+          - grant
+          - both
+        subscriptionStatus:
+          type: string
+          description: Subscription status; null when the user has no subscription
+          enum:
+          - active
+          - trialing
+          - past_due
+          - canceled
+          - paused
+          - unpaid
+          - incomplete
+        provider:
+          type: string
+          description: Payment provider id; null when there is no subscription
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          description: When the current paid period ends; null when not applicable
+        cancelAtPeriodEnd:
+          type: boolean
+          description: Whether the subscription is set to cancel at period end
+        grantExpiresAt:
+          type: string
+          format: date-time
+          description: When the admin grant runs out; null when there is no active
+            grant
+        grantedBy:
+          type: string
+          description: Who handed the grant out; null when there is no active grant
+        grantReason:
+          type: string
+          description: Why premium was given; null when there is no active grant or
+            no note given
+        premiumUntil:
+          type: string
+          format: date-time
+          description: When premium runs out altogether; null when it is open-ended
+        userCreatedAt:
+          type: string
+          format: date-time
+          description: When the account was created
+      required:
+      - cancelAtPeriodEnd
+      - email
+      - source
+      - userCreatedAt
+      - userId

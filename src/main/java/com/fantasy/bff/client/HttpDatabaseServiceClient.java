@@ -22,6 +22,10 @@ import com.fantasy.bff.generated.db.model.SetAvatarRequest;
 import com.fantasy.bff.generated.db.model.SetUsernameRequest;
 import com.fantasy.bff.generated.db.model.ShareResponse;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
+import com.fantasy.bff.generated.db.model.GrantPremiumRequest;
+import com.fantasy.bff.generated.db.model.PremiumCustomerResponse;
+import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
+import com.fantasy.bff.generated.db.model.PremiumGrantResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
@@ -393,6 +397,41 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(request)
                 .retrieve()
                 .body(SubscriptionResponse.class);
+    }
+
+    @Override
+    public PremiumEntitlementResponse getPremiumEntitlement(UUID userId) {
+        return restClient.get()
+                .uri("/api/v1/users/{userId}/premium", userId)
+                .retrieve()
+                .body(PremiumEntitlementResponse.class);
+    }
+
+    @Override
+    public List<PremiumCustomerResponse> listPremiumCustomers() {
+        PremiumCustomerResponse[] customers = restClient.get()
+                .uri("/api/v1/premium/customers")
+                .retrieve()
+                .body(PremiumCustomerResponse[].class);
+        return customers == null ? List.of() : List.of(customers);
+    }
+
+    @Override
+    public PremiumGrantResponse grantPremium(UUID userId, GrantPremiumRequest request) {
+        return restClient.post()
+                .uri("/api/v1/users/{userId}/premium/grants", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(PremiumGrantResponse.class);
+    }
+
+    @Override
+    public void revokePremiumGrants(UUID userId) {
+        restClient.delete()
+                .uri("/api/v1/users/{userId}/premium/grants", userId)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     @Override

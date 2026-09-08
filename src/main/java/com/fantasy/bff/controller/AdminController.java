@@ -3,7 +3,11 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.request.AdminGrantPremiumRequest;
+import com.fantasy.bff.dto.response.AdminPremiumCustomerResponse;
+import com.fantasy.bff.dto.response.AdminPremiumGrantResponse;
 import com.fantasy.bff.dto.response.PlayerIdRemapReport;
+import com.fantasy.bff.service.AdminPremiumService;
 import com.fantasy.bff.service.PlayerIdRemapService;
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
@@ -13,10 +17,18 @@ import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +36,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Admin-only operations (gated by ROLE_ADMIN in SecurityConfig). Manages the app-owned
@@ -42,11 +55,14 @@ public class AdminController {
     private final PlayerServiceClient playerServiceClient;
     private final PlayerIdRemapService playerIdRemapService;
     private final EspnServiceClient espnServiceClient;
+    private final AdminPremiumService adminPremiumService;
 
     public AdminController(YahooServiceClient yahooServiceClient,
                            PlayerServiceClient playerServiceClient,
                            PlayerIdRemapService playerIdRemapService,
-                           EspnServiceClient espnServiceClient) {
+                           EspnServiceClient espnServiceClient,
+                           AdminPremiumService adminPremiumService) {
+        this.adminPremiumService = adminPremiumService;
         this.espnServiceClient = espnServiceClient;
         this.playerIdRemapService = playerIdRemapService;
         this.yahooServiceClient = yahooServiceClient;
@@ -155,5 +171,38 @@ public class AdminController {
             @Parameter(description = "Write nothing and report what would change. Defaults to true.")
             @RequestParam(defaultValue = "true") boolean dryRun) {
         return playerIdRemapService.remap(dryRun);
+    }
+
+    @Operation(summary = "Everyone with premium right now",
+            description = "Paying subscribers and accounts on a grant, newest account first. "
+                    + "Each row says which of the two it is, and when premium runs out.")
+    @ApiResponse(responseCode = "200", description = "Customers returned")
+    @GetMapping("/premium/customers")
+    public List<AdminPremiumCustomerResponse> premiumCustomers() {
+        return adminPremiumService.customers();
+    }
+
+    @Operation(summary = "Give an account premium for a number of months, free",
+            description = "Records a grant in the account's name, apart from any subscription, so "
+                    + "nothing is billed and a later provider event cannot overwrite it.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Premium granted"),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "404", description = "No account with that email")
+    })
+    @PostMapping("/premium/grants")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AdminPremiumGrantResponse grantPremium(@AuthenticationPrincipal String adminUserId,
+                                                  @Valid @RequestBody AdminGrantPremiumRequest request) {
+        return adminPremiumService.grant(adminUserId, request);
+    }
+
+    @Operation(summary = "End an account's granted premium",
+            description = "Takes back premium that was given by hand. A paid subscription is left alone.")
+    @ApiResponse(responseCode = "204", description = "Any granted premium was ended")
+    @DeleteMapping("/premium/grants/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokePremiumGrants(@PathVariable UUID userId) {
+        adminPremiumService.revokeGrants(userId);
     }
 }

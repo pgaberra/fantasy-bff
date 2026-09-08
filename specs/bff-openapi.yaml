@@ -763,6 +763,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthorizeUrlResponse"
+  /api/v1/admin/premium/grants:
+    post:
+      tags:
+      - Admin
+      summary: "Give an account premium for a number of months, free"
+      description: "Records a grant in the account's name, apart from any subscription,\
+        \ so nothing is billed and a later provider event cannot overwrite it."
+      operationId: grantPremium
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminGrantPremiumRequest"
+        required: true
+      responses:
+        "201":
+          description: Premium granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPremiumGrantResponse"
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPremiumGrantResponse"
+        "404":
+          description: No account with that email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPremiumGrantResponse"
   /api/v1/admin/player/sync:
     post:
       tags:
@@ -1565,6 +1598,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectionResponse"
+  /api/v1/admin/premium/customers:
+    get:
+      tags:
+      - Admin
+      summary: Everyone with premium right now
+      description: "Paying subscribers and accounts on a grant, newest account first.\
+        \ Each row says which of the two it is, and when premium runs out."
+      operationId: premiumCustomers
+      responses:
+        "200":
+          description: Customers returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminPremiumCustomerResponse"
   /api/v1/admin/player/sync/runs:
     get:
       tags:
@@ -1618,6 +1668,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountResponse"
+  /api/v1/admin/premium/grants/{userId}:
+    delete:
+      tags:
+      - Admin
+      summary: End an account's granted premium
+      description: Takes back premium that was given by hand. A paid subscription
+        is left alone.
+      operationId: revokePremiumGrants
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Any granted premium was ended
 components:
   schemas:
     DraftPick:
@@ -2345,6 +2413,51 @@ components:
           minLength: 0
       required:
       - accessToken
+    AdminGrantPremiumRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address of the account to give premium to
+          maxLength: 255
+          minLength: 0
+        months:
+          type: integer
+          format: int32
+          description: "How many months the grant lasts, counted from now"
+          maximum: 24
+          minimum: 1
+        reason:
+          type: string
+          description: Free-text note on why premium was given
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+      - months
+    AdminPremiumGrantResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the grant stops giving premium access
+        grantedBy:
+          type: string
+          description: Who handed the grant out
+        reason:
+          type: string
+          description: Free-text note on why premium was given
+      required:
+      - email
+      - expiresAt
+      - grantedBy
+      - userId
     SyncAcceptedResponse:
       type: object
       properties:
@@ -3195,9 +3308,20 @@ components:
         cancelAtPeriodEnd:
           type: boolean
           description: Whether the subscription is set to cancel at period end
+        source:
+          type: string
+          description: "What premium rests on: \"none\", \"subscription\", \"grant\"\
+            \ or \"both\". A grant is premium given by hand, with nothing to bill\
+            \ or manage"
+        premiumUntil:
+          type: string
+          format: date-time
+          description: When premium runs out altogether; null when it is open-ended
+            or absent
       required:
       - cancelAtPeriodEnd
       - premium
+      - source
       - status
     YahooProbeResponse:
       type: object
@@ -3217,6 +3341,56 @@ components:
       required:
       - ok
       - path
+    AdminPremiumCustomerResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+          description: The account's public name; null until the user picks one
+        source:
+          type: string
+          description: "What premium rests on: \"subscription\", \"grant\" or \"both\""
+        subscriptionStatus:
+          type: string
+          description: Subscription status; null when the user has no subscription
+        provider:
+          type: string
+          description: Payment provider id; null when there is no subscription
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          description: When the current paid period ends; null when not applicable
+        cancelAtPeriodEnd:
+          type: boolean
+          description: Whether the subscription is set to cancel at period end
+        grantExpiresAt:
+          type: string
+          format: date-time
+          description: When the granted premium runs out; null when there is no grant
+        grantedBy:
+          type: string
+          description: Who handed the grant out; null when there is no grant
+        grantReason:
+          type: string
+          description: Why premium was given; null when there is no grant or no note
+        premiumUntil:
+          type: string
+          format: date-time
+          description: When premium runs out altogether; null when it is open-ended
+        createdAt:
+          type: string
+          format: date-time
+          description: When the account was created
+      required:
+      - cancelAtPeriodEnd
+      - createdAt
+      - email
+      - source
+      - userId
     SyncRunResponse:
       type: object
       properties:

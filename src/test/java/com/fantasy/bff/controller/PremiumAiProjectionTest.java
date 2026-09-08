@@ -21,7 +21,7 @@ import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
-import com.fantasy.bff.generated.db.model.SubscriptionResponse;
+import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -87,20 +87,32 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
     }
 
     private void withoutASubscription() {
-        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.empty());
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(false)
+                        .source(PremiumEntitlementResponse.SourceEnum.NONE)
+                        .cancelAtPeriodEnd(false));
     }
 
     private void withPremium() {
-        when(databaseServiceClient.getSubscription(USER_ID))
-                .thenReturn(
-                        Optional.of(
-                                new SubscriptionResponse()
-                                        .status(SubscriptionResponse.StatusEnum.ACTIVE)
-                                        .premium(true)
-                                        .cancelAtPeriodEnd(false)
-                                        .provider("mock")
-                                        .currentPeriodEnd(
-                                                OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))));
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(true)
+                        .source(PremiumEntitlementResponse.SourceEnum.SUBSCRIPTION)
+                        .subscriptionStatus(PremiumEntitlementResponse.SubscriptionStatusEnum.ACTIVE)
+                        .cancelAtPeriodEnd(false)
+                        .currentPeriodEnd(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
+                        .premiumUntil(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30)));
+    }
+
+    private void withGrantedPremium() {
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(true)
+                        .source(PremiumEntitlementResponse.SourceEnum.GRANT)
+                        .cancelAtPeriodEnd(false)
+                        .grantExpiresAt(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(2))
+                        .premiumUntil(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(2)));
     }
 
     /** One projected skater the platform also carries, so a seed has something to return. */
@@ -292,6 +304,17 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("so does an account that was given premium rather than sold it")
+    void seed_withGrantedPremium_isServed() throws Exception {
+        withGrantedPremium();
+        withOneProjectedSkater();
+
+        mockMvc.perform(get("/api/v1/projection-model/seed").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players[0].playerId").value(5000));
+    }
+
+    @Test
     @DisplayName("and can create a projection from them")
     void createFromModel_withPremium_isServed() throws Exception {
         withPremium();
@@ -317,14 +340,12 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
     @Test
     @DisplayName("a lapsed subscription is refused like no subscription at all")
     void lapsedSubscription_isForbidden() throws Exception {
-        when(databaseServiceClient.getSubscription(USER_ID))
-                .thenReturn(
-                        Optional.of(
-                                new SubscriptionResponse()
-                                        .status(SubscriptionResponse.StatusEnum.CANCELED)
-                                        .premium(false)
-                                        .cancelAtPeriodEnd(true)
-                                        .provider("mock")));
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(false)
+                        .source(PremiumEntitlementResponse.SourceEnum.NONE)
+                        .subscriptionStatus(PremiumEntitlementResponse.SubscriptionStatusEnum.CANCELED)
+                        .cancelAtPeriodEnd(true));
 
         mockMvc.perform(get("/api/v1/projection-model/seed").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
