@@ -73,7 +73,7 @@ public class BillingController {
     public CheckoutUrlResponse checkoutSession(@AuthenticationPrincipal String userId) {
         requireEnabled();
         CheckoutSession session = paymentProvider.createCheckoutSession(new CheckoutRequest(
-                userId, webBaseUrl + "/account?checkout=success", webBaseUrl + "/pricing?checkout=cancel"));
+                userId, webBaseUrl + "/premium?checkout=success", webBaseUrl + "/premium?checkout=cancel"));
         return new CheckoutUrlResponse(session.url());
     }
 
@@ -91,7 +91,7 @@ public class BillingController {
                 .filter(StringUtils::hasText)
                 .orElseThrow(() -> new NoSuchElementException("No billing customer for user"));
         PortalSession session = paymentProvider.createPortalSession(
-                new PortalRequest(userId, customerId, webBaseUrl + "/account?portal=return"));
+                new PortalRequest(userId, customerId, webBaseUrl + "/premium?portal=return"));
         return new PortalUrlResponse(session.url());
     }
 

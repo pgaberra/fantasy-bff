@@ -54,7 +54,7 @@ class PaddlePaymentProviderTest {
                         MediaType.APPLICATION_JSON));
 
         CheckoutSession session = provider.createCheckoutSession(
-                new CheckoutRequest(USER_ID, "https://slapstat.test/account", "https://slapstat.test/pricing"));
+                new CheckoutRequest(USER_ID, "https://slapstat.test/premium", "https://slapstat.test/premium"));
 
         assertThat(session.url()).isEqualTo("https://slapstat.test/pay?_ptxn=txn_1");
         paddleServer.verify();
@@ -68,7 +68,7 @@ class PaddlePaymentProviderTest {
                         MediaType.APPLICATION_JSON));
 
         PortalSession session = provider.createPortalSession(
-                new PortalRequest(USER_ID, "ctm_1", "https://slapstat.test/account"));
+                new PortalRequest(USER_ID, "ctm_1", "https://slapstat.test/premium"));
 
         assertThat(session.url()).isEqualTo("https://customer-portal.paddle.com/x?token=t");
         paddleServer.verify();
@@ -190,7 +190,7 @@ class PaddlePaymentProviderTest {
                                  "detail":"No default payment link has been set for this account."}}"""));
 
         assertThatThrownBy(() -> provider.createCheckoutSession(
-                new CheckoutRequest(USER_ID, "https://slapstat.test/account", "https://slapstat.test/pricing")))
+                new CheckoutRequest(USER_ID, "https://slapstat.test/premium", "https://slapstat.test/premium")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("create a checkout")
                 // The caller is told only that we failed. Paddle's own words, which name our
@@ -207,7 +207,7 @@ class PaddlePaymentProviderTest {
                         .body("{\"error\":{\"code\":\"forbidden\"}}"));
 
         assertThatThrownBy(() -> provider.createPortalSession(
-                new PortalRequest(USER_ID, "ctm_1", "https://slapstat.test/account")))
+                new PortalRequest(USER_ID, "ctm_1", "https://slapstat.test/premium")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("open the billing portal");
     }
