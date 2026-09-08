@@ -9,7 +9,10 @@ import com.fantasy.bff.generated.db.model.ShareResponse;
 import com.fantasy.bff.generated.db.model.SharedPlayer;
 import com.fantasy.bff.generated.db.model.SharedProjectionData;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
+import com.fantasy.bff.dto.response.RookiesResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
+import com.fantasy.bff.service.RookieService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +29,13 @@ import java.io.ByteArrayInputStream;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -54,6 +59,18 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
 
     @MockitoBean
     private DatabaseServiceClient databaseServiceClient;
+
+    @MockitoBean
+    private RookieService rookieService;
+
+    /**
+     * Nobody can say who is a rookie unless a test says otherwise, which is the answer every
+     * environment without the projection service gives, production included.
+     */
+    @BeforeEach
+    void rookieStatusIsUnknownByDefault() {
+        when(rookieService.rookies()).thenReturn(RookiesResponse.unknown());
+    }
 
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID PROJECTION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -191,15 +208,17 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
     /**
      * A board whose best players sit at the bottom of the published ranking: goals climb with the
      * rank, and the defencemen are every even row. A preview cut before the sort was applied could
-     * not answer either question correctly, which is the point.
+     * not answer either question correctly, which is the point. Three teams, cycling on a
+     * different period to the positions so that a team filter cannot pass by matching one.
      */
     private static SharedProjectionResponse boardOrderedAgainstItself(int rows) {
         SharedProjectionResponse shared = sharedProjection("My league", "Alex", rows);
+        List<String> teams = List.of("EDM", "COL", "TOR");
         List<SharedPlayer> board = IntStream.rangeClosed(1, rows)
                 .mapToObj(rank -> new SharedPlayer()
                         .playerId(rank)
                         .name("Player " + rank)
-                        .teamAbbrev("EDM")
+                        .teamAbbrev(teams.get(rank % 3))
                         .positions(List.of(rank % 2 == 0 ? "D" : "C"))
                         .type(SharedPlayer.TypeEnum.SKATER)
                         .rank(rank)
@@ -261,6 +280,76 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.data.players[0].name").value("Player 1"));
     }
 
+    @Test
+    void publicRead_withoutSignIn_searchesTheWholeBoardBeforeTakingItsTop() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("search", "player 399"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(1))
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 399"));
+    }
+
+    @Test
+    void publicRead_withoutSignIn_filtersTheWholeBoardByTeam() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("team", "COL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(25))
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 1"))
+                .andExpect(jsonPath("$.data.players[1].name").value("Player 4"));
+    }
+
+    @Test
+    void publicRead_withoutSignIn_keepsOnlyTheRookiesWhenAsked() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+        when(rookieService.rookies()).thenReturn(RookiesResponse.of(Set.of(300, 301)));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("rookies", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(2))
+                .andExpect(jsonPath("$.data.players[0].name").value("Player 300"));
+    }
+
+    /** The filter is only as good as the answer behind it, and there isn't always one. */
+    @Test
+    void publicRead_withoutSignIn_ignoresTheRookieFilterWhenNobodyCanSayWhoIsOne() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("rookies", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(25))
+                .andExpect(jsonPath("$.rookieIds.length()").value(0));
+    }
+
+    /** Both controls are filled from the whole board, or they would offer a reader behind the
+     * gate only what the rows they were sent happen to contain. */
+    @Test
+    void publicRead_namesTheTeamsAndRookiesOfTheWholeBoard() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(boardOrderedAgainstItself(400));
+        when(rookieService.rookies()).thenReturn(RookiesResponse.of(Set.of(399, 12345)));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.teams").value(contains("COL", "EDM", "TOR")))
+                .andExpect(jsonPath("$.rookieIds").value(contains(399)));
+    }
+
+    @Test
+    void publicRead_withAnOverlongSearch_isRejected() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("search", "x".repeat(101)))
+                .andExpect(status().isBadRequest());
+    }
+
     /** Someone holding the whole board sorts it in the browser; the params are not theirs. */
     @Test
     void publicRead_whenSignedIn_ignoresTheOrderAskedForAndSendsEverything() throws Exception {
@@ -271,7 +360,10 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token())
                         .param("sort", "goals")
                         .param("direction", "desc")
-                        .param("position", "D"))
+                        .param("position", "D")
+                        .param("search", "Player 399")
+                        .param("team", "COL")
+                        .param("rookies", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.players.length()").value(400))
                 .andExpect(jsonPath("$.data.players[0].name").value("Player 1"));
