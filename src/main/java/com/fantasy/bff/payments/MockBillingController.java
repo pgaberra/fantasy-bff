@@ -118,28 +118,28 @@ public class MockBillingController {
     public ResponseEntity<Void> confirmCheckout(@RequestParam String token) {
         requireEnabled();
         return emitAndRedirect(codec.decodeToken(token), WebhookEventType.SUBSCRIPTION_CREATED, "active", false,
-                "/account?checkout=success");
+                "/premium?checkout=success");
     }
 
     @GetMapping("/checkout/cancel")
     public ResponseEntity<Void> cancelCheckout(@RequestParam String token) {
         requireEnabled();
         codec.decodeToken(token);
-        return redirect("/pricing?checkout=cancel");
+        return redirect("/premium?checkout=cancel");
     }
 
     @GetMapping("/portal/cancel")
     public ResponseEntity<Void> cancelSubscription(@RequestParam String token) {
         requireEnabled();
         return emitAndRedirect(codec.decodeToken(token), WebhookEventType.SUBSCRIPTION_UPDATED, "active", true,
-                "/account?portal=return");
+                "/premium?portal=return");
     }
 
     @GetMapping("/portal/reactivate")
     public ResponseEntity<Void> reactivateSubscription(@RequestParam String token) {
         requireEnabled();
         return emitAndRedirect(codec.decodeToken(token), WebhookEventType.SUBSCRIPTION_UPDATED, "active", false,
-                "/account?portal=return");
+                "/premium?portal=return");
     }
 
     private void requireEnabled() {
