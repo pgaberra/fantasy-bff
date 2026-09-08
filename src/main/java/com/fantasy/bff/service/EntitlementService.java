@@ -7,7 +7,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 /**
- * What a user's subscription currently entitles them to.
+ * What a user is currently entitled to. db-service answers it in one call, since premium can rest
+ * on a paid subscription, on a grant an admin handed out, or on both.
  *
  * <p>Read live from db-service on every ask rather than carried as a JWT claim: a provider
  * webhook can turn premium on or off mid-session, and a token minted before that would go on
@@ -26,16 +27,15 @@ public class EntitlementService {
     }
 
     /**
-     * What to report to the user about their own subscription. With payments switched off this
+     * What to report to the user about their own premium access. With payments switched off this
      * answers "no premium" rather than failing, so the web renders the same either way.
      */
     public EntitlementsResponse entitlements(String userId) {
         if (!paymentsProperties.enabled()) {
             return EntitlementsResponse.none();
         }
-        return databaseServiceClient.getSubscription(UUID.fromString(userId))
-                .map(EntitlementsResponse::from)
-                .orElseGet(EntitlementsResponse::none);
+        return EntitlementsResponse.from(
+                databaseServiceClient.getPremiumEntitlement(UUID.fromString(userId)));
     }
 
     /**

@@ -105,6 +105,15 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     then hands db-service the bytes with the type it found, not the one the upload claimed. The
     web scales the picture down before uploading, so a real upload is a few tens of KB;
     `spring.servlet.multipart` bounds the request itself at 1 MB.
+  - `AdminController` also carries the premium admin view (`ROLE_ADMIN` like the rest of
+    `/api/v1/admin`): `GET /premium/customers` lists everyone with premium right now, paying or
+    granted, and `POST /premium/grants` gives an account premium for a number of months without a
+    payment (`DELETE /premium/grants/{userId}` takes it back). A grant lives in its own table in
+    db-service rather than in `subscriptions`, so giving one never touches billing and a provider
+    event can never overwrite it. `EntitlementService` asks db-service one question
+    (`GET /api/v1/users/{id}/premium`) that already accounts for both, and `EntitlementsResponse`
+    reports `source` so the account page can say "free until <date>" and hide a billing portal
+    there is nothing behind.
   - `BillingController` — `/api/v1/billing`: checkout, the customer portal, the current
     entitlement, and the provider's webhook. Billing **state** lives in db-service; the BFF
     stays stateless and only relays. Everything goes through the `payments/`

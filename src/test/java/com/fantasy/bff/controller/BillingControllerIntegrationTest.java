@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
 import com.fantasy.bff.payments.MockBillingCodec;
@@ -92,7 +93,11 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void entitlements_noSubscription_returnsPremiumFalse() throws Exception {
-        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.empty());
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(false)
+                        .source(PremiumEntitlementResponse.SourceEnum.NONE)
+                        .cancelAtPeriodEnd(false));
 
         mockMvc.perform(get("/api/v1/billing/entitlements").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
@@ -102,17 +107,38 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void entitlements_activeSubscription_returnsPremiumTrue() throws Exception {
-        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.of(new SubscriptionResponse()
-                .status(SubscriptionResponse.StatusEnum.ACTIVE)
-                .premium(true)
-                .cancelAtPeriodEnd(false)
-                .provider("mock")
-                .currentPeriodEnd(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))));
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(true)
+                        .source(PremiumEntitlementResponse.SourceEnum.SUBSCRIPTION)
+                        .subscriptionStatus(PremiumEntitlementResponse.SubscriptionStatusEnum.ACTIVE)
+                        .cancelAtPeriodEnd(false)
+                        .currentPeriodEnd(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
+                        .premiumUntil(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30)));
 
         mockMvc.perform(get("/api/v1/billing/entitlements").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.premium").value(true))
-                .andExpect(jsonPath("$.status").value("active"));
+                .andExpect(jsonPath("$.status").value("active"))
+                .andExpect(jsonPath("$.source").value("subscription"));
+    }
+
+    @Test
+    void entitlements_grantedPremium_saysItIsAGrant() throws Exception {
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(true)
+                        .source(PremiumEntitlementResponse.SourceEnum.GRANT)
+                        .cancelAtPeriodEnd(false)
+                        .grantExpiresAt(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(2))
+                        .premiumUntil(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(2)));
+
+        mockMvc.perform(get("/api/v1/billing/entitlements").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.premium").value(true))
+                .andExpect(jsonPath("$.source").value("grant"))
+                .andExpect(jsonPath("$.status").value("none"))
+                .andExpect(jsonPath("$.premiumUntil").exists());
     }
 
     @Test

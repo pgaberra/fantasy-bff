@@ -9,6 +9,10 @@ import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.ShareResponse;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
+import com.fantasy.bff.generated.db.model.GrantPremiumRequest;
+import com.fantasy.bff.generated.db.model.PremiumCustomerResponse;
+import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
+import com.fantasy.bff.generated.db.model.PremiumGrantResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
@@ -101,6 +105,14 @@ public interface DatabaseServiceClient {
     Optional<SubscriptionResponse> getSubscription(UUID userId);
 
     SubscriptionResponse upsertSubscription(UUID userId, UpsertSubscriptionRequest request);
+
+    PremiumEntitlementResponse getPremiumEntitlement(UUID userId);
+
+    List<PremiumCustomerResponse> listPremiumCustomers();
+
+    PremiumGrantResponse grantPremium(UUID userId, GrantPremiumRequest request);
+
+    void revokePremiumGrants(UUID userId);
 
     /**
      * Rewrites the player ids in every stored projection and share from one platform's

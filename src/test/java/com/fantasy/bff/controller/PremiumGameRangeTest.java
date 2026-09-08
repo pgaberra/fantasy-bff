@@ -16,7 +16,7 @@ import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.SkaterResponse;
-import com.fantasy.bff.generated.db.model.SubscriptionResponse;
+import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
@@ -75,17 +75,32 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     }
 
     private void withoutASubscription() {
-        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.empty());
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(false)
+                        .source(PremiumEntitlementResponse.SourceEnum.NONE)
+                        .cancelAtPeriodEnd(false));
     }
 
     private void withPremium() {
-        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.of(
-                new SubscriptionResponse()
-                        .status(SubscriptionResponse.StatusEnum.ACTIVE)
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
                         .premium(true)
+                        .source(PremiumEntitlementResponse.SourceEnum.SUBSCRIPTION)
+                        .subscriptionStatus(PremiumEntitlementResponse.SubscriptionStatusEnum.ACTIVE)
                         .cancelAtPeriodEnd(false)
-                        .provider("mock")
-                        .currentPeriodEnd(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))));
+                        .currentPeriodEnd(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
+                        .premiumUntil(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30)));
+    }
+
+    private void withGrantedPremium() {
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
+                        .premium(true)
+                        .source(PremiumEntitlementResponse.SourceEnum.GRANT)
+                        .cancelAtPeriodEnd(false)
+                        .grantExpiresAt(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(2))
+                        .premiumUntil(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(2)));
     }
 
     /** Enough of the player pool for a split to be named and served. */
@@ -265,6 +280,18 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("so does an account that was given premium rather than sold it")
+    void grantedPremium_getsTheWholeSeason() throws Exception {
+        withGrantedPremium();
+        withOneSkaterAndOneGoalie();
+
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=1&toGame=82")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].playerId").value(5000));
+    }
+
+    @Test
     @DisplayName("and so does its goalie leaderboard")
     void premium_getsTheGoalies() throws Exception {
         withPremium();
@@ -282,12 +309,12 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     @Test
     @DisplayName("a lapsed subscription is refused like no subscription at all")
     void lapsedSubscription_isForbidden() throws Exception {
-        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.of(
-                new SubscriptionResponse()
-                        .status(SubscriptionResponse.StatusEnum.CANCELED)
+        when(databaseServiceClient.getPremiumEntitlement(USER_ID)).thenReturn(
+                new PremiumEntitlementResponse()
                         .premium(false)
-                        .cancelAtPeriodEnd(true)
-                        .provider("mock")));
+                        .source(PremiumEntitlementResponse.SourceEnum.NONE)
+                        .subscriptionStatus(PremiumEntitlementResponse.SubscriptionStatusEnum.CANCELED)
+                        .cancelAtPeriodEnd(true));
 
         mockMvc.perform(get("/api/v1/projection-model/splits/skaters?fromGame=1&toGame=82")
                         .header("Authorization", "Bearer " + token))
