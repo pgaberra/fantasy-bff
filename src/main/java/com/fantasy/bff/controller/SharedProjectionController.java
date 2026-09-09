@@ -246,11 +246,9 @@ public class SharedProjectionController {
                 .collect(Collectors.joining(", "));
         String author = shared.getAuthorUsername();
         if (top.isBlank()) {
-            return author + "'s player rankings for the upcoming NHL season, tuned to their league's "
-                    + "scoring settings.";
+            return author + "'s NHL projections for the upcoming season.";
         }
-        return author + "'s player rankings for the upcoming NHL season, tuned to their league's "
-                + "scoring settings. Top players: " + top + ".";
+        return author + "'s NHL projections for the upcoming season. Top players: " + top + ".";
     }
 
     /**

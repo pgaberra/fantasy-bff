@@ -428,7 +428,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
 
         assertThat(html).contains(
                 "og:title\" content=\"My league by Alex - Fantasy Hockey Projections | SlapStat\"");
-        assertThat(html).contains("Alex&#39;s player rankings");
+        assertThat(html).contains("Alex&#39;s NHL projections for the upcoming season. Top players:");
         assertThat(html).contains("Connor McDavid");
         assertThat(html).contains("http://localhost:4200/s/" + TOKEN);
     }
