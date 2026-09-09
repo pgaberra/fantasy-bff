@@ -5,7 +5,6 @@ import com.fantasy.bff.service.RookieService;
 import com.fantasy.bff.service.ShareCardRenderer;
 import com.fantasy.bff.service.SharedBoardFilters;
 import com.fantasy.bff.dto.response.SharedProjectionResponse;
-import com.fantasy.bff.generated.db.model.SharedPlayer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -38,7 +37,11 @@ import java.util.stream.Collectors;
 @Validated
 public class SharedProjectionController {
 
-    private static final int PREVIEW_PLAYERS = 3;
+    /**
+     * How many players the link preview names. Surnames alone, and a description that no longer
+     * explains the scoring settings, leave room for eight where three full names filled the line.
+     */
+    private static final int PREVIEW_PLAYERS = 8;
 
     /**
      * The longest search term worth reading. A player's name is capped at 100 where a share is
@@ -242,13 +245,23 @@ public class SharedProjectionController {
     private String describe(com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
         String top = shared.getData().getPlayers().stream()
                 .limit(PREVIEW_PLAYERS)
-                .map(SharedPlayer::getName)
+                .map(player -> surname(player.getName()))
                 .collect(Collectors.joining(", "));
         String author = shared.getAuthorUsername();
         if (top.isBlank()) {
             return author + "'s NHL projections for the upcoming season.";
         }
         return author + "'s NHL projections for the upcoming season. Top players: " + top + ".";
+    }
+
+    /**
+     * "Connor McDavid" reads as "McDavid" in the preview. The given name costs characters an unfurl
+     * does not have and tells the reader nothing they cannot supply themselves.
+     */
+    private static String surname(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        int lastSpace = trimmed.lastIndexOf(' ');
+        return lastSpace < 0 ? trimmed : trimmed.substring(lastSpace + 1);
     }
 
     /**
