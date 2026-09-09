@@ -47,7 +47,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * The AI projection is what premium pays for. The web keeps it visible to a free account and
  * sells it rather than hiding it, so every way to the model's actual lines has to be refused
  * here — a visible starting point that the server let through would be the whole feature given
- * away by anyone who read the network tab.
+ * away by anyone who read the network tab. The exception is the top of the board, small enough
+ * to be the preview that page shows a free account and priced in as the teaser it is.
  *
  * <p>There are two such ways, and they do not share a code path: {@code /projection-model/seed}
  * hands the lines to the new-projection page, and {@code source=model} has the server fill a
@@ -190,16 +191,43 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
     }
 
     /**
-     * The new-projection page previews the starting point with a handful of rows. Those rows are
-     * the model talking too, so trimming the request is not a way past the gate.
+     * The few rows the new-projection page draws as a preview are the teaser, and deliberately
+     * not behind the gate: a starting point nobody may look at is a hard thing to want.
      */
     @Test
-    @DisplayName("and so are the few rows a preview would draw")
-    void seedWithALimit_withoutPremium_isForbidden() throws Exception {
+    @DisplayName("the top of the board is served to an account without premium")
+    void seedWithAPreviewLimit_withoutPremium_isServed() throws Exception {
+        withoutASubscription();
+        withOneProjectedSkater();
+
+        mockMvc.perform(
+                        get("/api/v1/projection-model/seed?skaterLimit=25&goalieLimit=10")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players[0].playerId").value(5000));
+    }
+
+    /** One row past the preview is the board being read a page at a time. */
+    @Test
+    @DisplayName("but asking for more of it than the preview is refused")
+    void seedWithATooWideLimit_withoutPremium_isForbidden() throws Exception {
         withoutASubscription();
 
         mockMvc.perform(
-                        get("/api/v1/projection-model/seed?skaterLimit=5&goalieLimit=2")
+                        get("/api/v1/projection-model/seed?skaterLimit=26&goalieLimit=10")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
+    }
+
+    /** An absent limit means every one of them, however small the other limit is. */
+    @Test
+    @DisplayName("and so is a preview-sized limit on only one of the two lists")
+    void seedWithOneLimit_withoutPremium_isForbidden() throws Exception {
+        withoutASubscription();
+
+        mockMvc.perform(
+                        get("/api/v1/projection-model/seed?skaterLimit=5")
                                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));

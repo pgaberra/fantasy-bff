@@ -48,6 +48,20 @@ public class ProjectionModelController {
 
     private static final int FIRST_FREE_GAME = SEASON_SCHEDULE_GAMES - FREE_RANGE_LENGTH + 1;
 
+    /**
+     * The slice of the board a free account may read: the top of it, and no more than the
+     * new-projection page needs to draw its five-row preview. Wide enough that the page can rank
+     * those rows by its own default weights rather than taking the order it is served in, narrow
+     * enough that what leaves the server is a teaser — the handful of names everyone already
+     * agrees on — and not the board, which is what premium buys.
+     *
+     * <p>Both limits have to be asked for. An absent one means "all of them", which is the whole
+     * model however small the other one is.
+     */
+    private static final int FREE_PREVIEW_SKATERS = 25;
+
+    private static final int FREE_PREVIEW_GOALIES = 10;
+
     private final ProjectionSeedService seedService;
     private final PlayerSplitService splitService;
     private final AiProjectionProperties aiProjection;
@@ -76,7 +90,13 @@ public class ProjectionModelController {
                     "Returns the model's projected stat lines keyed by this platform's player id, "
                             + "ready to be saved as a new projection. Scoring settings are not "
                             + "included — those belong to the user's league, so the client supplies "
-                            + "them when saving. Needs a premium subscription: these are the model's own lines. `skaterLimit` and `goalieLimit` return only the "
+                            + "them when saving. Needs a premium subscription: these are the model's own lines, "
+                            + "unless both limits are small enough to be the preview a free "
+                            + "account is shown (at most "
+                            + FREE_PREVIEW_SKATERS
+                            + " skaters and "
+                            + FREE_PREVIEW_GOALIES
+                            + " goalies). `skaterLimit` and `goalieLimit` return only the "
                             + "top of the board — skaters by projected points, goalies by projected "
                             + "wins, the same order the player pool is served in — for a caller "
                             + "drawing a preview rather than seeding a projection. They trim the "
@@ -86,7 +106,7 @@ public class ProjectionModelController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Generated lines plus a summary of what was skipped"),
         @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500"),
-        @ApiResponse(responseCode = "403", description = "The AI projection needs premium and this account has none"),
+        @ApiResponse(responseCode = "403", description = "More than the free preview needs premium and this account has none"),
         @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
     })
     @GetMapping("/seed")
@@ -110,10 +130,10 @@ public class ProjectionModelController {
         if (!aiProjection.enabled()) {
             throw new NoSuchElementException("The AI projection is not enabled");
         }
-        // Every row here is the model talking, which is the thing premium pays for — including
-        // the handful the new-projection page draws as a preview. The page keeps the starting
-        // point visible to a free account and sells it instead of previewing it.
-        if (!entitlementService.hasPremiumAccess(userId)) {
+        // Every row here is the model talking, which is the thing premium pays for — all of it
+        // except the top few, which the new-projection page draws as a preview for everyone. A
+        // starting point nobody may look at is a hard thing to want.
+        if (!isPreviewSized(skaterLimit, goalieLimit) && !entitlementService.hasPremiumAccess(userId)) {
             throw new PremiumRequiredException(
                     "The AI projection is part of premium. Subscribe to see the model's lines.");
         }
@@ -188,6 +208,18 @@ public class ProjectionModelController {
         GameRange range = new GameRange(fromGame, toGame, lastGames);
         requireEntitlementFor(userId, range);
         return splitService.goalieSplits(splitSeason(season), range, limit);
+    }
+
+    /**
+     * Whether this is the preview and not the board: the top of both lists, trimmed to what the
+     * new-projection page asks for. Judged before the subscription is looked up, so the request
+     * every free account makes on that page costs no call to db-service.
+     */
+    private static boolean isPreviewSized(Integer skaterLimit, Integer goalieLimit) {
+        return skaterLimit != null
+                && goalieLimit != null
+                && skaterLimit <= FREE_PREVIEW_SKATERS
+                && goalieLimit <= FREE_PREVIEW_GOALIES;
     }
 
     /**

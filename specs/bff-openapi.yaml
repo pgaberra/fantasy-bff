@@ -1195,13 +1195,14 @@ paths:
       description: "Returns the model's projected stat lines keyed by this platform's\
         \ player id, ready to be saved as a new projection. Scoring settings are not\
         \ included — those belong to the user's league, so the client supplies them\
-        \ when saving. Needs a premium subscription: these are the model's own lines.\
-        \ `skaterLimit` and `goalieLimit` return only the top of the board — skaters\
-        \ by projected points, goalies by projected wins, the same order the player\
-        \ pool is served in — for a caller drawing a preview rather than seeding a\
-        \ projection. They trim the rows and nothing else: the counts still report\
-        \ everything the model reached, so a five-row preview can still say how much\
-        \ of the league that is."
+        \ when saving. Needs a premium subscription: these are the model's own lines,\
+        \ unless both limits are small enough to be the preview a free account is\
+        \ shown (at most 25 skaters and 10 goalies). `skaterLimit` and `goalieLimit`\
+        \ return only the top of the board — skaters by projected points, goalies\
+        \ by projected wins, the same order the player pool is served in — for a caller\
+        \ drawing a preview rather than seeding a projection. They trim the rows and\
+        \ nothing else: the counts still report everything the model reached, so a\
+        \ five-row preview can still say how much of the league that is."
       operationId: seed
       parameters:
       - name: season
@@ -1243,7 +1244,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/SeededProjectionResponse"
         "403":
-          description: The AI projection needs premium and this account has none
+          description: More than the free preview needs premium and this account has
+            none
           content:
             application/json:
               schema:
