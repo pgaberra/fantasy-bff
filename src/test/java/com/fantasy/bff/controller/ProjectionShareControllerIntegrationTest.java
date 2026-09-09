@@ -427,10 +427,23 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(html).contains(
-                "og:title\" content=\"My league - a fantasy hockey projection on SlapStat\"");
-        assertThat(html).contains("Alex&#39;s player rankings");
-        assertThat(html).contains("Connor McDavid");
+                "og:title\" content=\"My league by Alex - Fantasy Hockey Projections | SlapStat\"");
+        assertThat(html).contains(
+                "Alex&#39;s NHL projections for the upcoming season. Top players: McDavid.");
         assertThat(html).contains("http://localhost:4200/s/" + TOKEN);
+    }
+
+    @Test
+    void preview_namesTheTopPlayersBySurnameUpToTheCap() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 20));
+
+        String html = mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/preview"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("Top players: McDavid, 2, 3, 4, 5, 6, 7, 8.");
+        assertThat(html).doesNotContain("Connor McDavid");
     }
 
     @Test
