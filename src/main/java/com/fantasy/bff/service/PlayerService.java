@@ -133,6 +133,15 @@ public class PlayerService {
      * once. Measured on staging, that came back at a median of 844 ms an avatar. The other half
      * of that reasoning — that a cache would hold pictures nobody asked for, past the sync that
      * replaced them — is answered by filling it on demand and expiring what it holds.
+     *
+     * <p>A source that does not hand the picture over is answered the same way as a source that
+     * has none: no picture, and the avatar falls back to initials. It used to be a 502 and an
+     * ERROR, which is how a handful of reads of ESPN's image CDN timing out at 10:13 one morning
+     * became a fault alarm — for three avatars. A picture that will not arrive is the same class
+     * of thing as one that will not decode, which {@link #framed} has always treated this way.
+     * Nothing is hidden by that: a source genuinely down fails the skater and goalie reads too,
+     * which every reader hits before an avatar and which do still fault loudly, and the reason
+     * this one gave is logged. Nothing is remembered either, so the next reader tries again.
      */
     public Optional<byte[]> getHeadshot(int playerId) {
         Optional<byte[]> held = headshots.get(playerId);
@@ -144,7 +153,9 @@ public class PlayerService {
             drawn.ifPresent(image -> headshots.put(playerId, image));
             return drawn;
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to retrieve a headshot from player service", e);
+            log.warn("Could not fetch the headshot for player {}, serving none: {}",
+                    playerId, sanitizeForLog(e.toString()));
+            return Optional.empty();
         }
     }
 

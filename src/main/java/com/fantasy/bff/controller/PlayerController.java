@@ -136,8 +136,8 @@ public class PlayerController {
                     + "to a browser.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Headshot returned"),
-            @ApiResponse(responseCode = "404", description = "No headshot for this player"),
-            @ApiResponse(responseCode = "502", description = "Player service unavailable")
+            @ApiResponse(responseCode = "404",
+                    description = "No headshot for this player, or none could be fetched")
     })
     public ResponseEntity<byte[]> getHeadshot(@PathVariable int playerId) {
         return playerService.getHeadshot(playerId)

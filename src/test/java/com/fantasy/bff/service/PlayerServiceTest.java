@@ -217,6 +217,21 @@ class PlayerServiceTest {
     }
 
     /**
+     * A fetch that fails is answered like a player with no picture, not like a fault: an avatar
+     * timing out against a CDN used to be a 502 and a fault alarm. It is not remembered either,
+     * so the next reader of that player tries the source again.
+     */
+    @Test
+    void getHeadshot_isEmptyWhenTheSourceCannotBeReached() {
+        when(playerPool.getHeadshot(1)).thenThrow(new RuntimeException("read timed out"));
+
+        assertThat(playerService.getHeadshot(1)).isEmpty();
+        assertThat(playerService.getHeadshot(1)).isEmpty();
+
+        verify(playerPool, times(2)).getHeadshot(1);
+    }
+
+    /**
      * One picture that will not decode is not worth failing the request over — the player keeps
      * what the source handed over, which is a real picture, just framed the way that platform
      * framed it.
@@ -265,15 +280,6 @@ class PlayerServiceTest {
         assertThatThrownBy(() -> playerService.getGoalies())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to retrieve goalies from player service");
-    }
-
-    @Test
-    void getHeadshot_whenTheSourceThrows_throwsIllegalStateException() {
-        when(playerPool.getHeadshot(1)).thenThrow(new RuntimeException("Connection refused"));
-
-        assertThatThrownBy(() -> playerService.getHeadshot(1))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Failed to retrieve a headshot from player service");
     }
 
     // The pool's team is whatever its platform held at its last sync. The projection service
