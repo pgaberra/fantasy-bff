@@ -427,7 +427,7 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(html).contains(
-                "og:title\" content=\"My league - a fantasy hockey projection on SlapStat\"");
+                "og:title\" content=\"My league by Alex - Fantasy Hockey Projections | SlapStat\"");
         assertThat(html).contains("Alex&#39;s player rankings");
         assertThat(html).contains("Connor McDavid");
         assertThat(html).contains("http://localhost:4200/s/" + TOKEN);

@@ -207,7 +207,8 @@ public class SharedProjectionController {
         com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
                 databaseServiceClient.getSharedProjection(token);
         String url = webBaseUrl + "/s/" + token;
-        String title = shared.getName() + " - a fantasy hockey projection on SlapStat";
+        String title = shared.getName() + " by " + shared.getAuthorUsername()
+                + " - Fantasy Hockey Projections | SlapStat";
         String description = describe(shared);
 
         return PREVIEW_TEMPLATE
