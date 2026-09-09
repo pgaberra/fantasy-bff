@@ -256,11 +256,15 @@ class PlayerControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * One avatar that could not be fetched is not a gateway fault: the reader gets initials, and
+     * a source that is genuinely down still faults on the skater and goalie reads in front of it.
+     */
     @Test
-    void getHeadshot_whenServiceFails_returns502() throws Exception {
+    void getHeadshot_whenTheSourceFails_returns404RatherThanAFault() throws Exception {
         when(playerServiceClient.getHeadshot(1)).thenThrow(new RuntimeException("player service down"));
 
         mockMvc.perform(get("/api/v1/players/1/headshot"))
-                .andExpect(status().isBadGateway());
+                .andExpect(status().isNotFound());
     }
 }
