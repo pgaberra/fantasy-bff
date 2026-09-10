@@ -64,7 +64,7 @@ class ProjectionPoolReconcilerTest {
 
         Reconciliation change = reconciler.reconcile(data).orElseThrow();
 
-        assertThat(change).isEqualTo(new Reconciliation(2));
+        assertThat(change.addedPlayerIds()).containsExactly(2, 101);
         assertThat(playerIds(data)).containsExactly(1, 2, 101);
     }
 
@@ -80,7 +80,7 @@ class ProjectionPoolReconcilerTest {
 
         Reconciliation change = reconciler.reconcile(data).orElseThrow();
 
-        assertThat(change.added()).isEqualTo(2);
+        assertThat(change.addedPlayerIds()).containsExactly(2, 101);
         assertThat(playerIds(data)).contains(99);
         assertThat(data.getPlayers()).contains(departed);
     }
@@ -174,7 +174,7 @@ class ProjectionPoolReconcilerTest {
         data.getProjectionSettings().setPlayerPoolSyncedAt(null);
         Reconciliation again = reconciler.reconcile(data).orElseThrow();
 
-        assertThat(again.added()).isZero();
+        assertThat(again.addedPlayerIds()).isEmpty();
         assertThat(playerIds(data)).containsExactly(1, 2, 101);
     }
 

@@ -1992,11 +1992,15 @@ components:
     PoolReconciliation:
       type: object
       properties:
-        added:
-          type: integer
-          format: int32
+        addedPlayerIds:
+          type: array
+          description: "Ids of the players whose rows this read added, seeded from\
+            \ the projection's basis. Empty when the pool moved without gaining anyone."
+          items:
+            type: integer
+            format: int32
       required:
-      - added
+      - addedPlayerIds
     ProjectionData:
       type: object
       properties:
@@ -2058,9 +2062,9 @@ components:
             \ a share link. Absent on the user's own."
         poolReconciliation:
           $ref: "#/components/schemas/PoolReconciliation"
-          description: "How many player rows this read added to match the current\
-            \ player pool. Present only when the pool had moved since these rows were\
-            \ last squared with it, so a client can say so once and then stop. Nothing\
+          description: "Which player rows this read added to match the current player\
+            \ pool. Present only when the pool had moved since these rows were last\
+            \ squared with it, so a client can say so once and then stop. Nothing\
             \ is removed by a reconciliation — a row whose player has left the pool\
             \ stays and is not shown."
       required:

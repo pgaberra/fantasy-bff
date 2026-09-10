@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.request.ProjectionKind;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * A saved projection as the app reads it. This mirrors what db-service stores and adds one thing
@@ -33,7 +34,7 @@ public record ProjectionResponse(
                 + "share link. Absent on the user's own.")
         ProjectionOrigin origin,
 
-        @Schema(description = "How many player rows this read added to match the current player "
+        @Schema(description = "Which player rows this read added to match the current player "
                 + "pool. Present only when the pool had moved since these rows were last squared "
                 + "with it, so a client can say so once and then stop. Nothing is removed by a "
                 + "reconciliation — a row whose player has left the pool stays and is not shown.")
@@ -50,10 +51,14 @@ public record ProjectionResponse(
     ) {}
 
     /**
-     * @param added rows added for players who joined the pool, seeded from the projection's basis
+     * @param addedPlayerIds the players who joined the pool and whose rows were added, seeded
+     *     from the projection's basis. Empty when the pool moved without gaining anyone.
      */
     public record PoolReconciliation(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int added
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Ids of the players whose rows this read added, seeded from the "
+                            + "projection's basis. Empty when the pool moved without gaining anyone.")
+            List<Integer> addedPlayerIds
     ) {}
 
     public static ProjectionResponse of(com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
