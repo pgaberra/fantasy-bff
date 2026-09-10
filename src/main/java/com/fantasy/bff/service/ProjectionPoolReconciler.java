@@ -58,11 +58,13 @@ public class ProjectionPoolReconciler {
     }
 
     /**
-     * @param added rows added for players the pool has gained. How many rows are no longer shown
-     *     is deliberately not here: the client holds the pool too, so it can see that for itself
-     *     without us reporting a number that would be the same on every read until the pool moves.
+     * @param addedPlayerIds the players the pool has gained, whose rows were added — the ids
+     *     rather than a count, so the client can point at the rows and not just say how many.
+     *     How many rows are no longer shown is deliberately not here: the client holds the pool
+     *     too, so it can see that for itself without us reporting a number that would be the same
+     *     on every read until the pool moves.
      */
-    public record Reconciliation(int added) {}
+    public record Reconciliation(List<Integer> addedPlayerIds) {}
 
     /**
      * Squares {@code data}'s rows with the pool, in place. Empty when there was nothing to do —
@@ -95,22 +97,22 @@ public class ProjectionPoolReconciler {
         for (PlayerProjection player : stored) {
             held.add(player.getPlayerId());
         }
-        int added = 0;
+        List<Integer> added = new ArrayList<>();
         for (Integer playerId : pool.playerIds()) {
             if (!held.contains(playerId)) {
                 players.add(pool.row(playerId, blank));
-                added++;
+                added.add(playerId);
             }
         }
 
         data.setPlayers(players);
         settings.setPlayerBasis(basis);
         settings.setPlayerPoolSyncedAt(syncedAt);
-        if (added > 0) {
+        if (!added.isEmpty()) {
             log.info("Squared a projection with the player pool: +{} added, seeded from {}",
-                    added, blank ? "zeros" : "last season");
+                    added.size(), blank ? "zeros" : "last season");
         }
-        return Optional.of(new Reconciliation(added));
+        return Optional.of(new Reconciliation(List.copyOf(added)));
     }
 
     /**

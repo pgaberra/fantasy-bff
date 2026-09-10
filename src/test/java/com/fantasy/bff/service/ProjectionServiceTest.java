@@ -173,19 +173,19 @@ class ProjectionServiceTest {
     /**
      * Reading is where a projection meets the pool as it is today, so a read that had to square
      * the two saves the result — otherwise every later read would redo the same work — and says
-     * how much moved, which is the only chance the client gets to tell the user.
+     * what moved, which is the only chance the client gets to tell the user.
      */
     @Test
     void aReadThatSquaredTheRowsWithThePoolSavesThemAndSaysWhatMoved() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
-        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12)));
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
                 .thenReturn(stored);
 
         var response = projectionService.get(USER_ID, PROJECTION_ID);
 
-        assertThat(response.poolReconciliation().added()).isEqualTo(12);
+        assertThat(response.poolReconciliation().addedPlayerIds()).containsExactly(7, 8);
         ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
         verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
         assertThat(saved.getValue().getData().getPlayers()).isEqualTo(stored.getData().getPlayers());
@@ -196,7 +196,7 @@ class ProjectionServiceTest {
     void servesTheReconciledRowsEvenIfSavingThemFails() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
-        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12)));
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
                 .thenThrow(new IllegalStateException("db-service is down"));
 
@@ -204,7 +204,7 @@ class ProjectionServiceTest {
 
         assertThat(response.data())
                 .isEqualTo(com.fantasy.bff.dto.response.ProjectionData.from(stored.getData()));
-        assertThat(response.poolReconciliation().added()).isEqualTo(12);
+        assertThat(response.poolReconciliation().addedPlayerIds()).containsExactly(7, 8);
     }
 
     @Test
