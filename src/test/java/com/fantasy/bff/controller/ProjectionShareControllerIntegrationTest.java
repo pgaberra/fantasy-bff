@@ -486,6 +486,36 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(ImageIO.read(new ByteArrayInputStream(card)).getWidth()).isEqualTo(1200);
     }
 
+    /**
+     * Search crawlers get this document too (nginx routes Googlebot here with the preview bots),
+     * and a share is meant for whoever its author sends the link to, not for search results. A
+     * canonical link would ask for the opposite of noindex, so there is none.
+     */
+    @Test
+    void preview_keepsTheShareOutOfSearchResults() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex"));
+
+        String html = mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/preview"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("<meta name=\"robots\" content=\"noindex\" />");
+        assertThat(html).doesNotContain("rel=\"canonical\"");
+    }
+
+    @Test
+    void ogImage_keepsTheCardOutOfImageSearch() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex"));
+
+        String robots = mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/og-image.png"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getHeader("X-Robots-Tag");
+
+        assertThat(robots).isEqualTo("noindex");
+    }
+
     @Test
     void ogImage_needsNoSignIn() throws Exception {
         when(databaseServiceClient.getSharedProjection(TOKEN))
