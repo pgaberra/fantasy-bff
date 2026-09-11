@@ -65,14 +65,20 @@ public class SharedProjectionController {
      * tags, so named placeholders beat a dozen positional ones — and a format string full of
      * literal newlines is exactly what a bot expects in an HTTP body, not the platform newline
      * {@code %n} would give it.
+     *
+     * <p>{@code noindex} and no canonical link: a share is for the people its author sends the
+     * link to, and the share dialog never says the page could turn up in search. Search crawlers
+     * are routed here like the preview bots (nginx matches Googlebot, Bingbot and Applebot too),
+     * so this document is what keeps a share's name and its author's username out of results.
+     * Preview bots ignore the tag, so links still unfurl.
      */
     private static final String PREVIEW_TEMPLATE = """
             <!doctype html>
             <html lang="en">
               <head>
                 <meta charset="utf-8" />
+                <meta name="robots" content="noindex" />
                 <title>{{title}}</title>
-                <link rel="canonical" href="{{url}}" />
                 <meta name="description" content="{{description}}" />
                 <meta property="og:type" content="article" />
                 <meta property="og:site_name" content="SlapStat" />
@@ -238,6 +244,9 @@ public class SharedProjectionController {
                 // Crawlers refetch this far more often than the snapshot changes, and a stale card
                 // for an hour after a re-share is a better trade than rendering on every hit.
                 .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                // Kept out of image search for the same reason the preview is noindex: the card
+                // names the projection and its author. A PNG has no meta tag, so a header it is.
+                .header("X-Robots-Tag", "noindex")
                 .contentType(MediaType.IMAGE_PNG)
                 .body(card);
     }
