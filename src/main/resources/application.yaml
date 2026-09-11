@@ -125,7 +125,9 @@ services:
 #
 # NOTE: this leaves Who's hot alone. The game-range splits under the same path prefix are
 # measured numbers rather than the model's estimates, and stay up either way. Whether anyone
-# may read the prefix at all is a separate switch (security.projection-model-enabled).
+# may read the prefix at all is a separate switch (security.projection-model-enabled), and the
+# AI projection is served only where both allow it (AiProjectionAvailability). That one answer
+# is what /api/v1/features reports and what the web follows, so the web has no switch of its own.
 ai-projection:
   enabled: ${AI_PROJECTION_ENABLED:true}
 
@@ -179,6 +181,9 @@ security:
   # not a user's own saved projection. Off unless this says otherwise, so an environment that
   # has not yet decided who may read the model denies the endpoints outright rather than
   # leaning on the projection service happening to be unreachable. See fantasy-bff#105.
+  #
+  # Off also takes the AI projection away, both doors to it (/seed and source=model), whatever
+  # AI_PROJECTION_ENABLED says; the web stops offering it on the same answer.
   #
   # NOTE: the web's "Who's hot" page reads /splits/** from under this prefix, so leaving this
   # off makes that page show its error state. Turn it on wherever Who's hot should work — and
