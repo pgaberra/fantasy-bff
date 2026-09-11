@@ -3,6 +3,7 @@ package com.fantasy.bff.payments;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -19,7 +20,10 @@ import java.util.HexFormat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -29,6 +33,11 @@ class PaddlePaymentProviderTest {
     private static final String SECRET = "pdl_ntfset_secret";
     private static final String USER_ID = "3f1a5b6c-0000-4000-8000-000000000001";
     private static final Instant NOW = Instant.parse("2026-09-06T18:00:00Z");
+    private static final String BUYER_EMAIL = "owner+paddle@example.com";
+    private static final String CUSTOMER_LOOKUP_URL =
+            "https://sandbox-api.paddle.test/customers?email=owner%2Bpaddle%40example.com&status=active";
+    private static final String CHECKOUT_RESPONSE = """
+            {"data":{"id":"txn_1","checkout":{"url":"https://slapstat.test/pay?_ptxn=txn_1"}}}""";
 
     private MockRestServiceServer paddleServer;
     private PaddlePaymentProvider provider;
@@ -44,17 +53,74 @@ class PaddlePaymentProviderTest {
                 new PaddleSignatureVerifier(properties, Clock.fixed(NOW, ZoneOffset.UTC)), properties);
     }
 
+    private static CheckoutRequest checkoutFor(String customerEmail) {
+        return new CheckoutRequest(USER_ID, "https://slapstat.test/premium", "https://slapstat.test/premium",
+                customerEmail);
+    }
+
     @Test
     void checkoutSessionCarriesTheUserAndReturnsPaddlesUrl() {
         paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString(USER_ID)))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("pri_premium_monthly")))
-                .andRespond(withSuccess("""
-                        {"data":{"id":"txn_1","checkout":{"url":"https://slapstat.test/pay?_ptxn=txn_1"}}}""",
-                        MediaType.APPLICATION_JSON));
+                .andExpect(content().string(containsString(USER_ID)))
+                .andExpect(content().string(containsString("pri_premium_monthly")))
+                .andExpect(content().string(not(containsString("customer_id"))))
+                .andRespond(withSuccess(CHECKOUT_RESPONSE, MediaType.APPLICATION_JSON));
 
-        CheckoutSession session = provider.createCheckoutSession(
-                new CheckoutRequest(USER_ID, "https://slapstat.test/premium", "https://slapstat.test/premium"));
+        CheckoutSession session = provider.createCheckoutSession(checkoutFor(null));
+
+        assertThat(session.url()).isEqualTo("https://slapstat.test/pay?_ptxn=txn_1");
+        paddleServer.verify();
+    }
+
+    /** The email goes in the query encoded: a bare "+" would reach Paddle as a space. */
+    @Test
+    void anExistingPaddleCustomerIsAttachedToTheCheckout() {
+        paddleServer.expect(requestTo(CUSTOMER_LOOKUP_URL))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"data":[{"id":"ctm_existing","email":"owner+paddle@example.com"}]}""",
+                        MediaType.APPLICATION_JSON));
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions"))
+                .andExpect(content().string(containsString("\"customer_id\":\"ctm_existing\"")))
+                .andRespond(withSuccess(CHECKOUT_RESPONSE, MediaType.APPLICATION_JSON));
+
+        CheckoutSession session = provider.createCheckoutSession(checkoutFor(BUYER_EMAIL));
+
+        assertThat(session.url()).isEqualTo("https://slapstat.test/pay?_ptxn=txn_1");
+        paddleServer.verify();
+    }
+
+    @Test
+    void aFirstTimeBuyerGetsAPaddleCustomerCreated() {
+        paddleServer.expect(requestTo(CUSTOMER_LOOKUP_URL))
+                .andRespond(withSuccess("{\"data\":[]}", MediaType.APPLICATION_JSON));
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/customers"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(containsString(BUYER_EMAIL)))
+                .andRespond(withSuccess("{\"data\":{\"id\":\"ctm_new\"}}", MediaType.APPLICATION_JSON));
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions"))
+                .andExpect(content().string(containsString("\"customer_id\":\"ctm_new\"")))
+                .andRespond(withSuccess(CHECKOUT_RESPONSE, MediaType.APPLICATION_JSON));
+
+        provider.createCheckoutSession(checkoutFor(BUYER_EMAIL));
+
+        paddleServer.verify();
+    }
+
+    /**
+     * The customer only fills in an email the buyer could type themselves, so a key without the
+     * customer scopes, or Paddle refusing the lookup, must cost the prefill and not the sale.
+     */
+    @Test
+    void aFailedCustomerLookupStillOpensTheCheckoutWithoutACustomer() {
+        paddleServer.expect(requestTo(CUSTOMER_LOOKUP_URL))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"code\":\"forbidden\"}}"));
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions"))
+                .andExpect(content().string(not(containsString("customer_id"))))
+                .andRespond(withSuccess(CHECKOUT_RESPONSE, MediaType.APPLICATION_JSON));
+
+        CheckoutSession session = provider.createCheckoutSession(checkoutFor(BUYER_EMAIL));
 
         assertThat(session.url()).isEqualTo("https://slapstat.test/pay?_ptxn=txn_1");
         paddleServer.verify();
@@ -189,8 +255,7 @@ class PaddlePaymentProviderTest {
                                 {"error":{"code":"transaction_default_checkout_url_not_set",
                                  "detail":"No default payment link has been set for this account."}}"""));
 
-        assertThatThrownBy(() -> provider.createCheckoutSession(
-                new CheckoutRequest(USER_ID, "https://slapstat.test/premium", "https://slapstat.test/premium")))
+        assertThatThrownBy(() -> provider.createCheckoutSession(checkoutFor(null)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("create a checkout")
                 // The caller is told only that we failed. Paddle's own words, which name our

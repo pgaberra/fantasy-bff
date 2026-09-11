@@ -133,7 +133,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     appended (Paddle's fully hosted checkout is for mobile apps only), and the user is carried
     through Paddle in the transaction's `custom_data`, which Paddle copies onto the created
     subscription and then onto every renewal — that, not a customer record kept in step, is
-    how a webhook names the user it belongs to. `PaddleSignatureVerifier` checks the
+    how a webhook names the user it belongs to. A buyer whose email is **verified** also gets
+    their Paddle customer (found or created by email) attached to the transaction, which fills
+    in the email on the checkout; that needs `customer.read` + `customer.write` on the API key,
+    and a lookup that fails is logged at ERROR and the checkout opens without a customer.
+    An unverified email is never sent: it could name someone else's customer and open their
+    billing portal to this account. `PaddleSignatureVerifier` checks the
     `Paddle-Signature` header, which signs `<timestamp>:<raw body>`; it bounds the timestamp's
     age too, because a signature on its own stays valid forever and could be replayed.
   - `ProjectionModelController` — `/api/v1/projection-model`: the projection service's output

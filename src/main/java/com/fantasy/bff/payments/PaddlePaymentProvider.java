@@ -1,11 +1,14 @@
 package com.fantasy.bff.payments;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -31,11 +34,19 @@ import java.util.function.Supplier;
  * custom data from a transaction onto the subscription it creates, and from a subscription onto
  * every renewal, so every webhook we receive names the user it belongs to without us having to
  * create and keep a customer record in step first.
+ *
+ * <p>When the account's email is verified, the transaction also names the buyer's Paddle
+ * customer, found by that email or created for it. That is what fills in the email on the
+ * checkout, and nothing else depends on it: a lookup that fails is logged at ERROR and the
+ * checkout opens without a customer, as every checkout did before. The API key needs
+ * {@code customer.read} and {@code customer.write} for it, and a key without them shows up
+ * exactly that way.
  */
 @Component
 @ConditionalOnProperty(name = "payments.provider", havingValue = "paddle")
 public class PaddlePaymentProvider implements PaymentProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(PaddlePaymentProvider.class);
     private static final String USER_ID_KEY = "user_id";
 
     private final RestClient paddleClient;
@@ -69,6 +80,12 @@ public class PaddlePaymentProvider implements PaymentProvider {
         Map<String, Object> body = new HashMap<>();
         body.put("items", List.of(Map.of("price_id", priceId, "quantity", 1)));
         body.put("custom_data", Map.of(USER_ID_KEY, request.userId()));
+        String customerId = StringUtils.hasText(request.customerEmail())
+                ? customerIdFor(request.customerEmail())
+                : null;
+        if (customerId != null) {
+            body.put("customer_id", customerId);
+        }
         if (StringUtils.hasText(checkoutUrl)) {
             body.put("checkout", Map.of("url", checkoutUrl));
         }
@@ -84,6 +101,42 @@ public class PaddlePaymentProvider implements PaymentProvider {
             throw new IllegalStateException("Paddle returned a transaction with no checkout URL");
         }
         return new CheckoutSession(url);
+    }
+
+    /**
+     * The id of the active Paddle customer with this email, created if there is none, or null
+     * when Paddle would not give us one.
+     *
+     * <p>Null costs the buyer the prefilled email and nothing else, so it is not worth failing a
+     * purchase over. It is still a fault, most likely an API key without the customer scopes, so
+     * it is logged at ERROR where Sentry sees it. The email goes in as a URI variable so that it
+     * is encoded: a bare {@code +}, common in aliases, would reach Paddle as a space and match
+     * nobody.
+     */
+    private String customerIdFor(String email) {
+        try {
+            JsonNode existing = paddleClient.get()
+                    .uri(uri -> uri.path("/customers")
+                            .queryParam("email", "{email}")
+                            .queryParam("status", "active")
+                            .build(email))
+                    .retrieve()
+                    .body(JsonNode.class);
+            JsonNode matches = existing == null ? null : existing.get("data");
+            if (matches != null && matches.isArray() && !matches.isEmpty()) {
+                return text(matches.get(0).get("id"));
+            }
+
+            JsonNode created = paddleClient.post()
+                    .uri("/customers")
+                    .body(Map.of("email", email))
+                    .retrieve()
+                    .body(JsonNode.class);
+            return path(created, "data", "id");
+        } catch (RestClientException e) {
+            log.error("Could not find or create the Paddle customer, so the checkout opens without one", e);
+            return null;
+        }
     }
 
     @Override

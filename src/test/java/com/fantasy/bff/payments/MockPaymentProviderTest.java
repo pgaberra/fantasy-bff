@@ -24,7 +24,7 @@ class MockPaymentProviderTest {
 
     @Test
     void createCheckoutSession_returnsSignedStubUrlCarryingUserId() {
-        CheckoutSession session = provider.createCheckoutSession(new CheckoutRequest("user-1", "s", "c"));
+        CheckoutSession session = provider.createCheckoutSession(new CheckoutRequest("user-1", "s", "c", null));
 
         assertThat(session.url()).startsWith(SELF + "/api/v1/billing/mock/checkout?token=");
         String token = session.url().substring(session.url().indexOf("token=") + "token=".length());
