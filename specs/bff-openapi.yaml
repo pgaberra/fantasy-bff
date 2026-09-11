@@ -1872,6 +1872,17 @@ components:
         playerPoolSyncedAt:
           type: string
           format: date-time
+        unacknowledgedNewPlayerIds:
+          type: array
+          description: "Players a reconciliation with the player pool added whom the\
+            \ owner has not acknowledged yet. Kept until they are, so the app can\
+            \ go on saying so across reloads and devices; send it back empty or absent\
+            \ to acknowledge them. The cap matches the player list."
+          items:
+            type: integer
+            format: int32
+          maxItems: 2000
+          minItems: 0
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -1989,18 +2000,6 @@ components:
       - leagueKey
       - leagueName
       - syncedAt
-    PoolReconciliation:
-      type: object
-      properties:
-        addedPlayerIds:
-          type: array
-          description: "Ids of the players whose rows this read added, seeded from\
-            \ the projection's basis. Empty when the pool moved without gaining anyone."
-          items:
-            type: integer
-            format: int32
-      required:
-      - addedPlayerIds
     ProjectionData:
       type: object
       properties:
@@ -2060,13 +2059,6 @@ components:
           $ref: "#/components/schemas/ProjectionOrigin"
           description: "Who this board was copied from, on a projection imported from\
             \ a share link. Absent on the user's own."
-        poolReconciliation:
-          $ref: "#/components/schemas/PoolReconciliation"
-          description: "Which player rows this read added to match the current player\
-            \ pool. Present only when the pool had moved since these rows were last\
-            \ squared with it, so a client can say so once and then stop. Nothing\
-            \ is removed by a reconciliation — a row whose player has left the pool\
-            \ stays and is not shown."
       required:
       - createdAt
       - data

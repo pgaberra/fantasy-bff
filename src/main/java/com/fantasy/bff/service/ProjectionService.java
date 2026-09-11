@@ -8,8 +8,8 @@ import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.exception.PremiumRequiredException;
-import com.fantasy.bff.dto.response.ProjectionResponse.PoolReconciliation;
 import com.fantasy.bff.generated.db.model.ProjectionData;
+import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
 import com.fantasy.bff.generated.db.model.UpdateProjectionData;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
@@ -19,8 +19,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -80,10 +83,24 @@ public class ProjectionService {
         if (reconciliation.isEmpty()) {
             return ProjectionResponse.of(stored);
         }
-        Reconciliation change = reconciliation.get();
-        return ProjectionResponse.of(
-                save(userId, projectionId, stored),
-                new PoolReconciliation(change.addedPlayerIds()));
+        keepUnacknowledged(stored.getData().getProjectionSettings(),
+                reconciliation.get().addedPlayerIds());
+        return ProjectionResponse.of(save(userId, projectionId, stored));
+    }
+
+    /**
+     * The players a read adds are kept on the projection until its owner acknowledges them, so
+     * the notice about them survives a reload and follows them to another device. A second pool
+     * change before then adds to the list rather than replacing it.
+     */
+    private static void keepUnacknowledged(ProjectionSettings settings, List<Integer> added) {
+        if (added.isEmpty()) {
+            return;
+        }
+        List<Integer> earlier = settings.getUnacknowledgedNewPlayerIds();
+        Set<Integer> unacknowledged = earlier == null ? new LinkedHashSet<>() : new LinkedHashSet<>(earlier);
+        unacknowledged.addAll(added);
+        settings.setUnacknowledgedNewPlayerIds(new ArrayList<>(unacknowledged));
     }
 
     /**
@@ -148,7 +165,9 @@ public class ProjectionService {
         // does not cover the whole pool — the model's lines, a copied board — would otherwise have
         // that read add the players it lacked and report them to the user as having joined since
         // the projection was created, seconds earlier. Nothing is reported from here: a projection
-        // that did not exist yet has no "since".
+        // that did not exist yet has no "since". A copied board's settings carry its source's
+        // unacknowledged players, and those are no news to the copy either.
+        data.getProjectionSettings().setUnacknowledgedNewPlayerIds(null);
         reconciler.reconcile(data);
         return ProjectionResponse.of(databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()

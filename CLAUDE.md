@@ -276,8 +276,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stamped at create from `source`; a projection saved before it existed is read off its own
     rows (almost all zeros → started from scratch). Guarded by `playerPoolSyncedAt` against the
     latest successful sync run, so the full pool read happens at most once per projection per
-    sync rather than on every open; the result is written back and reported to the caller as
-    `poolReconciliation`, which is the client's one chance to tell the user. A new projection is
+    sync rather than on every open; the result is written back, and the players a read added are
+    appended to the settings' `unacknowledgedNewPlayerIds`, where they stay until the client sends
+    the list back empty. That list, not a one-off response field, is what the app's "Player list
+    updated" notice reads, so it survives a reload and another device. A new projection is
     squared **before it is written** (on create, and on import straight after db-service copies
     it), with nothing reported: a starting point that does not cover the whole pool, like the
     model's lines or a shared board, would otherwise have its first read announce the players it

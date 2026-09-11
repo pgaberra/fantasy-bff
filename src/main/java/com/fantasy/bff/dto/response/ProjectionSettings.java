@@ -57,7 +57,13 @@ public record ProjectionSettings(
 
         PlayerBasis playerBasis,
 
-        OffsetDateTime playerPoolSyncedAt
+        OffsetDateTime playerPoolSyncedAt,
+
+        @Schema(description = "Players a reconciliation with the player pool added whom the owner "
+                + "has not acknowledged yet. Kept until they are, so the app can go on saying so "
+                + "across reloads and devices; send it back empty or absent to acknowledge them. "
+                + "The cap matches the player list.")
+        @Size(max = 2000) List<Integer> unacknowledgedNewPlayerIds
 ) {
 
     /** Whether the league scores by points per stat, or by winning categories. */
@@ -98,7 +104,8 @@ public record ProjectionSettings(
                 EspnSync.from(settings.getEspnSync()),
                 settings.getLastEspnLeagueId(),
                 basisFrom(settings.getPlayerBasis()),
-                settings.getPlayerPoolSyncedAt());
+                settings.getPlayerPoolSyncedAt(),
+                settings.getUnacknowledgedNewPlayerIds());
     }
 
     public com.fantasy.bff.generated.db.model.ProjectionSettings toDownstream() {
@@ -118,7 +125,8 @@ public record ProjectionSettings(
                         .yahooSync(yahooSync == null ? null : yahooSync.toDownstream())
                         .espnSync(espnSync == null ? null : espnSync.toDownstream())
                         .lastEspnLeagueId(lastEspnLeagueId)
-                        .playerPoolSyncedAt(playerPoolSyncedAt);
+                        .playerPoolSyncedAt(playerPoolSyncedAt)
+                        .unacknowledgedNewPlayerIds(unacknowledgedNewPlayerIds);
         settings.setScaleSettings(scalesToDownstream(scaleSettings));
         settings.setPlayerBasis(basisToDownstream(playerBasis));
         return settings;
