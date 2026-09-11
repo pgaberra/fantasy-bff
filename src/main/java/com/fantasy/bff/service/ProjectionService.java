@@ -1,7 +1,6 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
-import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
@@ -45,7 +44,7 @@ public class ProjectionService {
     private final PlayerPoolSource playerPool;
     private final ProjectionPoolReconciler reconciler;
     private final ProjectionSeedService seedService;
-    private final AiProjectionProperties aiProjection;
+    private final AiProjectionAvailability aiProjection;
     private final EntitlementService entitlementService;
     private final int projectionSeason;
     private final String projectionModelVersion;
@@ -55,7 +54,7 @@ public class ProjectionService {
                              PlayerPoolSource playerPool,
                              ProjectionPoolReconciler reconciler,
                              ProjectionSeedService seedService,
-                             AiProjectionProperties aiProjection,
+                             AiProjectionAvailability aiProjection,
                              EntitlementService entitlementService,
                              @Value("${services.projection.season}") int projectionSeason,
                              @Value("${services.projection.model-version}") String projectionModelVersion) {
@@ -129,10 +128,10 @@ public class ProjectionService {
         ProjectionData data = request.data();
         // Checked before anything else a model-seeded request would go on to do, so an
         // environment with the AI projection switched off never reaches the projection service.
-        // The web drops the preset from its lists on the same switch; this is what makes it a
-        // refusal rather than a hidden button.
+        // The web drops the preset on the same answer, read from /api/v1/features; this is what
+        // makes it a refusal rather than a hidden button.
         if (request.source() == ProjectionSource.MODEL) {
-            if (!aiProjection.enabled()) {
+            if (!aiProjection.available()) {
                 throw new IllegalArgumentException(
                         "source=model is unavailable: the AI projection is switched off in this "
                                 + "environment");

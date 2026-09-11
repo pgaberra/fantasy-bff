@@ -143,11 +143,15 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     a stretch of games — measured, not projected. Ranges are team game numbers so the same
     range means the same stretch for everyone, and splits default one season *back* from the
     projected one, since that is the season with games in it.
-    `/seed` **404s unless `ai-projection.enabled`** (`AI_PROJECTION_ENABLED`, on by default),
-    which is the same switch that refuses `source=model` in `ProjectionService.create` and
-    that the web reads to drop the AI preset. It does **not** cover the splits: those are
-    measured numbers behind Who's hot and stay up. Whether anyone may read the prefix at all
-    is the separate `security.projection-model-enabled`.
+    **Whether the AI projection is served at all is one answer, `AiProjectionAvailability`**:
+    `ai-projection.enabled` (`AI_PROJECTION_ENABLED`, on by default) *and*
+    `security.projection-model-enabled` (`PROJECTION_MODEL_ENABLED`, off by default, which also
+    closes the whole prefix). `/seed` 404s without it, `source=model` in
+    `ProjectionService.create` is refused without it, and public `GET /api/v1/features`
+    reports it as `aiProjection`, which is what the web reads to offer or drop the AI preset.
+    The web has no switch of its own, so the two cannot disagree. `ai-projection.enabled` does
+    **not** cover the splits: those are measured numbers behind Who's hot and stay up while the
+    prefix is open.
     **The model's lines are premium**, and there are two ways to them that share no code, so
     both are gated: `/seed`, which hands them to the new-projection page, and `source=model`
     in `ProjectionService.create`, which fills a projection or a preset draft with them

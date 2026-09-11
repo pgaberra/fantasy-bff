@@ -8,25 +8,27 @@ servers:
 security:
 - bearerAuth: []
 tags:
-- name: Authentication
-  description: Register and login endpoints
 - name: Shared projections
   description: "Public, read-only projections (no sign-in required)"
-- name: Admin
-  description: "Admin-only: Yahoo service account + player sync"
 - name: Projection shares
   description: The current user's public links to their projections
-- name: Account
-  description: The signed-in account's own profile
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
   description: "NHL player stats endpoints (public, read-only)"
-- name: Projections
-  description: The authenticated user's saved player projections
+- name: Features
+  description: Which features this environment serves
 - name: Projection model
   description: "Model-generated projection lines, and measured totals over a range\
     \ of games. Data © MoneyPuck.com, used under its non-commercial terms."
+- name: Authentication
+  description: Register and login endpoints
+- name: Admin
+  description: "Admin-only: Yahoo service account + player sync"
+- name: Account
+  description: The signed-in account's own profile
+- name: Projections
+  description: The authenticated user's saved player projections
 - name: Versions
   description: Deployed version and reachability of every service
 - name: ESPN
@@ -1409,6 +1411,21 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
+  /api/v1/features:
+    get:
+      tags:
+      - Features
+      summary: Get the features this environment serves
+      description: "Public, since pages a signed-out visitor can open describe these\
+        \ features too. The same answer the endpoints behind each feature enforce."
+      operationId: getFeatures
+      responses:
+        "200":
+          description: Features retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeaturesResponse"
   /api/v1/espn/leagues/{leagueId}/teams:
     get:
       tags:
@@ -3245,6 +3262,18 @@ components:
           format: int32
       required:
       - gp
+    FeaturesResponse:
+      type: object
+      properties:
+        aiProjection:
+          type: boolean
+          description: "Whether this environment serves the AI projection: the model's\
+            \ lines and a projection or preset draft seeded from them. False means\
+            \ neither is served to anyone, so a client should not offer it. It says\
+            \ nothing about this account's plan: an AI projection that needs premium\
+            \ is still available."
+      required:
+      - aiProjection
     EspnLeagueTeam:
       type: object
       properties:

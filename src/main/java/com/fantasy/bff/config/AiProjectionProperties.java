@@ -13,6 +13,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>It says nothing about the game-range splits served under the same path prefix. Those are
  * measured numbers behind Who's hot, not the model's estimates, and they stay up either way.
+ *
+ * <p>Not read on its own: {@code AiProjectionAvailability} combines it with the prefix switch,
+ * and that combined answer is what the endpoints enforce and the web is told.
  */
 @ConfigurationProperties(prefix = "ai-projection")
 public record AiProjectionProperties(Boolean enabled) {

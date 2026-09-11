@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.AiProjectionProperties;
+import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
@@ -91,13 +92,19 @@ class ProjectionServiceTest {
     }
 
     private ProjectionService serviceWithAiProjection(boolean enabled) {
+        return serviceWith(enabled, true);
+    }
+
+    private ProjectionService serviceWith(boolean aiProjectionEnabled, boolean modelPrefixEnabled) {
         return new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
                 playerPool,
                 reconciler,
                 seedService,
-                new AiProjectionProperties(enabled),
+                new AiProjectionAvailability(
+                        new AiProjectionProperties(aiProjectionEnabled),
+                        new SecurityProperties(null, null, null, modelPrefixEnabled)),
                 entitlementService,
                 SEASON,
                 MODEL_VERSION);
@@ -466,6 +473,25 @@ class ProjectionServiceTest {
         // asked and nothing reaches the database.
         verifyNoInteractions(seedService);
         verifyNoInteractions(databaseServiceClient);
+    }
+
+    /**
+     * The seed endpoint is closed with the model prefix, and a model-seeded projection is the
+     * same lines by another door. Leaving it open would serve the model in an environment that
+     * decided not to, and have the web offer a preset whose preview is refused.
+     */
+    @Test
+    @DisplayName("model source is refused when the model endpoints are closed, even with the AI projection on")
+    void withModelSource_whenTheModelPrefixIsClosed_isRefused() {
+        ProjectionService service = serviceWith(true, false);
+
+        assertThatThrownBy(() -> service.create(USER_ID, request(emptyData(), ProjectionSource.MODEL)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("switched off");
+
+        verifyNoInteractions(seedService);
+        verifyNoInteractions(databaseServiceClient);
+        verifyNoInteractions(entitlementService);
     }
 
     @Test
