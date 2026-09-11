@@ -3,6 +3,7 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.GoalieResponse;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -216,6 +218,55 @@ class ProjectionServiceTest {
         var response = projectionService.get(USER_ID, PROJECTION_ID);
 
         assertThat(response.poolReconciliation()).isNull();
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    /**
+     * The model covers fewer players than the pool. Left to the first read, the ones it lacked
+     * were added there and reported as having joined since the projection was created, seconds
+     * earlier. Squared before it is written, the first read has nothing to report.
+     */
+    @Test
+    void aNewProjectionIsSquaredWithThePoolBeforeItIsWritten() {
+        PlayerProjection projected = new PlayerProjection().playerId(4242).type(PlayerProjection.TypeEnum.SKATER);
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
+        PlayerProjection lacked = new PlayerProjection().playerId(9).type(PlayerProjection.TypeEnum.SKATER);
+        when(reconciler.reconcile(any())).thenAnswer(invocation -> {
+            ProjectionData data = invocation.getArgument(0);
+            data.setPlayers(Stream.concat(data.getPlayers().stream(), Stream.of(lacked)).toList());
+            return Optional.of(new Reconciliation(List.of(9)));
+        });
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        var response = projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
+
+        assertThat(capturedPlayers()).extracting(PlayerProjection::getPlayerId).containsExactly(4242, 9);
+        assertThat(response.poolReconciliation()).isNull();
+    }
+
+    /** A shared board is the author's pool, not ours, so it is squared and saved as it arrives. */
+    @Test
+    void anImportIsSquaredWithThePoolAndSavedWithoutReportingIt() {
+        ProjectionResponse imported = storedProjection();
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+        when(reconciler.reconcile(imported.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(imported);
+
+        var response = projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), any());
+        assertThat(response.poolReconciliation()).isNull();
+    }
+
+    @Test
+    void anImportAlreadySquaredWithThePoolIsNotWrittenAgain() {
+        ProjectionResponse imported = storedProjection();
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+        when(reconciler.reconcile(imported.getData())).thenReturn(Optional.empty());
+
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
     }
 
