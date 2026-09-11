@@ -15,40 +15,36 @@ import java.time.Duration;
 @Configuration
 public class RestClientConfig {
 
+    private static final String INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key";
+
     @Bean
     public RestClient yahooFantasyServiceClient(
             @Value("${services.yahoo-fantasy.base-url}") String baseUrl,
             @Value("${services.yahoo-fantasy.timeout-ms}") int timeoutMs,
-            @Value("${services.yahoo-fantasy.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
+            InternalApiKeyProperties keys) {
+        return buildRestClientBuilder(baseUrl, timeoutMs)
+                .defaultHeader(INTERNAL_API_KEY_HEADER, keys.yahooFantasy().apiKey())
+                .build();
     }
 
     @Bean
     public RestClient espnFantasyServiceClient(
             @Value("${services.espn-fantasy.base-url}") String baseUrl,
             @Value("${services.espn-fantasy.timeout-ms}") int timeoutMs,
-            @Value("${services.espn-fantasy.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
+            InternalApiKeyProperties keys) {
+        return buildRestClientBuilder(baseUrl, timeoutMs)
+                .defaultHeader(INTERNAL_API_KEY_HEADER, keys.espnFantasy().apiKey())
+                .build();
     }
 
     @Bean
     public RestClient databaseServiceClient(
             @Value("${services.database.base-url}") String baseUrl,
             @Value("${services.database.timeout-ms}") int timeoutMs,
-            @Value("${services.database.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
+            InternalApiKeyProperties keys) {
+        return buildRestClientBuilder(baseUrl, timeoutMs)
+                .defaultHeader(INTERNAL_API_KEY_HEADER, keys.database().apiKey())
+                .build();
     }
 
     /**
@@ -61,12 +57,10 @@ public class RestClientConfig {
     public RestClient databaseMigrationClient(
             @Value("${services.database.base-url}") String baseUrl,
             @Value("${services.database.migration-timeout-ms}") int timeoutMs,
-            @Value("${services.database.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
+            InternalApiKeyProperties keys) {
+        return buildRestClientBuilder(baseUrl, timeoutMs)
+                .defaultHeader(INTERNAL_API_KEY_HEADER, keys.database().apiKey())
+                .build();
     }
 
     /**
@@ -83,24 +77,20 @@ public class RestClientConfig {
     public RestClient databaseProjectionClient(
             @Value("${services.database.base-url}") String baseUrl,
             @Value("${services.database.projection-timeout-ms}") int timeoutMs,
-            @Value("${services.database.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
+            InternalApiKeyProperties keys) {
+        return buildRestClientBuilder(baseUrl, timeoutMs)
+                .defaultHeader(INTERNAL_API_KEY_HEADER, keys.database().apiKey())
+                .build();
     }
 
     @Bean
     public RestClient projectionServiceClient(
             @Value("${services.projection.base-url}") String baseUrl,
             @Value("${services.projection.timeout-ms}") int timeoutMs,
-            @Value("${services.projection.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader("X-Internal-Api-Key", apiKey);
-        }
-        return builder.build();
+            InternalApiKeyProperties keys) {
+        return buildRestClientBuilder(baseUrl, timeoutMs)
+                .defaultHeader(INTERNAL_API_KEY_HEADER, keys.projection().apiKey())
+                .build();
     }
 
     /**

@@ -1,3 +1,14 @@
+# Secrets come only from the environment.
+#
+# Required, with no default, so a missing or blank value stops startup: JWT_SECRET,
+# DB_INTERNAL_API_KEY, YAHOO_INTERNAL_API_KEY, ESPN_INTERNAL_API_KEY, PROJECTION_INTERNAL_API_KEY
+# (InternalApiKeyProperties) and RESEND_API_KEY (EmailProperties; only the dev profile may leave
+# it blank).
+#
+# Optional, and allowed to be empty because the feature they belong to is off or refuses every
+# request without them: PAYMENTS_MOCK_WEBHOOK_SECRET (the mock payment provider), PADDLE_API_KEY
+# and PADDLE_WEBHOOK_SECRET (Paddle, when it is the provider), GOOGLE_CLIENT_SECRET (the Google
+# code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in).
 spring:
   application:
     name: fantasy-bff
@@ -24,11 +35,15 @@ email:
   # Sender identity for transactional email (non-secret).
   from: ${EMAIL_FROM:SlapStat <no-reply@slapstat.com>}
   resend:
-    # Resend API key. Secret; when unset the app logs reset links instead of sending
-    # (local dev / CI / tests), mirroring the Sentry "inert when unconfigured" pattern.
-    api-key: ${RESEND_API_KEY:}
+    # Resend API key. Secret and required: without it no reset or verification email goes out,
+    # so a missing or blank key stops startup. Only the dev profile may leave it blank, and there
+    # the links are logged instead; they carry live tokens, so that happens nowhere else.
+    api-key: ${RESEND_API_KEY}
     base-url: ${RESEND_BASE_URL:https://api.resend.com}
     timeout-ms: 5000
+  # Local runs only (the dev profile turns it on): log reset and verification links when there
+  # is no Resend key. Never set this on a deployed environment.
+  log-links: false
 
 # Which platform the player pool comes from: `yahoo`, which the app was built on, or `espn`,
 # which took over when Yahoo stopped serving its game-wide player collection. Both serve the
@@ -45,7 +60,7 @@ services:
   yahoo-fantasy:
     base-url: ${YAHOO_SERVICE_URL:http://localhost:8088}
     timeout-ms: 10000
-    api-key: ${YAHOO_INTERNAL_API_KEY:}
+    api-key: ${YAHOO_INTERNAL_API_KEY}
     # Which season's stat line the player reads carry, as a start year. This is what the app
     # *shows* — the reference column a projection is built against — and is a separate choice
     # from what yahoo-service is *collecting* (its SYNC_YAHOO_SEASON). For most of the year
@@ -57,7 +72,7 @@ services:
   espn-fantasy:
     base-url: ${ESPN_SERVICE_URL:http://localhost:8090}
     timeout-ms: 10000
-    api-key: ${ESPN_INTERNAL_API_KEY:}
+    api-key: ${ESPN_INTERNAL_API_KEY}
     # How long the ESPN stat lines used to enrich player responses are held in memory.
     # espn-service refreshes them nightly, so re-fetching per request would be pure overhead
     # on the hottest endpoint in the app.
@@ -89,7 +104,7 @@ services:
     # Fifteen seconds is deliberately generous for someone sitting in front of it: the cost of
     # waiting is a spinner, the cost of giving up too early is their work or their page.
     projection-timeout-ms: ${DB_PROJECTION_TIMEOUT_MS:15000}
-    api-key: ${DB_INTERNAL_API_KEY:}
+    api-key: ${DB_INTERNAL_API_KEY}
   # projection-service serves AI-generated player projections (NHL-id-keyed, league-agnostic)
   # and the measured game-range splits behind Who's hot. Internal-only.
   projection:
@@ -98,7 +113,7 @@ services:
     # season of per-game rows and the active player list is ~1600 players, so this is the
     # same order of work as yahoo-service's read model and gets the same budget.
     timeout-ms: 10000
-    api-key: ${PROJECTION_INTERNAL_API_KEY:}
+    api-key: ${PROJECTION_INTERNAL_API_KEY}
     # How long the NHL id → platform id mapping is held in memory. Building it reads both
     # sides in full and matches them by identity; the answer only changes when a roster does,
     # and Who's hot would otherwise rebuild it twice per page load.
@@ -138,8 +153,8 @@ payments:
   # the default) or a real provider added later. Selecting a provider is a config change only.
   provider: ${PAYMENTS_PROVIDER:mock}
   mock:
-    # Secret the mock uses to sign its checkout/portal tokens and webhook payloads. No default
-    # (env only); the mock flow fails when unset, like other secrets.
+    # Secret the mock uses to sign its checkout/portal tokens and webhook payloads. Optional
+    # (see the top of this file): the mock flow fails closed when it is unset.
     webhook-secret: ${PAYMENTS_MOCK_WEBHOOK_SECRET:}
     # Base URL the mock uses to build its stub URLs and to self-POST the webhook. Locally the
     # BFF's own origin; on Coolify the bff service's Docker network alias.
@@ -149,7 +164,7 @@ payments:
     # moves with the key rather than being derived from the Spring profile.
     api-base-url: ${PADDLE_API_BASE_URL:https://sandbox-api.paddle.com}
     timeout-ms: ${PADDLE_TIMEOUT_MS:10000}
-    # Server-side API key. No default (env only), like every other secret.
+    # Server-side API key. Optional (see the top of this file): Paddle calls fail without it.
     api-key: ${PADDLE_API_KEY:}
     # Secret for the notification destination, used to verify the Paddle-Signature header.
     webhook-secret: ${PADDLE_WEBHOOK_SECRET:}
@@ -213,7 +228,7 @@ security:
     app-secret: ${FACEBOOK_APP_SECRET:}
     graph-base-url: ${FACEBOOK_GRAPH_BASE_URL:https://graph.facebook.com}
   jwt:
-    secret: ${JWT_SECRET:}
+    secret: ${JWT_SECRET}
     expiration-ms: 900000 # 15 minutes
     refresh-expiration-ms: 2592000000  # 30 days
   rate-limit:
@@ -266,6 +281,12 @@ management:
     web:
       exposure:
         include: health,info
+  # Readiness is part of /actuator/health, the one path the container health check curls.
+  # DownstreamKeyVerifier sets it to REFUSING_TRAFFIC when a downstream rejects our internal key,
+  # which makes that check fail and rolls a deploy back instead of serving 502s.
+  health:
+    readinessstate:
+      enabled: true
   info:
     env:
       enabled: true
