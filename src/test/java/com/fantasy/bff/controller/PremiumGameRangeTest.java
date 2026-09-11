@@ -20,6 +20,8 @@ import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -72,6 +74,33 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
     @BeforeEach
     void setUp() {
         token = jwtTokenValidator.generateToken(USER_ID.toString(), "owner@example.com");
+        when(projectionServiceClient.splitSeasons(any())).thenReturn(new SplitSeasonsResponse()
+                .defaultSeason(2025)
+                .seasons(List.of(
+                        new SplitSeasonResponse().season(2026).scheduleGames(84).gamesPlayed(0),
+                        new SplitSeasonResponse().season(2025).scheduleGames(82).gamesPlayed(82))));
+    }
+
+    @Test
+    @DisplayName("in an 84-game season the free five are games 80-84")
+    void freeRange_followsTheSeasonsOwnLength() throws Exception {
+        withoutASubscription();
+        withOneSkaterAndOneGoalie();
+
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?season=2026&fromGame=80&toGame=84")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("so 2025-26's free five are not the last five of 2026-27")
+    void lastSeasonsFreeRange_isNotFreeInAnEightyFourGameSeason() throws Exception {
+        withoutASubscription();
+
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?season=2026&fromGame=78&toGame=82")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
     }
 
     private void withoutASubscription() {
@@ -110,9 +139,9 @@ class PremiumGameRangeTest extends BaseIntegrationTest {
         skater.setSeason(2025);
         skater.setGames(10);
         skater.setPoints(19);
-        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(skater));
-        when(projectionServiceClient.goalieSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.goalieSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(new GoalieSplitResponse()));
         when(playerServiceClient.getSkaters(nullable(Integer.class)))
                 .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, 97, Set.of(), null)));

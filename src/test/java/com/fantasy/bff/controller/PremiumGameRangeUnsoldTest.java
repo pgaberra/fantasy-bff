@@ -68,7 +68,7 @@ class PremiumGameRangeUnsoldTest extends BaseIntegrationTest {
         skater.setSeason(2025);
         skater.setGames(82);
         skater.setPoints(153);
-        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(skater));
         when(playerServiceClient.getSkaters(nullable(Integer.class)))
                 .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, 97, Set.of(), null)));

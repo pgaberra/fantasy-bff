@@ -6,6 +6,7 @@ import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import java.util.List;
 
 public interface ProjectionServiceClient {
@@ -37,7 +38,17 @@ public interface ProjectionServiceClient {
      * Measured totals over a stretch of a team's schedule — what a player actually did over
      * that stretch, not a forecast.
      */
-    List<SkaterSplitResponse> skaterSplits(int season, GameRange range, int limit);
+    /**
+     * @param season the season to measure, or null for the newest season with a game played
+     */
+    List<SkaterSplitResponse> skaterSplits(Integer season, GameRange range, int limit);
 
-    List<GoalieSplitResponse> goalieSplits(int season, GameRange range, int limit);
+    List<GoalieSplitResponse> goalieSplits(Integer season, GameRange range, int limit);
+
+    /**
+     * Every season a split can be measured over, with its length and how far it has got.
+     *
+     * @param targetSeason a season to list even before it has a game, or null
+     */
+    SplitSeasonsResponse splitSeasons(Integer targetSeason);
 }

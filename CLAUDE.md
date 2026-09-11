@@ -146,8 +146,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     to save as a new projection — deliberately without scoring settings, which belong to the
     user's league. `/splits/{skaters,goalies}` return what players **actually produced** over
     a stretch of games — measured, not projected. Ranges are team game numbers so the same
-    range means the same stretch for everyone, and splits default one season *back* from the
-    projected one, since that is the season with games in it.
+    range means the same stretch for everyone, and `lastGames` is each team's own last N, so it
+    means the same mid-season. A split with **no season is left to projection-service**, which
+    reads the newest season with a game played: last season until the new one is underway.
+    `/splits/seasons` lists each season's own length (82, or 84 from 2026-27) and how far it has
+    got, which is where the web takes both from; no season length lives in this repo.
     **Whether the AI projection is served at all is one answer, `AiProjectionAvailability`**:
     `ai-projection.enabled` (`AI_PROJECTION_ENABLED`, on by default) *and*
     `security.projection-model-enabled` (`PROJECTION_MODEL_ENABLED`, off by default, which also
@@ -168,8 +171,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stays visible to a free account, marked and sold, so the server is what makes it a refusal
     rather than a missing button, and anyone reading the network tab meets the same answer.
     The splits carry a switch of their own: **which stretch** they measure is premium. A free
-    account gets the last 5 games (`lastGames<=5`, or a `fromGame`/`toGame` window inside
-    games 78-82 — every NHL season is 82 games, so that needs no lookup); anything else is
+    account gets the last 5 games (`lastGames<=5`, or a `fromGame`/`toGame` window of five or
+    fewer inside the last five of its own season: 78-82 in 2025-26, 80-84 from 2026-27, so the
+    length is asked of projection-service, and only for a window short enough to be free); anything else is
     **403 `PREMIUM_REQUIRED`**, including an open range, which means the whole season. Two
     orderings matter and are tested: the range is judged *before* the subscription is read, so
     a free account's own requests cost db-service nothing, and `payments.enabled` is read
