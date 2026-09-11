@@ -277,7 +277,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     rows (almost all zeros → started from scratch). Guarded by `playerPoolSyncedAt` against the
     latest successful sync run, so the full pool read happens at most once per projection per
     sync rather than on every open; the result is written back and reported to the caller as
-    `poolReconciliation`, which is the client's one chance to tell the user. A pool that cannot
+    `poolReconciliation`, which is the client's one chance to tell the user. A new projection is
+    squared **before it is written** (on create, and on import straight after db-service copies
+    it), with nothing reported: a starting point that does not cover the whole pool, like the
+    model's lines or a shared board, would otherwise have its first read announce the players it
+    lacked as having joined since it was created. A pool that cannot
     be read — or comes back empty — leaves the projection alone rather than dropping every row
     it cannot account for.
 - `client/` — downstream clients. Each is an **interface** plus an **http**

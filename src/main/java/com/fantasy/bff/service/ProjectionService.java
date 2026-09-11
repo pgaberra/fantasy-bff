@@ -144,6 +144,12 @@ public class ProjectionService {
         } else if (data.getPlayers().isEmpty()) {
             throw new IllegalArgumentException("data.players must not be empty unless source is set");
         }
+        // Squared with the pool before it is written, not on its first read. A starting point that
+        // does not cover the whole pool — the model's lines, a copied board — would otherwise have
+        // that read add the players it lacked and report them to the user as having joined since
+        // the projection was created, seconds earlier. Nothing is reported from here: a projection
+        // that did not exist yet has no "since".
+        reconciler.reconcile(data);
         return ProjectionResponse.of(databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
@@ -155,15 +161,21 @@ public class ProjectionService {
 
     /**
      * Copies a shared board into the user's own projections. The rows come across as they were
-     * published, which is a snapshot of the author's player pool rather than the current one —
-     * squaring them with it is left to the first read, which does that for every projection
-     * anyway.
+     * published, which is a snapshot of the author's player pool rather than the current one, so
+     * they are squared with it and saved straight away. Left to the first read, the players the
+     * snapshot lacked would be reported as having joined since the user imported it. db-service
+     * writes the copy and cannot read the pool, hence the second write rather than one.
      */
     public ProjectionResponse importFromShare(UUID userId, ImportProjectionRequest request) {
-        return ProjectionResponse.of(databaseServiceClient.importProjection(userId,
-                new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
-                        .token(request.token())
-                        .name(request.name())));
+        com.fantasy.bff.generated.db.model.ProjectionResponse imported =
+                databaseServiceClient.importProjection(userId,
+                        new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
+                                .token(request.token())
+                                .name(request.name()));
+        if (reconciler.reconcile(imported.getData()).isEmpty()) {
+            return ProjectionResponse.of(imported);
+        }
+        return ProjectionResponse.of(save(userId, UUID.fromString(imported.getId()), imported));
     }
 
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
