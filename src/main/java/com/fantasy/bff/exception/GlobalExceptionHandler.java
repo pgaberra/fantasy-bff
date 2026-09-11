@@ -53,6 +53,16 @@ public class GlobalExceptionHandler {
                 .body(ErrorDto.of("PREMIUM_REQUIRED", ex.getMessage()));
     }
 
+    /**
+     * A checkout for an account that already has a live subscription. 409, since the request is
+     * understood and conflicts with what the account already holds. Expected, so not logged.
+     */
+    @ExceptionHandler(SubscriptionAlreadyLiveException.class)
+    public ResponseEntity<ErrorDto> handleSubscriptionAlreadyLive(SubscriptionAlreadyLiveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorDto.of("SUBSCRIPTION_ALREADY_LIVE", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDto> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

@@ -1078,6 +1078,12 @@ components:
         premium:
           type: boolean
           description: Whether the subscription currently grants premium access
+        live:
+          type: boolean
+          description: "Whether the subscription can still bill or be resumed (active,\
+            \ trialing, past_due, paused or unpaid). A user holds at most one live\
+            \ subscription, so a caller must not start a new checkout while this is\
+            \ true"
         provider:
           type: string
           description: Payment provider id
@@ -1087,6 +1093,7 @@ components:
             one
       required:
       - cancelAtPeriodEnd
+      - live
       - premium
       - provider
       - status
