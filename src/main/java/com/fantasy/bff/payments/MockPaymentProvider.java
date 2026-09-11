@@ -37,8 +37,14 @@ public class MockPaymentProvider implements PaymentProvider {
 
     @Override
     public CheckoutSession createCheckoutSession(CheckoutRequest request) {
-        return new CheckoutSession(
-                selfBaseUrl + "/api/v1/billing/mock/checkout?token=" + codec.encodeToken(request.userId()));
+        String token = codec.encodeToken(request.userId());
+        return new CheckoutSession(selfBaseUrl + "/api/v1/billing/mock/checkout?token=" + token, token);
+    }
+
+    /** The mock keeps no checkout state, so every checkout is a new one, as it always was. */
+    @Override
+    public boolean isCheckoutOpen(String reference) {
+        return false;
     }
 
     @Override
