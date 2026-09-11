@@ -1,10 +1,10 @@
 package com.fantasy.bff.controller;
 
-import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
 import com.fantasy.bff.exception.PremiumRequiredException;
+import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.EntitlementService;
 import com.fantasy.bff.service.PlayerSplitService;
 import com.fantasy.bff.service.ProjectionSeedService;
@@ -64,7 +64,7 @@ public class ProjectionModelController {
 
     private final ProjectionSeedService seedService;
     private final PlayerSplitService splitService;
-    private final AiProjectionProperties aiProjection;
+    private final AiProjectionAvailability aiProjection;
     private final EntitlementService entitlementService;
     private final int defaultSeason;
     private final String defaultModelVersion;
@@ -72,7 +72,7 @@ public class ProjectionModelController {
     public ProjectionModelController(
             ProjectionSeedService seedService,
             PlayerSplitService splitService,
-            AiProjectionProperties aiProjection,
+            AiProjectionAvailability aiProjection,
             EntitlementService entitlementService,
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
@@ -127,7 +127,7 @@ public class ProjectionModelController {
                     Integer goalieLimit) {
         // These are the model's own lines, which is the whole of what the AI projection is. The
         // splits below are not: they are measured totals behind Who's hot, and stay up either way.
-        if (!aiProjection.enabled()) {
+        if (!aiProjection.available()) {
             throw new NoSuchElementException("The AI projection is not enabled");
         }
         // Every row here is the model talking, which is the thing premium pays for — all of it

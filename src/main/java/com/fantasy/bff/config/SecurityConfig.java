@@ -59,6 +59,9 @@ public class SecurityConfig {
                             // the whole point of it. GET only: publishing and taking a link down stay
                             // with the owner under /api/v1/projections/{id}/share.
                             .requestMatchers(HttpMethod.GET, "/api/v1/shared/**").permitAll()
+                            // The Premium page describes the AI projection to signed-out visitors,
+                            // so what an environment serves has to be readable before sign-in.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/features").permitAll()
                             .requestMatchers("/api/v1/account", "/api/v1/account/**").authenticated()
                             .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated();
 
