@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
+import com.fantasy.bff.dto.response.SplitSeasonListResponse;
 import com.fantasy.bff.exception.PremiumRequiredException;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.EntitlementService;
@@ -38,15 +39,11 @@ public class ProjectionModelController {
     private static final int MAX_LIMIT = 500;
 
     /**
-     * The stretch a free account may measure, in team game numbers. Every NHL season is the same
-     * 82 games, so "the last five" is games 78-82 for every team in every season — the same
-     * constant the web resolves its presets against, and the reason this needs no lookup.
+     * How many of a season's last games a free account may measure. Which games those are
+     * depends on the season's own length (78-82 in 2025-26, 80-84 from 2026-27), so an explicit
+     * window is judged against the length projection-service reports for its season.
      */
-    private static final int SEASON_SCHEDULE_GAMES = 82;
-
     private static final int FREE_RANGE_LENGTH = 5;
-
-    private static final int FIRST_FREE_GAME = SEASON_SCHEDULE_GAMES - FREE_RANGE_LENGTH + 1;
 
     /**
      * The slice of the board a free account may read: the top of it, and no more than the
@@ -179,15 +176,16 @@ public class ProjectionModelController {
                     @Min(1)
                     @Max(84)
                     Integer toGame,
-            @Parameter(description = "Shorthand for the team's final N games")
+            @Parameter(description = "Shorthand for each team's own last N games, counted back from the latest "
+                            + "game it has played, so it means the same mid-season as in a finished one")
                     @RequestParam(required = false)
                     @Min(1)
                     @Max(84)
                     Integer lastGames,
             @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
         GameRange range = new GameRange(fromGame, toGame, lastGames);
-        requireEntitlementFor(userId, range);
-        return splitService.skaterSplits(splitSeason(season), range, limit);
+        requireEntitlementFor(userId, season, range);
+        return splitService.skaterSplits(season, range, limit);
     }
 
     @Operation(
@@ -206,8 +204,22 @@ public class ProjectionModelController {
             @RequestParam(required = false) @Min(1) @Max(84) Integer lastGames,
             @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
         GameRange range = new GameRange(fromGame, toGame, lastGames);
-        requireEntitlementFor(userId, range);
-        return splitService.goalieSplits(splitSeason(season), range, limit);
+        requireEntitlementFor(userId, season, range);
+        return splitService.goalieSplits(season, range, limit);
+    }
+
+    @Operation(
+            summary = "The seasons Who's hot can measure",
+            description =
+                    "Newest first, each with `scheduleGames`, its own length (82, or 84 from 2026-27), and "
+                            + "`gamesPlayed`, the furthest any team has got, so a client drawing a range "
+                            + "assumes neither. The projected season is listed before its first game. "
+                            + "`defaultSeason` is the season a split with no season reads: the newest "
+                            + "with a game played, which is last season until the new one is underway.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "The seasons, newest first")})
+    @GetMapping("/splits/seasons")
+    public SplitSeasonListResponse splitSeasons() {
+        return splitService.seasons(defaultSeason);
     }
 
     /**
@@ -231,8 +243,8 @@ public class ProjectionModelController {
      * request the web makes on behalf of an account that has not paid) costs no call to
      * db-service.
      */
-    private void requireEntitlementFor(String userId, GameRange range) {
-        if (isFree(range) || entitlementService.hasPremiumAccess(userId)) {
+    private void requireEntitlementFor(String userId, Integer season, GameRange range) {
+        if (isFree(season, range) || entitlementService.hasPremiumAccess(userId)) {
             return;
         }
         throw new PremiumRequiredException(
@@ -245,21 +257,22 @@ public class ProjectionModelController {
      * inside the free one passes: it reveals no game the account is not entitled to, and holding
      * it to exactly five would turn every off-by-one between client and server into a refusal.
      *
-     * <p>An open range means the whole season, which is not it.
+     * <p>An open range means the whole season, which is not it. An explicit window is inside the
+     * last five of its own season's schedule, so the season's length is asked for, and only when
+     * the window is short enough to be free at all.
      */
-    private static boolean isFree(GameRange range) {
+    private boolean isFree(Integer season, GameRange range) {
         if (range.lastGames() != null) {
             return range.lastGames() <= FREE_RANGE_LENGTH;
         }
         if (range.fromGame() == null || range.toGame() == null) {
             return false;
         }
-        return range.fromGame() >= FIRST_FREE_GAME
-                && range.toGame() - range.fromGame() + 1 <= FREE_RANGE_LENGTH;
-    }
-
-    /** Splits default one season back from the projected one — that is the season with games in it. */
-    private int splitSeason(Integer season) {
-        return season == null ? defaultSeason - 1 : season;
+        if (range.toGame() - range.fromGame() + 1 > FREE_RANGE_LENGTH) {
+            return false;
+        }
+        return splitService.scheduleGames(season, defaultSeason)
+                .map(games -> range.fromGame() > games - FREE_RANGE_LENGTH)
+                .orElse(false);
     }
 }

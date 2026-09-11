@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import java.math.BigDecimal;
 import java.util.List;
@@ -141,5 +143,34 @@ class HttpProjectionServiceClientTest {
                 .withQueryParam("from_game", absent())
                 .withQueryParam("to_game", absent())
                 .withQueryParam("last_games", absent()));
+    }
+
+    @Test
+    void skaterSplits_leavesTheSeasonOutWhenNoneIsNamed() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/splits/skaters")).willReturn(okJson("[]")));
+
+        client.skaterSplits(null, GameRange.ofLastGames(5), 100);
+
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/splits/skaters"))
+                .withQueryParam("season", absent())
+                .withQueryParam("last_games", equalTo("5")));
+    }
+
+    @Test
+    void splitSeasons_asksForTheTargetAndParsesEachSeasonsOwnLength() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/splits/seasons"))
+                .withQueryParam("target_season", equalTo("2026"))
+                .willReturn(okJson("""
+                        {"default_season":2025,"seasons":[
+                          {"season":2026,"schedule_games":84,"games_played":0},
+                          {"season":2025,"schedule_games":82,"games_played":82}]}
+                        """)));
+
+        SplitSeasonsResponse seasons = client.splitSeasons(2026);
+
+        assertThat(seasons.getDefaultSeason()).isEqualTo(2025);
+        assertThat(seasons.getSeasons())
+                .extracting(SplitSeasonResponse::getScheduleGames)
+                .containsExactly(84, 82);
     }
 }

@@ -19,6 +19,8 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
 import java.math.BigDecimal;
 import java.util.List;
@@ -97,9 +99,9 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
         split.setToiSeconds(26000);
         split.setFirstTeamGame(63);
         split.setLastTeamGame(82);
-        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(split));
-        when(projectionServiceClient.goalieSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.goalieSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of());
     }
 
@@ -163,6 +165,41 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("a split with no season is left to the projection service, which reads the newest season with games")
+    void omittedSeasonIsLeftToTheService() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        verify(projectionServiceClient).skaterSplits(null, GameRange.ofLastGames(20), 100);
+    }
+
+    @Test
+    @DisplayName("lists the seasons with each one's own length and how far it has got")
+    void listsSeasons() throws Exception {
+        when(projectionServiceClient.splitSeasons(any())).thenReturn(new SplitSeasonsResponse()
+                .defaultSeason(2025)
+                .seasons(List.of(
+                        new SplitSeasonResponse().season(2026).scheduleGames(84).gamesPlayed(0),
+                        new SplitSeasonResponse().season(2025).scheduleGames(82).gamesPlayed(82))));
+
+        mockMvc.perform(get("/api/v1/projection-model/splits/seasons")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultSeason").value(2025))
+                .andExpect(jsonPath("$.seasons[0].season").value(2026))
+                .andExpect(jsonPath("$.seasons[0].scheduleGames").value(84))
+                .andExpect(jsonPath("$.seasons[0].gamesPlayed").value(0))
+                .andExpect(jsonPath("$.seasons[1].scheduleGames").value(82));
+    }
+
+    @Test
+    @DisplayName("the seasons require a signed-in user like the splits they describe")
+    void seasonsRequireAuth() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/splits/seasons")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("rejects a range that says two different things")
     void rejectsConflictingRange() throws Exception {
         mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20&fromGame=50")
@@ -204,7 +241,7 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
         noShots.setGames(0);
         noShots.setGoals(0);
         noShots.setShots(0);
-        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(noShots));
 
         mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20")

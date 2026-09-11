@@ -1046,6 +1046,57 @@
         "title": "SkaterSplitResponse",
         "type": "object"
       },
+      "SplitSeasonResponse": {
+        "properties": {
+          "games_played": {
+            "title": "Games Played",
+            "type": "integer"
+          },
+          "schedule_games": {
+            "title": "Schedule Games",
+            "type": "integer"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season",
+          "schedule_games",
+          "games_played"
+        ],
+        "title": "SplitSeasonResponse",
+        "type": "object"
+      },
+      "SplitSeasonsResponse": {
+        "properties": {
+          "default_season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Season"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/SplitSeasonResponse"
+            },
+            "title": "Seasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "default_season",
+          "seasons"
+        ],
+        "title": "SplitSeasonsResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1739,14 +1790,23 @@
         "operationId": "goalie_splits_api_v1_splits_goalies_get",
         "parameters": [
           {
-            "description": "Season start year, e.g. 2025",
+            "description": "Season start year, e.g. 2025. Defaults to the newest season with a game logged, which is the season underway once its first game is in",
             "in": "query",
             "name": "season",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Season start year, e.g. 2025",
-              "title": "Season",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year, e.g. 2025. Defaults to the newest season with a game logged, which is the season underway once its first game is in",
+              "title": "Season"
             }
           },
           {
@@ -1790,7 +1850,7 @@
             }
           },
           {
-            "description": "Shorthand for the final N team games of the season",
+            "description": "Shorthand for each club's own last N games: counted back from the latest game logged for that club, so it means the same in a season underway as in one over",
             "in": "query",
             "name": "last_games",
             "required": false,
@@ -1805,7 +1865,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Shorthand for the final N team games of the season",
+              "description": "Shorthand for each club's own last N games: counted back from the latest game logged for that club, so it means the same in a season underway as in one over",
               "title": "Last Games"
             }
           },
@@ -1872,19 +1932,98 @@
         ]
       }
     },
+    "/api/v1/splits/seasons": {
+      "get": {
+        "description": "Every season a split can be measured over, newest first, with how far each has got.\n\nA client drawing a range needs the season's length, and one offering \"the last N games\" in a\nseason underway needs to know where that season stands; both belong to the data rather than\nto a constant in the client, which is how the app came to believe every season was 82 games.",
+        "operationId": "split_seasons_api_v1_splits_seasons_get",
+        "parameters": [
+          {
+            "description": "A season to list even if no game of it is logged yet, e.g. the one being projected",
+            "in": "query",
+            "name": "target_season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A season to list even if no game of it is logged yet, e.g. the one being projected",
+              "title": "Target Season"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitSeasonsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Split Seasons",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
     "/api/v1/splits/skaters": {
       "get": {
         "operationId": "skater_splits_api_v1_splits_skaters_get",
         "parameters": [
           {
-            "description": "Season start year, e.g. 2025",
+            "description": "Season start year, e.g. 2025. Defaults to the newest season with a game logged, which is the season underway once its first game is in",
             "in": "query",
             "name": "season",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Season start year, e.g. 2025",
-              "title": "Season",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year, e.g. 2025. Defaults to the newest season with a game logged, which is the season underway once its first game is in",
+              "title": "Season"
             }
           },
           {
@@ -1928,7 +2067,7 @@
             }
           },
           {
-            "description": "Shorthand for the final N team games of the season",
+            "description": "Shorthand for each club's own last N games: counted back from the latest game logged for that club, so it means the same in a season underway as in one over",
             "in": "query",
             "name": "last_games",
             "required": false,
@@ -1943,7 +2082,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Shorthand for the final N team games of the season",
+              "description": "Shorthand for each club's own last N games: counted back from the latest game logged for that club, so it means the same in a season underway as in one over",
               "title": "Last Games"
             }
           },

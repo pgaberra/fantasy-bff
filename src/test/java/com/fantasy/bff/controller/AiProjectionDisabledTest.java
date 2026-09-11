@@ -97,7 +97,7 @@ class AiProjectionDisabledTest extends BaseIntegrationTest {
         split.setSeason(2025);
         split.setGames(20);
         split.setPoints(33);
-        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(split));
         when(playerServiceClient.getSkaters(nullable(Integer.class)))
                 .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, 97, Set.of(), null)));
