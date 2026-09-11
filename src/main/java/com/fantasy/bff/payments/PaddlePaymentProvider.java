@@ -100,7 +100,39 @@ public class PaddlePaymentProvider implements PaymentProvider {
         if (!StringUtils.hasText(url)) {
             throw new IllegalStateException("Paddle returned a transaction with no checkout URL");
         }
-        return new CheckoutSession(url);
+        return new CheckoutSession(url, path(response, "data", "id"));
+    }
+
+    /**
+     * Whether a transaction can still be paid: {@code draft} or {@code ready}, on the price
+     * checkouts sell now, with a checkout URL. Paid, completed or canceled ones are not, and
+     * neither is one for a price that has since been replaced.
+     *
+     * <p>A lookup that fails answers "not open", logged at ERROR. That opens a new checkout, which
+     * is exactly what every checkout did before reuse existed, while refusing checkout over a
+     * failed read would cost the sale.
+     */
+    @Override
+    public boolean isCheckoutOpen(String reference) {
+        if (!StringUtils.hasText(reference)) {
+            return false;
+        }
+        try {
+            JsonNode response = paddleClient.get()
+                    .uri("/transactions/{transactionId}", reference)
+                    .retrieve()
+                    .body(JsonNode.class);
+            JsonNode data = response == null ? null : response.get("data");
+            String status = data == null ? null : text(data.get("status"));
+            boolean payable = "draft".equals(status) || "ready".equals(status);
+            return payable
+                    && StringUtils.hasText(priceId)
+                    && priceId.equals(firstPriceId(data))
+                    && StringUtils.hasText(path(data, "checkout", "url"));
+        } catch (RestClientException e) {
+            log.error("Could not read a Paddle transaction, so a new checkout is opened instead of reusing it", e);
+            return false;
+        }
     }
 
     /**
