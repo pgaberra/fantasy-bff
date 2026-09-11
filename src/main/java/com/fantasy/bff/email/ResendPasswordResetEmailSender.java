@@ -2,12 +2,10 @@ package com.fantasy.bff.email;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -18,11 +16,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Sends the password reset email via Resend's REST API. When {@code RESEND_API_KEY} is
- * unset (local dev / CI / tests) the sender is inert and logs the reset link instead of
- * sending — mirroring the Sentry "inert when unconfigured" pattern. A send failure is
- * logged at ERROR (so it reaches Sentry) but never thrown: the caller still responds
- * identically so a reset request never reveals whether an account exists.
+ * Sends the password reset email via Resend's REST API. Without a {@code RESEND_API_KEY} it sends
+ * nothing; it logs the reset link instead only on a local run ({@link EmailProperties#logLinks()}),
+ * since the link is a working credential for the account. A send failure is logged at ERROR (so it
+ * reaches Sentry) but never thrown: the caller still responds identically so a reset request never
+ * reveals whether an account exists.
  */
 @Component
 public class ResendPasswordResetEmailSender implements PasswordResetEmailSender {
@@ -30,37 +28,35 @@ public class ResendPasswordResetEmailSender implements PasswordResetEmailSender 
     private static final Logger log = LoggerFactory.getLogger(ResendPasswordResetEmailSender.class);
 
     private final RestClient resendClient;
-    private final String apiKey;
-    private final String from;
+    private final EmailProperties properties;
 
-    public ResendPasswordResetEmailSender(
-            @Value("${email.resend.api-key:}") String apiKey,
-            @Value("${email.from:SlapStat <no-reply@slapstat.com>}") String from,
-            @Value("${email.resend.base-url:https://api.resend.com}") String baseUrl,
-            @Value("${email.resend.timeout-ms:5000}") int timeoutMs) {
-        this.apiKey = apiKey;
-        this.from = from;
+    public ResendPasswordResetEmailSender(EmailProperties properties) {
+        this.properties = properties;
         HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(timeoutMs))
+                .connectTimeout(Duration.ofMillis(properties.resend().timeoutMs()))
                 .build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
-        factory.setReadTimeout(Duration.ofMillis(timeoutMs));
+        factory.setReadTimeout(Duration.ofMillis(properties.resend().timeoutMs()));
         this.resendClient = RestClient.builder()
-                .baseUrl(baseUrl)
+                .baseUrl(properties.resend().baseUrl())
                 .requestFactory(factory)
                 .build();
     }
 
     @Override
     public void send(String toEmail, String resetLink, Instant expiresAt) {
-        if (!StringUtils.hasText(apiKey)) {
-            log.info("Email sending disabled (RESEND_API_KEY unset); password reset link for {}: {}",
-                    toEmail.replace("\r", "_").replace("\n", "_"), resetLink);
+        if (!properties.sendingEnabled()) {
+            if (properties.logLinks()) {
+                log.info("Email sending disabled (RESEND_API_KEY unset, local run); password reset link for {}: {}",
+                        toEmail.replace("\r", "_").replace("\n", "_"), resetLink);
+            } else {
+                log.error("Email sending is not configured (RESEND_API_KEY unset); a password reset email was not sent");
+            }
             return;
         }
         long minutes = Math.max(1, Duration.between(Instant.now(), expiresAt).toMinutes());
         Map<String, Object> payload = Map.of(
-                "from", from,
+                "from", properties.from(),
                 "to", List.of(toEmail),
                 "subject", "Reset your SlapStat password",
                 "text", textBody(resetLink, minutes),
@@ -68,7 +64,7 @@ public class ResendPasswordResetEmailSender implements PasswordResetEmailSender 
         try {
             resendClient.post()
                     .uri("/emails")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.resend().apiKey())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()

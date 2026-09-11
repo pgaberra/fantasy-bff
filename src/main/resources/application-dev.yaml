@@ -23,3 +23,12 @@ security:
     # Public OAuth Client ID (not a secret); the same client allows the
     # http://localhost:4200 JS origin, so local dev works out of the box.
     client-id: ${GOOGLE_CLIENT_ID:404846934195-2840u7mkdapmstllgsiaft2gdgjb2c0g.apps.googleusercontent.com}
+
+email:
+  # A local run usually has no Resend key. Here, and only here, a blank key is allowed: the app
+  # then writes the reset and verification links to the log instead of sending them, so those
+  # flows can be clicked through. Each link carries a live token, which is why the base config
+  # refuses to start without a key instead.
+  log-links: true
+  resend:
+    api-key: ${RESEND_API_KEY:}
