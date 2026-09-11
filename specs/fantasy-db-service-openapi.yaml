@@ -1398,6 +1398,17 @@ components:
           description: When the player rows were last reconciled against the player
             pool — the finish time of the sync run they were reconciled against. Absent
             until the rows have been reconciled once.
+        unacknowledgedNewPlayerIds:
+          type: array
+          description: "Players a reconciliation with the player pool added whom the\
+            \ owner has not acknowledged yet, kept so the app can go on saying so\
+            \ until they do. Absent once acknowledged, and on a projection nothing\
+            \ was ever added to. The cap matches the player list."
+          items:
+            type: integer
+            format: int32
+          maxItems: 2000
+          minItems: 0
       required:
       - activeScoringColumns
       - activeUtilityColumns

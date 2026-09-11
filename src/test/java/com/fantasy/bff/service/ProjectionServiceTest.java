@@ -174,11 +174,11 @@ class ProjectionServiceTest {
 
     /**
      * Reading is where a projection meets the pool as it is today, so a read that had to square
-     * the two saves the result — otherwise every later read would redo the same work — and says
-     * what moved, which is the only chance the client gets to tell the user.
+     * the two saves the result — otherwise every later read would redo the same work — and keeps
+     * who was added until the owner acknowledges them, so the app can go on saying so.
      */
     @Test
-    void aReadThatSquaredTheRowsWithThePoolSavesThemAndSaysWhatMoved() {
+    void aReadThatSquaredTheRowsWithThePoolSavesThemAndKeepsWhoWasAdded() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
         when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
@@ -187,10 +187,42 @@ class ProjectionServiceTest {
 
         var response = projectionService.get(USER_ID, PROJECTION_ID);
 
-        assertThat(response.poolReconciliation().addedPlayerIds()).containsExactly(7, 8);
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(7, 8);
         ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
         verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
         assertThat(saved.getValue().getData().getPlayers()).isEqualTo(stored.getData().getPlayers());
+        assertThat(saved.getValue().getData().getProjectionSettings().getUnacknowledgedNewPlayerIds())
+                .containsExactly(7, 8);
+    }
+
+    /** A second pool change before the owner looked adds to the notice rather than replacing it. */
+    @Test
+    void playersAddedBeforeTheLastOnesWereAcknowledgedAreAddedToThem() {
+        ProjectionResponse stored = storedProjection();
+        stored.getData().getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(3, 7));
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(3, 7, 8);
+    }
+
+    /** A pool change that added nobody leaves an unread notice exactly as it was. */
+    @Test
+    void aReadThatAddedNobodyLeavesTheUnacknowledgedPlayersAlone() {
+        ProjectionResponse stored = storedProjection();
+        stored.getData().getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(3));
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of())));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(3);
     }
 
     /** Saving the reconciliation is our business, not the caller's — losing it costs them nothing. */
@@ -206,7 +238,7 @@ class ProjectionServiceTest {
 
         assertThat(response.data())
                 .isEqualTo(com.fantasy.bff.dto.response.ProjectionData.from(stored.getData()));
-        assertThat(response.poolReconciliation().addedPlayerIds()).containsExactly(7, 8);
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(7, 8);
     }
 
     @Test
@@ -215,9 +247,8 @@ class ProjectionServiceTest {
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
         when(reconciler.reconcile(stored.getData())).thenReturn(Optional.empty());
 
-        var response = projectionService.get(USER_ID, PROJECTION_ID);
+        projectionService.get(USER_ID, PROJECTION_ID);
 
-        assertThat(response.poolReconciliation()).isNull();
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
     }
 
@@ -239,10 +270,23 @@ class ProjectionServiceTest {
         });
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
-        var response = projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
 
         assertThat(capturedPlayers()).extracting(PlayerProjection::getPlayerId).containsExactly(4242, 9);
-        assertThat(response.poolReconciliation()).isNull();
+        assertThat(capturedSettings().getUnacknowledgedNewPlayerIds()).isNull();
+    }
+
+    /** A copied board brings its source's settings, and the source's unread notice is not the copy's. */
+    @Test
+    void aCopyDoesNotInheritItsSourcesUnacknowledgedPlayers() {
+        PlayerProjection own = new PlayerProjection().playerId(7).type(PlayerProjection.TypeEnum.SKATER);
+        ProjectionData copied = dataWith(own);
+        copied.getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(7));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(copied, null));
+
+        assertThat(capturedSettings().getUnacknowledgedNewPlayerIds()).isNull();
     }
 
     /** A shared board is the author's pool, not ours, so it is squared and saved as it arrives. */
@@ -253,10 +297,11 @@ class ProjectionServiceTest {
         when(reconciler.reconcile(imported.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(imported);
 
-        var response = projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
 
-        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), any());
-        assertThat(response.poolReconciliation()).isNull();
+        ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
+        assertThat(saved.getValue().getData().getProjectionSettings().getUnacknowledgedNewPlayerIds()).isNullOrEmpty();
     }
 
     @Test
