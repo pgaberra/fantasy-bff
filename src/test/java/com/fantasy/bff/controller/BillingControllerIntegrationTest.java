@@ -100,6 +100,41 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.checkoutUrl").value(containsString("/api/v1/billing/mock/checkout")));
     }
 
+    /**
+     * A second checkout for an account whose subscription can still bill would take a second
+     * payment for the same Premium, so it is refused before the provider is asked for anything.
+     */
+    @Test
+    void checkoutSession_liveSubscription_returns409AndOpensNoCheckout() throws Exception {
+        accountWithEmail(true);
+        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.of(new SubscriptionResponse()
+                .status(SubscriptionResponse.StatusEnum.ACTIVE)
+                .premium(true)
+                .live(true)
+                .cancelAtPeriodEnd(false)
+                .provider("paddle")));
+
+        mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isConflict());
+
+        verify(paymentProvider, never()).createCheckoutSession(any());
+    }
+
+    /** An ended subscription is what a returning subscriber has, and must not stop them buying again. */
+    @Test
+    void checkoutSession_endedSubscription_opensACheckout() throws Exception {
+        accountWithEmail(true);
+        when(databaseServiceClient.getSubscription(USER_ID)).thenReturn(Optional.of(new SubscriptionResponse()
+                .status(SubscriptionResponse.StatusEnum.CANCELED)
+                .premium(false)
+                .live(false)
+                .cancelAtPeriodEnd(false)
+                .provider("paddle")));
+
+        mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void checkoutSession_verifiedEmail_isHandedToTheProvider() throws Exception {
         accountWithEmail(true);
