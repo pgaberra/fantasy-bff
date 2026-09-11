@@ -6,6 +6,7 @@ import com.fantasy.bff.dto.response.EntitlementsResponse;
 import com.fantasy.bff.dto.response.PortalUrlResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
+import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.payments.CheckoutRequest;
 import com.fantasy.bff.payments.CheckoutSession;
 import com.fantasy.bff.payments.PaymentProvider;
@@ -72,8 +73,12 @@ public class BillingController {
     @PostMapping("/checkout-session")
     public CheckoutUrlResponse checkoutSession(@AuthenticationPrincipal String userId) {
         requireEnabled();
+        User user = databaseServiceClient.findUserById(UUID.fromString(userId));
+        // Only a verified address may name the buyer at the provider; CheckoutRequest says why.
+        String customerEmail = user.emailVerified() ? user.email() : null;
         CheckoutSession session = paymentProvider.createCheckoutSession(new CheckoutRequest(
-                userId, webBaseUrl + "/premium?checkout=success", webBaseUrl + "/premium?checkout=cancel"));
+                userId, webBaseUrl + "/premium?checkout=success", webBaseUrl + "/premium?checkout=cancel",
+                customerEmail));
         return new CheckoutUrlResponse(session.url());
     }
 
