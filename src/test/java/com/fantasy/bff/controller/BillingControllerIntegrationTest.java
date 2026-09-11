@@ -5,19 +5,24 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
+import com.fantasy.bff.model.downstream.User;
+import com.fantasy.bff.payments.CheckoutRequest;
 import com.fantasy.bff.payments.MockBillingCodec;
 import com.fantasy.bff.payments.MockPaymentProvider;
+import com.fantasy.bff.payments.PaymentProvider;
 import com.fantasy.bff.payments.SubscriptionSnapshot;
 import com.fantasy.bff.payments.WebhookEvent;
 import com.fantasy.bff.payments.WebhookEventType;
 import com.fantasy.bff.security.JwtTokenValidator;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -28,6 +33,7 @@ import java.util.UUID;
 
 import tools.jackson.databind.ObjectMapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -65,17 +71,59 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
     @MockitoBean
     private DatabaseServiceClient databaseServiceClient;
 
+    @MockitoSpyBean
+    private PaymentProvider paymentProvider;
+
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private String token() {
         return jwtTokenValidator.generateToken(USER_ID.toString(), "owner@example.com");
     }
 
+    private void accountWithEmail(boolean emailVerified) {
+        when(databaseServiceClient.findUserById(USER_ID))
+                .thenReturn(new User(USER_ID.toString(), "owner@example.com", "alex", "hash", 0, emailVerified));
+    }
+
+    private CheckoutRequest checkoutRequestSentToTheProvider() {
+        ArgumentCaptor<CheckoutRequest> captor = ArgumentCaptor.forClass(CheckoutRequest.class);
+        verify(paymentProvider).createCheckoutSession(captor.capture());
+        return captor.getValue();
+    }
+
     @Test
     void checkoutSession_returnsMockCheckoutUrl() throws Exception {
+        accountWithEmail(true);
+
         mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.checkoutUrl").value(containsString("/api/v1/billing/mock/checkout")));
+    }
+
+    @Test
+    void checkoutSession_verifiedEmail_isHandedToTheProvider() throws Exception {
+        accountWithEmail(true);
+
+        mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk());
+
+        CheckoutRequest request = checkoutRequestSentToTheProvider();
+        assertThat(request.userId()).isEqualTo(USER_ID.toString());
+        assertThat(request.customerEmail()).isEqualTo("owner@example.com");
+    }
+
+    /**
+     * An unverified address may belong to someone else. Handed to Paddle it would attach that
+     * person's customer to this account's subscription, and with it their billing portal.
+     */
+    @Test
+    void checkoutSession_unverifiedEmail_isNotHandedToTheProvider() throws Exception {
+        accountWithEmail(false);
+
+        mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk());
+
+        assertThat(checkoutRequestSentToTheProvider().customerEmail()).isNull();
     }
 
     @Test
