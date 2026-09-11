@@ -30,11 +30,13 @@ model). The **player pool** comes from whichever platform `players.source` names
 
 ## Tech stack
 
-- Java 25, Spring Boot 4.0.5, Gradle (wrapper: `./gradlew`)
-- Spring Security + JWT (jjwt 0.12.6, HS256)
+Versions live in `build.gradle` and nowhere else, so they are not repeated here.
+
+- Java 25, Spring Boot 4, Gradle (wrapper: `./gradlew`)
+- Spring Security + JWT (jjwt, HS256)
 - Spring WebMVC (virtual threads enabled), `RestClient` for downstream calls
 - springdoc OpenAPI / Swagger UI
-- openapi-generator 7.13.0 (generates model POJOs from `specs/` at compile time)
+- openapi-generator (generates model POJOs from `specs/` at compile time)
 - Tests: JUnit 5, Spring Boot Test, MockMvc, WireMock (standalone), H2 not used here
 
 ## Common commands
@@ -43,13 +45,16 @@ model). The **player pool** comes from whichever platform `players.source` names
 ./gradlew build          # compile + test (CI runs: ./gradlew build --no-daemon)
 ./gradlew test           # tests only
 
-# Run locally (start Postgres + db-service + yahoo-service first — see those repos):
-SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> ./gradlew bootRun
+# Run locally (start the downstreams first — see those repos). Startup fails without
+# JWT_SECRET and all four internal keys, each matching that service's own INTERNAL_API_KEY:
+SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> DB_INTERNAL_API_KEY=… YAHOO_INTERNAL_API_KEY=… \
+  ESPN_INTERNAL_API_KEY=… PROJECTION_INTERNAL_API_KEY=… ./gradlew bootRun
 
-./gradlew openApiGenerate          # regenerate db-service models from specs/
-./gradlew generateYahooClient      # yahoo-service
-./gradlew generateEspnClient       # espn-service
-./gradlew generateProjectionClient # projection-service
+./gradlew generateOpenApiClients   # regenerate every downstream client from specs/
+./gradlew openApiGenerate          # just db-service
+./gradlew generateYahooClient      # just yahoo-service
+./gradlew generateEspnClient       # just espn-service
+./gradlew generateProjectionClient # just projection-service
 ```
 
 Swagger UI (when running): `http://localhost:8080/swagger-ui.html`
@@ -275,9 +280,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     rule (projection-service decides; see its `rookies.py`). It reads the same cached NHL-side
     context the game-range splits are built on, so the answer costs nothing extra. The response
     carries `known` because "nobody is a rookie" and "we cannot say" are different answers that
-    would otherwise arrive as the same empty list — **production runs with projection-service
-    stopped, so `known: false` is the ordinary answer there**, and a client that ignored it
-    would mark an entire league as veterans.
+    would otherwise arrive as the same empty list — **`known: false` is the answer whenever
+    projection-service cannot be reached or fails**, and a client that ignored it would mark an
+    entire league as veterans.
   - `ProjectionPoolReconciler` — keeps a saved projection's rows in step with the pool, which
     moves under it all season (a new roster in the autumn, trades and call-ups after). It **only
     ever adds**: a row whose player has left the pool stays where it is and is simply not shown
@@ -346,7 +351,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   `services.projection.season` (the season the model projects), **the CORS
   allowlist** (`${CORS_ALLOWED_ORIGINS:${WEB_ORIGIN:}}`) and **the API-docs gate**
   (`${SWAGGER_ENABLED:false}`).
-- **`dev`**: enables + permits Swagger and allows CORS from `http://localhost:4200`.
+- **`dev`**: enables + permits Swagger, allows CORS from `http://localhost:4200`, and is the
+  only place `RESEND_API_KEY` may be blank — it sets `email.log-links`, so reset and
+  verification links go to the log instead. Those links carry live tokens: never set it on a
+  deployed environment.
 - **`staging`**: a QA convenience only — it permits the API-doc URLs (staging pairs it with
   `SWAGGER_ENABLED=true`). No downstream timeout overrides — the services are co-located on
   the Docker network, so the base timeouts apply.
@@ -362,6 +370,14 @@ Adding config that a deployed environment needs? Put it in `application.yaml` be
 var — never in a profile.
 
 `JWT_SECRET` must be ≥32 chars (HS256) and is supplied per environment as a Coolify env var.
+
+**Required secrets fail fast.** `JWT_SECRET`, the four `*_INTERNAL_API_KEY`s
+(`InternalApiKeyProperties`) and `RESEND_API_KEY` (`EmailProperties`) have no default, so a
+missing or blank value stops startup. The Paddle, mock-payment, Google and Facebook secrets
+keep empty defaults because their features fail closed without them; the list is at the top of
+`application.yaml`. Once up, `DownstreamKeyVerifier` asks each downstream whether it accepts
+our key; a 401 moves readiness to `REFUSING_TRAFFIC`, which `/actuator/health` includes, so the
+container health check fails and the deploy rolls back.
 
 ## Conventions
 
@@ -459,12 +475,13 @@ committed. Never merge a PR titled "wip"/"draft".
 
 ## Deployment
 
-- Dockerized (multi-stage `Dockerfile`), deployed via **Coolify** (Hetzner) as a web
-  service (`SPRING_PROFILES_ACTIVE=staging`) on both prod (`api.slapstat.com`) and staging
-  (`api.staging.slapstat.com`). See `DEPLOYMENT.md`. Requires a `*_SERVICE_URL` +
-  `*_INTERNAL_API_KEY` pair per downstream (`DATABASE_`, `YAHOO_`, `ESPN_`, `PROJECTION_`) —
-  the internal URLs use the services' Docker network aliases
-  (`http://db-service:8086`, `http://yahoo-service:8088`, `http://espn-service:8090`).
-  Each `*_INTERNAL_API_KEY` is the
-  value the matching downstream service exposes as its own `INTERNAL_API_KEY`.
-- Health check: `/actuator/health`.
+- Dockerized (multi-stage `Dockerfile`), deployed via **Coolify** (Hetzner) as a web service
+  on prod (`api.slapstat.com`) and staging (`api.staging.slapstat.com`). **Production runs
+  with no profile**; staging sets `SPRING_PROFILES_ACTIVE=staging` only to permit the API-doc
+  URLs (see [Profiles & config](#profiles--config-srcmainresourcesapplicationyaml)).
+- `DEPLOYMENT.md` lists every variable, with secret / required / default. Each downstream
+  needs a `*_SERVICE_URL` + `*_INTERNAL_API_KEY` pair (`DATABASE_`/`DB_`, `YAHOO_`, `ESPN_`,
+  `PROJECTION_`); the URLs use the services' Docker network aliases (`http://db-service:8086`,
+  `http://yahoo-service:8088`, `http://espn-service:8090`, `http://projection-service:8092`),
+  and each key is the value that service holds as its own `INTERNAL_API_KEY`.
+- Health check: `/actuator/health`, which includes readiness (see the fail-fast note above).
