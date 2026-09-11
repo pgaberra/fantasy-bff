@@ -69,7 +69,58 @@ class PaddlePaymentProviderTest {
         CheckoutSession session = provider.createCheckoutSession(checkoutFor(null));
 
         assertThat(session.url()).isEqualTo("https://slapstat.test/pay?_ptxn=txn_1");
+        assertThat(session.reference()).isEqualTo("txn_1");
         paddleServer.verify();
+    }
+
+    private void expectTransaction(String status, String transactionPriceId) {
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions/txn_1"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"data":{"id":"txn_1","status":"%s",
+                         "items":[{"price":{"id":"%s"},"quantity":1}],
+                         "checkout":{"url":"https://slapstat.test/pay?_ptxn=txn_1"}}}"""
+                        .formatted(status, transactionPriceId), MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void aReadyTransactionOnTheCurrentPriceCanStillBePaid() {
+        expectTransaction("ready", "pri_premium_monthly");
+
+        assertThat(provider.isCheckoutOpen("txn_1")).isTrue();
+        paddleServer.verify();
+    }
+
+    @Test
+    void aDraftTransactionCanStillBePaid() {
+        expectTransaction("draft", "pri_premium_monthly");
+
+        assertThat(provider.isCheckoutOpen("txn_1")).isTrue();
+    }
+
+    @Test
+    void aCompletedTransactionIsNotReused() {
+        expectTransaction("completed", "pri_premium_monthly");
+
+        assertThat(provider.isCheckoutOpen("txn_1")).isFalse();
+    }
+
+    /** A checkout opened before the price changed would sell the old price, so it is not handed out. */
+    @Test
+    void aTransactionForAPriceNoLongerSoldIsNotReused() {
+        expectTransaction("ready", "pri_old_price");
+
+        assertThat(provider.isCheckoutOpen("txn_1")).isFalse();
+    }
+
+    /** Not being able to read it costs the reuse, not the sale: a new checkout opens as before. */
+    @Test
+    void aTransactionThatCannotBeReadIsNotReused() {
+        paddleServer.expect(requestTo("https://sandbox-api.paddle.test/transactions/txn_1"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"code\":\"not_found\"}}"));
+
+        assertThat(provider.isCheckoutOpen("txn_1")).isFalse();
     }
 
     /** The email goes in the query encoded: a bare "+" would reach Paddle as a space. */

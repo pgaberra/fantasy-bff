@@ -4,18 +4,15 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.response.CheckoutUrlResponse;
 import com.fantasy.bff.dto.response.EntitlementsResponse;
 import com.fantasy.bff.dto.response.PortalUrlResponse;
-import com.fantasy.bff.exception.SubscriptionAlreadyLiveException;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
-import com.fantasy.bff.model.downstream.User;
-import com.fantasy.bff.payments.CheckoutRequest;
-import com.fantasy.bff.payments.CheckoutSession;
 import com.fantasy.bff.payments.PaymentProvider;
 import com.fantasy.bff.payments.PaymentsProperties;
 import com.fantasy.bff.payments.PortalRequest;
 import com.fantasy.bff.payments.PortalSession;
 import com.fantasy.bff.payments.SubscriptionSnapshot;
 import com.fantasy.bff.payments.WebhookEvent;
+import com.fantasy.bff.service.CheckoutService;
 import com.fantasy.bff.service.EntitlementService;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,21 +49,25 @@ public class BillingController {
     private final PaymentProvider paymentProvider;
     private final DatabaseServiceClient databaseServiceClient;
     private final EntitlementService entitlementService;
+    private final CheckoutService checkoutService;
     private final PaymentsProperties paymentsProperties;
     private final String webBaseUrl;
 
     public BillingController(PaymentProvider paymentProvider, DatabaseServiceClient databaseServiceClient,
-                             EntitlementService entitlementService, PaymentsProperties paymentsProperties,
+                             EntitlementService entitlementService, CheckoutService checkoutService,
+                             PaymentsProperties paymentsProperties,
                              @Value("${app.web-base-url}") String webBaseUrl) {
         this.paymentProvider = paymentProvider;
         this.databaseServiceClient = databaseServiceClient;
         this.entitlementService = entitlementService;
+        this.checkoutService = checkoutService;
         this.paymentsProperties = paymentsProperties;
         this.webBaseUrl = webBaseUrl;
     }
 
     @Operation(summary = "Start a checkout session to subscribe",
-            description = "Returns the provider-hosted checkout URL the web app should redirect the browser to.")
+            description = "Returns the provider-hosted checkout URL the web app should redirect the browser to. "
+                    + "An account that already has a checkout it can still pay gets that same one back.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Checkout URL created"),
             @ApiResponse(responseCode = "404", description = "Payments are not enabled"),
@@ -75,23 +76,7 @@ public class BillingController {
     @PostMapping("/checkout-session")
     public CheckoutUrlResponse checkoutSession(@AuthenticationPrincipal String userId) {
         requireEnabled();
-        UUID accountId = UUID.fromString(userId);
-        // One live subscription per account, and db-service is where "live" is defined. A second
-        // checkout would take a second payment for the Premium the account already has.
-        boolean alreadySubscribed = databaseServiceClient.getSubscription(accountId)
-                .map(SubscriptionResponse::getLive)
-                .filter(Boolean.TRUE::equals)
-                .isPresent();
-        if (alreadySubscribed) {
-            throw new SubscriptionAlreadyLiveException("This account already has a live subscription");
-        }
-        User user = databaseServiceClient.findUserById(accountId);
-        // Only a verified address may name the buyer at the provider; CheckoutRequest says why.
-        String customerEmail = user.emailVerified() ? user.email() : null;
-        CheckoutSession session = paymentProvider.createCheckoutSession(new CheckoutRequest(
-                userId, webBaseUrl + "/premium?checkout=success", webBaseUrl + "/premium?checkout=cancel",
-                customerEmail));
-        return new CheckoutUrlResponse(session.url());
+        return new CheckoutUrlResponse(checkoutService.checkoutUrlFor(userId));
     }
 
     @Operation(summary = "Open the billing management portal",

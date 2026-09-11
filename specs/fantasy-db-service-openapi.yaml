@@ -15,6 +15,8 @@ tags:
 - name: Premium
   description: "Premium access: what a user is entitled to, and grants handed out\
     \ by an admin"
+- name: Pending checkouts
+  description: The one checkout a user has open with the payment provider
 - name: User avatars
   description: The account's profile picture
 - name: Subscriptions
@@ -328,6 +330,71 @@ paths:
           description: Projection deleted
         "404":
           description: No such projection for this user
+  /api/v1/users/{userId}/pending-checkout:
+    get:
+      tags:
+      - Pending checkouts
+      summary: Fetch the checkout a user has open
+      operationId: get_3
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Pending checkout found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+        "404":
+          description: The user has no pending checkout
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+    put:
+      tags:
+      - Pending checkouts
+      summary: "Store the user's open checkout, replacing the one the caller read\
+        \ (compare-and-set)"
+      operationId: replace
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplacePendingCheckoutRequest"
+        required: true
+      responses:
+        "200":
+          description: Pending checkout stored
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+        "400":
+          description: Validation failed
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+        "409":
+          description: The stored checkout changed since the caller read it; read
+            it again and use that one
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
   /api/v1/users/{userId}/avatar:
     get:
       tags:
@@ -918,7 +985,7 @@ paths:
       - Shared projections
       summary: Fetch a shared snapshot by its token
       description: Carries no owner identity beyond their public username.
-      operationId: get_3
+      operationId: get_4
       parameters:
       - name: token
         in: path
@@ -1626,6 +1693,58 @@ components:
       - kind
       - name
       - season
+      - updatedAt
+    ReplacePendingCheckoutRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: Payment provider id
+          maxLength: 32
+          minLength: 0
+        reference:
+          type: string
+          description: "The provider's id for the checkout, e.g. a Paddle transaction\
+            \ id"
+          maxLength: 255
+          minLength: 0
+        checkoutUrl:
+          type: string
+          description: Where the browser pays this checkout
+          maxLength: 2048
+          minLength: 0
+        replacesReference:
+          type: string
+          description: "The reference of the checkout this one replaces, as the caller\
+            \ last read it; omit for the user's first. The store is refused with 409\
+            \ if the stored checkout is no longer that one"
+          maxLength: 255
+          minLength: 0
+      required:
+      - checkoutUrl
+      - provider
+      - reference
+    PendingCheckoutResponse:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: Payment provider id
+        reference:
+          type: string
+          description: "The provider's id for the checkout, e.g. a Paddle transaction\
+            \ id"
+        checkoutUrl:
+          type: string
+          description: Where the browser pays this checkout
+        updatedAt:
+          type: string
+          format: date-time
+          description: When this checkout was stored
+      required:
+      - checkoutUrl
+      - provider
+      - reference
       - updatedAt
     SetAvatarRequest:
       type: object

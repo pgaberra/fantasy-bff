@@ -465,7 +465,8 @@ paths:
       - Billing
       summary: Start a checkout session to subscribe
       description: Returns the provider-hosted checkout URL the web app should redirect
-        the browser to.
+        the browser to. An account that already has a checkout it can still pay gets
+        that same one back.
       operationId: checkoutSession
       responses:
         "200":
