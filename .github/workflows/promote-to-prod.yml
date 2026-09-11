@@ -6,10 +6,19 @@ name: Promote to production
 #
 # Resolves the release tag to its commit and triggers the deploy on the prod server over a
 # RESTRICTED SSH key whose only allowed action is /root/promote_forced.sh (no shell, no other
-# commands). The prod server pins git_branch + git_commit_sha, stamps APP_VERSION and
-# SENTRY_RELEASE, deploys, and then VERIFIES that the commit which landed is the one asked for
-# — it fails loudly rather than leaving production on something nobody chose.
+# commands). The prod server pins git_branch, stamps APP_VERSION and SENTRY_RELEASE, deploys,
+# waits for Coolify to call the deployment finished and checks the build log names the commit.
+# This workflow then asks production itself which version it serves, where production says.
 # Requires the secret PROD_PROMOTE_SSH_KEY (the restricted key's PRIVATE half).
+#
+# A red run here used to be the only trace of a failed promotion, and that is how espn-service
+# sat on v0.1.2 for weeks with v0.7.0 listed as Latest (fantasy-workspace#30). Coolify answers a
+# new container that fails its health check by rolling back to the OLD one, so production keeps
+# serving without complaint. A failure therefore opens a `prod-promotion-failed` issue, and the
+# next promotion that puts the latest release on production closes it.
+#
+# NB: a `release` run takes this file from the TAGGED commit, not from master. A release cut
+# before a change here still runs the old version of this workflow.
 on:
   release:
     types: [published]
@@ -19,6 +28,10 @@ on:
         description: "Release tag to promote to prod (e.g. v0.2.1) — also how you roll back"
         required: true
         type: string
+
+permissions:
+  contents: read
+  issues: write
 
 concurrency: promote-prod
 
@@ -52,11 +65,13 @@ jobs:
           echo "Promoting ${GITHUB_REPOSITORY##*/} $V ($sha) to production"
 
       - name: Promote on prod (restricted SSH forced command)
+        id: promote
         env:
           PROMOTE_KEY: ${{ secrets.PROD_PROMOTE_SSH_KEY }}
           SHA: ${{ steps.r.outputs.sha }}
           VERSION: ${{ steps.r.outputs.version }}
         run: |
+          set -o pipefail
           if [ -z "$PROMOTE_KEY" ]; then
             echo "::error::Secret PROD_PROMOTE_SSH_KEY is not set."; exit 1
           fi
@@ -66,5 +81,164 @@ jobs:
           chmod 600 ~/.ssh/id_promote
           printf '%s\n' '157.180.126.72 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOt5tXmokoBw2Y5mUWlZSOzkgS/XU13hl4PeatHR4TB5' > ~/.ssh/known_hosts
           echo "Connecting to prod to promote $REPO_NAME $VERSION ($SHA)..."
+          # The server's own account of the deploy is kept for the alarm below. It carries the
+          # deployment status and ids, never a credential.
           ssh -i ~/.ssh/id_promote -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/known_hosts \
-            root@157.180.126.72 "$REPO_NAME $SHA $VERSION"
+            root@157.180.126.72 "$REPO_NAME $SHA $VERSION" 2>&1 | tee "$RUNNER_TEMP/promote.log"
+
+      # The step above trusts Coolify's word that the deployment finished. This one asks the
+      # running production instead: the BFF's public /api/v1/versions reads each Spring
+      # service's /actuator/info, which reports the APP_VERSION the container actually started
+      # with. fantasy-web (its only public page today is a static maintenance page) and
+      # fantasy-projection-service (no version endpoint, and not reachable from the internet)
+      # report nothing a runner can read, so for them Coolify's word is the whole check.
+      - name: Verify the version production serves
+        id: verify
+        env:
+          VERSION: ${{ steps.r.outputs.version }}
+          VERSIONS_URL: https://api.slapstat.com/api/v1/versions
+          ATTEMPTS: "20"
+          INTERVAL: "15"
+        run: |
+          set -o pipefail
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          case "$REPO_NAME" in
+            fantasy-bff|fantasy-db-service|fantasy-yahoo-service|fantasy-espn-service) ;;
+            *)
+              echo "::notice::$REPO_NAME reports no version production can be asked for; Coolify's deployment status is the only check."
+              exit 0 ;;
+          esac
+          observed="nothing yet"
+          for i in $(seq 1 "$ATTEMPTS"); do
+            if body=$(curl -fsS --max-time 20 "$VERSIONS_URL" 2>&1); then
+              observed=$(printf '%s' "$body" | python3 -c '
+          import json, sys
+          name = sys.argv[1]
+          try:
+              services = json.load(sys.stdin).get("services") or []
+          except (ValueError, AttributeError):
+              print("an answer that is not the expected JSON")
+              sys.exit()
+          for s in services:
+              if s.get("name") == name:
+                  if not s.get("up"):
+                      print("down: the BFF could not reach it")
+                  else:
+                      print(s.get("version") or "up, with no version")
+                  break
+          else:
+              print("missing from the answer")
+          ' "$REPO_NAME")
+            else
+              observed="no answer ($(printf '%s' "$body" | tr '\r\n' '  ' | cut -c1-160))"
+            fi
+            if [ "$observed" = "$VERSION" ]; then
+              echo "observed=$observed" >> "$GITHUB_OUTPUT"
+              echo "ok: production serves $REPO_NAME $VERSION"
+              exit 0
+            fi
+            echo "attempt $i/$ATTEMPTS: production reports $REPO_NAME as '$observed', want $VERSION"
+            if [ "$i" -lt "$ATTEMPTS" ]; then sleep "$INTERVAL"; fi
+          done
+          echo "observed=$observed" >> "$GITHUB_OUTPUT"
+          echo "::error::production reports $REPO_NAME as '$observed', not $VERSION"
+          exit 1
+
+      # Closing it is what keeps the alarm working: while an issue is open every later failure is
+      # only a comment on it. It closes only once production runs the LATEST published release,
+      # because that is what the release list tells everyone production runs. A deliberate
+      # rollback to an older tag succeeds, and leaves the issue open with a note saying so.
+      - name: Stand down the alarm
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VERSION: ${{ steps.r.outputs.version }}
+        run: |
+          open=$(gh issue list --label prod-promotion-failed --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -z "$open" ]; then
+            exit 0
+          fi
+          latest=$(gh release view --json tagName --jq '.tagName' 2>/dev/null || true)
+          if [ -z "$latest" ] || [ "$latest" = "$VERSION" ]; then
+            gh issue close "$open" --comment "Production is on $VERSION, the latest release, as of [this run]($RUN_URL). Closing so the next failure opens a fresh issue instead of commenting on a resolved one."
+          else
+            gh issue comment "$open" --body "Production is on $VERSION as of [this run]($RUN_URL), but the latest published release is $latest. Leaving this open until production runs $latest."
+          fi
+
+      # A red cross in the Actions tab is not a signal; this one went unread for nine days while
+      # production ran a version from three weeks earlier. An issue is something that sits in
+      # the way. One issue per outage, not one per run: a failure while an issue is already open
+      # adds a comment. A cancelled run raises it too, because production may be on either side.
+      - name: Raise the alarm
+        if: failure() || cancelled()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VERSION: ${{ steps.r.outputs.version || inputs.version || github.event.release.tag_name }}
+          EVENT: ${{ github.event_name }}
+          JOB_STATUS: ${{ job.status }}
+          RESOLVE: ${{ steps.r.outcome }}
+          PROMOTE: ${{ steps.promote.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+          OBSERVED: ${{ steps.verify.outputs.observed }}
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          if [ "$JOB_STATUS" = "cancelled" ]; then
+            what="The run was cancelled before it finished, so production may be on $VERSION or still on the version before it."
+          elif [ "$RESOLVE" != "success" ]; then
+            what="The tag could not be resolved to a commit, so nothing was deployed and production is still on the version before it."
+          elif [ "$PROMOTE" != "success" ]; then
+            what="The deploy on the prod server did not succeed. When a new container fails its health check, Coolify rolls back to the old one, so production is most likely still on the version before $VERSION."
+          elif [ "$VERIFY" != "success" ]; then
+            what="Coolify called the deploy finished, but https://api.slapstat.com/api/v1/versions reports $REPO_NAME as: $OBSERVED"
+          else
+            what="A step failed after production was verified on $VERSION. Check the run; production itself should be fine."
+          fi
+          latest_note=""
+          if [ "$EVENT" = "release" ]; then
+            latest_note="GitHub now lists $VERSION as the latest release, and that is not what production runs."
+          fi
+          log=""
+          if [ -s "$RUNNER_TEMP/promote.log" ]; then
+            log=$(tail -n 15 "$RUNNER_TEMP/promote.log")
+          fi
+
+          gh label create prod-promotion-failed --color B60205 \
+            --description "Production is not on the release that was promoted" 2>/dev/null || true
+          {
+            echo "Promoting $REPO_NAME **$VERSION** to production failed."
+            echo
+            echo "$what"
+            if [ -n "$latest_note" ]; then echo; echo "$latest_note"; fi
+            echo
+            echo "- Run: $RUN_URL"
+            echo "- Triggered by: $EVENT"
+            if [ -n "$log" ]; then
+              echo
+              echo "What the prod server said:"
+              echo
+              echo '```'
+              echo "$log"
+              echo '```'
+            fi
+          } > "$RUNNER_TEMP/alarm.md"
+
+          open=$(gh issue list --label prod-promotion-failed --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body-file "$RUNNER_TEMP/alarm.md"
+            exit 0
+          fi
+          {
+            cat "$RUNNER_TEMP/alarm.md"
+            echo
+            echo "The Coolify deployment log, with the container's own startup output, says why."
+            echo "The next promotion that puts the latest release on production closes this issue;"
+            echo "further failures while it is open are added here as comments."
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --title "Production is not on the promoted release of $REPO_NAME" \
+            --label prod-promotion-failed --body-file "$RUNNER_TEMP/issue.md"
