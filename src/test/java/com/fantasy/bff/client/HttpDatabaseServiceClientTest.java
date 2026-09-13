@@ -276,17 +276,20 @@ class HttpDatabaseServiceClientTest {
     void remapPlayerIds_postsTheCrosswalkAndTheDryRunFlag() {
         server.stubFor(post(urlPathEqualTo("/api/v1/admin/player-ids/remap"))
                 .willReturn(okJson("{\"dryRun\":true,\"projectionsScanned\":110,"
-                        + "\"playerRows\":{\"remapped\":136990,\"unmapped\":26677},"
-                        + "\"draftPicks\":{\"remapped\":1676,\"unmapped\":0},"
+                        + "\"playerRows\":{\"remapped\":136990,\"unmapped\":26677,\"colliding\":3},"
+                        + "\"draftPicks\":{\"remapped\":1676,\"unmapped\":0,\"colliding\":0},"
                         + "\"sharesScanned\":1,"
-                        + "\"sharedRows\":{\"remapped\":100,\"unmapped\":0},"
-                        + "\"unmappedPlayerIds\":[3988]}")));
+                        + "\"sharedRows\":{\"remapped\":100,\"unmapped\":0,\"colliding\":0},"
+                        + "\"unmappedPlayerIds\":[3988],"
+                        + "\"collidingPlayerIds\":[5714,5738,5767]}")));
 
         PlayerIdRemapResponse response = client.remapPlayerIds(
                 List.of(new PlayerIdPair().from(6743).to(3895074)), true);
 
         assertThat(response.getProjectionsScanned()).isEqualTo(110);
         assertThat(response.getDraftPicks().getUnmapped()).isZero();
+        assertThat(response.getPlayerRows().getColliding()).isEqualTo(3);
+        assertThat(response.getCollidingPlayerIds()).containsExactly(5714, 5738, 5767);
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/admin/player-ids/remap"))
                 .withRequestBody(equalToJson(
                         "{\"mappings\":[{\"from\":6743,\"to\":3895074}],\"dryRun\":true}",
