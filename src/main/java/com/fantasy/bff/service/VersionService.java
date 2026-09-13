@@ -24,6 +24,7 @@ public class VersionService {
     private final RestClient databaseServiceClient;
     private final RestClient yahooFantasyServiceClient;
     private final RestClient espnFantasyServiceClient;
+    private final RestClient projectionServiceClient;
     private final PlayerPoolSource playerPool;
 
     public VersionService(
@@ -31,11 +32,13 @@ public class VersionService {
             RestClient databaseServiceClient,
             RestClient yahooFantasyServiceClient,
             RestClient espnFantasyServiceClient,
+            RestClient projectionServiceClient,
             PlayerPoolSource playerPool) {
         this.ownVersion = ownVersion;
         this.databaseServiceClient = databaseServiceClient;
         this.yahooFantasyServiceClient = yahooFantasyServiceClient;
         this.espnFantasyServiceClient = espnFantasyServiceClient;
+        this.projectionServiceClient = projectionServiceClient;
         this.playerPool = playerPool;
     }
 
@@ -44,14 +47,16 @@ public class VersionService {
             Future<ServiceVersion> db = executor.submit(probe("fantasy-db-service", databaseServiceClient));
             Future<ServiceVersion> yahoo = executor.submit(probe("fantasy-yahoo-service", yahooFantasyServiceClient));
             Future<ServiceVersion> espn = executor.submit(probe("fantasy-espn-service", espnFantasyServiceClient));
-            // projection-service is deliberately absent: it is FastAPI, serves no /actuator/info
-            // and stamps no deployed version, so probing it would report it down forever.
+            // FastAPI, but it serves /actuator/info in Actuator's shape for exactly this probe.
+            Future<ServiceVersion> projection =
+                    executor.submit(probe("fantasy-projection-service", projectionServiceClient));
             return new VersionsResponse(
                     List.of(
                             new ServiceVersion("fantasy-bff", true, ownVersion),
                             awaitResult(db),
                             awaitResult(yahoo),
-                            awaitResult(espn)),
+                            awaitResult(espn),
+                            awaitResult(projection)),
                     playerPool.platform());
         }
     }
