@@ -890,8 +890,9 @@ paths:
       summary: Remap the player ids in saved projections and shares
       description: "Applies a crosswalk of old id → new id to every projection and\
         \ share still keyed by Yahoo's ids, and marks them as keyed by ESPN's. Ids\
-        \ the crosswalk does not cover are left as they are, never dropped. Defaults\
-        \ to a dry run: pass dryRun=false to actually write."
+        \ the crosswalk does not cover are left as they are, unless another player\
+        \ is being moved to that id: such a row would be drawn as him, so it is removed.\
+        \ Defaults to a dry run: pass dryRun=false to actually write."
       operationId: remap
       requestBody:
         content:
@@ -908,6 +909,13 @@ paths:
                 $ref: "#/components/schemas/PlayerIdRemapResponse"
         "400":
           description: "The crosswalk is empty, oversized, or maps one id two ways"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PlayerIdRemapResponse"
+        "409":
+          description: A draft pick names a player whose old id another player is
+            being moved to; nothing was written
           content:
             '*/*':
               schema:
@@ -2041,7 +2049,14 @@ components:
         unmapped:
           type: integer
           format: int32
+          description: "Not covered by the crosswalk, and kept on the old id"
+        colliding:
+          type: integer
+          format: int32
+          description: "Not covered by the crosswalk, on an id another player is being\
+            \ moved to, and removed on apply"
       required:
+      - colliding
       - remapped
       - unmapped
     PlayerIdRemapResponse:
@@ -2057,6 +2072,8 @@ components:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
         draftPicks:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
+          description: "A colliding pick is never removed, since that would rewrite\
+            \ the draft: any at all make an apply refuse"
         positionOverrides:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
           description: The positions an owner corrected by hand; an unmapped one stops
@@ -2070,12 +2087,20 @@ components:
             what an import copies
         unmappedPlayerIds:
           type: array
-          description: "Distinct stored ids the crosswalk had no entry for, at most\
-            \ 50 of them"
+          description: "Distinct stored ids the crosswalk had no entry for and that\
+            \ stay, at most 50 of them"
+          items:
+            type: integer
+            format: int32
+        collidingPlayerIds:
+          type: array
+          description: "Distinct stored ids the crosswalk had no entry for that another\
+            \ player is being moved to, at most 50 of them"
           items:
             type: integer
             format: int32
       required:
+      - collidingPlayerIds
       - draftPicks
       - dryRun
       - playerRows

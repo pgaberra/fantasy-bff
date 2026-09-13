@@ -2510,7 +2510,11 @@ components:
         unmapped:
           type: integer
           format: int32
+        colliding:
+          type: integer
+          format: int32
       required:
+      - colliding
       - remapped
       - unmapped
     PlayerIdRemapReport:
@@ -2611,7 +2615,13 @@ components:
           items:
             type: integer
             format: int32
+        collidingPlayerIds:
+          type: array
+          items:
+            type: integer
+            format: int32
       required:
+      - collidingPlayerIds
       - draftPicks
       - dryRun
       - playerRows
