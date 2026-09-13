@@ -23,12 +23,14 @@ class VersionServiceTest {
     private WireMockServer dbServer;
     private WireMockServer yahooServer;
     private WireMockServer espnServer;
+    private WireMockServer projectionServer;
 
     @BeforeEach
     void setUp() {
         dbServer = startServer("1.0.0");
         yahooServer = startServer("3.0.0");
         espnServer = startServer("0.5.0");
+        projectionServer = startServer("0.9.0");
     }
 
     @AfterEach
@@ -36,6 +38,7 @@ class VersionServiceTest {
         dbServer.stop();
         yahooServer.stop();
         espnServer.stop();
+        projectionServer.stop();
     }
 
     /** Stands in for whichever pool source is wired in; only its name matters here. */
@@ -63,17 +66,18 @@ class VersionServiceTest {
     @Test
     void reportsOwnVersionAndEachDownstreamVersionInOrder() {
         VersionService service = new VersionService("1.2.3-bff",
-                client(dbServer), client(yahooServer), client(espnServer), poolFrom("yahoo"));
+                client(dbServer), client(yahooServer), client(espnServer), client(projectionServer),
+                poolFrom("yahoo"));
 
         VersionsResponse response = service.getVersions();
 
         assertThat(response.services())
                 .extracting(ServiceVersion::name)
                 .containsExactly("fantasy-bff", "fantasy-db-service", "fantasy-yahoo-service",
-                        "fantasy-espn-service");
+                        "fantasy-espn-service", "fantasy-projection-service");
         assertThat(response.services())
                 .extracting(ServiceVersion::version)
-                .containsExactly("1.2.3-bff", "1.0.0", "3.0.0", "0.5.0");
+                .containsExactly("1.2.3-bff", "1.0.0", "3.0.0", "0.5.0", "0.9.0");
         assertThat(response.services()).allSatisfy(version -> assertThat(version.up()).isTrue());
     }
 
@@ -84,7 +88,8 @@ class VersionServiceTest {
     @Test
     void reportsWhichPlatformThePoolIsActuallyServedFrom() {
         VersionService service = new VersionService("1.2.3-bff",
-                client(dbServer), client(yahooServer), client(espnServer), poolFrom("espn"));
+                client(dbServer), client(yahooServer), client(espnServer), client(projectionServer),
+                poolFrom("espn"));
 
         assertThat(service.getVersions().playerSource()).isEqualTo("espn");
     }
@@ -96,7 +101,8 @@ class VersionServiceTest {
         dead.stubFor(get(urlPathEqualTo("/actuator/info")).willReturn(aResponse().withStatus(500)));
 
         VersionService service = new VersionService("1.2.3-bff",
-                client(dead), client(yahooServer), client(espnServer), poolFrom("yahoo"));
+                client(dead), client(yahooServer), client(espnServer), client(projectionServer),
+                poolFrom("yahoo"));
 
         VersionsResponse response = service.getVersions();
         dead.stop();
