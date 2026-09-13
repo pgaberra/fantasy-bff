@@ -15,6 +15,13 @@ COPY specs ./specs
 COPY src ./src
 RUN ./gradlew bootJar --no-daemon
 
+# Unpack the boot jar so the runtime loads classes from plain jars on the classpath. Run as a
+# nested jar, class loading goes through a lock in Spring Boot's NestedJarFile, and on staging's
+# two cores that deadlocked both virtual-thread carriers: the BFF stopped answering everything,
+# its health check included, and stayed that way until it was replaced (2026-09-11).
+RUN cp build/libs/*.jar app.jar \
+    && java -Djarmode=tools -jar app.jar extract --destination extracted
+
 # ---- Runtime stage ----
 FROM eclipse-temurin:25-jre
 
@@ -30,7 +37,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/extracted/ ./
 
 # Render injects PORT; the app reads it via server.port=${PORT:8080}
 EXPOSE 8080
