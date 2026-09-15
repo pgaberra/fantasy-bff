@@ -127,8 +127,10 @@ public interface DatabaseServiceClient {
     void revokePremiumGrants(UUID userId);
 
     /**
-     * Rewrites the player ids in every stored projection and share from one platform's
-     * numbering to another's. A dry run reports what would change and writes nothing.
+     * Rewrites the player ids in every stored projection and share keyed by {@code from} into
+     * {@code to}'s numbering. A dry run reports what would change and writes nothing.
      */
-    PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun);
+    PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun,
+                                         com.fantasy.bff.service.PlayerIdSpace from,
+                                         com.fantasy.bff.service.PlayerIdSpace to);
 }

@@ -823,11 +823,12 @@ paths:
     post:
       tags:
       - Admin
-      summary: Remap saved player ids from Yahoo's numbering to ESPN's
-      description: "Matches the Yahoo player pool to the ESPN one and rewrites the\
-        \ ids in every saved projection, draft pick and share. Reports the match before\
-        \ the write, and defaults to a dry run: pass dryRun=false to actually apply\
-        \ it. A one-way move — the app should be serving the ESPN pool afterwards."
+      summary: Remap saved player ids from one platform's numbering to the other's
+      description: "Matches the two player pools and rewrites the ids in every saved\
+        \ projection, draft pick and share still on the other platform's numbering.\
+        \ Reports the match before the write, and defaults to a dry run: pass dryRun=false\
+        \ to actually apply it. The app should be serving the `to` platform's pool\
+        \ afterwards, so switch PLAYERS_SOURCE with it."
       operationId: remapPlayerIds
       parameters:
       - name: dryRun
@@ -837,6 +838,17 @@ paths:
         schema:
           type: boolean
           default: true
+      - name: to
+        in: query
+        description: "The numbering to move stored rows into. Defaults to ESPN, the\
+          \ direction the first migration went."
+        required: false
+        schema:
+          type: string
+          default: ESPN
+          enum:
+          - YAHOO
+          - ESPN
       responses:
         "200":
           description: "Match reported, and applied unless it was a dry run"
@@ -845,8 +857,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayerIdRemapReport"
         "502":
-          description: "Either pool came back short, or too little of the Yahoo pool\
-            \ matched to apply"
+          description: "Either pool came back short, or too little of the pool being\
+            \ left matched to apply"
           content:
             application/json:
               schema:
@@ -2548,6 +2560,18 @@ components:
     PlayerIdRemapReport:
       type: object
       properties:
+        from:
+          type: string
+          description: The numbering the stored rows were read in
+          enum:
+          - YAHOO
+          - ESPN
+        to:
+          type: string
+          description: The numbering they are moved into
+          enum:
+          - YAHOO
+          - ESPN
         yahooPlayers:
           type: integer
           format: int32
@@ -2559,7 +2583,8 @@ components:
         matched:
           type: integer
           format: int32
-          description: Yahoo players that found an ESPN counterpart
+          description: Players on the from side that found a counterpart on the to
+            side
         matchedOnName:
           type: integer
           format: int32
@@ -2611,11 +2636,13 @@ components:
       - coverage
       - coverageOfPlayersWithGames
       - espnPlayers
+      - from
       - matched
       - matchedOnFallback
       - matchedOnName
       - matchedWithGames
       - playersWithGames
+      - to
       - unmatched
       - unmatchedSample
       - yahooPlayers
@@ -2624,6 +2651,16 @@ components:
       properties:
         dryRun:
           type: boolean
+        from:
+          type: string
+          enum:
+          - yahoo
+          - espn
+        to:
+          type: string
+          enum:
+          - yahoo
+          - espn
         projectionsScanned:
           type: integer
           format: int32
@@ -2652,11 +2689,13 @@ components:
       - collidingPlayerIds
       - draftPicks
       - dryRun
+      - from
       - playerRows
       - positionOverrides
       - projectionsScanned
       - sharedRows
       - sharesScanned
+      - to
       - unmappedPlayerIds
     ErrorDto:
       type: object

@@ -248,6 +248,47 @@ class ProjectionServiceTest {
         assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(7, 8);
     }
 
+    /**
+     * Between the id remap and this BFF serving the new pool, the stored rows and the pool are
+     * numbered by different platforms. Squared anyway, every pool player would be added under
+     * the other ids beside the stored rows, and that saved mixture cannot be taken apart again.
+     */
+    @Test
+    void aProjectionKeyedByAnotherPlatformIsServedWithoutSquaringOrSaving() {
+        ProjectionResponse stored = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data()).isEqualTo(com.fantasy.bff.dto.response.ProjectionData.from(stored.getData()));
+        verifyNoInteractions(reconciler);
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    @Test
+    void anImportKeyedByAnotherPlatformIsNotSquared() {
+        ProjectionResponse imported = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+
+        verifyNoInteractions(reconciler);
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    /** The rows a client saves came from this BFF's pool, so they carry its numbering to db-service. */
+    @Test
+    void anUpdateIsSentWithThePoolsNumbering() {
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(storedProjection());
+
+        projectionService.update(USER_ID, PROJECTION_ID, new UpdateProjectionRequest().name("My Projection"));
+
+        ArgumentCaptor<UpdateProjectionRequest> sent = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), sent.capture());
+        assertThat(sent.getValue().getPlayerIdSpace()).isEqualTo(UpdateProjectionRequest.PlayerIdSpaceEnum.YAHOO);
+    }
+
     @Test
     void aReadWithNothingToSquareTouchesNothing() {
         ProjectionResponse stored = storedProjection();

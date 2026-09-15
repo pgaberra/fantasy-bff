@@ -284,7 +284,8 @@ class HttpDatabaseServiceClientTest {
                         + "\"collidingPlayerIds\":[5714,5738,5767]}")));
 
         PlayerIdRemapResponse response = client.remapPlayerIds(
-                List.of(new PlayerIdPair().from(6743).to(3895074)), true);
+                List.of(new PlayerIdPair().from(6743).to(3895074)), true,
+                com.fantasy.bff.service.PlayerIdSpace.YAHOO, com.fantasy.bff.service.PlayerIdSpace.ESPN);
 
         assertThat(response.getProjectionsScanned()).isEqualTo(110);
         assertThat(response.getDraftPicks().getUnmapped()).isZero();
@@ -292,7 +293,8 @@ class HttpDatabaseServiceClientTest {
         assertThat(response.getCollidingPlayerIds()).containsExactly(5714, 5738, 5767);
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/admin/player-ids/remap"))
                 .withRequestBody(equalToJson(
-                        "{\"mappings\":[{\"from\":6743,\"to\":3895074}],\"dryRun\":true}",
+                        "{\"mappings\":[{\"from\":6743,\"to\":3895074}],\"dryRun\":true,"
+                                + "\"from\":\"yahoo\",\"to\":\"espn\"}",
                         true, true)));
     }
 }

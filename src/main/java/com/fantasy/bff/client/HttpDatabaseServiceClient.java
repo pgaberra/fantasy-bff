@@ -471,10 +471,14 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
-    public PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun) {
+    public PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun,
+                                                com.fantasy.bff.service.PlayerIdSpace from,
+                                                com.fantasy.bff.service.PlayerIdSpace to) {
         return migrationClient.post()
                 .uri("/api/v1/admin/player-ids/remap")
-                .body(new PlayerIdRemapRequest().mappings(mappings).dryRun(dryRun))
+                .body(new PlayerIdRemapRequest().mappings(mappings).dryRun(dryRun)
+                        .from(PlayerIdRemapRequest.FromEnum.valueOf(from.name()))
+                        .to(PlayerIdRemapRequest.ToEnum.valueOf(to.name())))
                 .retrieve()
                 .body(PlayerIdRemapResponse.class);
     }

@@ -22,21 +22,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Rewrites the player ids in everything users have saved, from Yahoo's numbering to ESPN's.
+ * Rewrites the player ids in everything users have saved, from one platform's numbering to the
+ * other's.
  *
  * <p>Nobody publishes a crosswalk between the two, so it is built the same way the projection
- * mapping is: by matching identities. This is the only service that can see both pools — the
- * Yahoo one is still readable from yahoo-service's cache even though Yahoo itself no longer
- * serves players — and db-service, which owns the rows, does the writing.
+ * mapping is: by matching identities. This is the only service that can see both pools, and
+ * db-service, which owns the rows, does the writing.
  *
- * <p>It is a one-way move. Once the rows are ESPN's ids and the app is serving ESPN's pool,
- * going back means running the same exercise in reverse.
+ * <p>It runs in either direction. The first move went from Yahoo's ids to ESPN's when Yahoo
+ * stopped serving its players; when Yahoo served them again the pool went back. Each direction
+ * leaves the app serving the pool it moved to, so it goes with switching {@code players.source}.
  *
  * <p>The call to db-service rewrites every stored projection in one request and runs for as
  * long as that takes, so it goes out on the migration client's timeout rather than the one
  * sized for requests a user is waiting on. If it is cut off anyway, db-service does not know
  * the caller has gone and commits regardless — so a failed apply is not the same as no apply.
- * A dry run afterwards says which happened: it reports the projections still on Yahoo's ids,
+ * A dry run afterwards says which happened: it reports the projections still on the old ids,
  * and that is zero once the write has landed.
  */
 @Service
@@ -53,15 +54,15 @@ public class PlayerIdRemapService {
     /**
      * The gate is coverage of the players who <b>actually played</b>, not of the whole pool.
      *
-     * <p>Measured against staging: 83.7% of the Yahoo pool found an ESPN counterpart, and every
-     * single one of the 259 that didn't had played no games. That is structural rather than
-     * wrong — the Yahoo pool is a frozen snapshot of everyone who was fantasy-relevant last
-     * season, 552 of whom never got into a game, while ESPN lists who is active for the season
-     * being played. Gating on the whole pool would have blocked a perfectly good crosswalk.
+     * <p>Measured against staging when moving to ESPN: 83.7% of the Yahoo pool found an ESPN
+     * counterpart, and every single one of the 259 that didn't had played no games. That is
+     * structural rather than wrong — each platform lists its own fringe of players who never got
+     * into a game. Gating on the whole pool would have blocked a perfectly good crosswalk.
      *
      * <p>A player who did play is a different matter: they are the ones a projection has real
      * numbers for, and losing them is what a broken match looks like. A little headroom under
-     * 100% covers someone who played a handful of games and then left the league.
+     * 100% covers someone who played a handful of games and then left the league. Games are
+     * counted on the side being left, since those are the players the stored rows name.
      */
     private static final double MINIMUM_PLAYED_COVERAGE_TO_APPLY = 0.95;
 
@@ -86,25 +87,35 @@ public class PlayerIdRemapService {
         this.statsSeason = statsSeason;
     }
 
-    public PlayerIdRemapReport remap(boolean dryRun) {
-        Map<Long, Integer> gamesPlayed = new LinkedHashMap<>();
-        List<Candidate> yahoo = yahooPool(gamesPlayed);
-        List<Candidate> espn = espnPool();
+    /**
+     * @param to the numbering to move the stored rows into; they are read in the other one
+     */
+    public PlayerIdRemapReport remap(boolean dryRun, PlayerIdSpace to) {
+        PlayerIdSpace from = to == PlayerIdSpace.ESPN ? PlayerIdSpace.YAHOO : PlayerIdSpace.ESPN;
+        Map<Long, Integer> yahooGames = new LinkedHashMap<>();
+        Map<Long, Integer> espnGames = new LinkedHashMap<>();
+        List<Candidate> yahoo = yahooPool(yahooGames);
+        List<Candidate> espn = espnPool(espnGames);
         requireCredible("Yahoo", yahoo.size());
         requireCredible("ESPN", espn.size());
 
-        PlayerIdMapping mapping = resolver.resolve(yahoo, espn, Map.of());
+        List<Candidate> leaving = from == PlayerIdSpace.YAHOO ? yahoo : espn;
+        List<Candidate> arriving = from == PlayerIdSpace.YAHOO ? espn : yahoo;
+        Map<Long, Integer> gamesPlayed = from == PlayerIdSpace.YAHOO ? yahooGames : espnGames;
+
+        PlayerIdMapping mapping = resolver.resolve(leaving, arriving, Map.of());
         int played = (int) gamesPlayed.values().stream().filter(games -> games > 0).count();
         int matchedWhoPlayed = (int) mapping.nhlIdToPlatformId().keySet().stream()
                 .filter(id -> gamesPlayed.getOrDefault(id, 0) > 0)
                 .count();
         double playedCoverage = played == 0 ? 0.0 : (double) matchedWhoPlayed / played;
         if (!dryRun && playedCoverage < MINIMUM_PLAYED_COVERAGE_TO_APPLY) {
-            throw new IllegalStateException(("Only %.1f%% of the Yahoo players who actually "
-                    + "played a game found an ESPN counterpart, under the %.0f%% a working match "
+            throw new IllegalStateException(("Only %.1f%% of the %s players who actually "
+                    + "played a game found a %s counterpart, under the %.0f%% a working match "
                     + "produces. Refusing to apply; run the dry run and look at what went "
                     + "unmatched.")
-                    .formatted(playedCoverage * 100, MINIMUM_PLAYED_COVERAGE_TO_APPLY * 100));
+                    .formatted(playedCoverage * 100, label(from), label(to),
+                            MINIMUM_PLAYED_COVERAGE_TO_APPLY * 100));
         }
 
         List<PlayerIdPair> crosswalk = mapping.nhlIdToPlatformId().entrySet().stream()
@@ -112,12 +123,15 @@ public class PlayerIdRemapService {
                         .from(Math.toIntExact(entry.getKey()))
                         .to(entry.getValue()))
                 .toList();
-        log.info("Remapping player ids ({}): {} Yahoo players, {} ESPN players, {} matched "
-                        + "({}% of the pool, {}% of the {} who played)",
-                dryRun ? "dry run" : "applying", yahoo.size(), espn.size(), mapping.matched(),
-                Math.round(mapping.coverage() * 100), Math.round(playedCoverage * 100), played);
+        log.info("Remapping player ids to {} ({}): {} Yahoo players, {} ESPN players, {} matched "
+                        + "({}% of the pool being left, {}% of the {} who played)",
+                to == PlayerIdSpace.ESPN ? "ESPN" : "Yahoo", dryRun ? "dry run" : "applying",
+                yahoo.size(), espn.size(), mapping.matched(), Math.round(mapping.coverage() * 100),
+                Math.round(playedCoverage * 100), played);
 
         return new PlayerIdRemapReport(
+                from,
+                to,
                 yahoo.size(),
                 espn.size(),
                 mapping.matched(),
@@ -129,13 +143,12 @@ public class PlayerIdRemapService {
                 matchedWhoPlayed,
                 playedCoverage,
                 unmatchedSample(mapping, gamesPlayed),
-                databaseServiceClient.remapPlayerIds(crosswalk, dryRun));
+                databaseServiceClient.remapPlayerIds(crosswalk, dryRun, from, to));
     }
 
     /**
      * Read straight from yahoo-service rather than through the configured pool source: the
-     * crosswalk needs both sides whichever one the app is currently serving, and after the
-     * switch the Yahoo side is no longer the pool.
+     * crosswalk needs both sides whichever one the app is currently serving.
      */
     private List<Candidate> yahooPool(Map<Long, Integer> gamesPlayed) {
         List<Candidate> candidates = new ArrayList<>();
@@ -152,19 +165,29 @@ public class PlayerIdRemapService {
         return candidates;
     }
 
-    private List<Candidate> espnPool() {
+    private List<Candidate> espnPool(Map<Long, Integer> gamesPlayed) {
         List<Candidate> candidates = new ArrayList<>();
         for (var skater : espnServiceClient.skaters(statsSeason)) {
             candidates.add(new Candidate(skater.getId(),
                     skater.getFirstName() + " " + skater.getLastName(),
                     skater.getTeamAbbrev(), skater.getSweaterNumber()));
+            gamesPlayed.put(skater.getId(), orZero(skater.getGamesPlayed()));
         }
         for (var goalie : espnServiceClient.goalies(statsSeason)) {
             candidates.add(new Candidate(goalie.getId(),
                     goalie.getFirstName() + " " + goalie.getLastName(),
                     goalie.getTeamAbbrev(), goalie.getSweaterNumber()));
+            gamesPlayed.put(goalie.getId(), orZero(goalie.getGamesPlayed()));
         }
         return candidates;
+    }
+
+    private static int orZero(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private static String label(PlayerIdSpace space) {
+        return space == PlayerIdSpace.ESPN ? "ESPN" : "Yahoo";
     }
 
     private static void requireCredible(String platform, int players) {

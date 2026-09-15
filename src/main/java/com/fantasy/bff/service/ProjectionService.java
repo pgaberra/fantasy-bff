@@ -78,6 +78,9 @@ public class ProjectionService {
     public ProjectionResponse get(UUID userId, UUID projectionId) {
         com.fantasy.bff.generated.db.model.ProjectionResponse stored =
                 databaseServiceClient.getProjection(userId, projectionId);
+        if (!keyedByThePool(stored)) {
+            return ProjectionResponse.of(stored);
+        }
         Optional<Reconciliation> reconciliation = reconciler.reconcile(stored.getData());
         if (reconciliation.isEmpty()) {
             return ProjectionResponse.of(stored);
@@ -85,6 +88,24 @@ public class ProjectionService {
         keepUnacknowledged(stored.getData().getProjectionSettings(),
                 reconciliation.get().addedPlayerIds());
         return ProjectionResponse.of(save(userId, projectionId, stored));
+    }
+
+    /**
+     * Whether the stored rows are numbered the way the pool this BFF serves is. When they are
+     * not, squaring them with the pool would add every player under the other platform's ids
+     * beside the stored ones, and the saved result could not be taken apart again. That happens
+     * only while the pool is being switched: between the remap and the BFF serving the new pool.
+     */
+    private boolean keyedByThePool(com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
+        String poolSpace = playerPool.playerIdSpace().name();
+        boolean keyedByThePool = Optional.ofNullable(stored.getPlayerIdSpace())
+                .map(space -> space.name().equals(poolSpace))
+                .orElse(true);
+        if (!keyedByThePool) {
+            log.warn("A projection is keyed by the other platform's player ids than the pool this "
+                    + "BFF serves; serving it unreconciled");
+        }
+        return keyedByThePool;
     }
 
     /**
@@ -116,7 +137,8 @@ public class ProjectionService {
                             .projectionSettings(stored.getData().getProjectionSettings())
                             .players(stored.getData().getPlayers())
                             .draft(stored.getData().getDraft())
-                            .positionOverrides(stored.getData().getPositionOverrides())));
+                            .positionOverrides(stored.getData().getPositionOverrides()))
+                    .playerIdSpace(updateSpaceOf(playerPool.playerIdSpace())));
         } catch (RuntimeException e) {
             log.error("Could not save a projection reconciled against the player pool; "
                     + "serving it unsaved", e);
@@ -190,15 +212,24 @@ public class ProjectionService {
                         new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
                                 .token(request.token())
                                 .name(request.name()));
-        if (reconciler.reconcile(imported.getData()).isEmpty()) {
+        if (!keyedByThePool(imported) || reconciler.reconcile(imported.getData()).isEmpty()) {
             return ProjectionResponse.of(imported);
         }
         return ProjectionResponse.of(save(userId, UUID.fromString(imported.getId()), imported));
     }
 
+    /**
+     * The rows a client saves are the ones it could draw from this BFF's pool, so they are sent
+     * with that pool's numbering, and db-service refuses them for a projection keyed by the other.
+     */
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
+        request.setPlayerIdSpace(updateSpaceOf(playerPool.playerIdSpace()));
         return ProjectionResponse.of(
                 databaseServiceClient.updateProjection(userId, projectionId, request));
+    }
+
+    private static UpdateProjectionRequest.PlayerIdSpaceEnum updateSpaceOf(PlayerIdSpace space) {
+        return UpdateProjectionRequest.PlayerIdSpaceEnum.valueOf(space.name());
     }
 
     /**
