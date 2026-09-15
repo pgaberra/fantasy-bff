@@ -76,6 +76,7 @@ secret is environment-specific: staging and production never share one.
 | Variable | Secret | Required | Default | Notes |
 |---|---|---|---|---|
 | `PLAYERS_SOURCE` | | no | `yahoo` | `yahoo` or `espn`. Player ids differ between the two, so this flips only together with migrating stored projections. |
+| `PLAYER_AVATARS_ENABLED` | | no | `false` | Players' pictures. Off in staging and production: they are the platform's photographs and we hold no licence to show them. Off, no player or share row carries a headshot, `/api/v1/players/{id}/headshot` answers 404 without fetching, and the web draws initials. |
 | `PROJECTION_MODEL_ENABLED` | | no | `false` | Opens `/api/v1/projection-model/**`: the model's output **and** the Who's hot splits. Off also takes the AI projection away. |
 | `AI_PROJECTION_ENABLED` | | no | `true` | The AI projection (model-seeded start). Served only where `PROJECTION_MODEL_ENABLED` is also on. |
 

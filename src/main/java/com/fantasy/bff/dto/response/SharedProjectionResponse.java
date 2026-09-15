@@ -66,12 +66,17 @@ public record SharedProjectionResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime updatedAt
 ) {
 
-    /** Every row the owner published. */
+    /**
+     * Every row the owner published.
+     *
+     * @param headshots whether this environment shows players' pictures; without them each row
+     *     goes out with no headshot, whatever address the snapshot stored
+     */
     public static SharedProjectionResponse full(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
-            Set<Integer> rookieIds) {
+            Set<Integer> rookieIds, boolean headshots) {
         List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
-        return of(shared, players, players.size(), false, rookieIds);
+        return of(shared, players, players.size(), false, rookieIds, headshots);
     }
 
     /**
@@ -82,20 +87,22 @@ public record SharedProjectionResponse(
      * <p>{@code truncated} is about the gate and not about the filter: it says rows were withheld
      * because the reader is not signed in, which stays true of a board longer than the preview
      * however few rows one position happens to match.
+     *
+     * @param headshots as for {@link #full}
      */
     public static SharedProjectionResponse preview(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
             SharedBoardFilters filters, String sort, String direction, int rows,
-            Set<Integer> rookieIds) {
+            Set<Integer> rookieIds, boolean headshots) {
         List<com.fantasy.bff.generated.db.model.SharedPlayer> players = shared.getData().getPlayers();
         return of(shared, SharedBoardPreview.select(players, filters, sort, direction, rows),
-                players.size(), players.size() > rows, rookieIds);
+                players.size(), players.size() > rows, rookieIds, headshots);
     }
 
     private static SharedProjectionResponse of(
             com.fantasy.bff.generated.db.model.SharedProjectionResponse shared,
             List<com.fantasy.bff.generated.db.model.SharedPlayer> players,
-            int totalPlayers, boolean truncated, Set<Integer> rookieIds) {
+            int totalPlayers, boolean truncated, Set<Integer> rookieIds, boolean headshots) {
         return new SharedProjectionResponse(
                 shared.getToken(),
                 shared.getName(),
@@ -103,7 +110,10 @@ public record SharedProjectionResponse(
                 shared.getSeason().getValue(),
                 new SharedProjectionData(
                         ProjectionSettings.from(shared.getData().getProjectionSettings()),
-                        players.stream().map(SharedPlayer::from).toList()),
+                        players.stream()
+                                .map(SharedPlayer::from)
+                                .map(row -> headshots ? row : row.withoutHeadshot())
+                                .toList()),
                 totalPlayers,
                 truncated,
                 teamsOn(shared),

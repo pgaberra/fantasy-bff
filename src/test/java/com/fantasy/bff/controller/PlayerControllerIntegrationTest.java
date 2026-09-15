@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,8 +32,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * With avatars on, which no deployed environment has today: these tests are about what the
+ * endpoints do with a picture, and the switch being off by default is {@link PlayerAvatarsDisabledTest}'s.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
+@TestPropertySource(properties = "players.avatars.enabled=true")
 class PlayerControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired

@@ -87,6 +87,14 @@ public record SharedPlayer(
                 PlayerStats.from(row.getStats()));
     }
 
+    /**
+     * The same row with no picture, for an environment that shows none. A snapshot keeps the
+     * address it was published with, so the switch has to be applied on the way out.
+     */
+    public SharedPlayer withoutHeadshot() {
+        return new SharedPlayer(playerId, name, teamAbbrev, null, positions, type, rank, value, stats);
+    }
+
     /** The same row on its way down to db-service, when the owner publishes. */
     public com.fantasy.bff.generated.db.model.SharedPlayer toDownstream() {
         return new com.fantasy.bff.generated.db.model.SharedPlayer()

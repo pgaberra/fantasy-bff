@@ -25,6 +25,11 @@ public record GoalieResponse(
         return new GoalieResponse(id, name, team, headshot, sweaterNumber, stats);
     }
 
+    /** The same goalie with no picture, for an environment that shows none. */
+    public GoalieResponse withoutHeadshot() {
+        return new GoalieResponse(id, name, teamAbbrev, null, sweaterNumber, stats);
+    }
+
     @Schema(name = "GoalieStats")
     public record Stats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,
