@@ -13,6 +13,8 @@ import com.fantasy.bff.generated.db.model.GrantPremiumRequest;
 import com.fantasy.bff.generated.db.model.PremiumCustomerResponse;
 import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.db.model.PremiumGrantResponse;
+import com.fantasy.bff.generated.db.model.PendingCheckoutResponse;
+import com.fantasy.bff.generated.db.model.ReplacePendingCheckoutRequest;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
@@ -106,6 +108,16 @@ public interface DatabaseServiceClient {
 
     SubscriptionResponse upsertSubscription(UUID userId, UpsertSubscriptionRequest request);
 
+    /** The checkout the user has open with the payment provider, if any. */
+    Optional<PendingCheckoutResponse> getPendingCheckout(UUID userId);
+
+    /**
+     * Stores the user's open checkout by compare-and-set on {@code replacesReference}. Returns
+     * false, rather than throwing, when db-service refuses it (409) because another request stored
+     * a checkout since this one read it: the caller should read that one and use it.
+     */
+    boolean replacePendingCheckout(UUID userId, ReplacePendingCheckoutRequest request);
+
     PremiumEntitlementResponse getPremiumEntitlement(UUID userId);
 
     List<PremiumCustomerResponse> listPremiumCustomers();
@@ -115,8 +127,10 @@ public interface DatabaseServiceClient {
     void revokePremiumGrants(UUID userId);
 
     /**
-     * Rewrites the player ids in every stored projection and share from one platform's
-     * numbering to another's. A dry run reports what would change and writes nothing.
+     * Rewrites the player ids in every stored projection and share keyed by {@code from} into
+     * {@code to}'s numbering. A dry run reports what would change and writes nothing.
      */
-    PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun);
+    PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun,
+                                         com.fantasy.bff.service.PlayerIdSpace from,
+                                         com.fantasy.bff.service.PlayerIdSpace to);
 }

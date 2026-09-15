@@ -9,9 +9,13 @@ import static org.mockito.Mockito.when;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
+import com.fantasy.bff.dto.response.SplitSeason;
+import com.fantasy.bff.dto.response.SplitSeasonListResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
 import java.math.BigDecimal;
 import java.util.List;
@@ -66,10 +70,40 @@ class PlayerSplitServiceTest {
         return service.skaterSplits(SEASON, LAST_TWENTY, 100).get(0).stats();
     }
 
+    private static SplitSeasonsResponse twoSeasons() {
+        return new SplitSeasonsResponse()
+                .defaultSeason(2025)
+                .seasons(List.of(
+                        new SplitSeasonResponse().season(2026).scheduleGames(84).gamesPlayed(0),
+                        new SplitSeasonResponse().season(2025).scheduleGames(82).gamesPlayed(82)));
+    }
+
+    @Test
+    @DisplayName("lists each season with its own length: 82 games in 2025-26, 84 in 2026-27")
+    void listsSeasonsWithTheirOwnLength() {
+        when(projectionServiceClient.splitSeasons(2026)).thenReturn(twoSeasons());
+
+        SplitSeasonListResponse listed = service.seasons(2026);
+
+        assertThat(listed.defaultSeason()).isEqualTo(2025);
+        assertThat(listed.seasons())
+                .containsExactly(new SplitSeason(2026, 84, 0), new SplitSeason(2025, 82, 82));
+    }
+
+    @Test
+    @DisplayName("a split with no season is measured against the length of the season it will read")
+    void scheduleGamesFollowsTheDefaultSeason() {
+        when(projectionServiceClient.splitSeasons(2026)).thenReturn(twoSeasons());
+
+        assertThat(service.scheduleGames(null, 2026)).contains(82);
+        assertThat(service.scheduleGames(2026, 2026)).contains(84);
+        assertThat(service.scheduleGames(2019, 2026)).isEmpty();
+    }
+
     @Test
     @DisplayName("sums power play and shorthanded into the one special-teams category leagues score")
     void derivesSpecialTeams() {
-        when(projectionServiceClient.skaterSplits(anyInt(), any(), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(), anyInt()))
                 .thenReturn(List.of(skater()));
 
         Map<String, Double> stats = skaterStats();
@@ -83,7 +117,7 @@ class PlayerSplitServiceTest {
     @Test
     @DisplayName("passes through the stats only the per-game rows can answer")
     void carriesTheGameLevelStats() {
-        when(projectionServiceClient.skaterSplits(anyInt(), any(), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(), anyInt()))
                 .thenReturn(List.of(skater()));
 
         Map<String, Double> stats = skaterStats();
@@ -96,7 +130,7 @@ class PlayerSplitServiceTest {
     @Test
     @DisplayName("scores defencemen points for a defenceman and not at all for a forward")
     void countsDefencePointsOnlyForDefenceEligiblePlayers() {
-        when(projectionServiceClient.skaterSplits(anyInt(), any(), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(), anyInt()))
                 .thenReturn(List.of(skater()));
 
         assertThat(skaterStats()).doesNotContainKey("defPoints");
@@ -109,7 +143,7 @@ class PlayerSplitServiceTest {
     @Test
     @DisplayName("charges an overtime loss to the goalie and counts it as a decision")
     void derivesGoalieOvertimeStats() {
-        when(projectionServiceClient.goalieSplits(anyInt(), any(), anyInt()))
+        when(projectionServiceClient.goalieSplits(any(), any(), anyInt()))
                 .thenReturn(List.of(goalie(9, 4, 3)));
 
         Map<String, Double> stats = service.goalieSplits(SEASON, LAST_TWENTY, 100).get(0).stats();
@@ -122,7 +156,7 @@ class PlayerSplitServiceTest {
     @Test
     @DisplayName("leaves win percentage out for a goalie with no decisions rather than calling it zero")
     void omitsWinPctWithoutDecisions() {
-        when(projectionServiceClient.goalieSplits(anyInt(), any(), anyInt()))
+        when(projectionServiceClient.goalieSplits(any(), any(), anyInt()))
                 .thenReturn(List.of(goalie(0, 0, 0)));
 
         assertThat(service.goalieSplits(SEASON, LAST_TWENTY, 100).get(0).stats())
@@ -137,7 +171,7 @@ class PlayerSplitServiceTest {
                 Optional.empty(),
                 List.of(),
                 Map.of()));
-        when(projectionServiceClient.skaterSplits(anyInt(), any(), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(), anyInt()))
                 .thenReturn(List.of(skater()));
 
         List<PlayerSplitResponse> splits = service.skaterSplits(SEASON, LAST_TWENTY, 100);

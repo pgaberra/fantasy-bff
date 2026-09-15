@@ -8,25 +8,27 @@ servers:
 security:
 - bearerAuth: []
 tags:
-- name: Authentication
-  description: Register and login endpoints
 - name: Shared projections
   description: "Public, read-only projections (no sign-in required)"
-- name: Admin
-  description: "Admin-only: Yahoo service account + player sync"
 - name: Projection shares
   description: The current user's public links to their projections
-- name: Account
-  description: The signed-in account's own profile
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
   description: "NHL player stats endpoints (public, read-only)"
-- name: Projections
-  description: The authenticated user's saved player projections
+- name: Features
+  description: Which features this environment serves
 - name: Projection model
   description: "Model-generated projection lines, and measured totals over a range\
     \ of games. Data © MoneyPuck.com, used under its non-commercial terms."
+- name: Authentication
+  description: Register and login endpoints
+- name: Admin
+  description: "Admin-only: Yahoo service account + player sync"
+- name: Account
+  description: The signed-in account's own profile
+- name: Projections
+  description: The authenticated user's saved player projections
 - name: Versions
   description: Deployed version and reachability of every service
 - name: ESPN
@@ -463,7 +465,8 @@ paths:
       - Billing
       summary: Start a checkout session to subscribe
       description: Returns the provider-hosted checkout URL the web app should redirect
-        the browser to.
+        the browser to. An account that already has a checkout it can still pay gets
+        that same one back.
       operationId: checkoutSession
       responses:
         "200":
@@ -474,6 +477,12 @@ paths:
                 $ref: "#/components/schemas/CheckoutUrlResponse"
         "404":
           description: Payments are not enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutUrlResponse"
+        "409":
+          description: The account already has a live subscription
           content:
             application/json:
               schema:
@@ -814,11 +823,12 @@ paths:
     post:
       tags:
       - Admin
-      summary: Remap saved player ids from Yahoo's numbering to ESPN's
-      description: "Matches the Yahoo player pool to the ESPN one and rewrites the\
-        \ ids in every saved projection, draft pick and share. Reports the match before\
-        \ the write, and defaults to a dry run: pass dryRun=false to actually apply\
-        \ it. A one-way move — the app should be serving the ESPN pool afterwards."
+      summary: Remap saved player ids from one platform's numbering to the other's
+      description: "Matches the two player pools and rewrites the ids in every saved\
+        \ projection, draft pick and share still on the other platform's numbering.\
+        \ Reports the match before the write, and defaults to a dry run: pass dryRun=false\
+        \ to actually apply it. The app should be serving the `to` platform's pool\
+        \ afterwards, so switch PLAYERS_SOURCE with it."
       operationId: remapPlayerIds
       parameters:
       - name: dryRun
@@ -828,6 +838,17 @@ paths:
         schema:
           type: boolean
           default: true
+      - name: to
+        in: query
+        description: "The numbering to move stored rows into. Defaults to ESPN, the\
+          \ direction the first migration went."
+        required: false
+        schema:
+          type: string
+          default: ESPN
+          enum:
+          - YAHOO
+          - ESPN
       responses:
         "200":
           description: "Match reported, and applied unless it was a dry run"
@@ -836,8 +857,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayerIdRemapReport"
         "502":
-          description: "Either pool came back short, or too little of the Yahoo pool\
-            \ matched to apply"
+          description: "Either pool came back short, or too little of the pool being\
+            \ left matched to apply"
           content:
             application/json:
               schema:
@@ -886,6 +907,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaguesResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/teams:
     get:
       tags:
@@ -911,6 +939,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueTeamsResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/projection-settings:
     get:
       tags:
@@ -939,6 +974,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/connection:
     get:
       tags:
@@ -1090,7 +1132,9 @@ paths:
           minimum: 1
       - name: lastGames
         in: query
-        description: Shorthand for the team's final N games
+        description: "Shorthand for each team's own last N games, counted back from\
+          \ the latest game it has played, so it means the same mid-season as in a\
+          \ finished one"
         required: false
         schema:
           type: integer
@@ -1123,6 +1167,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PlayerSplitResponse"
+  /api/v1/projection-model/splits/seasons:
+    get:
+      tags:
+      - Projection model
+      summary: The seasons Who's hot can measure
+      description: "Newest first, each with `scheduleGames`, its own length (82, or\
+        \ 84 from 2026-27), and `gamesPlayed`, the furthest any team has got, so a\
+        \ client drawing a range assumes neither. The projected season is listed before\
+        \ its first game. `defaultSeason` is the season a split with no season reads:\
+        \ the newest with a game played, which is last season until the new one is\
+        \ underway."
+      operationId: splitSeasons
+      responses:
+        "200":
+          description: "The seasons, newest first"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitSeasonListResponse"
   /api/v1/projection-model/splits/goalies:
     get:
       tags:
@@ -1409,6 +1472,21 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
+  /api/v1/features:
+    get:
+      tags:
+      - Features
+      summary: Get the features this environment serves
+      description: "Public, since pages a signed-out visitor can open describe these\
+        \ features too. The same answer the endpoints behind each feature enforce."
+      operationId: getFeatures
+      responses:
+        "200":
+          description: Features retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeaturesResponse"
   /api/v1/espn/leagues/{leagueId}/teams:
     get:
       tags:
@@ -1580,6 +1658,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaguesResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/admin/yahoo/connection:
     get:
       tags:
@@ -1872,6 +1957,17 @@ components:
         playerPoolSyncedAt:
           type: string
           format: date-time
+        unacknowledgedNewPlayerIds:
+          type: array
+          description: "Players a reconciliation with the player pool added whom the\
+            \ owner has not acknowledged yet. Kept until they are, so the app can\
+            \ go on saying so across reloads and devices; send it back empty or absent\
+            \ to acknowledge them. The cap matches the player list."
+          items:
+            type: integer
+            format: int32
+          maxItems: 2000
+          minItems: 0
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -1989,14 +2085,6 @@ components:
       - leagueKey
       - leagueName
       - syncedAt
-    PoolReconciliation:
-      type: object
-      properties:
-        added:
-          type: integer
-          format: int32
-      required:
-      - added
     ProjectionData:
       type: object
       properties:
@@ -2056,13 +2144,6 @@ components:
           $ref: "#/components/schemas/ProjectionOrigin"
           description: "Who this board was copied from, on a projection imported from\
             \ a share link. Absent on the user's own."
-        poolReconciliation:
-          $ref: "#/components/schemas/PoolReconciliation"
-          description: "How many player rows this read added to match the current\
-            \ player pool. Present only when the pool had moved since these rows were\
-            \ last squared with it, so a client can say so once and then stop. Nothing\
-            \ is removed by a reconciliation — a row whose player has left the pool\
-            \ stays and is not shown."
       required:
       - createdAt
       - data
@@ -2469,12 +2550,28 @@ components:
         unmapped:
           type: integer
           format: int32
+        colliding:
+          type: integer
+          format: int32
       required:
+      - colliding
       - remapped
       - unmapped
     PlayerIdRemapReport:
       type: object
       properties:
+        from:
+          type: string
+          description: The numbering the stored rows were read in
+          enum:
+          - YAHOO
+          - ESPN
+        to:
+          type: string
+          description: The numbering they are moved into
+          enum:
+          - YAHOO
+          - ESPN
         yahooPlayers:
           type: integer
           format: int32
@@ -2486,7 +2583,8 @@ components:
         matched:
           type: integer
           format: int32
-          description: Yahoo players that found an ESPN counterpart
+          description: Players on the from side that found a counterpart on the to
+            side
         matchedOnName:
           type: integer
           format: int32
@@ -2538,11 +2636,13 @@ components:
       - coverage
       - coverageOfPlayersWithGames
       - espnPlayers
+      - from
       - matched
       - matchedOnFallback
       - matchedOnName
       - matchedWithGames
       - playersWithGames
+      - to
       - unmatched
       - unmatchedSample
       - yahooPlayers
@@ -2551,6 +2651,16 @@ components:
       properties:
         dryRun:
           type: boolean
+        from:
+          type: string
+          enum:
+          - yahoo
+          - espn
+        to:
+          type: string
+          enum:
+          - yahoo
+          - espn
         projectionsScanned:
           type: integer
           format: int32
@@ -2570,15 +2680,33 @@ components:
           items:
             type: integer
             format: int32
+        collidingPlayerIds:
+          type: array
+          items:
+            type: integer
+            format: int32
       required:
+      - collidingPlayerIds
       - draftPicks
       - dryRun
+      - from
       - playerRows
       - positionOverrides
       - projectionsScanned
       - sharedRows
       - sharesScanned
+      - to
       - unmappedPlayerIds
+    ErrorDto:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: {}
     LeagueSummary:
       type: object
       properties:
@@ -2875,6 +3003,42 @@ components:
       - playerId
       - stats
       - type
+    SplitSeason:
+      type: object
+      description: A season a split can be measured over
+      properties:
+        season:
+          type: integer
+          format: int32
+          description: The year the season starts in
+        scheduleGames:
+          type: integer
+          format: int32
+          description: "Games in the season's schedule: 82, or 84 from 2026-27"
+        gamesPlayed:
+          type: integer
+          format: int32
+          description: The furthest any team has got; 0 before the season's first
+            game
+      required:
+      - gamesPlayed
+      - scheduleGames
+      - season
+    SplitSeasonListResponse:
+      type: object
+      description: "The seasons Who's hot can measure, newest first"
+      properties:
+        defaultSeason:
+          type: integer
+          format: int32
+          description: "The season a split with no season reads: the newest with a\
+            \ game played. Absent when no season has one"
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/SplitSeason"
+      required:
+      - seasons
     SeededProjectionResponse:
       type: object
       description: "Projection lines generated by the model, keyed by the platform's\
@@ -3249,6 +3413,18 @@ components:
           format: int32
       required:
       - gp
+    FeaturesResponse:
+      type: object
+      properties:
+        aiProjection:
+          type: boolean
+          description: "Whether this environment serves the AI projection: the model's\
+            \ lines and a projection or preset draft seeded from them. False means\
+            \ neither is served to anyone, so a client should not offer it. It says\
+            \ nothing about this account's plan: an AI projection that needs premium\
+            \ is still available."
+      required:
+      - aiProjection
     EspnLeagueTeam:
       type: object
       properties:

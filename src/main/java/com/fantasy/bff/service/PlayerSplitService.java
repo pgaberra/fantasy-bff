@@ -3,15 +3,21 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
+import com.fantasy.bff.dto.response.SplitSeason;
+import com.fantasy.bff.dto.response.SplitSeasonListResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.service.PlayerSplitContextProvider.Context;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -38,7 +44,39 @@ public class PlayerSplitService {
         this.contextProvider = contextProvider;
     }
 
-    public List<PlayerSplitResponse> skaterSplits(int season, GameRange range, int limit) {
+    /**
+     * The seasons a split can be measured over, as projection-service reports them. The projected
+     * season is listed even before it has a game, so a season picker can offer it.
+     */
+    public SplitSeasonListResponse seasons(int projectedSeason) {
+        SplitSeasonsResponse answer = projectionServiceClient.splitSeasons(projectedSeason);
+        return new SplitSeasonListResponse(
+                answer.getDefaultSeason(),
+                listed(answer).stream()
+                        .map(season -> new SplitSeason(
+                                season.getSeason(), season.getScheduleGames(), season.getGamesPlayed()))
+                        .toList());
+    }
+
+    /**
+     * How many games are in the schedule of the season a split reads: the one named, or the
+     * season the service reads when none is. Empty when the service lists no such season.
+     */
+    public Optional<Integer> scheduleGames(Integer season, int projectedSeason) {
+        SplitSeasonsResponse answer = projectionServiceClient.splitSeasons(projectedSeason);
+        Integer measured = season != null ? season : answer.getDefaultSeason();
+        return listed(answer).stream()
+                .filter(listed -> Objects.equals(listed.getSeason(), measured))
+                .map(SplitSeasonResponse::getScheduleGames)
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    private static List<SplitSeasonResponse> listed(SplitSeasonsResponse answer) {
+        return answer == null ? List.of() : answer.getSeasons();
+    }
+
+    public List<PlayerSplitResponse> skaterSplits(Integer season, GameRange range, int limit) {
         Context context = contextProvider.context();
         List<PlayerSplitResponse> splits = new ArrayList<>();
         for (SkaterSplitResponse split : projectionServiceClient.skaterSplits(season, range, limit)) {
@@ -89,7 +127,7 @@ public class PlayerSplitService {
         return splits;
     }
 
-    public List<PlayerSplitResponse> goalieSplits(int season, GameRange range, int limit) {
+    public List<PlayerSplitResponse> goalieSplits(Integer season, GameRange range, int limit) {
         Context context = contextProvider.context();
         List<PlayerSplitResponse> splits = new ArrayList<>();
         for (GoalieSplitResponse split : projectionServiceClient.goalieSplits(season, range, limit)) {

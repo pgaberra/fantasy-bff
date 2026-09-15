@@ -106,4 +106,16 @@ class PremiumAiProjectionUnsoldTest extends BaseIntegrationTest {
 
         verifyNoInteractions(databaseServiceClient);
     }
+
+    /**
+     * Available is about the environment, not the account: the answer is the same signed out,
+     * and it is what tells the web to offer the preset that the seed above just served.
+     */
+    @Test
+    @DisplayName("the environment reports the AI projection as available, to anyone")
+    void features_reportItAvailable() throws Exception {
+        mockMvc.perform(get("/api/v1/features"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aiProjection").value(true));
+    }
 }

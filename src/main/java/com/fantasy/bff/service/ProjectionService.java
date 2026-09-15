@@ -1,15 +1,14 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
-import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.exception.PremiumRequiredException;
-import com.fantasy.bff.dto.response.ProjectionResponse.PoolReconciliation;
 import com.fantasy.bff.generated.db.model.ProjectionData;
+import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
 import com.fantasy.bff.generated.db.model.UpdateProjectionData;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
@@ -19,8 +18,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -42,7 +44,7 @@ public class ProjectionService {
     private final PlayerPoolSource playerPool;
     private final ProjectionPoolReconciler reconciler;
     private final ProjectionSeedService seedService;
-    private final AiProjectionProperties aiProjection;
+    private final AiProjectionAvailability aiProjection;
     private final EntitlementService entitlementService;
     private final int projectionSeason;
     private final String projectionModelVersion;
@@ -52,7 +54,7 @@ public class ProjectionService {
                              PlayerPoolSource playerPool,
                              ProjectionPoolReconciler reconciler,
                              ProjectionSeedService seedService,
-                             AiProjectionProperties aiProjection,
+                             AiProjectionAvailability aiProjection,
                              EntitlementService entitlementService,
                              @Value("${services.projection.season}") int projectionSeason,
                              @Value("${services.projection.model-version}") String projectionModelVersion) {
@@ -76,14 +78,49 @@ public class ProjectionService {
     public ProjectionResponse get(UUID userId, UUID projectionId) {
         com.fantasy.bff.generated.db.model.ProjectionResponse stored =
                 databaseServiceClient.getProjection(userId, projectionId);
+        if (!keyedByThePool(stored)) {
+            return ProjectionResponse.of(stored);
+        }
         Optional<Reconciliation> reconciliation = reconciler.reconcile(stored.getData());
         if (reconciliation.isEmpty()) {
             return ProjectionResponse.of(stored);
         }
-        Reconciliation change = reconciliation.get();
-        return ProjectionResponse.of(
-                save(userId, projectionId, stored),
-                new PoolReconciliation(change.added()));
+        keepUnacknowledged(stored.getData().getProjectionSettings(),
+                reconciliation.get().addedPlayerIds());
+        return ProjectionResponse.of(save(userId, projectionId, stored));
+    }
+
+    /**
+     * Whether the stored rows are numbered the way the pool this BFF serves is. When they are
+     * not, squaring them with the pool would add every player under the other platform's ids
+     * beside the stored ones, and the saved result could not be taken apart again. That happens
+     * only while the pool is being switched: between the remap and the BFF serving the new pool.
+     */
+    private boolean keyedByThePool(com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
+        String poolSpace = playerPool.playerIdSpace().name();
+        boolean keyedByThePool = Optional.ofNullable(stored.getPlayerIdSpace())
+                .map(space -> space.name().equals(poolSpace))
+                .orElse(true);
+        if (!keyedByThePool) {
+            log.warn("A projection is keyed by the other platform's player ids than the pool this "
+                    + "BFF serves; serving it unreconciled");
+        }
+        return keyedByThePool;
+    }
+
+    /**
+     * The players a read adds are kept on the projection until its owner acknowledges them, so
+     * the notice about them survives a reload and follows them to another device. A second pool
+     * change before then adds to the list rather than replacing it.
+     */
+    private static void keepUnacknowledged(ProjectionSettings settings, List<Integer> added) {
+        if (added.isEmpty()) {
+            return;
+        }
+        List<Integer> earlier = settings.getUnacknowledgedNewPlayerIds();
+        Set<Integer> unacknowledged = earlier == null ? new LinkedHashSet<>() : new LinkedHashSet<>(earlier);
+        unacknowledged.addAll(added);
+        settings.setUnacknowledgedNewPlayerIds(new ArrayList<>(unacknowledged));
     }
 
     /**
@@ -100,7 +137,8 @@ public class ProjectionService {
                             .projectionSettings(stored.getData().getProjectionSettings())
                             .players(stored.getData().getPlayers())
                             .draft(stored.getData().getDraft())
-                            .positionOverrides(stored.getData().getPositionOverrides())));
+                            .positionOverrides(stored.getData().getPositionOverrides()))
+                    .playerIdSpace(updateSpaceOf(playerPool.playerIdSpace())));
         } catch (RuntimeException e) {
             log.error("Could not save a projection reconciled against the player pool; "
                     + "serving it unsaved", e);
@@ -112,10 +150,10 @@ public class ProjectionService {
         ProjectionData data = request.data();
         // Checked before anything else a model-seeded request would go on to do, so an
         // environment with the AI projection switched off never reaches the projection service.
-        // The web drops the preset from its lists on the same switch; this is what makes it a
-        // refusal rather than a hidden button.
+        // The web drops the preset on the same answer, read from /api/v1/features; this is what
+        // makes it a refusal rather than a hidden button.
         if (request.source() == ProjectionSource.MODEL) {
-            if (!aiProjection.enabled()) {
+            if (!aiProjection.available()) {
                 throw new IllegalArgumentException(
                         "source=model is unavailable: the AI projection is switched off in this "
                                 + "environment");
@@ -144,6 +182,14 @@ public class ProjectionService {
         } else if (data.getPlayers().isEmpty()) {
             throw new IllegalArgumentException("data.players must not be empty unless source is set");
         }
+        // Squared with the pool before it is written, not on its first read. A starting point that
+        // does not cover the whole pool — the model's lines, a copied board — would otherwise have
+        // that read add the players it lacked and report them to the user as having joined since
+        // the projection was created, seconds earlier. Nothing is reported from here: a projection
+        // that did not exist yet has no "since". A copied board's settings carry its source's
+        // unacknowledged players, and those are no news to the copy either.
+        data.getProjectionSettings().setUnacknowledgedNewPlayerIds(null);
+        reconciler.reconcile(data);
         return ProjectionResponse.of(databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(nameOf(request))
@@ -155,20 +201,35 @@ public class ProjectionService {
 
     /**
      * Copies a shared board into the user's own projections. The rows come across as they were
-     * published, which is a snapshot of the author's player pool rather than the current one —
-     * squaring them with it is left to the first read, which does that for every projection
-     * anyway.
+     * published, which is a snapshot of the author's player pool rather than the current one, so
+     * they are squared with it and saved straight away. Left to the first read, the players the
+     * snapshot lacked would be reported as having joined since the user imported it. db-service
+     * writes the copy and cannot read the pool, hence the second write rather than one.
      */
     public ProjectionResponse importFromShare(UUID userId, ImportProjectionRequest request) {
-        return ProjectionResponse.of(databaseServiceClient.importProjection(userId,
-                new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
-                        .token(request.token())
-                        .name(request.name())));
+        com.fantasy.bff.generated.db.model.ProjectionResponse imported =
+                databaseServiceClient.importProjection(userId,
+                        new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
+                                .token(request.token())
+                                .name(request.name()));
+        if (!keyedByThePool(imported) || reconciler.reconcile(imported.getData()).isEmpty()) {
+            return ProjectionResponse.of(imported);
+        }
+        return ProjectionResponse.of(save(userId, UUID.fromString(imported.getId()), imported));
     }
 
+    /**
+     * The rows a client saves are the ones it could draw from this BFF's pool, so they are sent
+     * with that pool's numbering, and db-service refuses them for a projection keyed by the other.
+     */
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
+        request.setPlayerIdSpace(updateSpaceOf(playerPool.playerIdSpace()));
         return ProjectionResponse.of(
                 databaseServiceClient.updateProjection(userId, projectionId, request));
+    }
+
+    private static UpdateProjectionRequest.PlayerIdSpaceEnum updateSpaceOf(PlayerIdSpace space) {
+        return UpdateProjectionRequest.PlayerIdSpaceEnum.valueOf(space.name());
     }
 
     /**

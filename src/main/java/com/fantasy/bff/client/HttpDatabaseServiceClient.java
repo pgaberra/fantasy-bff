@@ -26,6 +26,8 @@ import com.fantasy.bff.generated.db.model.GrantPremiumRequest;
 import com.fantasy.bff.generated.db.model.PremiumCustomerResponse;
 import com.fantasy.bff.generated.db.model.PremiumEntitlementResponse;
 import com.fantasy.bff.generated.db.model.PremiumGrantResponse;
+import com.fantasy.bff.generated.db.model.PendingCheckoutResponse;
+import com.fantasy.bff.generated.db.model.ReplacePendingCheckoutRequest;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
@@ -400,6 +402,40 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
+    public Optional<PendingCheckoutResponse> getPendingCheckout(UUID userId) {
+        try {
+            PendingCheckoutResponse response = restClient.get()
+                    .uri("/api/v1/users/{userId}/pending-checkout", userId)
+                    .retrieve()
+                    .body(PendingCheckoutResponse.class);
+            return Optional.ofNullable(response);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public boolean replacePendingCheckout(UUID userId, ReplacePendingCheckoutRequest request) {
+        try {
+            restClient.put()
+                    .uri("/api/v1/users/{userId}/pending-checkout", userId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 409) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    @Override
     public PremiumEntitlementResponse getPremiumEntitlement(UUID userId) {
         return restClient.get()
                 .uri("/api/v1/users/{userId}/premium", userId)
@@ -435,10 +471,14 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
-    public PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun) {
+    public PlayerIdRemapResponse remapPlayerIds(List<PlayerIdPair> mappings, boolean dryRun,
+                                                com.fantasy.bff.service.PlayerIdSpace from,
+                                                com.fantasy.bff.service.PlayerIdSpace to) {
         return migrationClient.post()
                 .uri("/api/v1/admin/player-ids/remap")
-                .body(new PlayerIdRemapRequest().mappings(mappings).dryRun(dryRun))
+                .body(new PlayerIdRemapRequest().mappings(mappings).dryRun(dryRun)
+                        .from(PlayerIdRemapRequest.FromEnum.valueOf(from.name()))
+                        .to(PlayerIdRemapRequest.ToEnum.valueOf(to.name())))
                 .retrieve()
                 .body(PlayerIdRemapResponse.class);
     }

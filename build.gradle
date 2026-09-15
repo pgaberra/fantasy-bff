@@ -228,10 +228,17 @@ idea {
 	}
 }
 
-compileJava.dependsOn tasks.openApiGenerate
-compileJava.dependsOn tasks.generateYahooClient
-compileJava.dependsOn tasks.generateEspnClient
-compileJava.dependsOn tasks.generateProjectionClient
+// Every OpenAPI client, found by type rather than listed by name. compileJava and Qodana's
+// workflow both depend on this one task, so a fifth generator is picked up by both the moment
+// it is registered. Qodana scanned without two of the four for a month because its workflow
+// named the generators one by one and nobody added the new ones there (#228).
+tasks.register('generateOpenApiClients') {
+	group = 'build'
+	description = 'Generates every downstream OpenAPI client from its pinned spec.'
+	dependsOn tasks.withType(org.openapitools.generator.gradle.plugin.tasks.GenerateTask)
+}
+
+compileJava.dependsOn tasks.generateOpenApiClients
 
 // Static analysis (SpotBugs + FindSecBugs). Generated OpenAPI clients and a few
 // non-actionable patterns are excluded (see config/spotbugs/exclude.xml); the build

@@ -6,6 +6,7 @@ import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import java.net.URI;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -107,7 +108,7 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     }
 
     @Override
-    public List<SkaterSplitResponse> skaterSplits(int season, GameRange range, int limit) {
+    public List<SkaterSplitResponse> skaterSplits(Integer season, GameRange range, int limit) {
         return restClient.get()
                 .uri(b -> splits(b, "/api/v1/splits/skaters", season, range, limit))
                 .retrieve()
@@ -115,21 +116,39 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
     }
 
     @Override
-    public List<GoalieSplitResponse> goalieSplits(int season, GameRange range, int limit) {
+    public List<GoalieSplitResponse> goalieSplits(Integer season, GameRange range, int limit) {
         return restClient.get()
                 .uri(b -> splits(b, "/api/v1/splits/goalies", season, range, limit))
                 .retrieve()
                 .body(GOALIE_SPLITS);
     }
 
+    @Override
+    public SplitSeasonsResponse splitSeasons(Integer targetSeason) {
+        return restClient.get()
+                .uri(b -> {
+                    b.path("/api/v1/splits/seasons");
+                    if (targetSeason != null) {
+                        b.queryParam("target_season", targetSeason);
+                    }
+                    return b.build();
+                })
+                .retrieve()
+                .body(SplitSeasonsResponse.class);
+    }
+
     /**
      * Unset bounds are left off the query entirely rather than sent as nulls — the service
      * reads an absent bound as "the whole season", and rejects a request that carries both a
-     * last_games shorthand and an explicit range.
+     * last_games shorthand and an explicit range. An unset season is left off too: the service
+     * then reads the newest season with a game played.
      */
     private static URI splits(
-            UriBuilder builder, String path, int season, GameRange range, int limit) {
-        builder.path(path).queryParam("season", season).queryParam("limit", limit);
+            UriBuilder builder, String path, Integer season, GameRange range, int limit) {
+        builder.path(path).queryParam("limit", limit);
+        if (season != null) {
+            builder.queryParam("season", season);
+        }
         if (range.fromGame() != null) {
             builder.queryParam("from_game", range.fromGame());
         }

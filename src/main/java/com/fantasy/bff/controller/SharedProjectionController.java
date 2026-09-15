@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.config.PlayerAvatarsProperties;
 import com.fantasy.bff.service.RookieService;
 import com.fantasy.bff.service.ShareCardRenderer;
 import com.fantasy.bff.service.SharedBoardFilters;
@@ -65,14 +66,20 @@ public class SharedProjectionController {
      * tags, so named placeholders beat a dozen positional ones — and a format string full of
      * literal newlines is exactly what a bot expects in an HTTP body, not the platform newline
      * {@code %n} would give it.
+     *
+     * <p>{@code noindex} and no canonical link: a share is for the people its author sends the
+     * link to, and the share dialog never says the page could turn up in search. Search crawlers
+     * are routed here like the preview bots (nginx matches Googlebot, Bingbot and Applebot too),
+     * so this document is what keeps a share's name and its author's username out of results.
+     * Preview bots ignore the tag, so links still unfurl.
      */
     private static final String PREVIEW_TEMPLATE = """
             <!doctype html>
             <html lang="en">
               <head>
                 <meta charset="utf-8" />
+                <meta name="robots" content="noindex" />
                 <title>{{title}}</title>
-                <link rel="canonical" href="{{url}}" />
                 <meta name="description" content="{{description}}" />
                 <meta property="og:type" content="article" />
                 <meta property="og:site_name" content="SlapStat" />
@@ -95,15 +102,18 @@ public class SharedProjectionController {
     private final DatabaseServiceClient databaseServiceClient;
     private final ShareCardRenderer shareCardRenderer;
     private final RookieService rookieService;
+    private final PlayerAvatarsProperties avatars;
     private final String webBaseUrl;
 
     public SharedProjectionController(DatabaseServiceClient databaseServiceClient,
                                       ShareCardRenderer shareCardRenderer,
                                       RookieService rookieService,
+                                      PlayerAvatarsProperties avatars,
                                       @Value("${app.web-base-url}") String webBaseUrl) {
         this.databaseServiceClient = databaseServiceClient;
         this.shareCardRenderer = shareCardRenderer;
         this.rookieService = rookieService;
+        this.avatars = avatars;
         this.webBaseUrl = webBaseUrl;
     }
 
@@ -164,13 +174,14 @@ public class SharedProjectionController {
         com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
                 databaseServiceClient.getSharedProjection(token);
         Set<Integer> rookieIds = rookieIds();
+        boolean headshots = avatars.enabled();
         if (isSignedIn(authentication)) {
-            return SharedProjectionResponse.full(shared, rookieIds);
+            return SharedProjectionResponse.full(shared, rookieIds, headshots);
         }
         SharedBoardFilters filters = new SharedBoardFilters(
                 position, search, team, Boolean.TRUE.equals(rookies) ? rookieIds : null);
         return SharedProjectionResponse.preview(
-                shared, filters, sort, direction, ANONYMOUS_PREVIEW_ROWS, rookieIds);
+                shared, filters, sort, direction, ANONYMOUS_PREVIEW_ROWS, rookieIds, headshots);
     }
 
     /**
@@ -238,6 +249,9 @@ public class SharedProjectionController {
                 // Crawlers refetch this far more often than the snapshot changes, and a stale card
                 // for an hour after a re-share is a better trade than rendering on every hit.
                 .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                // Kept out of image search for the same reason the preview is noindex: the card
+                // names the projection and its author. A PNG has no meta tag, so a header it is.
+                .header("X-Robots-Tag", "noindex")
                 .contentType(MediaType.IMAGE_PNG)
                 .body(card);
     }

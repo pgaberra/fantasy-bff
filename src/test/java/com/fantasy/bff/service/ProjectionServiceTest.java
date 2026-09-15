@@ -2,7 +2,9 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.AiProjectionProperties;
+import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.GoalieResponse;
@@ -32,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -89,13 +92,19 @@ class ProjectionServiceTest {
     }
 
     private ProjectionService serviceWithAiProjection(boolean enabled) {
+        return serviceWith(enabled, true);
+    }
+
+    private ProjectionService serviceWith(boolean aiProjectionEnabled, boolean modelPrefixEnabled) {
         return new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
                 playerPool,
                 reconciler,
                 seedService,
-                new AiProjectionProperties(enabled),
+                new AiProjectionAvailability(
+                        new AiProjectionProperties(aiProjectionEnabled),
+                        new SecurityProperties(null, null, null, modelPrefixEnabled)),
                 entitlementService,
                 SEASON,
                 MODEL_VERSION);
@@ -172,23 +181,55 @@ class ProjectionServiceTest {
 
     /**
      * Reading is where a projection meets the pool as it is today, so a read that had to square
-     * the two saves the result — otherwise every later read would redo the same work — and says
-     * how much moved, which is the only chance the client gets to tell the user.
+     * the two saves the result — otherwise every later read would redo the same work — and keeps
+     * who was added until the owner acknowledges them, so the app can go on saying so.
      */
     @Test
-    void aReadThatSquaredTheRowsWithThePoolSavesThemAndSaysWhatMoved() {
+    void aReadThatSquaredTheRowsWithThePoolSavesThemAndKeepsWhoWasAdded() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
-        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12)));
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
                 .thenReturn(stored);
 
         var response = projectionService.get(USER_ID, PROJECTION_ID);
 
-        assertThat(response.poolReconciliation().added()).isEqualTo(12);
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(7, 8);
         ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
         verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
         assertThat(saved.getValue().getData().getPlayers()).isEqualTo(stored.getData().getPlayers());
+        assertThat(saved.getValue().getData().getProjectionSettings().getUnacknowledgedNewPlayerIds())
+                .containsExactly(7, 8);
+    }
+
+    /** A second pool change before the owner looked adds to the notice rather than replacing it. */
+    @Test
+    void playersAddedBeforeTheLastOnesWereAcknowledgedAreAddedToThem() {
+        ProjectionResponse stored = storedProjection();
+        stored.getData().getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(3, 7));
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(3, 7, 8);
+    }
+
+    /** A pool change that added nobody leaves an unread notice exactly as it was. */
+    @Test
+    void aReadThatAddedNobodyLeavesTheUnacknowledgedPlayersAlone() {
+        ProjectionResponse stored = storedProjection();
+        stored.getData().getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(3));
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of())));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(3);
     }
 
     /** Saving the reconciliation is our business, not the caller's — losing it costs them nothing. */
@@ -196,7 +237,7 @@ class ProjectionServiceTest {
     void servesTheReconciledRowsEvenIfSavingThemFails() {
         ProjectionResponse stored = storedProjection();
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
-        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(12)));
+        when(reconciler.reconcile(stored.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
                 .thenThrow(new IllegalStateException("db-service is down"));
 
@@ -204,7 +245,48 @@ class ProjectionServiceTest {
 
         assertThat(response.data())
                 .isEqualTo(com.fantasy.bff.dto.response.ProjectionData.from(stored.getData()));
-        assertThat(response.poolReconciliation().added()).isEqualTo(12);
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).containsExactly(7, 8);
+    }
+
+    /**
+     * Between the id remap and this BFF serving the new pool, the stored rows and the pool are
+     * numbered by different platforms. Squared anyway, every pool player would be added under
+     * the other ids beside the stored rows, and that saved mixture cannot be taken apart again.
+     */
+    @Test
+    void aProjectionKeyedByAnotherPlatformIsServedWithoutSquaringOrSaving() {
+        ProjectionResponse stored = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        assertThat(response.data()).isEqualTo(com.fantasy.bff.dto.response.ProjectionData.from(stored.getData()));
+        verifyNoInteractions(reconciler);
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    @Test
+    void anImportKeyedByAnotherPlatformIsNotSquared() {
+        ProjectionResponse imported = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+
+        verifyNoInteractions(reconciler);
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    /** The rows a client saves came from this BFF's pool, so they carry its numbering to db-service. */
+    @Test
+    void anUpdateIsSentWithThePoolsNumbering() {
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(storedProjection());
+
+        projectionService.update(USER_ID, PROJECTION_ID, new UpdateProjectionRequest().name("My Projection"));
+
+        ArgumentCaptor<UpdateProjectionRequest> sent = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), sent.capture());
+        assertThat(sent.getValue().getPlayerIdSpace()).isEqualTo(UpdateProjectionRequest.PlayerIdSpaceEnum.YAHOO);
     }
 
     @Test
@@ -213,9 +295,71 @@ class ProjectionServiceTest {
         when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
         when(reconciler.reconcile(stored.getData())).thenReturn(Optional.empty());
 
-        var response = projectionService.get(USER_ID, PROJECTION_ID);
+        projectionService.get(USER_ID, PROJECTION_ID);
 
-        assertThat(response.poolReconciliation()).isNull();
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    /**
+     * The model covers fewer players than the pool. Left to the first read, the ones it lacked
+     * were added there and reported as having joined since the projection was created, seconds
+     * earlier. Squared before it is written, the first read has nothing to report.
+     */
+    @Test
+    void aNewProjectionIsSquaredWithThePoolBeforeItIsWritten() {
+        PlayerProjection projected = new PlayerProjection().playerId(4242).type(PlayerProjection.TypeEnum.SKATER);
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
+        PlayerProjection lacked = new PlayerProjection().playerId(9).type(PlayerProjection.TypeEnum.SKATER);
+        when(reconciler.reconcile(any())).thenAnswer(invocation -> {
+            ProjectionData data = invocation.getArgument(0);
+            data.setPlayers(Stream.concat(data.getPlayers().stream(), Stream.of(lacked)).toList());
+            return Optional.of(new Reconciliation(List.of(9)));
+        });
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
+
+        assertThat(capturedPlayers()).extracting(PlayerProjection::getPlayerId).containsExactly(4242, 9);
+        assertThat(capturedSettings().getUnacknowledgedNewPlayerIds()).isNull();
+    }
+
+    /** A copied board brings its source's settings, and the source's unread notice is not the copy's. */
+    @Test
+    void aCopyDoesNotInheritItsSourcesUnacknowledgedPlayers() {
+        PlayerProjection own = new PlayerProjection().playerId(7).type(PlayerProjection.TypeEnum.SKATER);
+        ProjectionData copied = dataWith(own);
+        copied.getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(7));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(copied, null));
+
+        assertThat(capturedSettings().getUnacknowledgedNewPlayerIds()).isNull();
+    }
+
+    /** A shared board is the author's pool, not ours, so it is squared and saved as it arrives. */
+    @Test
+    void anImportIsSquaredWithThePoolAndSavedWithoutReportingIt() {
+        ProjectionResponse imported = storedProjection();
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+        when(reconciler.reconcile(imported.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(imported);
+
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+
+        ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
+        assertThat(saved.getValue().getData().getProjectionSettings().getUnacknowledgedNewPlayerIds()).isNullOrEmpty();
+    }
+
+    @Test
+    void anImportAlreadySquaredWithThePoolIsNotWrittenAgain() {
+        ProjectionResponse imported = storedProjection();
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+        when(reconciler.reconcile(imported.getData())).thenReturn(Optional.empty());
+
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
     }
 
@@ -370,6 +514,25 @@ class ProjectionServiceTest {
         // asked and nothing reaches the database.
         verifyNoInteractions(seedService);
         verifyNoInteractions(databaseServiceClient);
+    }
+
+    /**
+     * The seed endpoint is closed with the model prefix, and a model-seeded projection is the
+     * same lines by another door. Leaving it open would serve the model in an environment that
+     * decided not to, and have the web offer a preset whose preview is refused.
+     */
+    @Test
+    @DisplayName("model source is refused when the model endpoints are closed, even with the AI projection on")
+    void withModelSource_whenTheModelPrefixIsClosed_isRefused() {
+        ProjectionService service = serviceWith(true, false);
+
+        assertThatThrownBy(() -> service.create(USER_ID, request(emptyData(), ProjectionSource.MODEL)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("switched off");
+
+        verifyNoInteractions(seedService);
+        verifyNoInteractions(databaseServiceClient);
+        verifyNoInteractions(entitlementService);
     }
 
     @Test

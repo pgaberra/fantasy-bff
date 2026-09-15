@@ -17,6 +17,13 @@ public interface PaymentProvider {
     /** Creates a hosted-checkout session and returns the URL the browser should be sent to. */
     CheckoutSession createCheckoutSession(CheckoutRequest request);
 
+    /**
+     * Whether the checkout with this reference can still be paid, so that another checkout for
+     * the same account reuses it instead of opening a second one that could also be paid. A
+     * provider that cannot tell answers false, which opens a new checkout as before.
+     */
+    boolean isCheckoutOpen(String reference);
+
     /** Creates a hosted management-portal session and returns the URL to redirect to. */
     PortalSession createPortalSession(PortalRequest request);
 

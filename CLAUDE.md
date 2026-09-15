@@ -30,11 +30,13 @@ model). The **player pool** comes from whichever platform `players.source` names
 
 ## Tech stack
 
-- Java 25, Spring Boot 4.0.5, Gradle (wrapper: `./gradlew`)
-- Spring Security + JWT (jjwt 0.12.6, HS256)
+Versions live in `build.gradle` and nowhere else, so they are not repeated here.
+
+- Java 25, Spring Boot 4, Gradle (wrapper: `./gradlew`)
+- Spring Security + JWT (jjwt, HS256)
 - Spring WebMVC (virtual threads enabled), `RestClient` for downstream calls
 - springdoc OpenAPI / Swagger UI
-- openapi-generator 7.13.0 (generates model POJOs from `specs/` at compile time)
+- openapi-generator (generates model POJOs from `specs/` at compile time)
 - Tests: JUnit 5, Spring Boot Test, MockMvc, WireMock (standalone), H2 not used here
 
 ## Common commands
@@ -43,13 +45,16 @@ model). The **player pool** comes from whichever platform `players.source` names
 ./gradlew build          # compile + test (CI runs: ./gradlew build --no-daemon)
 ./gradlew test           # tests only
 
-# Run locally (start Postgres + db-service + yahoo-service first — see those repos):
-SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> ./gradlew bootRun
+# Run locally (start the downstreams first — see those repos). Startup fails without
+# JWT_SECRET and all four internal keys, each matching that service's own INTERNAL_API_KEY:
+SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> DB_INTERNAL_API_KEY=… YAHOO_INTERNAL_API_KEY=… \
+  ESPN_INTERNAL_API_KEY=… PROJECTION_INTERNAL_API_KEY=… ./gradlew bootRun
 
-./gradlew openApiGenerate          # regenerate db-service models from specs/
-./gradlew generateYahooClient      # yahoo-service
-./gradlew generateEspnClient       # espn-service
-./gradlew generateProjectionClient # projection-service
+./gradlew generateOpenApiClients   # regenerate every downstream client from specs/
+./gradlew openApiGenerate          # just db-service
+./gradlew generateYahooClient      # just yahoo-service
+./gradlew generateEspnClient       # just espn-service
+./gradlew generateProjectionClient # just projection-service
 ```
 
 Swagger UI (when running): `http://localhost:8080/swagger-ui.html`
@@ -133,7 +138,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     appended (Paddle's fully hosted checkout is for mobile apps only), and the user is carried
     through Paddle in the transaction's `custom_data`, which Paddle copies onto the created
     subscription and then onto every renewal — that, not a customer record kept in step, is
-    how a webhook names the user it belongs to. `PaddleSignatureVerifier` checks the
+    how a webhook names the user it belongs to. A buyer whose email is **verified** also gets
+    their Paddle customer (found or created by email) attached to the transaction, which fills
+    in the email on the checkout; that needs `customer.read` + `customer.write` on the API key,
+    and a lookup that fails is logged at ERROR and the checkout opens without a customer.
+    An unverified email is never sent: it could name someone else's customer and open their
+    billing portal to this account. `PaddleSignatureVerifier` checks the
     `Paddle-Signature` header, which signs `<timestamp>:<raw body>`; it bounds the timestamp's
     age too, because a signature on its own stays valid forever and could be replayed.
   - `ProjectionModelController` — `/api/v1/projection-model`: the projection service's output
@@ -141,13 +151,20 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     to save as a new projection — deliberately without scoring settings, which belong to the
     user's league. `/splits/{skaters,goalies}` return what players **actually produced** over
     a stretch of games — measured, not projected. Ranges are team game numbers so the same
-    range means the same stretch for everyone, and splits default one season *back* from the
-    projected one, since that is the season with games in it.
-    `/seed` **404s unless `ai-projection.enabled`** (`AI_PROJECTION_ENABLED`, on by default),
-    which is the same switch that refuses `source=model` in `ProjectionService.create` and
-    that the web reads to drop the AI preset. It does **not** cover the splits: those are
-    measured numbers behind Who's hot and stay up. Whether anyone may read the prefix at all
-    is the separate `security.projection-model-enabled`.
+    range means the same stretch for everyone, and `lastGames` is each team's own last N, so it
+    means the same mid-season. A split with **no season is left to projection-service**, which
+    reads the newest season with a game played: last season until the new one is underway.
+    `/splits/seasons` lists each season's own length (82, or 84 from 2026-27) and how far it has
+    got, which is where the web takes both from; no season length lives in this repo.
+    **Whether the AI projection is served at all is one answer, `AiProjectionAvailability`**:
+    `ai-projection.enabled` (`AI_PROJECTION_ENABLED`, on by default) *and*
+    `security.projection-model-enabled` (`PROJECTION_MODEL_ENABLED`, off by default, which also
+    closes the whole prefix). `/seed` 404s without it, `source=model` in
+    `ProjectionService.create` is refused without it, and public `GET /api/v1/features`
+    reports it as `aiProjection`, which is what the web reads to offer or drop the AI preset.
+    The web has no switch of its own, so the two cannot disagree. `ai-projection.enabled` does
+    **not** cover the splits: those are measured numbers behind Who's hot and stay up while the
+    prefix is open.
     **The model's lines are premium**, and there are two ways to them that share no code, so
     both are gated: `/seed`, which hands them to the new-projection page, and `source=model`
     in `ProjectionService.create`, which fills a projection or a preset draft with them
@@ -159,8 +176,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stays visible to a free account, marked and sold, so the server is what makes it a refusal
     rather than a missing button, and anyone reading the network tab meets the same answer.
     The splits carry a switch of their own: **which stretch** they measure is premium. A free
-    account gets the last 5 games (`lastGames<=5`, or a `fromGame`/`toGame` window inside
-    games 78-82 — every NHL season is 82 games, so that needs no lookup); anything else is
+    account gets the last 5 games (`lastGames<=5`, or a `fromGame`/`toGame` window of five or
+    fewer inside the last five of its own season: 78-82 in 2025-26, 80-84 from 2026-27, so the
+    length is asked of projection-service, and only for a window short enough to be free); anything else is
     **403 `PREMIUM_REQUIRED`**, including an open range, which means the whole season. Two
     orderings matter and are tested: the range is judged *before* the subscription is read, so
     a free account's own requests cost db-service nothing, and `payments.enabled` is read
@@ -221,6 +239,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     hides. Each pool drops the URL for a player it has no picture for — roughly one in seven on
     ESPN — so an address that arrives is one that resolves, and the web falls back to initials
     for the rest.
+  - **All of that is switched off by default** (`players.avatars.enabled`,
+    `PLAYER_AVATARS_ENABLED`, `PlayerAvatarsProperties`): the pictures are the platform's
+    photographs and we hold no licence to show them. Off, `PlayerService` sends every player
+    without a headshot and answers the endpoint with nothing before touching the cache or the
+    pool, and `SharedProjectionController` strips the address a share snapshot stored. The web
+    has no switch of its own; a missing headshot already draws initials.
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.
@@ -262,9 +286,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     rule (projection-service decides; see its `rookies.py`). It reads the same cached NHL-side
     context the game-range splits are built on, so the answer costs nothing extra. The response
     carries `known` because "nobody is a rookie" and "we cannot say" are different answers that
-    would otherwise arrive as the same empty list — **production runs with projection-service
-    stopped, so `known: false` is the ordinary answer there**, and a client that ignored it
-    would mark an entire league as veterans.
+    would otherwise arrive as the same empty list — **`known: false` is the answer whenever
+    projection-service cannot be reached or fails**, and a client that ignored it would mark an
+    entire league as veterans.
   - `ProjectionPoolReconciler` — keeps a saved projection's rows in step with the pool, which
     moves under it all season (a new roster in the autumn, trades and call-ups after). It **only
     ever adds**: a row whose player has left the pool stays where it is and is simply not shown
@@ -276,8 +300,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stamped at create from `source`; a projection saved before it existed is read off its own
     rows (almost all zeros → started from scratch). Guarded by `playerPoolSyncedAt` against the
     latest successful sync run, so the full pool read happens at most once per projection per
-    sync rather than on every open; the result is written back and reported to the caller as
-    `poolReconciliation`, which is the client's one chance to tell the user. A pool that cannot
+    sync rather than on every open; the result is written back, and the players a read added are
+    appended to the settings' `unacknowledgedNewPlayerIds`, where they stay until the client sends
+    the list back empty. That list, not a one-off response field, is what the app's "Player list
+    updated" notice reads, so it survives a reload and another device. A new projection is
+    squared **before it is written** (on create, and on import straight after db-service copies
+    it), with nothing reported: a starting point that does not cover the whole pool, like the
+    model's lines or a shared board, would otherwise have its first read announce the players it
+    lacked as having joined since it was created. A pool that cannot
     be read — or comes back empty — leaves the projection alone rather than dropping every row
     it cannot account for.
 - `client/` — downstream clients. Each is an **interface** plus an **http**
@@ -327,7 +357,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   `services.projection.season` (the season the model projects), **the CORS
   allowlist** (`${CORS_ALLOWED_ORIGINS:${WEB_ORIGIN:}}`) and **the API-docs gate**
   (`${SWAGGER_ENABLED:false}`).
-- **`dev`**: enables + permits Swagger and allows CORS from `http://localhost:4200`.
+- **`dev`**: enables + permits Swagger, allows CORS from `http://localhost:4200`, and is the
+  only place `RESEND_API_KEY` may be blank — it sets `email.log-links`, so reset and
+  verification links go to the log instead. Those links carry live tokens: never set it on a
+  deployed environment.
 - **`staging`**: a QA convenience only — it permits the API-doc URLs (staging pairs it with
   `SWAGGER_ENABLED=true`). No downstream timeout overrides — the services are co-located on
   the Docker network, so the base timeouts apply.
@@ -343,6 +376,14 @@ Adding config that a deployed environment needs? Put it in `application.yaml` be
 var — never in a profile.
 
 `JWT_SECRET` must be ≥32 chars (HS256) and is supplied per environment as a Coolify env var.
+
+**Required secrets fail fast.** `JWT_SECRET`, the four `*_INTERNAL_API_KEY`s
+(`InternalApiKeyProperties`) and `RESEND_API_KEY` (`EmailProperties`) have no default, so a
+missing or blank value stops startup. The Paddle, mock-payment, Google and Facebook secrets
+keep empty defaults because their features fail closed without them; the list is at the top of
+`application.yaml`. Once up, `DownstreamKeyVerifier` asks each downstream whether it accepts
+our key; a 401 moves readiness to `REFUSING_TRAFFIC`, which `/actuator/health` includes, so the
+container health check fails and the deploy rolls back.
 
 ## Conventions
 
@@ -440,12 +481,13 @@ committed. Never merge a PR titled "wip"/"draft".
 
 ## Deployment
 
-- Dockerized (multi-stage `Dockerfile`), deployed via **Coolify** (Hetzner) as a web
-  service (`SPRING_PROFILES_ACTIVE=staging`) on both prod (`api.slapstat.com`) and staging
-  (`api.staging.slapstat.com`). See `DEPLOYMENT.md`. Requires a `*_SERVICE_URL` +
-  `*_INTERNAL_API_KEY` pair per downstream (`DATABASE_`, `YAHOO_`, `ESPN_`, `PROJECTION_`) —
-  the internal URLs use the services' Docker network aliases
-  (`http://db-service:8086`, `http://yahoo-service:8088`, `http://espn-service:8090`).
-  Each `*_INTERNAL_API_KEY` is the
-  value the matching downstream service exposes as its own `INTERNAL_API_KEY`.
-- Health check: `/actuator/health`.
+- Dockerized (multi-stage `Dockerfile`), deployed via **Coolify** (Hetzner) as a web service
+  on prod (`api.slapstat.com`) and staging (`api.staging.slapstat.com`). **Production runs
+  with no profile**; staging sets `SPRING_PROFILES_ACTIVE=staging` only to permit the API-doc
+  URLs (see [Profiles & config](#profiles--config-srcmainresourcesapplicationyaml)).
+- `DEPLOYMENT.md` lists every variable, with secret / required / default. Each downstream
+  needs a `*_SERVICE_URL` + `*_INTERNAL_API_KEY` pair (`DATABASE_`/`DB_`, `YAHOO_`, `ESPN_`,
+  `PROJECTION_`); the URLs use the services' Docker network aliases (`http://db-service:8086`,
+  `http://yahoo-service:8088`, `http://espn-service:8090`, `http://projection-service:8092`),
+  and each key is the value that service holds as its own `INTERNAL_API_KEY`.
+- Health check: `/actuator/health`, which includes readiness (see the fail-fast note above).

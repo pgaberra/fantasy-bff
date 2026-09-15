@@ -1,5 +1,6 @@
 package com.fantasy.bff.service;
 
+import com.fantasy.bff.config.PlayerAvatarsProperties;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import org.slf4j.Logger;
@@ -25,14 +26,17 @@ public class PlayerService {
     private final PlayerPoolSource playerPool;
     private final HeadshotCache headshots;
     private final PlayerSplitContextProvider playerContext;
+    private final boolean avatarsEnabled;
 
     public PlayerService(
             PlayerPoolSource playerPool,
             HeadshotCache headshots,
-            PlayerSplitContextProvider playerContext) {
+            PlayerSplitContextProvider playerContext,
+            PlayerAvatarsProperties avatars) {
         this.playerPool = playerPool;
         this.headshots = headshots;
         this.playerContext = playerContext;
+        this.avatarsEnabled = avatars.enabled();
     }
 
     /**
@@ -53,6 +57,7 @@ public class PlayerService {
             return capped(playerPool.getSkaters(limit).stream()
                     .map(skater -> onCurrentTeam(skater, teams.get(skater.id()),
                             SkaterResponse::teamAbbrev, SkaterResponse::withTeamAbbrev))
+                    .map(skater -> avatarsEnabled ? skater : skater.withoutHeadshot())
                     .sorted(Comparator
                             .comparingInt((SkaterResponse skater) -> skater.stats().scoring().points())
                             .reversed()
@@ -71,6 +76,7 @@ public class PlayerService {
             return capped(playerPool.getGoalies(limit).stream()
                     .map(goalie -> onCurrentTeam(goalie, teams.get(goalie.id()),
                             GoalieResponse::teamAbbrev, GoalieResponse::withTeamAbbrev))
+                    .map(goalie -> avatarsEnabled ? goalie : goalie.withoutHeadshot())
                     .sorted(Comparator
                             .comparingInt((GoalieResponse goalie) -> goalie.stats().scoring().w())
                             .thenComparingInt(goalie -> goalie.stats().scoring().sv())
@@ -142,8 +148,15 @@ public class PlayerService {
      * Nothing is hidden by that: a source genuinely down fails the skater and goalie reads too,
      * which every reader hits before an avatar and which do still fault loudly, and the reason
      * this one gave is logged. Nothing is remembered either, so the next reader tries again.
+     *
+     * <p>Where avatars are switched off ({@link PlayerAvatarsProperties}) there is never a picture,
+     * and the platform is not asked for one: an address a player list handed out before the switch,
+     * or one a share snapshot stored, must not keep drawing the platform's photographs.
      */
     public Optional<byte[]> getHeadshot(int playerId) {
+        if (!avatarsEnabled) {
+            return Optional.empty();
+        }
         Optional<byte[]> held = headshots.get(playerId);
         if (held.isPresent()) {
             return held;

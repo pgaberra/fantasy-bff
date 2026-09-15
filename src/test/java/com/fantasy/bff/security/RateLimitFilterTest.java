@@ -30,6 +30,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "security.jwt.secret=test-secret-key-that-is-long-enough-for-hmac-sha256-algorithm",
+        "services.database.api-key=test-db-key",
+        "services.yahoo-fantasy.api-key=test-yahoo-key",
+        "services.espn-fantasy.api-key=test-espn-key",
+        "services.projection.api-key=test-projection-key",
+        "email.resend.api-key=",
+        "email.log-links=true",
         "security.rate-limit.enabled=true",
         "security.rate-limit.endpoints[/api/v1/auth/login].limit=2",
         "security.rate-limit.endpoints[/api/v1/auth/login].window-seconds=60",

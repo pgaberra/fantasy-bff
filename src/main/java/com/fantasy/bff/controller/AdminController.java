@@ -6,6 +6,7 @@ import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.request.AdminGrantPremiumRequest;
 import com.fantasy.bff.dto.response.AdminPremiumCustomerResponse;
 import com.fantasy.bff.dto.response.AdminPremiumGrantResponse;
+import com.fantasy.bff.dto.response.ErrorDto;
 import com.fantasy.bff.dto.response.PlayerIdRemapReport;
 import com.fantasy.bff.service.AdminPremiumService;
 import com.fantasy.bff.service.PlayerIdRemapService;
@@ -17,6 +18,8 @@ import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -153,24 +156,32 @@ public class AdminController {
             description = "Hands you a league key for the probe without hunting for one, and is "
                     + "itself a test: succeeding here while a game probe is refused places the "
                     + "refusal on what was asked for rather than on who asked.")
-    @ApiResponse(responseCode = "200", description = "Leagues returned")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Leagues returned"),
+            @ApiResponse(responseCode = "424", description = YahooController.REFUSED,
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
     @GetMapping("/yahoo/leagues")
     public LeaguesResponse yahooServiceAccountLeagues() {
         return yahooServiceClient.leagues(SERVICE_ACCOUNT_ID);
     }
 
-    @Operation(summary = "Remap saved player ids from Yahoo's numbering to ESPN's",
-            description = "Matches the Yahoo player pool to the ESPN one and rewrites the ids in "
-                    + "every saved projection, draft pick and share. Reports the match before the "
-                    + "write, and defaults to a dry run: pass dryRun=false to actually apply it. "
-                    + "A one-way move — the app should be serving the ESPN pool afterwards.")
+    @Operation(summary = "Remap saved player ids from one platform's numbering to the other's",
+            description = "Matches the two player pools and rewrites the ids in every saved "
+                    + "projection, draft pick and share still on the other platform's numbering. "
+                    + "Reports the match before the write, and defaults to a dry run: pass "
+                    + "dryRun=false to actually apply it. The app should be serving the `to` "
+                    + "platform's pool afterwards, so switch PLAYERS_SOURCE with it.")
     @ApiResponse(responseCode = "200", description = "Match reported, and applied unless it was a dry run")
-    @ApiResponse(responseCode = "502", description = "Either pool came back short, or too little of the Yahoo pool matched to apply")
+    @ApiResponse(responseCode = "502", description = "Either pool came back short, or too little of the pool being left matched to apply")
     @PostMapping("/player-ids/remap")
     public PlayerIdRemapReport remapPlayerIds(
             @Parameter(description = "Write nothing and report what would change. Defaults to true.")
-            @RequestParam(defaultValue = "true") boolean dryRun) {
-        return playerIdRemapService.remap(dryRun);
+            @RequestParam(defaultValue = "true") boolean dryRun,
+            @Parameter(description = "The numbering to move stored rows into. Defaults to ESPN, the "
+                    + "direction the first migration went.")
+            @RequestParam(defaultValue = "ESPN") com.fantasy.bff.service.PlayerIdSpace to) {
+        return playerIdRemapService.remap(dryRun, to);
     }
 
     @Operation(summary = "Everyone with premium right now",

@@ -29,8 +29,10 @@ jobs:
 
       # Generate the OpenAPI client sources before Qodana imports the Gradle project,
       # so files referencing com.fantasy.bff.generated.* resolve during analysis.
+      # generateOpenApiClients covers every generator task in build.gradle; naming them one
+      # by one here is how the ESPN and projection-service clients went missing (#228).
       - name: Generate OpenAPI clients
-        run: ./gradlew openApiGenerate generateYahooClient --no-daemon
+        run: ./gradlew generateOpenApiClients --no-daemon
 
       # Report-only: surfaces simplification/optimization findings in the run summary +
       # SARIF artifact for human review. Never fails the run — several of these

@@ -32,8 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * An environment with AI_PROJECTION_ENABLED=false must refuse the model's own lines rather than
- * merely hide the preset in the web: the web's copy of the switch is a build flag, so a request
- * that skips the UI would otherwise still be served.
+ * merely have the web hide the preset: a request that skips the UI would otherwise still be served.
  *
  * <p>The prefix is left readable here (security.projection-model-enabled=true) on purpose —
  * otherwise the 403 from that switch would hide whether this one does anything at all.
@@ -70,6 +69,14 @@ class AiProjectionDisabledTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("and the environment reports the AI projection as unavailable")
+    void features_reportItUnavailable() throws Exception {
+        mockMvc.perform(get("/api/v1/features"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aiProjection").value(false));
+    }
+
+    @Test
     @DisplayName("and the projection service is never asked for them")
     void seed_neverReachesTheProjectionService() throws Exception {
         mockMvc.perform(get("/api/v1/projection-model/seed").header("Authorization", "Bearer " + token));
@@ -90,7 +97,7 @@ class AiProjectionDisabledTest extends BaseIntegrationTest {
         split.setSeason(2025);
         split.setGames(20);
         split.setPoints(33);
-        when(projectionServiceClient.skaterSplits(anyInt(), any(GameRange.class), anyInt()))
+        when(projectionServiceClient.skaterSplits(any(), any(GameRange.class), anyInt()))
                 .thenReturn(List.of(split));
         when(playerServiceClient.getSkaters(nullable(Integer.class)))
                 .thenReturn(List.of(new SkaterResponse(5000, "Connor McDavid", "EDM", null, 97, Set.of(), null)));

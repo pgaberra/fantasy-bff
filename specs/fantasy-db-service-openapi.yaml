@@ -15,6 +15,8 @@ tags:
 - name: Premium
   description: "Premium access: what a user is entitled to, and grants handed out\
     \ by an admin"
+- name: Pending checkouts
+  description: The one checkout a user has open with the payment provider
 - name: User avatars
   description: The account's profile picture
 - name: Subscriptions
@@ -300,7 +302,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: The user already has another projection with that name
+          description: "The user already has another projection with that name, or\
+            \ the rows were built from another platform's player pool than the stored\
+            \ projection is keyed by"
           content:
             '*/*':
               schema:
@@ -328,6 +332,71 @@ paths:
           description: Projection deleted
         "404":
           description: No such projection for this user
+  /api/v1/users/{userId}/pending-checkout:
+    get:
+      tags:
+      - Pending checkouts
+      summary: Fetch the checkout a user has open
+      operationId: get_3
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Pending checkout found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+        "404":
+          description: The user has no pending checkout
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+    put:
+      tags:
+      - Pending checkouts
+      summary: "Store the user's open checkout, replacing the one the caller read\
+        \ (compare-and-set)"
+      operationId: replace
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplacePendingCheckoutRequest"
+        required: true
+      responses:
+        "200":
+          description: Pending checkout stored
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+        "400":
+          description: Validation failed
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
+        "409":
+          description: The stored checkout changed since the caller read it; read
+            it again and use that one
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PendingCheckoutResponse"
   /api/v1/users/{userId}/avatar:
     get:
       tags:
@@ -822,9 +891,11 @@ paths:
       - Player ids
       summary: Remap the player ids in saved projections and shares
       description: "Applies a crosswalk of old id → new id to every projection and\
-        \ share still keyed by Yahoo's ids, and marks them as keyed by ESPN's. Ids\
-        \ the crosswalk does not cover are left as they are, never dropped. Defaults\
-        \ to a dry run: pass dryRun=false to actually write."
+        \ share keyed by the `from` numbering (default yahoo), and marks them as keyed\
+        \ by the `to` numbering (default espn). Ids the crosswalk does not cover are\
+        \ left as they are, unless another player is being moved to that id: such\
+        \ a row would be drawn as him, so it is removed. Defaults to a dry run: pass\
+        \ dryRun=false to actually write."
       operationId: remap
       requestBody:
         content:
@@ -840,7 +911,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayerIdRemapResponse"
         "400":
-          description: "The crosswalk is empty, oversized, or maps one id two ways"
+          description: "The crosswalk is empty, oversized, or maps one id two ways,\
+            \ or from and to are the same numbering"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PlayerIdRemapResponse"
+        "409":
+          description: A draft pick names a player whose old id another player is
+            being moved to; nothing was written
           content:
             '*/*':
               schema:
@@ -918,7 +997,7 @@ paths:
       - Shared projections
       summary: Fetch a shared snapshot by its token
       description: Carries no owner identity beyond their public username.
-      operationId: get_3
+      operationId: get_4
       parameters:
       - name: token
         in: path
@@ -1078,6 +1157,12 @@ components:
         premium:
           type: boolean
           description: Whether the subscription currently grants premium access
+        live:
+          type: boolean
+          description: "Whether the subscription can still bill or be resumed (active,\
+            \ trialing, past_due, paused or unpaid). A user holds at most one live\
+            \ subscription, so a caller must not start a new checkout while this is\
+            \ true"
         provider:
           type: string
           description: Payment provider id
@@ -1087,6 +1172,7 @@ components:
             one
       required:
       - cancelAtPeriodEnd
+      - live
       - premium
       - provider
       - status
@@ -1398,6 +1484,17 @@ components:
           description: When the player rows were last reconciled against the player
             pool — the finish time of the sync run they were reconciled against. Absent
             until the rows have been reconciled once.
+        unacknowledgedNewPlayerIds:
+          type: array
+          description: "Players a reconciliation with the player pool added whom the\
+            \ owner has not acknowledged yet, kept so the app can go on saying so\
+            \ until they do. Absent once acknowledged, and on a projection nothing\
+            \ was ever added to. The cap matches the player list."
+          items:
+            type: integer
+            format: int32
+          maxItems: 2000
+          minItems: 0
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -1502,6 +1599,15 @@ components:
           minLength: 0
         data:
           $ref: "#/components/schemas/UpdateProjectionData"
+        playerIdSpace:
+          type: string
+          description: "The numbering the caller's rows are keyed by. When given and\
+            \ the stored projection is keyed by another, nothing is written (409):\
+            \ those rows came from a different platform's pool and would replace the\
+            \ stored ones with the wrong players."
+          enum:
+          - yahoo
+          - espn
       required:
       - data
       - name
@@ -1601,13 +1707,73 @@ components:
           $ref: "#/components/schemas/ProjectionOrigin"
           description: "Who the board was copied from, on an imported projection.\
             \ Absent on the user's own."
+        playerIdSpace:
+          type: string
+          description: Which platform's numbering the player ids in data are. A caller
+            serving another platform's pool must not merge that pool into these rows.
+          enum:
+          - yahoo
+          - espn
       required:
       - createdAt
       - data
       - id
       - kind
       - name
+      - playerIdSpace
       - season
+      - updatedAt
+    ReplacePendingCheckoutRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: Payment provider id
+          maxLength: 32
+          minLength: 0
+        reference:
+          type: string
+          description: "The provider's id for the checkout, e.g. a Paddle transaction\
+            \ id"
+          maxLength: 255
+          minLength: 0
+        checkoutUrl:
+          type: string
+          description: Where the browser pays this checkout
+          maxLength: 2048
+          minLength: 0
+        replacesReference:
+          type: string
+          description: "The reference of the checkout this one replaces, as the caller\
+            \ last read it; omit for the user's first. The store is refused with 409\
+            \ if the stored checkout is no longer that one"
+          maxLength: 255
+          minLength: 0
+      required:
+      - checkoutUrl
+      - provider
+      - reference
+    PendingCheckoutResponse:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: Payment provider id
+        reference:
+          type: string
+          description: "The provider's id for the checkout, e.g. a Paddle transaction\
+            \ id"
+        checkoutUrl:
+          type: string
+          description: Where the browser pays this checkout
+        updatedAt:
+          type: string
+          format: date-time
+          description: When this checkout was stored
+      required:
+      - checkoutUrl
+      - provider
+      - reference
       - updatedAt
     SetAvatarRequest:
       type: object
@@ -1893,6 +2059,21 @@ components:
           type: boolean
           description: "Report what would change and write nothing. Defaults to true,\
             \ so an unqualified call cannot rewrite anyone's projection."
+        from:
+          type: string
+          description: "The numbering the stored rows are moved out of: only projections\
+            \ and shares stamped with it are touched. Defaults to yahoo, the direction\
+            \ the first migration went."
+          enum:
+          - yahoo
+          - espn
+        to:
+          type: string
+          description: "The numbering the crosswalk's new ids are in, stamped on every\
+            \ row moved. Defaults to espn."
+          enum:
+          - yahoo
+          - espn
       required:
       - mappings
     PlayerIdRemapCounts:
@@ -1904,7 +2085,14 @@ components:
         unmapped:
           type: integer
           format: int32
+          description: "Not covered by the crosswalk, and kept on the old id"
+        colliding:
+          type: integer
+          format: int32
+          description: "Not covered by the crosswalk, on an id another player is being\
+            \ moved to, and removed on apply"
       required:
+      - colliding
       - remapped
       - unmapped
     PlayerIdRemapResponse:
@@ -1913,6 +2101,18 @@ components:
         dryRun:
           type: boolean
           description: Nothing was written
+        from:
+          type: string
+          description: The numbering rows were read in
+          enum:
+          - yahoo
+          - espn
+        to:
+          type: string
+          description: The numbering moved rows are stamped with
+          enum:
+          - yahoo
+          - espn
         projectionsScanned:
           type: integer
           format: int32
@@ -1920,6 +2120,8 @@ components:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
         draftPicks:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
+          description: "A colliding pick is never removed, since that would rewrite\
+            \ the draft: any at all make an apply refuse"
         positionOverrides:
           $ref: "#/components/schemas/PlayerIdRemapCounts"
           description: The positions an owner corrected by hand; an unmapped one stops
@@ -1933,19 +2135,29 @@ components:
             what an import copies
         unmappedPlayerIds:
           type: array
-          description: "Distinct stored ids the crosswalk had no entry for, at most\
-            \ 50 of them"
+          description: "Distinct stored ids the crosswalk had no entry for and that\
+            \ stay, at most 50 of them"
+          items:
+            type: integer
+            format: int32
+        collidingPlayerIds:
+          type: array
+          description: "Distinct stored ids the crosswalk had no entry for that another\
+            \ player is being moved to, at most 50 of them"
           items:
             type: integer
             format: int32
       required:
+      - collidingPlayerIds
       - draftPicks
       - dryRun
+      - from
       - playerRows
       - positionOverrides
       - projectionsScanned
       - sharedRows
       - sharesScanned
+      - to
       - unmappedPlayerIds
     ProjectionSummaryResponse:
       type: object

@@ -53,6 +53,16 @@ public class GlobalExceptionHandler {
                 .body(ErrorDto.of("PREMIUM_REQUIRED", ex.getMessage()));
     }
 
+    /**
+     * A checkout for an account that already has a live subscription. 409, since the request is
+     * understood and conflicts with what the account already holds. Expected, so not logged.
+     */
+    @ExceptionHandler(SubscriptionAlreadyLiveException.class)
+    public ResponseEntity<ErrorDto> handleSubscriptionAlreadyLive(SubscriptionAlreadyLiveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorDto.of("SUBSCRIPTION_ALREADY_LIVE", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDto> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -102,6 +112,19 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorDto.of("VALIDATION_ERROR", message));
+    }
+
+    /**
+     * Yahoo refused. Not 403, which the web reads as a Premium refusal, and not 502, which the web
+     * retries and reports as our fault: 424 says the request failed because what it depends on
+     * said no. WARN rather than ERROR, since a user's own Yahoo account being refused is not a
+     * fault here, and a lost app permission still reaches ERROR through yahoo-service's sync.
+     */
+    @ExceptionHandler(YahooAccessDeniedException.class)
+    public ResponseEntity<ErrorDto> handleYahooAccessDenied(YahooAccessDeniedException ex) {
+        log.warn("Yahoo refused a request: {}", ex.getMessage().replace("\r", "_").replace("\n", "_"));
+        return ResponseEntity.status(HttpStatus.FAILED_DEPENDENCY)
+                .body(ErrorDto.of("YAHOO_ACCESS_DENIED", ex.getMessage()));
     }
 
     /**
