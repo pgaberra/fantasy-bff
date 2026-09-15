@@ -28,6 +28,11 @@ public record SkaterResponse(
         return new SkaterResponse(id, name, team, headshot, sweaterNumber, positions, stats);
     }
 
+    /** The same skater with no picture, for an environment that shows none. */
+    public SkaterResponse withoutHeadshot() {
+        return new SkaterResponse(id, name, teamAbbrev, null, sweaterNumber, positions, stats);
+    }
+
     @Schema(name = "SkaterStats")
     public record Stats(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UtilityStats utility,

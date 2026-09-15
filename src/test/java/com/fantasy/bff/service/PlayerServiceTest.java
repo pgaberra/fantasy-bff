@@ -1,5 +1,6 @@
 package com.fantasy.bff.service;
 
+import com.fantasy.bff.config.PlayerAvatarsProperties;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -22,8 +23,10 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,7 +46,56 @@ class PlayerServiceTest {
     void setUp() {
         // The model knows no better by default, so every existing case sees the pool untouched.
         lenient().when(playerContext.currentTeams()).thenReturn(Map.of());
-        playerService = new PlayerService(playerPool, new HeadshotCache(), playerContext);
+        // Avatars on, so the cases about framing and caching a picture have one to work with;
+        // the switch itself has its own cases below.
+        playerService = new PlayerService(
+                playerPool, new HeadshotCache(), playerContext, new PlayerAvatarsProperties(true));
+    }
+
+    /** The same service in an environment that shows no pictures, which is every one by default. */
+    private PlayerService withoutAvatars(HeadshotCache cache) {
+        return new PlayerService(playerPool, cache, playerContext, new PlayerAvatarsProperties(false));
+    }
+
+    @Test
+    void avatarsAreOffUnlessConfigured() {
+        assertThat(new PlayerAvatarsProperties(null).enabled()).isFalse();
+    }
+
+    @Test
+    void getSkaters_withAvatarsOff_sendsNoHeadshotAndLeavesTheRestAlone() {
+        when(playerPool.getSkaters(nullable(Integer.class))).thenReturn(List.of(mcDavid()));
+
+        assertThat(withoutAvatars(new HeadshotCache()).getSkaters()).singleElement().satisfies(skater -> {
+            assertThat(skater.headshot()).isNull();
+            assertThat(skater.name()).isEqualTo("Connor McDavid");
+            assertThat(skater.stats().scoring().points()).isEqualTo(153);
+        });
+    }
+
+    @Test
+    void getGoalies_withAvatarsOff_sendsNoHeadshot() {
+        when(playerPool.getGoalies(nullable(Integer.class))).thenReturn(List.of(shesterkin()));
+
+        assertThat(withoutAvatars(new HeadshotCache()).getGoalies()).singleElement()
+                .satisfies(goalie -> assertThat(goalie.headshot()).isNull());
+    }
+
+    /** An address handed out before the switch must not keep fetching the platform's photograph. */
+    @Test
+    void getHeadshot_withAvatarsOff_neverAsksTheSource() {
+        assertThat(withoutAvatars(new HeadshotCache()).getHeadshot(1)).isEmpty();
+
+        verify(playerPool, never()).getHeadshot(anyInt());
+    }
+
+    /** Nor may one drawn before the switch, and still held, be served after it. */
+    @Test
+    void getHeadshot_withAvatarsOff_servesNoneEvenWhenOneIsHeld() {
+        HeadshotCache cache = new HeadshotCache();
+        cache.put(1, new byte[] {1, 2, 3});
+
+        assertThat(withoutAvatars(cache).getHeadshot(1)).isEmpty();
     }
 
     /** What the model would say, keyed by the platform id the pool uses. */
