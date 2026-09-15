@@ -895,6 +895,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaguesResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/teams:
     get:
       tags:
@@ -920,6 +927,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueTeamsResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/projection-settings:
     get:
       tags:
@@ -948,6 +962,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/connection:
     get:
       tags:
@@ -1625,6 +1646,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaguesResponse"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/admin/yahoo/connection:
     get:
       tags:
@@ -2630,6 +2658,16 @@ components:
       - sharedRows
       - sharesScanned
       - unmappedPlayerIds
+    ErrorDto:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: {}
     LeagueSummary:
       type: object
       properties:
