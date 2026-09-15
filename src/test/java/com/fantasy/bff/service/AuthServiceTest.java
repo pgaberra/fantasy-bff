@@ -5,6 +5,7 @@ import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
+import com.fantasy.bff.dto.request.RegisterRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
@@ -49,7 +50,11 @@ class AuthServiceTest {
         googleTokenVerifier = mock(GoogleTokenVerifier.class);
         googleCodeExchanger = mock(GoogleCodeExchanger.class);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$dummyDummyDummyDummyDummyDummyDummyDummyDummyDummyDu");
-        authService = new AuthService(
+        authService = authServiceWithAdmins();
+    }
+
+    private AuthService authServiceWithAdmins(String... adminEmails) {
+        return new AuthService(
                 databaseServiceClient,
                 jwtTokenValidator,
                 passwordEncoder,
@@ -58,8 +63,35 @@ class AuthServiceTest {
                 mock(FacebookTokenVerifier.class),
                 mock(PasswordResetEmailSender.class),
                 mock(EmailVerificationEmailSender.class),
-                new SecurityProperties(List.of(), List.of(), List.of(), false),
+                new SecurityProperties(List.of(), List.of(), List.of(adminEmails), false),
                 "http://localhost:4200");
+    }
+
+    @Test
+    void register_withAllowlistedButUnverifiedEmail_issuesNoAdminClaim() {
+        authService = authServiceWithAdmins("boss@example.com");
+        when(databaseServiceClient.createUser(eq("boss@example.com"), anyString()))
+                .thenReturn(new User("user-2", "boss@example.com", null, "hash", 0, false));
+
+        AuthResponse response = authService.register(new RegisterRequest("boss@example.com", "Passw0rd!"));
+
+        // Registering an allowlisted address proves nothing about owning it: whoever got there
+        // first would be an admin. The claim waits until the verification link has been followed.
+        assertThat(response.admin()).isFalse();
+        verify(jwtTokenValidator).generateToken("user-2", "boss@example.com", false);
+    }
+
+    @Test
+    void login_withAllowlistedVerifiedEmail_issuesAdminClaim() {
+        authService = authServiceWithAdmins("Boss@Example.com");
+        when(databaseServiceClient.findUserByEmail("boss@example.com"))
+                .thenReturn(Optional.of(new User("user-2", "boss@example.com", null, "hash", 0, true)));
+        when(passwordEncoder.matches("Passw0rd!", "hash")).thenReturn(true);
+
+        AuthResponse response = authService.login(new LoginRequest("boss@example.com", "Passw0rd!"));
+
+        assertThat(response.admin()).isTrue();
+        verify(jwtTokenValidator).generateToken("user-2", "boss@example.com", true);
     }
 
     @Test
