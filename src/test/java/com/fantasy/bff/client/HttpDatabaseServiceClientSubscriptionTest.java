@@ -4,11 +4,12 @@ import com.fantasy.bff.generated.db.model.PendingCheckoutResponse;
 import com.fantasy.bff.generated.db.model.ReplacePendingCheckoutRequest;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
+import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.time.OffsetDateTime;
@@ -23,7 +24,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpDatabaseServiceClientSubscriptionTest {
@@ -36,11 +36,11 @@ class HttpDatabaseServiceClientSubscriptionTest {
 
     @BeforeEach
     void setUp() {
-        server = new WireMockServer(wireMockConfig().dynamicPort());
+        server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         RestClient restClient = RestClient.builder()
                 .baseUrl(server.baseUrl())
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(new JdkClientHttpRequestFactory())
                 .build();
         // All three clients point at the same WireMock; only their timeouts differ in production.
         client = new HttpDatabaseServiceClient(restClient, restClient, restClient);

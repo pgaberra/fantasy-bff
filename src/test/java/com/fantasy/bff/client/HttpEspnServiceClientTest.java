@@ -2,11 +2,12 @@ package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.espn.model.SyncAcceptedResponse;
+import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -15,7 +16,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpEspnServiceClientTest {
@@ -25,11 +25,11 @@ class HttpEspnServiceClientTest {
 
     @BeforeEach
     void setUp() {
-        server = new WireMockServer(wireMockConfig().dynamicPort());
+        server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         RestClient restClient = RestClient.builder()
                 .baseUrl(server.baseUrl())
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(new JdkClientHttpRequestFactory())
                 .build();
         client = new HttpEspnServiceClient(restClient);
     }

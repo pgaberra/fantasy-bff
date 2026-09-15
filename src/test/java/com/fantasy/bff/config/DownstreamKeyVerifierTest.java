@@ -1,5 +1,6 @@
 package com.fantasy.bff.config;
 
+import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,7 +10,7 @@ import org.springframework.boot.availability.AvailabilityChangeEvent;
 import org.springframework.boot.availability.ReadinessState;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -18,7 +19,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -33,11 +33,11 @@ class DownstreamKeyVerifierTest {
 
     @BeforeEach
     void setUp() {
-        server = new WireMockServer(wireMockConfig().dynamicPort());
+        server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         client = RestClient.builder()
                 .baseUrl(server.baseUrl())
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(new JdkClientHttpRequestFactory())
                 .build();
         events = mock(ApplicationEventPublisher.class);
         verifier = new DownstreamKeyVerifier(client, client, client, client, events);

@@ -3,11 +3,12 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
+import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.util.UUID;
@@ -17,7 +18,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -130,7 +130,7 @@ class HttpDatabaseServiceClientProjectionClientTest {
     }
 
     private static WireMockServer startServer() {
-        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         server.stubFor(post(urlPathMatching("/api/v1/.*")).willReturn(okJson("{}")));
         server.stubFor(put(urlPathMatching("/api/v1/.*")).willReturn(okJson("{}")));
@@ -146,7 +146,7 @@ class HttpDatabaseServiceClientProjectionClientTest {
     private static RestClient restClient(WireMockServer server) {
         return RestClient.builder()
                 .baseUrl(server.baseUrl())
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(new JdkClientHttpRequestFactory())
                 .build();
     }
 

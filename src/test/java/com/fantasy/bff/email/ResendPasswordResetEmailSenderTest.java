@@ -1,5 +1,6 @@
 package com.fantasy.bff.email;
 
+import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +15,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
@@ -31,7 +31,7 @@ class ResendPasswordResetEmailSenderTest {
 
     @Test
     void doesNotSendOrLogTheLink_whenApiKeyUnsetOutsideALocalRun(CapturedOutput output) {
-        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         try {
             assertThatNoException().isThrownBy(() ->
@@ -46,7 +46,7 @@ class ResendPasswordResetEmailSenderTest {
 
     @Test
     void logsTheLinkInsteadOfSending_onALocalRun(CapturedOutput output) {
-        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         try {
             sender("", server.baseUrl(), true).send("u@x.com", LINK, EXPIRES);
@@ -60,7 +60,7 @@ class ResendPasswordResetEmailSenderTest {
 
     @Test
     void postsToResendWithBearerAuth_andNeverLogsTheLink_whenApiKeySet(CapturedOutput output) {
-        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         try {
             server.stubFor(post(urlPathEqualTo("/emails")).willReturn(okJson("{\"id\":\"email-1\"}")));
@@ -77,7 +77,7 @@ class ResendPasswordResetEmailSenderTest {
 
     @Test
     void swallowsAndDoesNotThrow_whenResendFails() {
-        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         try {
             server.stubFor(post(urlPathEqualTo("/emails")).willReturn(aResponse().withStatus(500)));
