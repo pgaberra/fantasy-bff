@@ -467,7 +467,6 @@ git add specs/bff-openapi.yaml
   `SPEC_READ_TOKEN` — a fine-grained PAT with read access to the contents of every service
   whose spec is pinned here (db, yahoo, espn, projection). Adding a downstream means adding
   it to that token too, or the check 404s rather than reporting drift.
-- `@claude` mentions on issues/PRs trigger `.github/workflows/claude.yml`.
 
 ## Monorepo conventions
 
