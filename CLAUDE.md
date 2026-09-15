@@ -239,6 +239,12 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     hides. Each pool drops the URL for a player it has no picture for — roughly one in seven on
     ESPN — so an address that arrives is one that resolves, and the web falls back to initials
     for the rest.
+  - **All of that is switched off by default** (`players.avatars.enabled`,
+    `PLAYER_AVATARS_ENABLED`, `PlayerAvatarsProperties`): the pictures are the platform's
+    photographs and we hold no licence to show them. Off, `PlayerService` sends every player
+    without a headshot and answers the endpoint with nothing before touching the cache or the
+    pool, and `SharedProjectionController` strips the address a share snapshot stored. The web
+    has no switch of its own; a missing headshot already draws initials.
   - `mapping/PlayerFieldMapping` — the reshaping both sources share (positions, `avgToi` →
     seconds, shooting pct fraction → percent, rounding, goalie win %). The two must agree
     exactly: a projection is keyed by the stat names these produce.

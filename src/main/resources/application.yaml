@@ -51,6 +51,12 @@ email:
 # in use when it was saved, so this flips only together with migrating those rows.
 players:
   source: ${PLAYERS_SOURCE:yahoo}
+  # Whether players' pictures are shown. Off unless this says otherwise: they are the platform's
+  # photographs, which we hold no licence to show, so a deployment that forgets the variable must
+  # not bring them back. Off, every player goes out without a headshot address, the headshot
+  # endpoint answers 404 without asking the platform, and the web draws initials instead.
+  avatars:
+    enabled: ${PLAYER_AVATARS_ENABLED:false}
 
 services:
   # Per-downstream read/connect timeouts (ms). These apply in every environment:

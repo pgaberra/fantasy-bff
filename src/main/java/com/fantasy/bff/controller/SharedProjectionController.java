@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.config.PlayerAvatarsProperties;
 import com.fantasy.bff.service.RookieService;
 import com.fantasy.bff.service.ShareCardRenderer;
 import com.fantasy.bff.service.SharedBoardFilters;
@@ -101,15 +102,18 @@ public class SharedProjectionController {
     private final DatabaseServiceClient databaseServiceClient;
     private final ShareCardRenderer shareCardRenderer;
     private final RookieService rookieService;
+    private final PlayerAvatarsProperties avatars;
     private final String webBaseUrl;
 
     public SharedProjectionController(DatabaseServiceClient databaseServiceClient,
                                       ShareCardRenderer shareCardRenderer,
                                       RookieService rookieService,
+                                      PlayerAvatarsProperties avatars,
                                       @Value("${app.web-base-url}") String webBaseUrl) {
         this.databaseServiceClient = databaseServiceClient;
         this.shareCardRenderer = shareCardRenderer;
         this.rookieService = rookieService;
+        this.avatars = avatars;
         this.webBaseUrl = webBaseUrl;
     }
 
@@ -170,13 +174,14 @@ public class SharedProjectionController {
         com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
                 databaseServiceClient.getSharedProjection(token);
         Set<Integer> rookieIds = rookieIds();
+        boolean headshots = avatars.enabled();
         if (isSignedIn(authentication)) {
-            return SharedProjectionResponse.full(shared, rookieIds);
+            return SharedProjectionResponse.full(shared, rookieIds, headshots);
         }
         SharedBoardFilters filters = new SharedBoardFilters(
                 position, search, team, Boolean.TRUE.equals(rookies) ? rookieIds : null);
         return SharedProjectionResponse.preview(
-                shared, filters, sort, direction, ANONYMOUS_PREVIEW_ROWS, rookieIds);
+                shared, filters, sort, direction, ANONYMOUS_PREVIEW_ROWS, rookieIds, headshots);
     }
 
     /**
