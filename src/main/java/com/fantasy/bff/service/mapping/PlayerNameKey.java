@@ -34,15 +34,43 @@ public record PlayerNameKey(String fullName, String lastNameInitial) {
         return build(firstName == null ? "" : firstName, lastName == null ? "" : lastName);
     }
 
+    /**
+     * A middle initial is dropped before the name is folded. ESPN writes Vancouver's defenceman
+     * as "Elias N. Pettersson" to tell him from the centre, while Yahoo and the NHL write both as
+     * "Elias Pettersson" — kept, the initial made his name match nobody. Dropped, he is one of
+     * two namesakes, and the sweater number separates them as it already does for the NHL pair.
+     * Only a lone letter between a first and a last name goes: "J.T. Miller" has no middle.
+     */
     private static PlayerNameKey build(String first, String last) {
-        String normalisedFirst = normalise(first);
-        String normalisedLast = normalise(last);
+        String normalisedFirst = normalise(withoutTrailingInitials(first));
+        String normalisedLast = normalise(withoutLeadingInitials(last));
         // A single-word name (some players are listed without a surname) has no meaningful
         // fallback form, so leave it blank rather than inventing one that could collide.
         String fallback = normalisedLast.isEmpty() || normalisedFirst.isEmpty()
                 ? ""
                 : normalisedLast + "|" + normalisedFirst.charAt(0);
         return new PlayerNameKey(normalisedFirst + normalisedLast, fallback);
+    }
+
+    private static String withoutTrailingInitials(String first) {
+        java.util.List<String> parts = new java.util.ArrayList<>(java.util.List.of(first.trim().split("\\s+")));
+        while (parts.size() > 1 && isInitial(parts.getLast())) {
+            parts.removeLast();
+        }
+        return String.join(" ", parts);
+    }
+
+    private static String withoutLeadingInitials(String last) {
+        java.util.List<String> parts = new java.util.ArrayList<>(java.util.List.of(last.trim().split("\\s+")));
+        while (parts.size() > 1 && isInitial(parts.getFirst())) {
+            parts.removeFirst();
+        }
+        return String.join(" ", parts);
+    }
+
+    /** "N." or "N": one letter, with or without its full stop. */
+    private static boolean isInitial(String token) {
+        return normalise(token).length() == 1;
     }
 
     private static String normalise(String value) {

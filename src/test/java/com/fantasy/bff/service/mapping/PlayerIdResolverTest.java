@@ -214,6 +214,38 @@ class PlayerIdResolverTest {
         assertThat(mapping.platformId(8483678)).contains(20);
     }
 
+    /**
+     * ESPN tells Vancouver's two apart with a middle initial on the defenceman. Moving saved
+     * projections from ESPN's ids to Yahoo's, that initial made his name match nobody, and his
+     * rows in every projection were left behind on an id the Yahoo pool does not carry.
+     */
+    @Test
+    @DisplayName("a middle initial does not stop a match, and the sweater still separates the namesakes")
+    void aMiddleInitialIsNotPartOfTheName() {
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(
+                        nhl(4233566, "Elias Pettersson", "VAN", 40),
+                        nhl(5149125, "Elias N. Pettersson", "VAN", 25)),
+                List.of(
+                        platform(7520, "Elias Pettersson", "VAN", 40),
+                        platform(32762, "Elias Pettersson", "VAN", 25)),
+                Map.of());
+
+        assertThat(mapping.platformId(4233566)).contains(7520);
+        assertThat(mapping.platformId(5149125)).contains(32762);
+    }
+
+    @Test
+    @DisplayName("initials that are the first name stay: J.T. Miller is not Miller")
+    void initialsAsTheFirstNameAreKept() {
+        PlayerIdMapping mapping = resolver.resolve(
+                List.of(nhl(1, "J.T. Miller", "NYR", 8)),
+                List.of(platform(10, "JT Miller", "NYR", 8), platform(20, "Miller", "NYR", 8)),
+                Map.of());
+
+        assertThat(mapping.platformId(1)).contains(10);
+    }
+
     @Test
     @DisplayName("one row and two namesakes goes to the one the sweater identifies")
     void oneRowIsNotSharedBetweenNamesakes() {
