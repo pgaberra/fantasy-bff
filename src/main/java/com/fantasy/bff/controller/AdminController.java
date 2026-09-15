@@ -6,6 +6,7 @@ import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.request.AdminGrantPremiumRequest;
 import com.fantasy.bff.dto.response.AdminPremiumCustomerResponse;
 import com.fantasy.bff.dto.response.AdminPremiumGrantResponse;
+import com.fantasy.bff.dto.response.ErrorDto;
 import com.fantasy.bff.dto.response.PlayerIdRemapReport;
 import com.fantasy.bff.service.AdminPremiumService;
 import com.fantasy.bff.service.PlayerIdRemapService;
@@ -17,6 +18,8 @@ import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -153,7 +156,11 @@ public class AdminController {
             description = "Hands you a league key for the probe without hunting for one, and is "
                     + "itself a test: succeeding here while a game probe is refused places the "
                     + "refusal on what was asked for rather than on who asked.")
-    @ApiResponse(responseCode = "200", description = "Leagues returned")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Leagues returned"),
+            @ApiResponse(responseCode = "424", description = YahooController.REFUSED,
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
     @GetMapping("/yahoo/leagues")
     public LeaguesResponse yahooServiceAccountLeagues() {
         return yahooServiceClient.leagues(SERVICE_ACCOUNT_ID);

@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.response.ErrorDto;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
@@ -8,6 +9,8 @@ import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.service.YahooLeagueService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/yahoo")
 public class YahooController {
+
+    static final String REFUSED = "Yahoo refused the request (code YAHOO_ACCESS_DENIED); "
+            + "the message carries Yahoo's own wording";
 
     private final YahooServiceClient yahooServiceClient;
     private final YahooLeagueService yahooLeagueService;
@@ -53,7 +59,9 @@ public class YahooController {
     @Operation(summary = "List the user's NHL fantasy leagues")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Leagues returned"),
-            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo")
+            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo"),
+            @ApiResponse(responseCode = "424", description = REFUSED,
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
     })
     @GetMapping("/leagues")
     public LeaguesResponse leagues(@AuthenticationPrincipal String userId) {
@@ -65,7 +73,9 @@ public class YahooController {
                     + "columns, point weights, roster slots and size into the projection's own shape.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mapped settings returned"),
-            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo")
+            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo"),
+            @ApiResponse(responseCode = "424", description = REFUSED,
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
     })
     @GetMapping("/leagues/{leagueKey}/projection-settings")
     public LeagueProjectionSettingsResponse projectionSettings(@AuthenticationPrincipal String userId,
@@ -76,7 +86,9 @@ public class YahooController {
     @Operation(summary = "List a league's teams (names + which is the user's own)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Teams returned"),
-            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo")
+            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo"),
+            @ApiResponse(responseCode = "424", description = REFUSED,
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
     })
     @GetMapping("/leagues/{leagueKey}/teams")
     public LeagueTeamsResponse teams(@AuthenticationPrincipal String userId,

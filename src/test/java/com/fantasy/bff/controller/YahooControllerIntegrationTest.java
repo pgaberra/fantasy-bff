@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.exception.YahooAccessDeniedException;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
@@ -90,5 +91,21 @@ class YahooControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.leagueSize").value(14))
                 .andExpect(jsonPath("$.activeScoringColumns[0]").value("goals"))
                 .andExpect(jsonPath("$.rosterSlots.c").value(2));
+    }
+
+    /**
+     * Not 502, which the web retries and blames on us, and not 403, which the web reads as a
+     * Premium refusal: Yahoo's no has to arrive as Yahoo's no, in Yahoo's words.
+     */
+    @Test
+    void leagues_whenYahooRefuses_answers424WithYahoosWording() throws Exception {
+        when(yahooServiceClient.leagues(USER_ID)).thenThrow(new YahooAccessDeniedException(
+                "Yahoo refused the request: This application is not authorized to perform this action."));
+
+        mockMvc.perform(get("/api/v1/yahoo/leagues").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isFailedDependency())
+                .andExpect(jsonPath("$.code").value("YAHOO_ACCESS_DENIED"))
+                .andExpect(jsonPath("$.message").value(
+                        "Yahoo refused the request: This application is not authorized to perform this action."));
     }
 }

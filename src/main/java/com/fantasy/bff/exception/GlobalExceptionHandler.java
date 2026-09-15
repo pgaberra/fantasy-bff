@@ -115,6 +115,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Yahoo refused. Not 403, which the web reads as a Premium refusal, and not 502, which the web
+     * retries and reports as our fault: 424 says the request failed because what it depends on
+     * said no. WARN rather than ERROR, since a user's own Yahoo account being refused is not a
+     * fault here, and a lost app permission still reaches ERROR through yahoo-service's sync.
+     */
+    @ExceptionHandler(YahooAccessDeniedException.class)
+    public ResponseEntity<ErrorDto> handleYahooAccessDenied(YahooAccessDeniedException ex) {
+        log.warn("Yahoo refused a request: {}", ex.getMessage().replace("\r", "_").replace("\n", "_"));
+        return ResponseEntity.status(HttpStatus.FAILED_DEPENDENCY)
+                .body(ErrorDto.of("YAHOO_ACCESS_DENIED", ex.getMessage()));
+    }
+
+    /**
      * A downstream service returned a non-2xx response. Resource-level client errors
      * (404 not found, 409 conflict, 400 bad request) are genuine verdicts about the
      * request, so we relay them to the caller. Anything else (an auth/key mismatch,
