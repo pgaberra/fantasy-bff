@@ -46,7 +46,7 @@ class PlayerIdRemapServiceTest {
         databaseServiceClient = mock(DatabaseServiceClient.class);
         service = new PlayerIdRemapService(yahooPlayerClient, espnServiceClient,
                 databaseServiceClient, new PlayerIdResolver(), STATS_SEASON);
-        when(databaseServiceClient.remapPlayerIds(any(), anyBoolean()))
+        when(databaseServiceClient.remapPlayerIds(any(), anyBoolean(), any(), any()))
                 .thenReturn(new PlayerIdRemapResponse().dryRun(true).projectionsScanned(3));
         when(yahooPlayerClient.getGoalies()).thenReturn(List.of());
         when(espnServiceClient.goalies(STATS_SEASON)).thenReturn(List.of());
@@ -95,7 +95,7 @@ class PlayerIdRemapServiceTest {
 
     private List<PlayerIdPair> crosswalkSentToDb() {
         ArgumentCaptor<List<PlayerIdPair>> captor = ArgumentCaptor.captor();
-        verify(databaseServiceClient).remapPlayerIds(captor.capture(), anyBoolean());
+        verify(databaseServiceClient).remapPlayerIds(captor.capture(), anyBoolean(), any(), any());
         return captor.getValue();
     }
 
@@ -104,7 +104,7 @@ class PlayerIdRemapServiceTest {
         poolsOf(List.of(yahooSkater(6743, "Connor McDavid", "EDM", 97)),
                 List.of(espnSkater(3895074L, "Connor", "McDavid", "EDM", 97)));
 
-        PlayerIdRemapReport report = service.remap(true);
+        PlayerIdRemapReport report = service.remap(true, PlayerIdSpace.ESPN);
 
         assertThat(crosswalkSentToDb())
                 .filteredOn(pair -> pair.getFrom() == 6743)
@@ -116,13 +116,59 @@ class PlayerIdRemapServiceTest {
         assertThat(report.applied().getProjectionsScanned()).isEqualTo(3);
     }
 
+    /**
+     * When Yahoo served its players again the pool went back, so the crosswalk runs from ESPN's
+     * ids to Yahoo's and db-service is told which rows to read and how to stamp them.
+     */
+    @Test
+    void buildsTheCrosswalkTheOtherWayWhenMovingBackToYahoo() {
+        poolsOf(List.of(yahooSkater(6743, "Connor McDavid", "EDM", 97)),
+                List.of(espnSkater(3895074L, "Connor", "McDavid", "EDM", 97)));
+
+        PlayerIdRemapReport report = service.remap(true, PlayerIdSpace.YAHOO);
+
+        assertThat(report.from()).isEqualTo(PlayerIdSpace.ESPN);
+        assertThat(report.to()).isEqualTo(PlayerIdSpace.YAHOO);
+        ArgumentCaptor<List<PlayerIdPair>> captor = ArgumentCaptor.captor();
+        verify(databaseServiceClient).remapPlayerIds(captor.capture(), anyBoolean(),
+                org.mockito.ArgumentMatchers.eq(PlayerIdSpace.ESPN),
+                org.mockito.ArgumentMatchers.eq(PlayerIdSpace.YAHOO));
+        assertThat(captor.getValue())
+                .filteredOn(pair -> pair.getFrom() == 3895074)
+                .singleElement()
+                .satisfies(pair -> assertThat(pair.getTo()).isEqualTo(6743));
+    }
+
+    /**
+     * Moving back, the rows name ESPN's players, so the players who played are counted on ESPN's
+     * side: ESPN's own games decide the gate, not Yahoo's.
+     */
+    @Test
+    void gatesTheMoveBackOnTheEspnPlayersWhoPlayed() {
+        List<SkaterResponse> yahoo = new ArrayList<>();
+        List<com.fantasy.bff.generated.espn.model.SkaterResponse> espn = new ArrayList<>();
+        for (int i = 0; i < FILLER; i++) {
+            yahoo.add(yahooSkater(1000 + i, "Yahoo" + fillerName(i) + " Only", "EDM", i % 99, 0));
+            espn.add(espnSkater(900000L + i, "Espn" + fillerName(i), "Only", "EDM", i % 99)
+                    .gamesPlayed(82));
+        }
+        when(yahooPlayerClient.getSkaters()).thenReturn(yahoo);
+        when(espnServiceClient.skaters(STATS_SEASON)).thenReturn(espn);
+
+        assertThatThrownBy(() -> service.remap(false, PlayerIdSpace.YAHOO))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ESPN players who actually played");
+
+        verify(databaseServiceClient, never()).remapPlayerIds(any(), anyBoolean(), any(), any());
+    }
+
     @Test
     void passesTheDryRunFlagThrough() {
         poolsOf(List.of(), List.of());
 
-        service.remap(false);
+        service.remap(false, PlayerIdSpace.ESPN);
 
-        verify(databaseServiceClient).remapPlayerIds(any(), org.mockito.ArgumentMatchers.eq(false));
+        verify(databaseServiceClient).remapPlayerIds(any(), org.mockito.ArgumentMatchers.eq(false), any(), any());
     }
 
     /**
@@ -135,7 +181,7 @@ class PlayerIdRemapServiceTest {
                         yahooSkater(1, "Nobody Here", "SEA", 44)),
                 List.of(espnSkater(3895074L, "Connor", "McDavid", "EDM", 97)));
 
-        PlayerIdRemapReport report = service.remap(true);
+        PlayerIdRemapReport report = service.remap(true, PlayerIdSpace.ESPN);
 
         assertThat(report.unmatched()).isEqualTo(1);
         assertThat(report.unmatchedSample()).containsExactly("Nobody Here (SEA, 82 GP)");
@@ -149,11 +195,11 @@ class PlayerIdRemapServiceTest {
         when(espnServiceClient.skaters(STATS_SEASON))
                 .thenReturn(List.of(espnSkater(3895074L, "Connor", "McDavid", "EDM", 97)));
 
-        assertThatThrownBy(() -> service.remap(true))
+        assertThatThrownBy(() -> service.remap(true, PlayerIdSpace.ESPN))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("far fewer than a league holds");
 
-        verify(databaseServiceClient, never()).remapPlayerIds(any(), anyBoolean());
+        verify(databaseServiceClient, never()).remapPlayerIds(any(), anyBoolean(), any(), any());
     }
 
     /**
@@ -176,12 +222,12 @@ class PlayerIdRemapServiceTest {
         when(yahooPlayerClient.getSkaters()).thenReturn(yahoo);
         when(espnServiceClient.skaters(STATS_SEASON)).thenReturn(espn);
 
-        PlayerIdRemapReport report = service.remap(false);
+        PlayerIdRemapReport report = service.remap(false, PlayerIdSpace.ESPN);
 
         assertThat(report.coverage()).isLessThan(0.7);
         assertThat(report.coverageOfPlayersWithGames()).isEqualTo(1.0);
         assertThat(report.playersWithGames()).isEqualTo(FILLER);
-        verify(databaseServiceClient).remapPlayerIds(any(), org.mockito.ArgumentMatchers.eq(false));
+        verify(databaseServiceClient).remapPlayerIds(any(), org.mockito.ArgumentMatchers.eq(false), any(), any());
     }
 
     /**
@@ -201,12 +247,12 @@ class PlayerIdRemapServiceTest {
         }
         when(espnServiceClient.skaters(STATS_SEASON)).thenReturn(espn);
 
-        assertThatThrownBy(() -> service.remap(false))
+        assertThatThrownBy(() -> service.remap(false, PlayerIdSpace.ESPN))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("actually played")
                 .hasMessageContaining("Refusing to apply");
 
-        verify(databaseServiceClient, never()).remapPlayerIds(any(), anyBoolean());
+        verify(databaseServiceClient, never()).remapPlayerIds(any(), anyBoolean(), any(), any());
     }
 
     /** The dry run is exactly how that collapse is meant to be looked at, so it still runs. */
@@ -223,7 +269,7 @@ class PlayerIdRemapServiceTest {
         }
         when(espnServiceClient.skaters(STATS_SEASON)).thenReturn(espn);
 
-        assertThat(service.remap(true).coverageOfPlayersWithGames()).isZero();
+        assertThat(service.remap(true, PlayerIdSpace.ESPN).coverageOfPlayersWithGames()).isZero();
     }
 
     @Test
@@ -239,7 +285,7 @@ class PlayerIdRemapServiceTest {
                         .id(2976847L).firstName("Andrei").lastName("Vasilevskiy").position("G")
                         .eligiblePositions(List.of("G")).teamAbbrev("TB").sweaterNumber(88)));
 
-        service.remap(true);
+        service.remap(true, PlayerIdSpace.ESPN);
 
         assertThat(crosswalkSentToDb())
                 .filteredOn(pair -> pair.getFrom() == 101)

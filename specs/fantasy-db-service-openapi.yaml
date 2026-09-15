@@ -302,7 +302,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: The user already has another projection with that name
+          description: "The user already has another projection with that name, or\
+            \ the rows were built from another platform's player pool than the stored\
+            \ projection is keyed by"
           content:
             '*/*':
               schema:
@@ -889,10 +891,11 @@ paths:
       - Player ids
       summary: Remap the player ids in saved projections and shares
       description: "Applies a crosswalk of old id → new id to every projection and\
-        \ share still keyed by Yahoo's ids, and marks them as keyed by ESPN's. Ids\
-        \ the crosswalk does not cover are left as they are, unless another player\
-        \ is being moved to that id: such a row would be drawn as him, so it is removed.\
-        \ Defaults to a dry run: pass dryRun=false to actually write."
+        \ share keyed by the `from` numbering (default yahoo), and marks them as keyed\
+        \ by the `to` numbering (default espn). Ids the crosswalk does not cover are\
+        \ left as they are, unless another player is being moved to that id: such\
+        \ a row would be drawn as him, so it is removed. Defaults to a dry run: pass\
+        \ dryRun=false to actually write."
       operationId: remap
       requestBody:
         content:
@@ -908,7 +911,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayerIdRemapResponse"
         "400":
-          description: "The crosswalk is empty, oversized, or maps one id two ways"
+          description: "The crosswalk is empty, oversized, or maps one id two ways,\
+            \ or from and to are the same numbering"
           content:
             '*/*':
               schema:
@@ -1595,6 +1599,15 @@ components:
           minLength: 0
         data:
           $ref: "#/components/schemas/UpdateProjectionData"
+        playerIdSpace:
+          type: string
+          description: "The numbering the caller's rows are keyed by. When given and\
+            \ the stored projection is keyed by another, nothing is written (409):\
+            \ those rows came from a different platform's pool and would replace the\
+            \ stored ones with the wrong players."
+          enum:
+          - yahoo
+          - espn
       required:
       - data
       - name
@@ -1694,12 +1707,20 @@ components:
           $ref: "#/components/schemas/ProjectionOrigin"
           description: "Who the board was copied from, on an imported projection.\
             \ Absent on the user's own."
+        playerIdSpace:
+          type: string
+          description: Which platform's numbering the player ids in data are. A caller
+            serving another platform's pool must not merge that pool into these rows.
+          enum:
+          - yahoo
+          - espn
       required:
       - createdAt
       - data
       - id
       - kind
       - name
+      - playerIdSpace
       - season
       - updatedAt
     ReplacePendingCheckoutRequest:
@@ -2038,6 +2059,21 @@ components:
           type: boolean
           description: "Report what would change and write nothing. Defaults to true,\
             \ so an unqualified call cannot rewrite anyone's projection."
+        from:
+          type: string
+          description: "The numbering the stored rows are moved out of: only projections\
+            \ and shares stamped with it are touched. Defaults to yahoo, the direction\
+            \ the first migration went."
+          enum:
+          - yahoo
+          - espn
+        to:
+          type: string
+          description: "The numbering the crosswalk's new ids are in, stamped on every\
+            \ row moved. Defaults to espn."
+          enum:
+          - yahoo
+          - espn
       required:
       - mappings
     PlayerIdRemapCounts:
@@ -2065,6 +2101,18 @@ components:
         dryRun:
           type: boolean
           description: Nothing was written
+        from:
+          type: string
+          description: The numbering rows were read in
+          enum:
+          - yahoo
+          - espn
+        to:
+          type: string
+          description: The numbering moved rows are stamped with
+          enum:
+          - yahoo
+          - espn
         projectionsScanned:
           type: integer
           format: int32
@@ -2103,11 +2151,13 @@ components:
       - collidingPlayerIds
       - draftPicks
       - dryRun
+      - from
       - playerRows
       - positionOverrides
       - projectionsScanned
       - sharedRows
       - sharesScanned
+      - to
       - unmappedPlayerIds
     ProjectionSummaryResponse:
       type: object

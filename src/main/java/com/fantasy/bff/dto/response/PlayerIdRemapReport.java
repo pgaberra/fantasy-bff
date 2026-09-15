@@ -1,22 +1,30 @@
 package com.fantasy.bff.dto.response;
 
 import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
+import com.fantasy.bff.service.PlayerIdSpace;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
 /**
- * What matching Yahoo's players to ESPN's produced, and what db-service did with it. Both
- * halves are here because the second is only worth reading in the light of the first: a low
- * coverage means the rows that went unmapped are stranded, not that the write failed.
+ * What matching one platform's players to the other's produced, and what db-service did with
+ * it. Both halves are here because the second is only worth reading in the light of the first: a
+ * low coverage means the rows that went unmapped are stranded, not that the write failed. The
+ * counts below are of the side being left, named by {@code from}.
  */
 public record PlayerIdRemapReport(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "The numbering the stored rows were read in")
+        PlayerIdSpace from,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "The numbering they are moved into")
+        PlayerIdSpace to,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Players in the Yahoo pool")
         int yahooPlayers,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Players in the ESPN pool")
         int espnPlayers,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Yahoo players that found an ESPN counterpart")
+                description = "Players on the from side that found a counterpart on the to side")
         int matched,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Matched on the full name")
         int matchedOnName,
