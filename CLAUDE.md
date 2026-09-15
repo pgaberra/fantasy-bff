@@ -392,7 +392,9 @@ container health check fails and the deploy rolls back.
   `fantasy-web` repo.)
 - Downstream clients are an interface + an http implementation. Tests never hit
   real downstream services: integration tests replace the client interfaces with
-  `@MockitoBean`; http clients are tested in isolation with WireMock.
+  `@MockitoBean`; http clients are tested in isolation with WireMock, started from
+  `WireMockConfigs.http11()` (h2c off: over it WireMock drops POST bodies and a verify
+  races the request journal).
 - Keep new endpoints under `/api/v1`. Default is authenticated. To make something
   public, pick the mechanism by what it is:
   - **Infra/plumbing** (health, auth flow, swagger): add to `security.permitted-urls`.

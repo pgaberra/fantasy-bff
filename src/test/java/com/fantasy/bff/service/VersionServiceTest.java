@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.dto.response.ServiceVersion;
 import com.fantasy.bff.dto.response.VersionsResponse;
+import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,7 +14,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -49,7 +49,7 @@ class VersionServiceTest {
     }
 
     private WireMockServer startServer(String version) {
-        WireMockServer server = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         server.stubFor(get(urlPathEqualTo("/actuator/info"))
                 .willReturn(okJson("{\"app\":{\"name\":\"svc\",\"version\":\"" + version + "\"}}")));
@@ -96,7 +96,7 @@ class VersionServiceTest {
 
     @Test
     void marksUnreachableServiceDownWithNoVersion() {
-        WireMockServer dead = new WireMockServer(wireMockConfig().dynamicPort());
+        WireMockServer dead = new WireMockServer(WireMockConfigs.http11());
         dead.start();
         dead.stubFor(get(urlPathEqualTo("/actuator/info")).willReturn(aResponse().withStatus(500)));
 
