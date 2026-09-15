@@ -229,7 +229,10 @@ public class AuthService {
     }
 
     private AuthResponse issueTokens(String userId, String email, int tokenVersion, boolean emailVerified) {
-        boolean admin = isAdmin(email);
+        // Admin is granted by email address, so only an address the account has proven it owns may
+        // carry it. Registration signs an unverified account straight in: without this, an
+        // allowlisted address that has no account yet would make whoever registers it an admin.
+        boolean admin = emailVerified && isAdmin(email);
         String token = jwtTokenValidator.generateToken(userId, email, admin);
         String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email, tokenVersion);
         long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
