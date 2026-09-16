@@ -8,6 +8,8 @@ import com.fantasy.bff.generated.db.model.SharedProjectionData;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.fantasy.bff.email.EmailVerificationEmailSender;
+import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
@@ -15,11 +17,16 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,7 +51,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "security.rate-limit.endpoints[/api/v1/shared/*].method=GET",
         "security.rate-limit.endpoints[/api/v1/shared/*/preview].limit=5",
         "security.rate-limit.endpoints[/api/v1/shared/*/preview].window-seconds=60",
-        "security.rate-limit.endpoints[/api/v1/shared/*/preview].method=GET"
+        "security.rate-limit.endpoints[/api/v1/shared/*/preview].method=GET",
+        "security.rate-limit.endpoints[/api/v1/auth/verify/resend].limit=2",
+        "security.rate-limit.endpoints[/api/v1/auth/verify/resend].window-seconds=60",
+        "security.rate-limit.emails-per-address.limit=1",
+        "security.rate-limit.emails-per-address.window-seconds=60"
 })
 class RateLimitFilterTest {
 
@@ -53,6 +64,9 @@ class RateLimitFilterTest {
 
     @MockitoBean
     private DatabaseServiceClient databaseServiceClient;
+
+    @MockitoBean
+    private EmailVerificationEmailSender emailVerificationEmailSender;
 
     @Test
     void rateLimitsLoginAfterConfiguredAttempts() throws Exception {
@@ -141,5 +155,36 @@ class RateLimitFilterTest {
 
         // ...and the preview, which has its own rule, is untouched by it.
         mockMvc.perform(get("/api/v1/shared/token-e/preview").header("X-Forwarded-For", "198.51.100.3")).andExpect(status().isOk());
+    }
+
+    @Test
+    void rateLimitsResendingTheVerificationEmailPerCaller() throws Exception {
+        String body = "{\"email\":\"someone@example.com\"}";
+
+        mockMvc.perform(post("/api/v1/auth/verify/resend").header("X-Forwarded-For", "198.51.100.20")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/verify/resend").header("X-Forwarded-For", "198.51.100.20")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/verify/resend").header("X-Forwarded-For", "198.51.100.20")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void capsVerificationEmailsPerAddress_soManyCallersCannotFloodOneInbox() throws Exception {
+        when(databaseServiceClient.createEmailVerificationToken("victim@example.com"))
+                .thenReturn(Optional.of(new EmailVerificationToken("token", Instant.now().plusSeconds(3600))));
+        String body = "{\"email\":\"victim@example.com\"}";
+
+        mockMvc.perform(post("/api/v1/auth/verify/resend").header("X-Forwarded-For", "198.51.100.21")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/verify/resend").header("X-Forwarded-For", "198.51.100.22")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+
+        verify(emailVerificationEmailSender, times(1)).send(eq("victim@example.com"), anyString(), any());
     }
 }

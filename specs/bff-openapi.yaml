@@ -972,6 +972,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncAcceptedResponse"
+  /api/v1/account/sessions/revoke:
+    post:
+      tags:
+      - Account
+      summary: Sign the account out on every device
+      description: "Revokes every refresh token the account holds, this device's included,\
+        \ so each session ends the next time it tries to refresh. An access token\
+        \ already issued stays valid until it expires (15 minutes)."
+      operationId: signOutEverywhere
+      responses:
+        "204":
+          description: Every session revoked
   /api/v1/yahoo/leagues:
     get:
       tags:
