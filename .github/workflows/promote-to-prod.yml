@@ -89,7 +89,7 @@ jobs:
       # The step above trusts Coolify's word that the deployment finished. This one asks the
       # running production instead: the BFF's public /api/v1/versions reads each Spring
       # service's /actuator/info, which reports the APP_VERSION the container actually started
-      # with. fantasy-web (its only public page today is a static maintenance page) and
+      # with. fantasy-web (its version is baked into the JavaScript bundle; no endpoint serves it) and
       # fantasy-projection-service (no version endpoint, and not reachable from the internet)
       # report nothing a runner can read, so for them Coolify's word is the whole check.
       - name: Verify the version production serves
