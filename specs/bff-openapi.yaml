@@ -1556,28 +1556,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
-  /api/v1/espn/credentials/values:
-    get:
-      tags:
-      - ESPN
-      summary: The caller's own stored ESPN cookies
-      description: Returns the stored espn_s2 and SWID so the import form can show
-        the user their saved connection. Scoped to the JWT subject — a caller can
-        only ever read their own. 404 when they have stored none.
-      operationId: credentialValues
-      responses:
-        "200":
-          description: Cookies returned
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CredentialValuesResponse"
-        "404":
-          description: Caller has no stored cookies
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CredentialValuesResponse"
   /api/v1/billing/entitlements:
     get:
       tags:
@@ -3454,16 +3432,6 @@ components:
           type: boolean
       required:
       - hasCredentials
-    CredentialValuesResponse:
-      type: object
-      properties:
-        espnS2:
-          type: string
-        swid:
-          type: string
-      required:
-      - espnS2
-      - swid
     EntitlementsResponse:
       type: object
       properties:
