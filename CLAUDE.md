@@ -101,7 +101,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `AccountController` — the signed-in account itself: `GET /api/v1/account`,
     `PUT /api/v1/account/username`, and the profile picture under `/api/v1/account/avatar`
     (`GET` serves the bytes, or an empty 204 for an account without one; `PUT` takes a
-    multipart `file`; `DELETE`). `AccountResponse` is deliberately thinner than what
+    multipart `file`; `DELETE`), and `POST /api/v1/account/sessions/revoke`, "sign out
+    everywhere": it has db-service bump the account's `tokenVersion`, so every refresh token issued
+    before stops working at its next `/refresh` (access tokens run out their 15 minutes). It is the
+    only way an account without a password can end a stolen session. `AccountResponse` is deliberately thinner than what
     db-service returns to its trusted caller — the password hash and social subject ids stop
     here. Sharing a projection requires a username, so the share endpoints relay db-service's
     409 when an account has not picked one. The picture goes through `AvatarService`, the one
@@ -190,8 +193,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     forwarding the JWT subject to the service that owns the data and both ending at the same
     place: `…/leagues/{id}/projection-settings`, the league's scoring mapped into *our*
     projection settings, so the two platforms converge before the web ever sees them. They
-    differ where the platforms differ — Yahoo has `POST /connect` and a `/connection` status
-    because it has OAuth; ESPN has none, so `EspnController` manages the user's stored
+    differ where the platforms differ — Yahoo has `POST /connect`, `POST /connect/complete` and a
+    `/connection` status because it has OAuth (the callback only parks the tokens; `/connect/complete`
+    claims them with the one-time code from the web's URL fragment, and yahoo-service attaches them
+    only for the user who started the flow, so the user id must come from the JWT, never the body —
+    the admin twin `/admin/yahoo/connect/complete` claims for the service account); ESPN has none, so `EspnController` manages the user's stored
     `espn_s2` + `SWID` cookies instead. Note `GET /espn/credentials/values` hands the caller
     back **their own** cookies (everything else exposes only a `hasCredentials` flag).
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
@@ -202,7 +208,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     configured value: the switch is an environment variable, and one that did not take looks
     exactly like one that was never set. projection-service is absent on purpose — it is
     FastAPI, serves no `/actuator/info` and stamps no deployed version, so probing it would
-    report it down forever.
+    report it down forever. It is public (the promotion workflows poll production's copy
+    unauthenticated), so `VersionService` keeps one answer for 10 seconds and shares it with
+    everyone who asks meanwhile, and the route is rate-limited like the other public reads. Hiding
+    the versions was not the point: every production release is a published GitHub release of a
+    public repo already.
 - `service/` — business logic (`AuthService`, `PlayerService`)
   - `PlayerPoolSource` — where the player pool comes from, chosen by `players.source`:
     `YahooPlayerPoolSource` (yahoo-service, with the four ESPN-only stats matched in by name)
@@ -341,9 +351,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   counts every path it covers into **one bucket per client** — which is the point for the
   public share reads, where a caller working through tokens would never fill a per-path
   bucket. `method` defaults to POST, so the auth rules read as before.
-  Note what the client is for the crawler-facing share paths: nginx proxies them, so the
-  last forwarded hop is the web container and every crawler shares one bucket. Those limits
-  are a ceiling on total load rather than a per-caller limit, and are set accordingly.
+  Note what the client is for the crawler-facing share paths: nginx proxies them through the
+  public origin, so the last forwarded hop is the web server and every crawler shares one bucket.
+  Those limits are a ceiling on total load rather than a per-caller limit, and are set
+  accordingly; the per-caller limit for those two paths lives in fantasy-web's `nginx.conf`,
+  which is the last hop that still sees the real client.
+  `emails-per-address` is the one limit not keyed on the caller: `EmailSendThrottle` caps the
+  verification and password-reset emails one address is sent, whoever asks, and answers a
+  request over the cap exactly like one that sent mail.
 - `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
   `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
   Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified

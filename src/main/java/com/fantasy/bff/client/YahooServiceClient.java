@@ -12,6 +12,13 @@ public interface YahooServiceClient {
 
     ConnectionResponse connection(String appUserId);
 
+    /**
+     * Claims the Yahoo tokens a finished consent parked under {@code code}, for {@code appUserId}.
+     * yahoo-service answers 404 for an unknown, used or expired code and 409 when another user
+     * started the flow; both reach the caller as {@code RestClientResponseException}.
+     */
+    ConnectionResponse completeLink(String appUserId, String code);
+
     LeaguesResponse leagues(String appUserId);
 
     LeagueSettingsResponse settings(String appUserId, String leagueKey);

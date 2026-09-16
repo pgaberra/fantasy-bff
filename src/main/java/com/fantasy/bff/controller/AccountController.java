@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.SetUsernameRequest;
 import com.fantasy.bff.dto.response.AccountResponse;
+import com.fantasy.bff.service.AuthService;
 import com.fantasy.bff.service.AvatarService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,10 +40,13 @@ public class AccountController {
 
     private final DatabaseServiceClient databaseServiceClient;
     private final AvatarService avatarService;
+    private final AuthService authService;
 
-    public AccountController(DatabaseServiceClient databaseServiceClient, AvatarService avatarService) {
+    public AccountController(DatabaseServiceClient databaseServiceClient, AvatarService avatarService,
+                             AuthService authService) {
         this.databaseServiceClient = databaseServiceClient;
         this.avatarService = avatarService;
+        this.authService = authService;
     }
 
     @Operation(operationId = "getAccount", summary = "Fetch the signed-in account's profile")
@@ -109,5 +114,17 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeAvatar(@AuthenticationPrincipal String userId) {
         avatarService.remove(UUID.fromString(userId));
+    }
+
+    @Operation(operationId = "signOutEverywhere",
+            summary = "Sign the account out on every device",
+            description = "Revokes every refresh token the account holds, this device's included, so "
+                    + "each session ends the next time it tries to refresh. An access token already "
+                    + "issued stays valid until it expires (15 minutes).")
+    @ApiResponse(responseCode = "204", description = "Every session revoked")
+    @PostMapping("/sessions/revoke")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void signOutEverywhere(@AuthenticationPrincipal String userId) {
+        authService.signOutEverywhere(userId);
     }
 }

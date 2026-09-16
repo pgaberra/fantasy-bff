@@ -33,6 +33,9 @@ public interface DatabaseServiceClient {
 
     User findUserById(UUID userId);
 
+    /** Ends every session the account holds: refresh tokens issued before stop being accepted. */
+    void revokeSessions(UUID userId);
+
     /** Sets the account's public name. Throws when another account already holds it (409). */
     User setUsername(UUID userId, String username);
 

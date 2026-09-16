@@ -2,6 +2,7 @@ package com.fantasy.bff.client;
 
 import com.fantasy.bff.exception.YahooAccessDeniedException;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
+import com.fantasy.bff.generated.yahoo.model.CompleteLinkRequest;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
@@ -53,6 +54,15 @@ public class HttpYahooServiceClient implements YahooServiceClient {
     public ConnectionResponse connection(String appUserId) {
         return restClient.get()
                 .uri(b -> b.path("/api/v1/yahoo/oauth/connection").queryParam("appUserId", appUserId).build())
+                .retrieve()
+                .body(ConnectionResponse.class);
+    }
+
+    @Override
+    public ConnectionResponse completeLink(String appUserId, String code) {
+        return restClient.post()
+                .uri("/api/v1/yahoo/oauth/complete")
+                .body(new CompleteLinkRequest().appUserId(appUserId).code(code))
                 .retrieve()
                 .body(ConnectionResponse.class);
     }
