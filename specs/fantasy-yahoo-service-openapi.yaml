@@ -20,6 +20,46 @@ tags:
 - name: Yahoo Leagues
   description: A user's Yahoo fantasy leagues and their settings
 paths:
+  /api/v1/yahoo/oauth/complete:
+    post:
+      tags:
+      - Yahoo OAuth
+      summary: Claim a parked Yahoo connection
+      description: "Attaches the tokens parked by the callback to appUserId, if that\
+        \ user started the flow. The code is single-use and short-lived; a code presented\
+        \ for a different user is rejected and its tokens discarded."
+      operationId: complete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteLinkRequest"
+        required: true
+      responses:
+        "200":
+          description: Yahoo account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
+        "400":
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "404":
+          description: "Link code unknown, already used or expired"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "409":
+          description: Link code belongs to a flow another user started; discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/oauth/authorize-url:
     post:
       tags:
@@ -127,9 +167,11 @@ paths:
       - Yahoo OAuth
       summary: Yahoo OAuth callback
       description: "Yahoo redirects the browser here after consent. Exchanges the\
-        \ code for tokens, stores them, then redirects back to the web app. Public\
-        \ (validated by the signed state), so it is exempt from the internal API-key\
-        \ filter."
+        \ code for tokens and parks them under a one-time link code, then redirects\
+        \ back to the web app with ?yahoo=confirm&account=user|service and the code\
+        \ in the fragment (#link=…), where the signed-in user claims them through\
+        \ /complete. Public (validated by the signed state), so it is exempt from\
+        \ the internal API-key filter."
       operationId: callback
       parameters:
       - name: code
@@ -476,6 +518,44 @@ paths:
                   $ref: "#/components/schemas/GoalieResponse"
 components:
   schemas:
+    CompleteLinkRequest:
+      type: object
+      properties:
+        appUserId:
+          type: string
+          description: "The app user claiming the connection: the signed-in user,\
+            \ or the service account."
+          maxLength: 64
+          minLength: 0
+        code:
+          type: string
+          description: The one-time link code the OAuth callback handed to the browser.
+          maxLength: 128
+          minLength: 0
+      required:
+      - appUserId
+      - code
+    ErrorDto:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+    ConnectionResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+          description: Whether the user has a connected Yahoo account.
+      required:
+      - connected
     AuthorizeUrlResponse:
       type: object
       properties:
@@ -633,27 +713,6 @@ components:
         avgTimeOnIce:
           type: string
           description: "Average time on ice per game, formatted \"MM:SS\""
-    ConnectionResponse:
-      type: object
-      properties:
-        connected:
-          type: boolean
-          description: Whether the user has a connected Yahoo account.
-      required:
-      - connected
-    ErrorDto:
-      type: object
-      properties:
-        timestamp:
-          type: string
-          format: date-time
-        status:
-          type: integer
-          format: int32
-        error:
-          type: string
-        message:
-          type: string
     LeagueSummary:
       type: object
       properties:

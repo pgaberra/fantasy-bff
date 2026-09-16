@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.request.YahooLinkClaimRequest;
 import com.fantasy.bff.dto.response.ErrorDto;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
@@ -14,10 +15,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,6 +50,27 @@ public class YahooController {
     @PostMapping("/connect")
     public AuthorizeUrlResponse connect(@AuthenticationPrincipal String userId) {
         return yahooServiceClient.authorizeUrl(userId);
+    }
+
+    @Operation(summary = "Finish connecting the user's Yahoo account",
+            description = "Attaches the Yahoo authorization from the consent the browser just returned "
+                    + "from, if this user is the one who started it. "
+                    + "The code is single-use and expires after five minutes. 404 means it is unknown, used or "
+                    + "expired; 409 means a different account started this connection, and the Yahoo "
+                    + "authorization has been discarded.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Yahoo account connected"),
+            @ApiResponse(responseCode = "400", description = "Malformed code",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "404", description = "Code unknown, already used or expired",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "409", description = "Another account started this connection; discarded",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
+    @PostMapping("/connect/complete")
+    public ConnectionResponse completeConnect(@AuthenticationPrincipal String userId,
+                                              @Valid @RequestBody YahooLinkClaimRequest request) {
+        return yahooServiceClient.completeLink(userId, request.code());
     }
 
     @Operation(summary = "Whether the user has connected their Yahoo account")
