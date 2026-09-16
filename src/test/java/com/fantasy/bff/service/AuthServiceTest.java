@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -169,5 +170,12 @@ class AuthServiceTest {
         assertThat(response.token()).isEqualTo("access");
         assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(databaseServiceClient).findOrCreateGoogleUser("g@example.com", "google-sub-9");
+    }
+
+    @Test
+    void signOutEverywhere_revokesEverySessionOfThatAccount() {
+        authService.signOutEverywhere("11111111-1111-1111-1111-111111111111");
+
+        verify(databaseServiceClient).revokeSessions(UUID.fromString("11111111-1111-1111-1111-111111111111"));
     }
 }

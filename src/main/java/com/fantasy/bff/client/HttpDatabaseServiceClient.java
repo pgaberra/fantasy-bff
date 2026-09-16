@@ -234,6 +234,14 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
+    public void revokeSessions(UUID userId) {
+        restClient.post()
+                .uri("/api/v1/users/{userId}/sessions/revoke", userId)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
     public User setUsername(UUID userId, String username) {
         UserResponse response = restClient.put()
                 .uri("/api/v1/users/{userId}/username", userId)
