@@ -10,9 +10,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -113,5 +120,46 @@ class VersionServiceTest {
                 .orElseThrow();
         assertThat(database.up()).isFalse();
         assertThat(database.version()).isNull();
+    }
+
+    @Test
+    void servesOneProbeToEveryoneWhoAsksWithinTheCacheWindow_thenProbesAgain() {
+        Instant start = Instant.parse("2026-09-16T12:00:00Z");
+        Instant[] now = {start};
+        Clock clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return now[0];
+            }
+        };
+        VersionService service = new VersionService("1.2.3-bff",
+                client(dbServer), client(yahooServer), client(espnServer), client(projectionServer),
+                poolFrom("espn"), clock, Duration.ofSeconds(10));
+
+        service.getVersions();
+        now[0] = start.plusSeconds(9);
+        service.getVersions();
+        dbServer.verify(1, getRequestedFor(urlPathEqualTo("/actuator/info")));
+
+        now[0] = start.plusSeconds(10);
+        dbServer.stubFor(get(urlPathEqualTo("/actuator/info"))
+                .willReturn(okJson("{\"app\":{\"version\":\"1.0.1\"}}")));
+        VersionsResponse refreshed = service.getVersions();
+
+        dbServer.verify(2, getRequestedFor(urlPathEqualTo("/actuator/info")));
+        assertThat(refreshed.services())
+                .filteredOn(version -> version.name().equals("fantasy-db-service"))
+                .extracting(ServiceVersion::version)
+                .containsExactly("1.0.1");
     }
 }
