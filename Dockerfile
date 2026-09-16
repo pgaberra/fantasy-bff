@@ -36,9 +36,20 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl fontconfig fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
+# Run as an unprivileged user, not root, so a compromise of the app is not root in the container.
+# A fixed UID/GID (10001) sits clear of the users the base image ships (Ubuntu's `ubuntu` is 1000)
+# and is given numerically to USER, so a runtime can tell it is not root without reading
+# /etc/passwd. The unpacked jars stay root-owned and read-only to it; the only place the app writes
+# is java.io.tmpdir (/tmp, world-writable), where Tomcat keeps its work directory. The home
+# directory is there for anything that caches under $HOME (fontconfig, Java preferences).
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /home/app --create-home \
+       --shell /usr/sbin/nologin app
+
 WORKDIR /app
 COPY --from=build /app/extracted/ ./
 
 # Render injects PORT; the app reads it via server.port=${PORT:8080}
 EXPOSE 8080
+USER 10001:10001
 ENTRYPOINT ["java", "-jar", "app.jar"]
