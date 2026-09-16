@@ -4,6 +4,7 @@ import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.request.AdminGrantPremiumRequest;
+import com.fantasy.bff.dto.request.YahooLinkClaimRequest;
 import com.fantasy.bff.dto.response.AdminPremiumCustomerResponse;
 import com.fantasy.bff.dto.response.AdminPremiumGrantResponse;
 import com.fantasy.bff.dto.response.ErrorDto;
@@ -79,6 +80,26 @@ public class AdminController {
     @PostMapping("/yahoo/connect")
     public AuthorizeUrlResponse connectYahooServiceAccount() {
         return yahooServiceClient.authorizeUrl(SERVICE_ACCOUNT_ID);
+    }
+
+    @Operation(summary = "Finish connecting the Yahoo service account",
+            description = "Attaches the Yahoo authorization from the consent the browser just returned "
+                    + "from to the service account, if the flow was started for it. "
+                    + "The code is single-use and expires after five minutes. 404 means it is unknown, used or "
+                    + "expired; 409 means a different account started this connection, and the Yahoo "
+                    + "authorization has been discarded.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Service account connected"),
+            @ApiResponse(responseCode = "400", description = "Malformed code",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "404", description = "Code unknown, already used or expired",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "409", description = "The connection was not started for the service account; discarded",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
+    @PostMapping("/yahoo/connect/complete")
+    public ConnectionResponse completeYahooServiceAccountConnect(@Valid @RequestBody YahooLinkClaimRequest request) {
+        return yahooServiceClient.completeLink(SERVICE_ACCOUNT_ID, request.code());
     }
 
     @Operation(summary = "Whether the Yahoo service account is connected")

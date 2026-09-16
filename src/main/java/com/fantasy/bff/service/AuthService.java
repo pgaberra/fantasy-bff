@@ -22,6 +22,7 @@ import com.fantasy.bff.security.FacebookTokenVerifier;
 import com.fantasy.bff.security.GoogleCodeExchanger;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
+import com.fantasy.bff.security.EmailSendThrottle;
 import com.fantasy.bff.security.JwtTokenValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,7 @@ public class AuthService {
     private final PasswordResetEmailSender passwordResetEmailSender;
     private final EmailVerificationEmailSender emailVerificationEmailSender;
     private final SecurityProperties securityProperties;
+    private final EmailSendThrottle emailSendThrottle;
     private final String webBaseUrl;
     private final String dummyPasswordHash;
 
@@ -61,6 +63,7 @@ public class AuthService {
                        PasswordResetEmailSender passwordResetEmailSender,
                        EmailVerificationEmailSender emailVerificationEmailSender,
                        SecurityProperties securityProperties,
+                       EmailSendThrottle emailSendThrottle,
                        @Value("${app.web-base-url:http://localhost:4200}") String webBaseUrl) {
         this.databaseServiceClient = databaseServiceClient;
         this.jwtTokenValidator = jwtTokenValidator;
@@ -71,6 +74,7 @@ public class AuthService {
         this.passwordResetEmailSender = passwordResetEmailSender;
         this.emailVerificationEmailSender = emailVerificationEmailSender;
         this.securityProperties = securityProperties;
+        this.emailSendThrottle = emailSendThrottle;
         this.webBaseUrl = webBaseUrl;
         // A precomputed hash to compare against when an account is missing or password-less, so
         // login always runs one bcrypt regardless (see login()).
@@ -190,6 +194,10 @@ public class AuthService {
      * identically in both cases so a request never reveals whether an account exists.
      */
     public void requestPasswordReset(ForgotPasswordRequest request) {
+        if (!emailSendThrottle.tryAcquire("password-reset", request.email())) {
+            log.info("Password reset email cap reached for an address; no email sent");
+            return;
+        }
         databaseServiceClient.createPasswordResetToken(request.email()).ifPresentOrElse(
                 token -> passwordResetEmailSender.send(
                         request.email(), buildResetLink(token.token()), token.expiresAt()),
@@ -216,6 +224,10 @@ public class AuthService {
     }
 
     private void sendVerificationEmail(String email) {
+        if (!emailSendThrottle.tryAcquire("verification", email)) {
+            log.info("Verification email cap reached for an address; no email sent");
+            return;
+        }
         databaseServiceClient.createEmailVerificationToken(email).ifPresentOrElse(
                 token -> emailVerificationEmailSender.send(
                         email, buildVerifyLink(token.token()), token.expiresAt()),

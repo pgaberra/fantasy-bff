@@ -56,3 +56,40 @@ jobs:
           bash .github/scripts/check-pinned-spec.sh \
             "${{ matrix.producer }}" "${{ matrix.producer_path }}" "${{ matrix.pinned_path }}" \
             "${{ matrix.remedy }}"
+
+  # The six service repos keep byte-identical copies of promote-to-prod.yml rather than calling one
+  # shared workflow (root DECISIONS.md, 2026-09-16), so the way they go wrong is a change that lands
+  # in some copies and not the others. This compares every copy with fantasy-bff's own.
+  promote-workflow-copies:
+    name: promote-to-prod.yml copies still identical
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare every repo's copy with this one
+        env:
+          PUBLIC_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # fantasy-projection-service is private; this token already reads its contents for the spec pin.
+          PRIVATE_TOKEN: ${{ secrets.SPEC_READ_TOKEN }}
+        run: |
+          set -uo pipefail
+          FILE=.github/workflows/promote-to-prod.yml
+          drift=0
+          for repo in fantasy-web fantasy-db-service fantasy-espn-service fantasy-yahoo-service fantasy-projection-service; do
+            token="$PUBLIC_TOKEN"
+            if [ "$repo" = fantasy-projection-service ]; then token="$PRIVATE_TOKEN"; fi
+            if ! curl -fsSL -H "Authorization: Bearer $token" -H "Accept: application/vnd.github.raw" \
+                "https://api.github.com/repos/pgaberra/$repo/contents/$FILE" -o theirs.yml; then
+              echo "::error::could not read $FILE from $repo (for projection-service, check SPEC_READ_TOKEN has not expired)"
+              drift=1
+              continue
+            fi
+            if cmp -s "$FILE" theirs.yml; then
+              echo "$repo: identical"
+            else
+              echo "::error::$repo's $FILE differs from fantasy-bff's; land the same change in every copy"
+              diff -u "$FILE" theirs.yml | head -40
+              drift=1
+            fi
+          done
+          exit "$drift"

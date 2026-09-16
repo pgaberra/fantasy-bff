@@ -15,6 +15,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,6 +51,28 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/admin/yahoo/connect")
                         .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminClaimsAYahooLinkForTheServiceAccount() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + adminToken())
+                        .contentType("application/json")
+                        .content("{\"code\":\"link-code\"}"))
+                .andExpect(status().isOk());
+
+        verify(yahooServiceClient).completeLink("__service__", "link-code");
+    }
+
+    @Test
+    void nonAdminCannotClaimAYahooLinkForTheServiceAccount() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType("application/json")
+                        .content("{\"code\":\"link-code\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(yahooServiceClient, never()).completeLink(any(), any());
     }
 
     @Test
