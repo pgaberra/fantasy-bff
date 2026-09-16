@@ -2,10 +2,9 @@ name: PR Checks
 
 on:
   # Not on push to master: a squash-merge lands byte-identical code to what the PR's own
-  # pull_request run just tested, so a second full build+test here was pure duplication —
-  # the single biggest line item in the account's Actions minutes. The trade-off: without
-  # GitHub Pro we can't require this check before merge, so this was also the only net that
-  # caught two PRs merging close together where the second wasn't rebased on the first.
+  # pull_request run just tested, so a second full build+test here would be pure duplication.
+  # The `protect-master` ruleset requires this check on a branch that is up to date with
+  # master, so two PRs merging close together can't skip testing the second against the first.
   pull_request:
     branches: [master]
 
