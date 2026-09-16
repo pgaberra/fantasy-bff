@@ -11,8 +11,11 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HttpYahooServiceClientTest {
@@ -33,6 +36,29 @@ class HttpYahooServiceClientTest {
     @AfterEach
     void tearDown() {
         server.stop();
+    }
+
+    @Test
+    void completeLink_sendsTheUserAndTheCodeInTheBody() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/yahoo/oauth/complete"))
+                .withRequestBody(equalToJson("{\"appUserId\":\"user-1\",\"code\":\"link-code\"}"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"connected\":true}")));
+
+        assertThat(client.completeLink("user-1", "link-code").getConnected()).isTrue();
+    }
+
+    @Test
+    void completeLink_whenAnotherUserStartedTheFlow_surfacesTheConflict() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/yahoo/oauth/complete")).willReturn(aResponse()
+                .withStatus(409)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"status\":409,\"message\":\"started by a different account\"}")));
+
+        assertThatThrownBy(() -> client.completeLink("user-1", "link-code"))
+                .isInstanceOfSatisfying(RestClientResponseException.class,
+                        e -> assertThat(e.getStatusCode().value()).isEqualTo(409));
     }
 
     /** yahoo-service's body, as it answered while Yahoo withheld the app's access. */
