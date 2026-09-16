@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 @Service
 public class ProjectionService {
@@ -181,6 +182,9 @@ public class ProjectionService {
             data.getProjectionSettings().setPlayerBasis(basisOf(request.source()));
         } else if (data.getPlayers().isEmpty()) {
             throw new IllegalArgumentException("data.players must not be empty unless source is set");
+        } else {
+            // A new projection has nothing stored to have held the basis already.
+            settleClaimedBasis(userId, data.getProjectionSettings(), () -> false);
         }
         // Squared with the pool before it is written, not on its first read. A starting point that
         // does not cover the whole pool — the model's lines, a copied board — would otherwise have
@@ -224,6 +228,11 @@ public class ProjectionService {
      */
     public ProjectionResponse update(UUID userId, UUID projectionId, UpdateProjectionRequest request) {
         request.setPlayerIdSpace(updateSpaceOf(playerPool.playerIdSpace()));
+        Optional.ofNullable(request.getData())
+                .map(UpdateProjectionData::getProjectionSettings)
+                .ifPresent(settings -> settleClaimedBasis(userId, settings, () ->
+                        databaseServiceClient.getProjection(userId, projectionId)
+                                .getData().getProjectionSettings().getPlayerBasis() == PlayerBasisEnum.MODEL));
         return ProjectionResponse.of(
                 databaseServiceClient.updateProjection(userId, projectionId, request));
     }
@@ -306,13 +315,33 @@ public class ProjectionService {
         return switch (source) {
             case BLANK -> PlayerBasisEnum.BLANK;
             case DEFAULT -> PlayerBasisEnum.LAST_SEASON;
-            // No basis fits a model-seeded projection. The field answers "what should a player
-            // who joins the pool later be seeded with", and the reconciler cannot answer that
-            // from the model — it reads the player pool, not the projection service. Saying
-            // last_season would be a lie stored in the row; the field is already documented as
-            // absent on projections that predate it, and the reconciler infers when it is null.
-            case MODEL -> null;
+            // Recorded outright. Left null, the reconciliation that runs before the write read
+            // the model's rows as last season's and stored that, so newcomers never saw the model.
+            case MODEL -> PlayerBasisEnum.MODEL;
         };
+    }
+
+    /**
+     * A model basis is what makes the reconciler hand out the model's lines, and the model is what
+     * premium pays for, so the basis is not the client's to claim. A client sending it with its
+     * own rows would otherwise have the next reconciliation fill every row it left out from the
+     * model. It stands when the account has premium, or when the projection already held it —
+     * a lapsed subscription keeps the projection it started, and its app sends the basis back on
+     * every save. Anything else is read as last season, the fallback the model basis has anyway.
+     *
+     * @param storedIsModel whether the projection already holds a model basis; asked only when it
+     *     could decide the answer, since it costs a read
+     */
+    private void settleClaimedBasis(UUID userId, ProjectionSettings settings, BooleanSupplier storedIsModel) {
+        if (settings == null || settings.getPlayerBasis() != PlayerBasisEnum.MODEL) {
+            return;
+        }
+        if (entitlementService.hasPremiumAccess(userId.toString()) || storedIsModel.getAsBoolean()) {
+            return;
+        }
+        log.warn("A client claimed a model basis for a projection without premium or a stored model "
+                + "basis; recording last season instead");
+        settings.setPlayerBasis(PlayerBasisEnum.LAST_SEASON);
     }
 
     /**

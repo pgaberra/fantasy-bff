@@ -1473,11 +1473,13 @@ components:
         playerBasis:
           type: string
           description: "What the player rows started from, and so what a player who\
-            \ joins the pool later is seeded with: last season's stat line, or zeros.\
-            \ Absent on projections saved before this was recorded."
+            \ joins the pool later is seeded with: last season's stat line, zeros,\
+            \ or the projection model's line. Absent on projections saved before this\
+            \ was recorded."
           enum:
           - last_season
           - blank
+          - model
         playerPoolSyncedAt:
           type: string
           format: date-time

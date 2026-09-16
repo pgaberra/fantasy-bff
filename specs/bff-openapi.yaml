@@ -1954,6 +1954,7 @@ components:
           enum:
           - last_season
           - blank
+          - model
         playerPoolSyncedAt:
           type: string
           format: date-time

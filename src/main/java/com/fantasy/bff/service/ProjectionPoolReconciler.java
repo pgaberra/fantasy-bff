@@ -8,11 +8,14 @@ import com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum;
 import com.fantasy.bff.service.PlayerPoolRows.Pool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,7 +27,9 @@ import java.util.Set;
  * <p>A projection is written once and then edited for a season, while the pool underneath it
  * keeps moving: a new season brings a new roster, and trades and call-ups add players all year.
  * A player the pool has gained is added, seeded from what the projection started as — last
- * season's stat line, or zeros for one built from scratch.
+ * season's stat line, zeros for one built from scratch, or the model's line for one started from
+ * the AI projection. The model has no line for a player with no NHL season behind him, and that
+ * is most of who arrives mid-season, so those fall back to last season's line.
  *
  * <p><b>Nothing is ever removed.</b> A row whose player has left the pool is left exactly where
  * it is and simply not shown, which the client already does for any row it cannot draw. Deleting
@@ -51,10 +56,23 @@ public class ProjectionPoolReconciler {
 
     private final PlayerPoolSource playerPool;
     private final PlayerPoolRows playerPoolRows;
+    private final ProjectionSeedService seedService;
+    private final AiProjectionAvailability aiProjection;
+    private final int projectionSeason;
+    private final String projectionModelVersion;
 
-    public ProjectionPoolReconciler(PlayerPoolSource playerPool, PlayerPoolRows playerPoolRows) {
+    public ProjectionPoolReconciler(PlayerPoolSource playerPool,
+                                    PlayerPoolRows playerPoolRows,
+                                    ProjectionSeedService seedService,
+                                    AiProjectionAvailability aiProjection,
+                                    @Value("${services.projection.season}") int projectionSeason,
+                                    @Value("${services.projection.model-version}") String projectionModelVersion) {
         this.playerPool = playerPool;
         this.playerPoolRows = playerPoolRows;
+        this.seedService = seedService;
+        this.aiProjection = aiProjection;
+        this.projectionSeason = projectionSeason;
+        this.projectionModelVersion = projectionModelVersion;
     }
 
     /**
@@ -92,7 +110,6 @@ public class ProjectionPoolReconciler {
                 : settings.getPlayerBasis();
         boolean blank = basis == PlayerBasisEnum.BLANK;
 
-        List<PlayerProjection> players = new ArrayList<>(stored);
         Set<Integer> held = new HashSet<>();
         for (PlayerProjection player : stored) {
             held.add(player.getPlayerId());
@@ -100,17 +117,38 @@ public class ProjectionPoolReconciler {
         List<Integer> added = new ArrayList<>();
         for (Integer playerId : pool.playerIds()) {
             if (!held.contains(playerId)) {
-                players.add(pool.row(playerId, blank));
                 added.add(playerId);
+            }
+        }
+        // Asked only when someone actually arrived: the model's board is the one expensive read
+        // here, and most reconciliations of a model-based projection add nobody.
+        Map<Integer, PlayerProjection> modelLines = basis == PlayerBasisEnum.MODEL && !added.isEmpty()
+                ? modelLines()
+                : Map.of();
+
+        List<PlayerProjection> players = new ArrayList<>(stored);
+        int fromModel = 0;
+        for (Integer playerId : added) {
+            PlayerProjection modelLine = modelLines.get(playerId);
+            if (modelLine != null) {
+                players.add(copyOf(modelLine));
+                fromModel++;
+            } else {
+                players.add(pool.row(playerId, blank));
             }
         }
 
         data.setPlayers(players);
         settings.setPlayerBasis(basis);
         settings.setPlayerPoolSyncedAt(syncedAt);
-        if (!added.isEmpty()) {
-            log.info("Squared a projection with the player pool: +{} added, seeded from {}",
-                    added.size(), blank ? "zeros" : "last season");
+        if (basis == PlayerBasisEnum.MODEL && !added.isEmpty()) {
+            log.info("Squared a model-based projection with the player pool: +{} added, {} from "
+                    + "the model and {} from last season", added.size(), fromModel, added.size() - fromModel);
+        } else if (blank && !added.isEmpty()) {
+            log.info("Squared a projection with the player pool: +{} added, seeded from zeros", added.size());
+        } else if (!added.isEmpty()) {
+            log.info("Squared a projection with the player pool: +{} added, seeded from last season",
+                    added.size());
         }
         return Optional.of(new Reconciliation(List.copyOf(added)));
     }
@@ -125,6 +163,47 @@ public class ProjectionPoolReconciler {
         }
         long blank = players.stream().filter(ProjectionPoolReconciler::isBlank).count();
         return blank >= players.size() * BLANK_SHARE ? PlayerBasisEnum.BLANK : PlayerBasisEnum.LAST_SEASON;
+    }
+
+    /**
+     * The model's current line for every player it reaches, keyed by platform id.
+     *
+     * <p>Premium is deliberately not asked. The projection was started from the model by someone
+     * entitled to it, and a player who joins it later is part of that same projection; a lapsed
+     * subscription keeps the projection it paid for, newcomers included. What is asked is whether
+     * this environment serves the model at all, since with it switched off the seed endpoint
+     * refuses too.
+     *
+     * <p>Empty when the model is off or cannot be read, which seeds every newcomer from last
+     * season. That is the same fallback a player the model does not reach gets, and a failed read
+     * must not cost the user the projection they were opening.
+     */
+    private Map<Integer, PlayerProjection> modelLines() {
+        if (!aiProjection.available()) {
+            return Map.of();
+        }
+        try {
+            Map<Integer, PlayerProjection> lines = new HashMap<>();
+            for (PlayerProjection line : seedService.seed(projectionSeason, projectionModelVersion).players()) {
+                lines.put(line.getPlayerId(), line);
+            }
+            return lines;
+        } catch (RuntimeException e) {
+            log.error("Could not read the projection model; seeding a model-based projection's new "
+                    + "players from last season", e);
+            return Map.of();
+        }
+    }
+
+    /** The seed's rows are shared with every reader of the cached board, so a projection gets its own. */
+    private static PlayerProjection copyOf(PlayerProjection line) {
+        PlayerStats stats = line.getStats();
+        return new PlayerProjection()
+                .playerId(line.getPlayerId())
+                .type(line.getType())
+                .stats(new PlayerStats()
+                        .utility(new LinkedHashMap<>(stats.getUtility()))
+                        .scoring(new LinkedHashMap<>(stats.getScoring())));
     }
 
     private static boolean isBlank(PlayerProjection player) {

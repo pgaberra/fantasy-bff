@@ -79,7 +79,9 @@ public record ProjectionSettings(
         @JsonProperty("last_season")
         LAST_SEASON,
         @JsonProperty("blank")
-        BLANK
+        BLANK,
+        @JsonProperty("model")
+        MODEL
     }
 
     public static ProjectionSettings from(com.fantasy.bff.generated.db.model.ProjectionSettings settings) {
@@ -157,9 +159,11 @@ public record ProjectionSettings(
         if (basis == null) {
             return null;
         }
-        return basis == com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.BLANK
-                ? PlayerBasis.BLANK
-                : PlayerBasis.LAST_SEASON;
+        return switch (basis) {
+            case LAST_SEASON -> PlayerBasis.LAST_SEASON;
+            case BLANK -> PlayerBasis.BLANK;
+            case MODEL -> PlayerBasis.MODEL;
+        };
     }
 
     private static com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum basisToDownstream(
@@ -167,8 +171,10 @@ public record ProjectionSettings(
         if (basis == null) {
             return null;
         }
-        return basis == PlayerBasis.BLANK
-                ? com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.BLANK
-                : com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.LAST_SEASON;
+        return switch (basis) {
+            case LAST_SEASON -> com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.LAST_SEASON;
+            case BLANK -> com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.BLANK;
+            case MODEL -> com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.MODEL;
+        };
     }
 }
