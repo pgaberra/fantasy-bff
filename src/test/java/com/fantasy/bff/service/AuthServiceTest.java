@@ -6,6 +6,8 @@ import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
+import com.fantasy.bff.dto.request.ResendVerificationRequest;
+import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
@@ -14,6 +16,7 @@ import com.fantasy.bff.security.FacebookTokenVerifier;
 import com.fantasy.bff.security.GoogleCodeExchanger;
 import com.fantasy.bff.security.GoogleIdentity;
 import com.fantasy.bff.security.GoogleTokenVerifier;
+import com.fantasy.bff.security.EmailSendThrottle;
 import com.fantasy.bff.security.JwtTokenValidator;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +34,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AuthServiceTest {
@@ -40,6 +44,9 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     private GoogleTokenVerifier googleTokenVerifier;
     private GoogleCodeExchanger googleCodeExchanger;
+    private EmailSendThrottle emailSendThrottle;
+    private PasswordResetEmailSender passwordResetEmailSender;
+    private EmailVerificationEmailSender emailVerificationEmailSender;
     private AuthService authService;
 
     @BeforeEach
@@ -49,6 +56,10 @@ class AuthServiceTest {
         passwordEncoder = mock(PasswordEncoder.class);
         googleTokenVerifier = mock(GoogleTokenVerifier.class);
         googleCodeExchanger = mock(GoogleCodeExchanger.class);
+        emailSendThrottle = mock(EmailSendThrottle.class);
+        when(emailSendThrottle.tryAcquire(anyString(), anyString())).thenReturn(true);
+        passwordResetEmailSender = mock(PasswordResetEmailSender.class);
+        emailVerificationEmailSender = mock(EmailVerificationEmailSender.class);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$dummyDummyDummyDummyDummyDummyDummyDummyDummyDummyDu");
         authService = authServiceWithAdmins();
     }
@@ -61,9 +72,10 @@ class AuthServiceTest {
                 googleTokenVerifier,
                 googleCodeExchanger,
                 mock(FacebookTokenVerifier.class),
-                mock(PasswordResetEmailSender.class),
-                mock(EmailVerificationEmailSender.class),
+                passwordResetEmailSender,
+                emailVerificationEmailSender,
                 new SecurityProperties(List.of(), List.of(), List.of(adminEmails), false),
+                emailSendThrottle,
                 "http://localhost:4200");
     }
 
@@ -169,5 +181,23 @@ class AuthServiceTest {
         assertThat(response.token()).isEqualTo("access");
         assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(databaseServiceClient).findOrCreateGoogleUser("g@example.com", "google-sub-9");
+    }
+
+    @Test
+    void resendVerification_overTheAddressCap_sendsNothingAndAsksNothingOfTheDatabase() {
+        when(emailSendThrottle.tryAcquire("verification", "victim@example.com")).thenReturn(false);
+
+        authService.resendVerificationEmail(new ResendVerificationRequest("victim@example.com"));
+
+        verifyNoInteractions(databaseServiceClient, emailVerificationEmailSender);
+    }
+
+    @Test
+    void forgotPassword_overTheAddressCap_sendsNothingAndAsksNothingOfTheDatabase() {
+        when(emailSendThrottle.tryAcquire("password-reset", "victim@example.com")).thenReturn(false);
+
+        authService.requestPasswordReset(new ForgotPasswordRequest("victim@example.com"));
+
+        verifyNoInteractions(databaseServiceClient, passwordResetEmailSender);
     }
 }

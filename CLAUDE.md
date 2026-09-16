@@ -202,7 +202,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     configured value: the switch is an environment variable, and one that did not take looks
     exactly like one that was never set. projection-service is absent on purpose — it is
     FastAPI, serves no `/actuator/info` and stamps no deployed version, so probing it would
-    report it down forever.
+    report it down forever. It is public (the promotion workflows poll production's copy
+    unauthenticated), so `VersionService` keeps one answer for 10 seconds and shares it with
+    everyone who asks meanwhile, and the route is rate-limited like the other public reads. Hiding
+    the versions was not the point: every production release is a published GitHub release of a
+    public repo already.
 - `service/` — business logic (`AuthService`, `PlayerService`)
   - `PlayerPoolSource` — where the player pool comes from, chosen by `players.source`:
     `YahooPlayerPoolSource` (yahoo-service, with the four ESPN-only stats matched in by name)
@@ -341,9 +345,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   counts every path it covers into **one bucket per client** — which is the point for the
   public share reads, where a caller working through tokens would never fill a per-path
   bucket. `method` defaults to POST, so the auth rules read as before.
-  Note what the client is for the crawler-facing share paths: nginx proxies them, so the
-  last forwarded hop is the web container and every crawler shares one bucket. Those limits
-  are a ceiling on total load rather than a per-caller limit, and are set accordingly.
+  Note what the client is for the crawler-facing share paths: nginx proxies them through the
+  public origin, so the last forwarded hop is the web server and every crawler shares one bucket.
+  Those limits are a ceiling on total load rather than a per-caller limit, and are set
+  accordingly; the per-caller limit for those two paths lives in fantasy-web's `nginx.conf`,
+  which is the last hop that still sees the real client.
+  `emails-per-address` is the one limit not keyed on the caller: `EmailSendThrottle` caps the
+  verification and password-reset emails one address is sent, whoever asks, and answers a
+  request over the cap exactly like one that sent mail.
 - `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
   `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
   Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified
