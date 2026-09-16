@@ -5,7 +5,6 @@ import com.fantasy.bff.dto.request.EspnCredentialsRequest;
 import com.fantasy.bff.dto.response.EspnLeagueTeamsResponse;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
-import com.fantasy.bff.generated.espn.model.CredentialValuesResponse;
 import com.fantasy.bff.service.EspnLeagueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -48,19 +47,6 @@ public class EspnController {
     @GetMapping("/credentials")
     public CredentialStatusResponse credentialStatus(@AuthenticationPrincipal String userId) {
         return espnServiceClient.credentialStatus(userId);
-    }
-
-    @Operation(summary = "The caller's own stored ESPN cookies",
-            description = "Returns the stored espn_s2 and SWID so the import form can show the "
-                    + "user their saved connection. Scoped to the JWT subject — a caller can only "
-                    + "ever read their own. 404 when they have stored none.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Cookies returned"),
-            @ApiResponse(responseCode = "404", description = "Caller has no stored cookies")
-    })
-    @GetMapping("/credentials/values")
-    public CredentialValuesResponse credentialValues(@AuthenticationPrincipal String userId) {
-        return espnServiceClient.credentialValues(userId);
     }
 
     @Operation(summary = "Store (or replace) the user's ESPN cookies")
