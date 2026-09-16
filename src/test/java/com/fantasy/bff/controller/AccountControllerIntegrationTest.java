@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -202,5 +203,20 @@ class AccountControllerIntegrationTest extends BaseIntegrationTest {
                         .file(new MockMultipartFile("file", "me.png", "image/png", PNG)))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/v1/account/avatar")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void signOutEverywhere_revokesTheSessionsOfTheAccountInTheToken() throws Exception {
+        mockMvc.perform(post("/api/v1/account/sessions/revoke").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isNoContent());
+
+        verify(databaseServiceClient).revokeSessions(USER_ID);
+    }
+
+    @Test
+    void signOutEverywhere_requiresASignedInCaller() throws Exception {
+        mockMvc.perform(post("/api/v1/account/sessions/revoke")).andExpect(status().isUnauthorized());
+
+        verify(databaseServiceClient, never()).revokeSessions(any());
     }
 }

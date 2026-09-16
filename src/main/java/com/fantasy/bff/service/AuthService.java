@@ -33,6 +33,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -108,6 +109,16 @@ public class AuthService {
             throw new SecurityException("Refresh token has been revoked");
         }
         return issueTokens(user.id(), user.email(), currentVersion, user.emailVerified());
+    }
+
+    /**
+     * Signs the account out on every device. Each refresh token carries the token version it was
+     * issued under and {@link #refresh} refuses one that no longer matches, so bumping the version
+     * ends every session at its next refresh; an access token already issued lives out its
+     * 15 minutes.
+     */
+    public void signOutEverywhere(String userId) {
+        databaseServiceClient.revokeSessions(UUID.fromString(userId));
     }
 
     /**
