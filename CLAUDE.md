@@ -193,8 +193,11 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     forwarding the JWT subject to the service that owns the data and both ending at the same
     place: `…/leagues/{id}/projection-settings`, the league's scoring mapped into *our*
     projection settings, so the two platforms converge before the web ever sees them. They
-    differ where the platforms differ — Yahoo has `POST /connect` and a `/connection` status
-    because it has OAuth; ESPN has none, so `EspnController` manages the user's stored
+    differ where the platforms differ — Yahoo has `POST /connect`, `POST /connect/complete` and a
+    `/connection` status because it has OAuth (the callback only parks the tokens; `/connect/complete`
+    claims them with the one-time code from the web's URL fragment, and yahoo-service attaches them
+    only for the user who started the flow, so the user id must come from the JWT, never the body —
+    the admin twin `/admin/yahoo/connect/complete` claims for the service account); ESPN has none, so `EspnController` manages the user's stored
     `espn_s2` + `SWID` cookies instead. Note `GET /espn/credentials/values` hands the caller
     back **their own** cookies (everything else exposes only a `hasCredentials` flag).
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether

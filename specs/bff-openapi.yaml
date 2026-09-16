@@ -338,6 +338,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthorizeUrlResponse"
+  /api/v1/yahoo/connect/complete:
+    post:
+      tags:
+      - Yahoo
+      summary: Finish connecting the user's Yahoo account
+      description: "Attaches the Yahoo authorization from the consent the browser\
+        \ just returned from, if this user is the one who started it. The code is\
+        \ single-use and expires after five minutes. 404 means it is unknown, used\
+        \ or expired; 409 means a different account started this connection, and the\
+        \ Yahoo authorization has been discarded."
+      operationId: completeConnect
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YahooLinkClaimRequest"
+        required: true
+      responses:
+        "200":
+          description: Yahoo account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
+        "400":
+          description: Malformed code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "404":
+          description: "Code unknown, already used or expired"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "409":
+          description: Another account started this connection; discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/projections:
     get:
       tags:
@@ -772,6 +814,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthorizeUrlResponse"
+  /api/v1/admin/yahoo/connect/complete:
+    post:
+      tags:
+      - Admin
+      summary: Finish connecting the Yahoo service account
+      description: "Attaches the Yahoo authorization from the consent the browser\
+        \ just returned from to the service account, if the flow was started for it.\
+        \ The code is single-use and expires after five minutes. 404 means it is unknown,\
+        \ used or expired; 409 means a different account started this connection,\
+        \ and the Yahoo authorization has been discarded."
+      operationId: completeYahooServiceAccountConnect
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YahooLinkClaimRequest"
+        required: true
+      responses:
+        "200":
+          description: Service account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
+        "400":
+          description: Malformed code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "404":
+          description: "Code unknown, already used or expired"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "409":
+          description: The connection was not started for the service account; discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/admin/premium/grants:
     post:
       tags:
@@ -2270,6 +2354,34 @@ components:
           type: string
       required:
       - authorizeUrl
+    YahooLinkClaimRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: The one-time link code the Yahoo callback put in the web app's
+            URL fragment.
+          maxLength: 128
+          minLength: 0
+      required:
+      - code
+    ErrorDto:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: {}
+    ConnectionResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+      required:
+      - connected
     CreateProjectionRequest:
       type: object
       properties:
@@ -2688,16 +2800,6 @@ components:
       - sharesScanned
       - to
       - unmappedPlayerIds
-    ErrorDto:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: object
-          additionalProperties: {}
     LeagueSummary:
       type: object
       properties:
@@ -2794,13 +2896,6 @@ components:
       - scoringType
       - unsupportedRosterCodes
       - unsupportedStats
-    ConnectionResponse:
-      type: object
-      properties:
-        connected:
-          type: boolean
-      required:
-      - connected
     ServiceVersion:
       type: object
       properties:

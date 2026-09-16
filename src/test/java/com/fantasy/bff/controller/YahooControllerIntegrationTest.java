@@ -14,12 +14,17 @@ import com.fantasy.bff.security.JwtTokenValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -63,6 +68,74 @@ class YahooControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/yahoo/connect").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authorizeUrl").value("https://api.login.yahoo.com/oauth2/request_auth?x=1"));
+    }
+
+    @Test
+    void completeConnect_claimsTheCodeForTheSignedInUser() throws Exception {
+        when(yahooServiceClient.completeLink(USER_ID, "link-code"))
+                .thenReturn(new ConnectionResponse().connected(true));
+
+        mockMvc.perform(post("/api/v1/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType("application/json")
+                        .content("{\"code\":\"link-code\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connected").value(true));
+    }
+
+    /**
+     * The user id comes from the token, never the body: the whole point of the claim is that
+     * yahoo-service compares it with whoever started the flow.
+     */
+    @Test
+    void completeConnect_ignoresAUserIdInTheBody() throws Exception {
+        when(yahooServiceClient.completeLink(USER_ID, "link-code"))
+                .thenReturn(new ConnectionResponse().connected(true));
+
+        mockMvc.perform(post("/api/v1/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType("application/json")
+                        .content("{\"code\":\"link-code\",\"appUserId\":\"someone-else\"}"))
+                .andExpect(status().isOk());
+
+        verify(yahooServiceClient).completeLink(USER_ID, "link-code");
+    }
+
+    /** Someone else's consent link finished in this user's browser: relayed, not retried. */
+    @Test
+    void completeConnect_whenAnotherUserStartedTheFlow_isAConflict() throws Exception {
+        when(yahooServiceClient.completeLink(USER_ID, "link-code")).thenThrow(
+                HttpClientErrorException.create(HttpStatus.CONFLICT, "Conflict", null, null, null));
+
+        mockMvc.perform(post("/api/v1/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType("application/json")
+                        .content("{\"code\":\"link-code\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void completeConnect_withAnOversizedOrBlankCode_isRejectedBeforeYahooServiceIsAsked() throws Exception {
+        mockMvc.perform(post("/api/v1/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType("application/json")
+                        .content("{\"code\":\"" + "x".repeat(129) + "\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/v1/yahoo/connect/complete")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType("application/json")
+                        .content("{\"code\":\" \"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(yahooServiceClient, never()).completeLink(any(), any());
+    }
+
+    @Test
+    void completeConnect_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/yahoo/connect/complete")
+                        .contentType("application/json")
+                        .content("{\"code\":\"link-code\"}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
