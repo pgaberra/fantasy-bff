@@ -1,5 +1,7 @@
 package com.fantasy.bff.service;
 
+import com.fantasy.bff.config.AiProjectionProperties;
+import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -20,6 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Map;
@@ -27,6 +30,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,6 +44,8 @@ import static org.mockito.Mockito.when;
 class ProjectionPoolReconcilerTest {
 
     private static final OffsetDateTime LAST_SYNC = OffsetDateTime.parse("2026-08-16T04:12:00Z");
+    private static final int SEASON = 2026;
+    private static final String MODEL_VERSION = "marcel-v3";
 
     @Mock
     private PlayerPoolSource playerPool;
@@ -47,12 +53,14 @@ class ProjectionPoolReconcilerTest {
     @Mock
     private PlayerService playerService;
 
+    @Mock
+    private ProjectionSeedService seedService;
+
     private ProjectionPoolReconciler reconciler;
 
     @BeforeEach
     void setUp() {
-        reconciler = new ProjectionPoolReconciler(
-                playerPool, new PlayerPoolRows(playerService, JsonMapper.builder().build()));
+        reconciler = reconcilerWithAiProjection(true);
         givenLastSuccessfulSyncAt(LAST_SYNC);
         when(playerService.getSkaters()).thenReturn(List.of(skater(1), skater(2)));
         when(playerService.getGoalies()).thenReturn(List.of(goalie(101)));
@@ -127,6 +135,66 @@ class ProjectionPoolReconcilerTest {
 
         assertThat(allZeros.getProjectionSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.BLANK);
         assertThat(gained(allZeros, 2).getStats().getScoring().values()).containsOnly(0.0);
+    }
+
+    /**
+     * A projection started from the AI projection gains a newcomer at the model's line, and one
+     * the model has no line for — a player with no NHL season behind him — at last season's.
+     */
+    @Test
+    void seedsAGainedPlayerFromTheModelWhenTheProjectionIsBuiltOnIt() {
+        givenTheModelProjects(modelLine(2, 41.0));
+        ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1));
+
+        Reconciliation change = reconciler.reconcile(data).orElseThrow();
+
+        assertThat(change.addedPlayerIds()).containsExactly(2, 101);
+        assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 41.0);
+        assertThat(gained(data, 101).getStats().getScoring()).containsEntry("w", 36.0);
+        assertThat(data.getProjectionSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.MODEL);
+    }
+
+    /** The model's board is cached and shared, so a projection must not hold its rows. */
+    @Test
+    void givesTheProjectionItsOwnCopyOfAModelLine() {
+        PlayerProjection shared = modelLine(2, 41.0);
+        givenTheModelProjects(shared);
+        ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1));
+
+        reconciler.reconcile(data);
+
+        assertThat(gained(data, 2)).isNotSameAs(shared);
+        assertThat(gained(data, 2).getStats().getScoring()).isNotSameAs(shared.getStats().getScoring());
+    }
+
+    @Test
+    void doesNotReadTheModelWhenNobodyArrived() {
+        ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1), row(2), row(101));
+
+        reconciler.reconcile(data);
+
+        verifyNoInteractions(seedService);
+    }
+
+    @Test
+    void seedsFromLastSeasonWhenTheModelIsSwitchedOff() {
+        reconciler = reconcilerWithAiProjection(false);
+        ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1));
+
+        reconciler.reconcile(data);
+
+        assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 64.0);
+        verifyNoInteractions(seedService);
+    }
+
+    /** A model that cannot be read must not cost the user the projection they were opening. */
+    @Test
+    void seedsFromLastSeasonWhenTheModelCannotBeRead() {
+        when(seedService.seed(SEASON, MODEL_VERSION)).thenThrow(new IllegalStateException("projection-service is down"));
+        ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1));
+
+        assertThat(reconciler.reconcile(data)).isPresent();
+        assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 64.0);
     }
 
     @Test
@@ -209,6 +277,31 @@ class ProjectionPoolReconcilerTest {
         ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1));
 
         assertThat(reconciler.reconcile(data)).isEmpty();
+    }
+
+    private ProjectionPoolReconciler reconcilerWithAiProjection(boolean enabled) {
+        return new ProjectionPoolReconciler(
+                playerPool,
+                new PlayerPoolRows(playerService, JsonMapper.builder().build()),
+                seedService,
+                new AiProjectionAvailability(
+                        new AiProjectionProperties(enabled), new SecurityProperties(null, null, null, true)),
+                SEASON,
+                MODEL_VERSION);
+    }
+
+    private void givenTheModelProjects(PlayerProjection... lines) {
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(lines), MODEL_VERSION, lines.length, 0, 0, 0, 0));
+    }
+
+    private static PlayerProjection modelLine(int playerId, double goals) {
+        return new PlayerProjection()
+                .playerId(playerId)
+                .type(PlayerProjection.TypeEnum.SKATER)
+                .stats(new PlayerStats()
+                        .utility(new HashMap<>(Map.of("gp", 80.0)))
+                        .scoring(new HashMap<>(Map.of("goals", goals))));
     }
 
     private void givenLastSuccessfulSyncAt(OffsetDateTime finishedAt) {

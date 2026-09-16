@@ -549,11 +549,10 @@ class ProjectionServiceTest {
     }
 
     @Test
-    @DisplayName("a model-seeded projection records no player basis rather than a wrong one")
-    void withModelSource_leavesPlayerBasisUnset() {
+    @DisplayName("a model-seeded projection records the model as its basis")
+    void withModelSource_recordsTheModelBasis() {
         // playerBasis answers "what should a player who joins the pool later be seeded with".
-        // The reconciler reads the player pool, not the model, so it cannot answer that here —
-        // and storing last_season would be a lie the next reconciliation acts on.
+        // Left unset, the reconciliation before the write read the model's rows as last season's.
         when(seedService.seed(SEASON, MODEL_VERSION))
                 .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
@@ -561,7 +560,92 @@ class ProjectionServiceTest {
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
 
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
-        assertThat(sentRequest.getValue().getData().getProjectionSettings().getPlayerBasis()).isNull();
+        assertThat(sentRequest.getValue().getData().getProjectionSettings().getPlayerBasis())
+                .isEqualTo(PlayerBasisEnum.MODEL);
+    }
+
+    /**
+     * A model basis makes the reconciler fill in the model's lines, so a client without premium
+     * cannot claim one for rows it sent itself — the next reconciliation would otherwise fill
+     * every row it left out from the model.
+     */
+    @Test
+    void aCopyClaimingTheModelBasisWithoutPremium_isRecordedAsLastSeason() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(dataWithBasis(PlayerBasisEnum.MODEL), null));
+
+        assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
+    }
+
+    @Test
+    void aCopyOfAModelProjectionWithPremium_keepsTheModelBasis() {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(dataWithBasis(PlayerBasisEnum.MODEL), null));
+
+        assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.MODEL);
+    }
+
+    /** A lapsed subscription keeps the AI projection it started, and its app sends the basis back on save. */
+    @Test
+    void savingAModelProjectionAfterPremiumLapsed_keepsTheModelBasis() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+        ProjectionResponse stored = storedProjection();
+        stored.getData().getProjectionSettings().setPlayerBasis(PlayerBasisEnum.MODEL);
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(stored);
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(stored);
+
+        projectionService.update(USER_ID, PROJECTION_ID, updateWithBasis(PlayerBasisEnum.MODEL));
+
+        assertThat(sentUpdateBasis()).isEqualTo(PlayerBasisEnum.MODEL);
+    }
+
+    @Test
+    void savingAModelBasisOntoAProjectionThatNeverHadIt_withoutPremium_isRecordedAsLastSeason() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(storedProjection());
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(storedProjection());
+
+        projectionService.update(USER_ID, PROJECTION_ID, updateWithBasis(PlayerBasisEnum.MODEL));
+
+        assertThat(sentUpdateBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
+    }
+
+    /** The stored projection is read only when it could change the answer. */
+    @Test
+    void savingAnyOtherBasis_readsNothingFirst() {
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any()))
+                .thenReturn(storedProjection());
+
+        projectionService.update(USER_ID, PROJECTION_ID, updateWithBasis(PlayerBasisEnum.BLANK));
+
+        assertThat(sentUpdateBasis()).isEqualTo(PlayerBasisEnum.BLANK);
+        verify(databaseServiceClient, never()).getProjection(any(), any());
+    }
+
+    private static ProjectionData dataWithBasis(PlayerBasisEnum basis) {
+        ProjectionData data = dataWith(new PlayerProjection()
+                .playerId(7)
+                .type(PlayerProjection.TypeEnum.SKATER)
+                .stats(new PlayerStats().utility(Map.of("gp", 12.0)).scoring(Map.of("goals", 3.0))));
+        data.getProjectionSettings().setPlayerBasis(basis);
+        return data;
+    }
+
+    private static UpdateProjectionRequest updateWithBasis(PlayerBasisEnum basis) {
+        return new UpdateProjectionRequest()
+                .name("My Projection")
+                .data(new com.fantasy.bff.generated.db.model.UpdateProjectionData()
+                        .projectionSettings(new ProjectionSettings().playerBasis(basis)));
+    }
+
+    private PlayerBasisEnum sentUpdateBasis() {
+        ArgumentCaptor<UpdateProjectionRequest> sent = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), sent.capture());
+        return sent.getValue().getData().getProjectionSettings().getPlayerBasis();
     }
 
     @Test

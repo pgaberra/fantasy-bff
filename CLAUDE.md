@@ -296,9 +296,14 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     pool is not reliable enough to bet a user's work on — a truncated fetch, or a player Yahoo
     momentarily stops listing, would cost numbers they cannot get back; kept, those rows return
     by themselves when the pool does. Gained players are added, seeded from the projection's
-    `playerBasis` — last season's stat line, or zeros for one started from scratch. The basis is
-    stamped at create from `source`; a projection saved before it existed is read off its own
-    rows (almost all zeros → started from scratch). Guarded by `playerPoolSyncedAt` against the
+    `playerBasis` — last season's stat line, zeros for one started from scratch, or the model's
+    line for one started from the AI projection (last season's where the model has none, which
+    is every player without an NHL season; also when the model is off or unreadable, and
+    premium is not asked). The basis is stamped at create from `source`; a projection saved
+    before it existed is read off its own rows (almost all zeros → started from scratch), which
+    can never yield `model`. A `model` basis the client sends itself (a copy, a save) is kept
+    only with premium or when the stored projection already holds it, else recorded as
+    `last_season` — otherwise it would unlock the model's lines for every row left out. Guarded by `playerPoolSyncedAt` against the
     latest successful sync run, so the full pool read happens at most once per projection per
     sync rather than on every open; the result is written back, and the players a read added are
     appended to the settings' `unacknowledgedNewPlayerIds`, where they stay until the client sends
