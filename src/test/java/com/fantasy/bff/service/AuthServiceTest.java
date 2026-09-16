@@ -25,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -199,5 +200,12 @@ class AuthServiceTest {
         authService.requestPasswordReset(new ForgotPasswordRequest("victim@example.com"));
 
         verifyNoInteractions(databaseServiceClient, passwordResetEmailSender);
+    }
+
+    @Test
+    void signOutEverywhere_revokesEverySessionOfThatAccount() {
+        authService.signOutEverywhere("11111111-1111-1111-1111-111111111111");
+
+        verify(databaseServiceClient).revokeSessions(UUID.fromString("11111111-1111-1111-1111-111111111111"));
     }
 }

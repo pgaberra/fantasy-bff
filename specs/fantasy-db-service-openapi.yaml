@@ -534,6 +534,26 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/{userId}/sessions/revoke:
+    post:
+      tags:
+      - Users
+      summary: End every session the account holds
+      description: "Bumps the account's token version, so every refresh token issued\
+        \ before stops being accepted."
+      operationId: revokeSessions
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Sessions revoked
+        "404":
+          description: No such user
   /api/v1/users/{userId}/projections:
     get:
       tags:

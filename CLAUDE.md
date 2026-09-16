@@ -101,7 +101,10 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `AccountController` — the signed-in account itself: `GET /api/v1/account`,
     `PUT /api/v1/account/username`, and the profile picture under `/api/v1/account/avatar`
     (`GET` serves the bytes, or an empty 204 for an account without one; `PUT` takes a
-    multipart `file`; `DELETE`). `AccountResponse` is deliberately thinner than what
+    multipart `file`; `DELETE`), and `POST /api/v1/account/sessions/revoke`, "sign out
+    everywhere": it has db-service bump the account's `tokenVersion`, so every refresh token issued
+    before stops working at its next `/refresh` (access tokens run out their 15 minutes). It is the
+    only way an account without a password can end a stolen session. `AccountResponse` is deliberately thinner than what
     db-service returns to its trusted caller — the password hash and social subject ids stop
     here. Sharing a projection requires a username, so the share endpoints relay db-service's
     409 when an account has not picked one. The picture goes through `AvatarService`, the one

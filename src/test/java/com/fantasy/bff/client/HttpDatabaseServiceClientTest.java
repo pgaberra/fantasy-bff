@@ -295,4 +295,23 @@ class HttpDatabaseServiceClientTest {
                                 + "\"from\":\"yahoo\",\"to\":\"espn\"}",
                         true, true)));
     }
+
+    @Test
+    void revokeSessions_postsToTheUsersSessions() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/" + USER_ID + "/sessions/revoke"))
+                .willReturn(aResponse().withStatus(204)));
+
+        client.revokeSessions(UUID.fromString(USER_ID));
+
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/" + USER_ID + "/sessions/revoke")));
+    }
+
+    @Test
+    void revokeSessions_throwsWhenTheUserIsUnknown() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/" + USER_ID + "/sessions/revoke"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertThatThrownBy(() -> client.revokeSessions(UUID.fromString(USER_ID)))
+                .isInstanceOf(RuntimeException.class);
+    }
 }
