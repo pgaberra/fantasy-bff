@@ -245,42 +245,44 @@ security:
     # Protected endpoints and their per-IP limits. A key is an exact path or an Ant pattern, and
     # a pattern counts every path it covers into one bucket per client. `method` defaults to POST.
     # Add or remove an endpoint here — no code change needed.
+    # Keep each key in brackets ("[/api/...]"): Spring's binder strips the slashes from a bare map
+    # key, and a rule whose key is no longer a path never matches (RateLimitPropertiesBindingTest).
     endpoints:
-      "/api/v1/auth/login": { limit: 10, window-seconds: 300 }
-      "/api/v1/auth/register": { limit: 5, window-seconds: 3600 }
-      "/api/v1/auth/google": { limit: 20, window-seconds: 300 }
-      "/api/v1/auth/google/code": { limit: 20, window-seconds: 300 }
-      "/api/v1/auth/facebook": { limit: 20, window-seconds: 300 }
-      "/api/v1/auth/password/forgot": { limit: 5, window-seconds: 900 }
-      "/api/v1/auth/password/reset": { limit: 10, window-seconds: 900 }
+      "[/api/v1/auth/login]": { limit: 10, window-seconds: 300 }
+      "[/api/v1/auth/register]": { limit: 5, window-seconds: 3600 }
+      "[/api/v1/auth/google]": { limit: 20, window-seconds: 300 }
+      "[/api/v1/auth/google/code]": { limit: 20, window-seconds: 300 }
+      "[/api/v1/auth/facebook]": { limit: 20, window-seconds: 300 }
+      "[/api/v1/auth/password/forgot]": { limit: 5, window-seconds: 900 }
+      "[/api/v1/auth/password/reset]": { limit: 10, window-seconds: 900 }
       # Each of these sends mail or spends a single-use token, so a caller has no reason to repeat
       # them often. Resend is also capped per address below, since a per-IP limit alone does not
       # stop many callers aiming at one inbox.
-      "/api/v1/auth/verify/resend": { limit: 5, window-seconds: 900 }
-      "/api/v1/auth/verify": { limit: 20, window-seconds: 900 }
+      "[/api/v1/auth/verify/resend]": { limit: 5, window-seconds: 900 }
+      "[/api/v1/auth/verify]": { limit: 20, window-seconds: 900 }
       # The web refreshes when its 15-minute access token runs out, once per open tab. Generous
       # enough for a household or an office behind one address, tight enough that a stolen or
       # guessed token cannot be tried at speed.
-      "/api/v1/auth/refresh": { limit: 60, window-seconds: 300 }
-      "/api/v1/billing/checkout-session": { limit: 10, window-seconds: 300 }
-      "/api/v1/billing/portal-session": { limit: 10, window-seconds: 300 }
+      "[/api/v1/auth/refresh]": { limit: 60, window-seconds: 300 }
+      "[/api/v1/billing/checkout-session]": { limit: 10, window-seconds: 300 }
+      "[/api/v1/billing/portal-session]": { limit: 10, window-seconds: 300 }
       # The public share reads. The JSON one is per real visitor IP, so it can be tight — a
       # person opening shared links does not need more than this.
       # Claiming names is worth slowing down: the namespace is first-come, first-served.
-      "/api/v1/account/username": { limit: 10, window-seconds: 300, method: PUT }
+      "[/api/v1/account/username]": { limit: 10, window-seconds: 300, method: PUT }
       # A picture is a write of half a megabyte at most; nobody changes theirs this often.
-      "/api/v1/account/avatar": { limit: 20, window-seconds: 300, method: PUT }
-      "/api/v1/shared/*": { limit: 60, window-seconds: 60, method: GET }
+      "[/api/v1/account/avatar]": { limit: 20, window-seconds: 300, method: PUT }
+      "[/api/v1/shared/*]": { limit: 60, window-seconds: 60, method: GET }
       # The crawler-facing pair is different: nginx proxies both, so every request arrives with
       # the web container as the last forwarded hop and they all share ONE bucket regardless of
       # who posted the link. These limits are therefore a ceiling on total load, not a per-caller
       # limit, and are set high enough that a link doing the rounds cannot starve everyone else's
       # previews. The card render is the expensive half, hence the tighter number.
-      "/api/v1/shared/*/preview": { limit: 600, window-seconds: 60, method: GET }
-      "/api/v1/shared/*/og-image.png": { limit: 300, window-seconds: 60, method: GET }
+      "[/api/v1/shared/*/preview]": { limit: 600, window-seconds: 60, method: GET }
+      "[/api/v1/shared/*/og-image.png]": { limit: 300, window-seconds: 60, method: GET }
       # Public, and each uncached answer probes four services (VersionService caches it briefly).
       # The promotion workflows poll it every 15 seconds, well inside this.
-      "/api/v1/versions": { limit: 30, window-seconds: 60, method: GET }
+      "[/api/v1/versions]": { limit: 30, window-seconds: 60, method: GET }
     # Account emails one address can be sent, per kind (verification, password reset), however
     # many callers ask. Over the cap the request is answered as usual and no mail goes out.
     emails-per-address: { limit: 3, window-seconds: 3600 }

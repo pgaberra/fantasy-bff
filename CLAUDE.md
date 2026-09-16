@@ -344,7 +344,8 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 - `config/` — `SecurityConfig`, `RestClientConfig` (downstream `RestClient` beans),
   `*Properties` (typed config), `OpenApiConfig`
 - `security/RateLimitFilter` — per-client-IP limits, configured entirely under
-  `security.rate-limit.endpoints`. A key is an exact path or an Ant pattern, and a pattern
+  `security.rate-limit.endpoints`. A key is written in brackets (`"[/api/v1/auth/login]"`), since
+  the binder strips the slashes from a bare map key and the rule then matches nothing. A key is an exact path or an Ant pattern, and a pattern
   counts every path it covers into **one bucket per client** — which is the point for the
   public share reads, where a caller working through tokens would never fill a per-path
   bucket. `method` defaults to POST, so the auth rules read as before.
