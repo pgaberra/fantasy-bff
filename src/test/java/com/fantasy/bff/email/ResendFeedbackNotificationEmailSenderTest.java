@@ -43,7 +43,7 @@ class ResendFeedbackNotificationEmailSenderTest {
         return new ResendFeedbackNotificationEmailSender(
                 new EmailProperties("SlapStat <no-reply@slapstat.com>",
                         new EmailProperties.Resend(apiKey, server.baseUrl(), 5000), logLinks),
-                new FeedbackProperties(true, new FeedbackProperties.Github(
+                new FeedbackProperties(new FeedbackProperties.Github(
                         "github_pat_test", "pgaberra/slapstat-feedback", "https://api.github.com", 5000),
                         "info@slapstat.com"));
     }

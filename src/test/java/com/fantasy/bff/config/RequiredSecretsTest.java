@@ -28,7 +28,8 @@ class RequiredSecretsTest {
                     "YAHOO_INTERNAL_API_KEY=yahoo-key",
                     "ESPN_INTERNAL_API_KEY=espn-key",
                     "PROJECTION_INTERNAL_API_KEY=projection-key",
-                    "RESEND_API_KEY=re_key");
+                    "RESEND_API_KEY=re_key",
+                    "FEEDBACK_GITHUB_TOKEN=github_pat_x");
 
     @Test
     void bindsEveryInternalKeyFromItsVariable() {
@@ -56,28 +57,19 @@ class RequiredSecretsTest {
     }
 
     @Test
-    void feedbackIsOffAndNeedsNoTokenUnlessSwitchedOn() {
+    void feedbackReadsItsTokenFromTheVariable() {
         runner.run(context -> {
             assertThat(context).hasNotFailed();
             FeedbackProperties feedback = context.getBean(FeedbackProperties.class);
-            assertThat(feedback.enabled()).isFalse();
+            assertThat(feedback.github().token()).isEqualTo("github_pat_x");
             assertThat(feedback.github().repository()).isEqualTo("pgaberra/slapstat-feedback");
             assertThat(feedback.notifyEmail()).isEqualTo("info@slapstat.com");
         });
     }
 
     @Test
-    void feedbackSwitchedOnWithoutATokenStopsStartup() {
-        runner.withPropertyValues("FEEDBACK_ENABLED=true", "FEEDBACK_GITHUB_TOKEN=")
-                .run(context -> assertThat(context).hasFailed());
-    }
-
-    @Test
-    void feedbackSwitchedOnReadsItsTokenFromTheVariable() {
-        runner.withPropertyValues("FEEDBACK_ENABLED=true", "FEEDBACK_GITHUB_TOKEN=github_pat_x").run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context.getBean(FeedbackProperties.class).github().token()).isEqualTo("github_pat_x");
-        });
+    void aBlankFeedbackTokenStopsStartupOutsideALocalRun() {
+        runner.withPropertyValues("FEEDBACK_GITHUB_TOKEN=").run(context -> assertThat(context).hasFailed());
     }
 
     @Test
