@@ -2203,6 +2203,16 @@ components:
       - leagueId
       - leagueName
       - syncedAt
+    ManualRanking:
+      type: object
+      properties:
+        skater:
+          $ref: "#/components/schemas/PlayerTypeRanking"
+        goalie:
+          $ref: "#/components/schemas/PlayerTypeRanking"
+      required:
+      - goalie
+      - skater
     PlayerProjection:
       type: object
       properties:
@@ -2236,6 +2246,30 @@ components:
       required:
       - scoring
       - utility
+    PlayerTypeRanking:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Whether this player type is ordered by its projected stats
+            or by the order the owner put it in.
+          enum:
+          - projected
+          - manual
+        order:
+          type: array
+          description: "The player ids the owner placed by hand, best first. Players\
+            \ of this type that are absent keep their projected order below the placed\
+            \ ones, so an owner who ranked only a top twenty does not have to place\
+            \ the rest. Ignored while mode is `projected`. The cap matches the player\
+            \ list."
+          items:
+            type: integer
+            format: int32
+          maxItems: 2000
+          minItems: 0
+      required:
+      - mode
     PositionOverride:
       type: object
       properties:
@@ -2328,6 +2362,11 @@ components:
             format: int32
           maxItems: 2000
           minItems: 0
+        manualRanking:
+          $ref: "#/components/schemas/ManualRanking"
+          description: "Per player type, whether the rankings follow the projected\
+            \ stats or the order the owner put the players in, and that order. Absent\
+            \ means both types are ranked by their projected stats."
       required:
       - activeScoringColumns
       - activeUtilityColumns

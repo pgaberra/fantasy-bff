@@ -5,8 +5,10 @@ import com.fantasy.bff.generated.db.model.DraftPick;
 import com.fantasy.bff.generated.db.model.DraftSettings;
 import com.fantasy.bff.generated.db.model.DraftState;
 import com.fantasy.bff.generated.db.model.DraftTeam;
+import com.fantasy.bff.generated.db.model.ManualRanking;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
+import com.fantasy.bff.generated.db.model.PlayerTypeRanking;
 import com.fantasy.bff.generated.db.model.PositionOverride;
 import com.fantasy.bff.generated.db.model.ProjectionSettings;
 import com.fantasy.bff.generated.db.model.RosterSlots;
@@ -53,7 +55,14 @@ class ProjectionGraphMappingTest {
                 .espnSync(new EspnSync()
                         .leagueName("Other League").leagueId("12345").syncedAt(SYNCED_AT))
                 .lastEspnLeagueId("12345")
-                .playerPoolSyncedAt(SYNCED_AT);
+                .playerPoolSyncedAt(SYNCED_AT)
+                .unacknowledgedNewPlayerIds(List.of(8478402))
+                .manualRanking(new ManualRanking()
+                        .skater(new PlayerTypeRanking()
+                                .mode(PlayerTypeRanking.ModeEnum.PROJECTED))
+                        .goalie(new PlayerTypeRanking()
+                                .mode(PlayerTypeRanking.ModeEnum.MANUAL)
+                                .order(List.of(8471734, 8476945))));
         settings.setScaleSettings(Map.of("scoring", new ScaleConfig()
                 .scale(true).scalableStats(List.of("goals"))));
         settings.setPlayerBasis(ProjectionSettings.PlayerBasisEnum.LAST_SEASON);

@@ -63,7 +63,12 @@ public record ProjectionSettings(
                 + "has not acknowledged yet. Kept until they are, so the app can go on saying so "
                 + "across reloads and devices; send it back empty or absent to acknowledge them. "
                 + "The cap matches the player list.")
-        @Size(max = 2000) List<Integer> unacknowledgedNewPlayerIds
+        @Size(max = 2000) List<Integer> unacknowledgedNewPlayerIds,
+
+        @Schema(description = "Per player type, whether the rankings follow the projected stats or "
+                + "the order the owner put the players in, and that order. Absent means both types "
+                + "are ranked by their projected stats.")
+        @Valid ManualRanking manualRanking
 ) {
 
     /** Whether the league scores by points per stat, or by winning categories. */
@@ -107,7 +112,8 @@ public record ProjectionSettings(
                 settings.getLastEspnLeagueId(),
                 basisFrom(settings.getPlayerBasis()),
                 settings.getPlayerPoolSyncedAt(),
-                settings.getUnacknowledgedNewPlayerIds());
+                settings.getUnacknowledgedNewPlayerIds(),
+                ManualRanking.from(settings.getManualRanking()));
     }
 
     public com.fantasy.bff.generated.db.model.ProjectionSettings toDownstream() {
@@ -128,7 +134,8 @@ public record ProjectionSettings(
                         .espnSync(espnSync == null ? null : espnSync.toDownstream())
                         .lastEspnLeagueId(lastEspnLeagueId)
                         .playerPoolSyncedAt(playerPoolSyncedAt)
-                        .unacknowledgedNewPlayerIds(unacknowledgedNewPlayerIds);
+                        .unacknowledgedNewPlayerIds(unacknowledgedNewPlayerIds)
+                        .manualRanking(manualRanking == null ? null : manualRanking.toDownstream());
         settings.setScaleSettings(scalesToDownstream(scaleSettings));
         settings.setPlayerBasis(basisToDownstream(playerBasis));
         return settings;
