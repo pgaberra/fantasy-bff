@@ -108,26 +108,9 @@ public class RestClientConfig {
     }
 
     /**
-     * Paddle Billing's API, when Paddle is the active payment provider. Unlike every other client
-     * here this one leaves the cluster, so it is bearer-authenticated rather than carrying the
-     * internal key, and it is pointed at Paddle's sandbox or live host by configuration - the two
-     * are separate accounts with separate keys, and mixing them is the easy mistake to make.
-     */
-    @Bean
-    public RestClient paddleApiClient(
-            @Value("${payments.paddle.api-base-url:https://sandbox-api.paddle.com}") String baseUrl,
-            @Value("${payments.paddle.timeout-ms:10000}") int timeoutMs,
-            @Value("${payments.paddle.api-key:}") String apiKey) {
-        RestClient.Builder builder = buildRestClientBuilder(baseUrl, timeoutMs);
-        if (StringUtils.hasText(apiKey)) {
-            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey);
-        }
-        return builder.build();
-    }
-
-    /**
-     * Stripe's API, when Stripe is the active payment provider. Bearer-authenticated like Paddle's,
-     * but with one host for test and live mode: the key alone decides which. Every request pins
+     * Stripe's API, when Stripe is the active payment provider. Unlike every other client here this
+     * one leaves the cluster, so it is bearer-authenticated rather than carrying the internal key,
+     * with one host for test and live mode: the key alone decides which. Every request pins
      * {@link StripePaymentProvider#API_VERSION} and sends a form-encoded body, which is all Stripe
      * accepts, so the JSON content type the other clients default to is left off.
      */

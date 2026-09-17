@@ -127,7 +127,7 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stays stateless and only relays. Everything goes through the `payments/`
     `PaymentProvider` interface, so which provider is live is a `payments.provider` config
     change and nothing else — `MockPaymentProvider` drives the whole lifecycle locally,
-    `StripePaymentProvider` and `PaddlePaymentProvider` are the real ones. Three things to know before changing it: every
+    `StripePaymentProvider` is the real one. Three things to know before changing it: every
     mutating endpoint **404s unless `payments.enabled`** (and `/entitlements` answers "no
     premium" rather than failing, so the web renders the same either way); the **webhook is
     `permitAll`** — the provider calls it unauthenticated, so its only defence is the
@@ -136,21 +136,6 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     and a verified event with **no subscription snapshot is acknowledged and dropped**, since
     a provider sends more event types than we model and retries anything we answer with an
     error.
-  - `payments/PaddlePaymentProvider` — Paddle Billing. Two things about it are Paddle's shape
-    rather than ours. Its checkout URL points back at **our own** `/pay` page with `?_ptxn=`
-    appended (Paddle's fully hosted checkout is for mobile apps only), and the user is carried
-    through Paddle in the transaction's `custom_data`, which Paddle copies onto the created
-    subscription and then onto every renewal — that, not a customer record kept in step, is
-    how a webhook names the user it belongs to. A buyer whose email is **verified** also gets
-    their Paddle customer (found or created by email) attached to the transaction, which fills
-    in the email on the checkout; that needs `customer.read` + `customer.write` on the API key,
-    and a lookup that fails is logged at ERROR and the checkout opens without a customer.
-    An unverified email is never sent: it could name someone else's customer and open their
-    billing portal to this account. `PaddleSignatureVerifier` checks the
-    `Paddle-Signature` header, which signs `<timestamp>:<raw body>`; it bounds the timestamp's
-    age too, because a signature on its own stays valid forever and could be replayed.
-    Paddle refused the live account for good on 2026-09-16, so it stays only until no environment
-    selects it.
   - `payments/StripePaymentProvider` — Stripe Billing through Stripe-hosted Checkout, with
     **Managed Payments** (Stripe/Link as merchant of record) on unless `STRIPE_MANAGED_PAYMENTS`
     turns it off. The checkout URL is Stripe's own, so the web only redirects. The user rides on
@@ -412,7 +397,7 @@ var — never in a profile.
 
 **Required secrets fail fast.** `JWT_SECRET`, the four `*_INTERNAL_API_KEY`s
 (`InternalApiKeyProperties`) and `RESEND_API_KEY` (`EmailProperties`) have no default, so a
-missing or blank value stops startup. The Paddle, mock-payment, Google and Facebook secrets
+missing or blank value stops startup. The Stripe, mock-payment, Google and Facebook secrets
 keep empty defaults because their features fail closed without them; the list is at the top of
 `application.yaml`. Once up, `DownstreamKeyVerifier` asks each downstream whether it accepts
 our key; a 401 moves readiness to `REFUSING_TRAFFIC`, which `/actuator/health` includes, so the

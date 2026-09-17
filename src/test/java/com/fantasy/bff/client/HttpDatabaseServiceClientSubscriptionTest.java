@@ -90,7 +90,7 @@ class HttpDatabaseServiceClientSubscriptionTest {
     }
 
     private static final String PENDING_PATH = "/api/v1/users/" + USER_ID + "/pending-checkout";
-    private static final String PENDING_BODY = "{\"provider\":\"paddle\",\"reference\":\"txn_1\","
+    private static final String PENDING_BODY = "{\"provider\":\"stripe\",\"reference\":\"txn_1\","
             + "\"checkoutUrl\":\"https://slapstat.test/pay?_ptxn=txn_1\",\"updatedAt\":\"2026-09-11T19:00:00Z\"}";
 
     @Test
@@ -116,7 +116,7 @@ class HttpDatabaseServiceClientSubscriptionTest {
         server.stubFor(put(urlPathEqualTo(PENDING_PATH)).willReturn(okJson(PENDING_BODY)));
 
         boolean stored = client.replacePendingCheckout(USER_ID, new ReplacePendingCheckoutRequest()
-                .provider("paddle").reference("txn_2").checkoutUrl("https://slapstat.test/pay?_ptxn=txn_2")
+                .provider("stripe").reference("txn_2").checkoutUrl("https://slapstat.test/pay?_ptxn=txn_2")
                 .replacesReference("txn_1"));
 
         assertThat(stored).isTrue();
@@ -130,7 +130,7 @@ class HttpDatabaseServiceClientSubscriptionTest {
         server.stubFor(put(urlPathEqualTo(PENDING_PATH)).willReturn(aResponse().withStatus(409)));
 
         boolean stored = client.replacePendingCheckout(USER_ID, new ReplacePendingCheckoutRequest()
-                .provider("paddle").reference("txn_2").checkoutUrl("https://slapstat.test/pay?_ptxn=txn_2"));
+                .provider("stripe").reference("txn_2").checkoutUrl("https://slapstat.test/pay?_ptxn=txn_2"));
 
         assertThat(stored).isFalse();
     }

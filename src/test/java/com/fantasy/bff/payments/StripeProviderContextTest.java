@@ -9,9 +9,12 @@ import org.springframework.test.context.TestPropertySource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Starts the whole context the way a deployment does, with Stripe selected. Unit tests build the
- * Stripe classes with {@code new}, and {@link PaddleProviderContextTest} says what that once let
- * through to a deploy.
+ * Starts the whole context the way a deployment does, with Stripe selected.
+ *
+ * <p>Unit tests build the Stripe classes with {@code new}, so nothing else asks Spring to construct
+ * them. That once let through a signature verifier with two constructors and no {@code @Autowired}:
+ * Spring found no default constructor, the application failed to start in a deploy, and the unit
+ * tests stayed green. This test is the one that fails instead.
  */
 @SpringBootTest
 @TestPropertySource(properties = {

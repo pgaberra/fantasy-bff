@@ -42,7 +42,7 @@ class StripePaymentProviderTest {
     private MockRestServiceServer stripeServer;
 
     private StripePaymentProvider provider(boolean managedPayments) {
-        PaymentsProperties properties = new PaymentsProperties(true, "stripe", null, null,
+        PaymentsProperties properties = new PaymentsProperties(true, "stripe", null,
                 new PaymentsProperties.Stripe("sk_test_key", SECRET, PRICE_ID, managedPayments, 300));
         RestClient.Builder builder = RestClient.builder().baseUrl(API);
         stripeServer = MockRestServiceServer.bindTo(builder).build();
@@ -112,7 +112,7 @@ class StripePaymentProviderTest {
 
     @Test
     void aCheckoutWithoutAConfiguredPriceIsOurFault() {
-        PaymentsProperties properties = new PaymentsProperties(true, "stripe", null, null,
+        PaymentsProperties properties = new PaymentsProperties(true, "stripe", null,
                 new PaymentsProperties.Stripe("sk_test_key", SECRET, "", true, 300));
         StripePaymentProvider provider = new StripePaymentProvider(RestClient.create(API), new ObjectMapper(),
                 new StripeSignatureVerifier(properties), properties);
@@ -397,7 +397,7 @@ class StripePaymentProviderTest {
     /** Without a secret nothing can be verified, which is our misconfiguration rather than a bad request. */
     @Test
     void anUnconfiguredWebhookSecretIsOurFault() {
-        PaymentsProperties properties = new PaymentsProperties(true, "stripe", null, null,
+        PaymentsProperties properties = new PaymentsProperties(true, "stripe", null,
                 new PaymentsProperties.Stripe("sk_test_key", "", PRICE_ID, true, 300));
         StripeSignatureVerifier verifier = new StripeSignatureVerifier(properties);
 
