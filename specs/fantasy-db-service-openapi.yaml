@@ -580,7 +580,9 @@ paths:
     post:
       tags:
       - User projections
-      summary: Save a new projection for a user
+      summary: "Save a new projection for a user; a name the user already holds is\
+        \ numbered (\"My league (2)\") rather than refused, so the saved name is the\
+        \ one in the response"
       operationId: create_1
       parameters:
       - name: userId
@@ -609,8 +611,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: "The user already has a projection of that kind, or one with\
-            \ that name"
+          description: "The user already has a draft against that preset, or a request\
+            \ racing this one took the name"
           content:
             '*/*':
               schema:
