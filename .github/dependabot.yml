@@ -1,9 +1,18 @@
 version: 2
+# Dependabot runs Sunday evening and the Dependabot round (fantasy-workspace,
+# .claude/skills/dependabot-round) merges what is green on Monday morning. The cooldown keeps a
+# release out of a PR until it is a week old, so a compromised version has had a week to be
+# noticed before it can reach staging. Security updates ignore the cooldown.
 updates:
   - package-ecosystem: gradle
     directory: /
     schedule:
       interval: weekly
+      day: sunday
+      time: "22:00"
+      timezone: Europe/Stockholm
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: chore
@@ -26,6 +35,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: sunday
+      time: "22:00"
+      timezone: Europe/Stockholm
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: chore
       include: scope
