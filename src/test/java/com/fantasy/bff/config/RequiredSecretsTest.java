@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class RequiredSecretsTest {
 
-    @EnableConfigurationProperties({InternalApiKeyProperties.class, EmailProperties.class})
+    @EnableConfigurationProperties({InternalApiKeyProperties.class, EmailProperties.class, FeedbackProperties.class})
     static class PropertiesOnly {
     }
 
@@ -53,6 +53,30 @@ class RequiredSecretsTest {
     @Test
     void aBlankResendKeyStopsStartupOutsideALocalRun() {
         runner.withPropertyValues("RESEND_API_KEY=").run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void feedbackIsOffAndNeedsNoTokenUnlessSwitchedOn() {
+        runner.run(context -> {
+            assertThat(context).hasNotFailed();
+            FeedbackProperties feedback = context.getBean(FeedbackProperties.class);
+            assertThat(feedback.enabled()).isFalse();
+            assertThat(feedback.github().repository()).isEqualTo("pgaberra/slapstat-feedback");
+        });
+    }
+
+    @Test
+    void feedbackSwitchedOnWithoutATokenStopsStartup() {
+        runner.withPropertyValues("FEEDBACK_ENABLED=true", "FEEDBACK_GITHUB_TOKEN=")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void feedbackSwitchedOnReadsItsTokenFromTheVariable() {
+        runner.withPropertyValues("FEEDBACK_ENABLED=true", "FEEDBACK_GITHUB_TOKEN=github_pat_x").run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(FeedbackProperties.class).github().token()).isEqualTo("github_pat_x");
+        });
     }
 
     @Test

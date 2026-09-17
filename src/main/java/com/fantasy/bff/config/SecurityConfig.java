@@ -63,6 +63,7 @@ public class SecurityConfig {
                             // so what an environment serves has to be readable before sign-in.
                             .requestMatchers(HttpMethod.GET, "/api/v1/features").permitAll()
                             .requestMatchers("/api/v1/account", "/api/v1/account/**").authenticated()
+                            .requestMatchers(HttpMethod.POST, "/api/v1/feedback").authenticated()
                             .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated();
 
                     if (securityProperties.projectionModelEnabled()) {

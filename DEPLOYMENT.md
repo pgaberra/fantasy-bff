@@ -71,6 +71,15 @@ secret is environment-specific: staging and production never share one.
 | `EMAIL_FROM` | | no | `SlapStat <no-reply@slapstat.com>` | Sender identity. |
 | `RESEND_BASE_URL` | | no | `https://api.resend.com` | For tests. |
 
+### Feedback
+
+| Variable | Secret | Required | Default | Notes |
+|---|---|---|---|---|
+| `FEEDBACK_ENABLED` | | no | `false` | Takes bug reports and feature requests from signed-in users (`POST /api/v1/feedback`) and tells the web to offer the form. Off, the endpoint answers 404. |
+| `FEEDBACK_GITHUB_TOKEN` | yes | when enabled | empty | A fine-grained token with only **Issues: read and write** on the feedback repository. Switched on without it, startup stops. |
+| `FEEDBACK_GITHUB_REPOSITORY` | | no | `pgaberra/slapstat-feedback` | Where the issues go. **Must be private**: each issue carries the reporter's email address. |
+| `GITHUB_API_BASE_URL` | | no | `https://api.github.com` | For tests. |
+
 ### Features and the player pool
 
 | Variable | Secret | Required | Default | Notes |

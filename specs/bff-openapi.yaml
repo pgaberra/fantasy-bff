@@ -31,6 +31,8 @@ tags:
   description: The authenticated user's saved player projections
 - name: Versions
   description: Deployed version and reachability of every service
+- name: Feedback
+  description: Bug reports and feature requests from signed-in users
 - name: ESPN
   description: The authenticated user's ESPN fantasy leagues
 - name: Billing
@@ -480,6 +482,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/feedback:
+    post:
+      tags:
+      - Feedback
+      summary: Send a bug report or a feature request
+      description: "Filed privately, together with the account's email address so\
+        \ the answer can go out by mail. Served only where GET /api/v1/features reports\
+        \ feedback."
+      operationId: sendFeedback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendFeedbackRequest"
+        required: true
+      responses:
+        "204":
+          description: Sent
+        "400":
+          description: Validation failed
+        "404":
+          description: This environment does not take feedback
+        "502":
+          description: "It could not be filed, and nothing was kept"
   /api/v1/billing/portal-session:
     post:
       tags:
@@ -2496,6 +2522,38 @@ components:
           minLength: 0
       required:
       - token
+    SendFeedbackRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          description: "BUG for something on the site that is broken, FEATURE for\
+            \ something the user wants added."
+          enum:
+          - BUG
+          - FEATURE
+        title:
+          type: string
+          description: "One line, at most 120 characters."
+          maxLength: 120
+          minLength: 0
+        description:
+          type: string
+          description: "What happened, or what is wanted. At most 5000 characters."
+          maxLength: 5000
+          minLength: 0
+        page:
+          type: string
+          description: "The path of the page the user was on, such as /draft. Only\
+            \ the path: a query string or fragment can carry a single-use token, so\
+            \ either is refused."
+          maxLength: 200
+          minLength: 0
+          pattern: "^/[A-Za-z0-9/_.~%-]*$"
+      required:
+      - description
+      - title
+      - type
     PortalUrlResponse:
       type: object
       properties:
@@ -3574,8 +3632,14 @@ components:
             \ neither is served to anyone, so a client should not offer it. It says\
             \ nothing about this account's plan: an AI projection that needs premium\
             \ is still available."
+        feedback:
+          type: boolean
+          description: "Whether this environment takes bug reports and feature requests\
+            \ through POST /api/v1/feedback. False means that endpoint answers 404,\
+            \ so a client should not offer the form."
       required:
       - aiProjection
+      - feedback
     EspnLeagueTeam:
       type: object
       properties:

@@ -8,7 +8,8 @@
 # Optional, and allowed to be empty because the feature they belong to is off or refuses every
 # request without them: PAYMENTS_MOCK_WEBHOOK_SECRET (the mock payment provider), STRIPE_API_KEY
 # and STRIPE_WEBHOOK_SECRET (Stripe, when it is the provider), GOOGLE_CLIENT_SECRET (the Google
-# code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in).
+# code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in). FEEDBACK_GITHUB_TOKEN may be empty
+# only while FEEDBACK_ENABLED is off; switched on without it, startup stops (FeedbackProperties).
 spring:
   application:
     name: fantasy-bff
@@ -152,6 +153,20 @@ services:
 ai-projection:
   enabled: ${AI_PROJECTION_ENABLED:true}
 
+# Bug reports and feature requests from signed-in users (POST /api/v1/feedback), filed as issues
+# in a PRIVATE GitHub repository: each carries the reporter's email address so the answer can go
+# out by mail. Off unless this says otherwise; off, the endpoint answers 404 and /api/v1/features
+# tells the web not to offer the form.
+feedback:
+  enabled: ${FEEDBACK_ENABLED:false}
+  github:
+    # A fine-grained token with Issues: read and write on the feedback repository and nothing
+    # else. Secret; required when the feature is on.
+    token: ${FEEDBACK_GITHUB_TOKEN:}
+    repository: ${FEEDBACK_GITHUB_REPOSITORY:pgaberra/slapstat-feedback}
+    api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+    timeout-ms: 10000
+
 payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.
   enabled: ${PAYMENTS_ENABLED:false}
@@ -271,6 +286,8 @@ security:
       "[/api/v1/account/username]": { limit: 10, window-seconds: 300, method: PUT }
       # A picture is a write of half a megabyte at most; nobody changes theirs this often.
       "[/api/v1/account/avatar]": { limit: 20, window-seconds: 300, method: PUT }
+      # Each one opens an issue that someone has to read. Nobody reports six bugs an hour.
+      "[/api/v1/feedback]": { limit: 5, window-seconds: 3600 }
       "[/api/v1/shared/*]": { limit: 60, window-seconds: 60, method: GET }
       # The crawler-facing pair is different: nginx proxies both, so every request arrives with
       # the web container as the last forwarded hop and they all share ONE bucket regardless of
