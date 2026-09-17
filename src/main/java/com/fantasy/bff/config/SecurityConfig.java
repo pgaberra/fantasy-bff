@@ -9,6 +9,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -94,6 +96,18 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * An account store with no accounts in it. Without any {@link UserDetailsService} bean, Spring
+     * Boot creates an in-memory {@code user} with a generated password and prints that password in
+     * the startup log. Identity here is the JWT and neither form nor basic login is configured, so
+     * that user could not be used today; this makes sure it does not exist at all, even if a login
+     * mechanism were ever switched on by mistake.
+     */
+    @Bean
+    public UserDetailsService noLocalUsers() {
+        return new InMemoryUserDetailsManager();
     }
 
     @Bean
