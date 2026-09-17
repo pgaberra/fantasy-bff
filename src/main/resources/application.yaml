@@ -7,7 +7,8 @@
 #
 # Optional, and allowed to be empty because the feature they belong to is off or refuses every
 # request without them: PAYMENTS_MOCK_WEBHOOK_SECRET (the mock payment provider), PADDLE_API_KEY
-# and PADDLE_WEBHOOK_SECRET (Paddle, when it is the provider), GOOGLE_CLIENT_SECRET (the Google
+# and PADDLE_WEBHOOK_SECRET (Paddle, when it is the provider), STRIPE_API_KEY and
+# STRIPE_WEBHOOK_SECRET (Stripe, when it is the provider), GOOGLE_CLIENT_SECRET (the Google
 # code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in).
 spring:
   application:
@@ -156,7 +157,7 @@ payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.
   enabled: ${PAYMENTS_ENABLED:false}
   # Which provider implementation serves checkout/portal/webhooks: "mock" (in-repo test double,
-  # the default) or a real provider added later. Selecting a provider is a config change only.
+  # the default), "paddle" or "stripe". Selecting a provider is a config change only.
   provider: ${PAYMENTS_PROVIDER:mock}
   mock:
     # Secret the mock uses to sign its checkout/portal tokens and webhook payloads. Optional
@@ -183,6 +184,23 @@ payments:
     # default to five seconds, which ordinary clock drift trips; five minutes still bounds a
     # replay without rejecting genuine events.
     signature-tolerance-seconds: ${PADDLE_SIGNATURE_TOLERANCE_SECONDS:300}
+  stripe:
+    # One host for test and live mode; the key decides which. Overridden only by tests.
+    api-base-url: ${STRIPE_API_BASE_URL:https://api.stripe.com}
+    timeout-ms: ${STRIPE_TIMEOUT_MS:10000}
+    # Secret key (sk_test_... or sk_live_..., or a restricted rk_ key). Optional (see the top of
+    # this file): Stripe calls fail without it.
+    api-key: ${STRIPE_API_KEY:}
+    # The webhook endpoint's signing secret (whsec_...), used to verify the Stripe-Signature header.
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    # The recurring price a checkout subscribes to (price_...).
+    price-id: ${STRIPE_PRICE_ID:}
+    # Stripe as merchant of record, collecting and remitting the tax. On unless turned off, so a
+    # missing variable cannot quietly make us the seller: an account Stripe has not approved for
+    # Managed Payments then has its checkouts refused rather than sold without it.
+    managed-payments: ${STRIPE_MANAGED_PAYMENTS:true}
+    # How stale a webhook's own timestamp may be before we treat it as a replay.
+    signature-tolerance-seconds: ${STRIPE_SIGNATURE_TOLERANCE_SECONDS:300}
 
 security:
   permitted-urls:

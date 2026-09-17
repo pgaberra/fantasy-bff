@@ -85,7 +85,7 @@ secret is environment-specific: staging and production never share one.
 | Variable | Secret | Required | Default | Notes |
 |---|---|---|---|---|
 | `PAYMENTS_ENABLED` | | no | `false` | Subscription billing. |
-| `PAYMENTS_PROVIDER` | | no | `mock` | `mock` or `paddle`. |
+| `PAYMENTS_PROVIDER` | | no | `mock` | `mock`, `paddle` or `stripe`. |
 | `PAYMENTS_MOCK_WEBHOOK_SECRET` | yes | with `mock` | empty | Signs the mock provider's tokens and webhooks; the mock flow fails without it. |
 | `PAYMENTS_MOCK_SELF_BASE_URL` | | no | `http://localhost:8080` | Where the mock posts its own webhook. |
 | `PADDLE_API_BASE_URL` | | with `paddle` | `https://sandbox-api.paddle.com` | **The default is the sandbox.** Production must set `https://api.paddle.com`, together with a live key. |
@@ -95,8 +95,20 @@ secret is environment-specific: staging and production never share one.
 | `PADDLE_CHECKOUT_URL` | | no | empty | Our page that hosts the checkout; blank falls back to Paddle's default payment link. |
 | `PADDLE_TIMEOUT_MS` | | no | `10000` | |
 | `PADDLE_SIGNATURE_TOLERANCE_SECONDS` | | no | `300` | How old a webhook timestamp may be before it counts as a replay. |
+| `STRIPE_API_KEY` | yes | with `stripe` | empty | Secret or restricted key. `sk_test_`/`rk_test_` is test mode, `sk_live_`/`rk_live_` live; there is no separate host. A restricted key needs write on Checkout Sessions and Customer portal. |
+| `STRIPE_WEBHOOK_SECRET` | yes | with `stripe` | empty | The endpoint's signing secret (`whsec_…`); verifies the `Stripe-Signature` header. |
+| `STRIPE_PRICE_ID` | | with `stripe` | empty | The recurring price a checkout subscribes to (`price_…`). Its product needs a tax code eligible for Managed Payments. |
+| `STRIPE_MANAGED_PAYMENTS` | | no | `true` | Stripe as merchant of record. Checkouts are refused until Stripe has approved the account for Managed Payments; `false` makes **us** the seller, responsible for the tax. |
+| `STRIPE_API_BASE_URL` | | no | `https://api.stripe.com` | Only tests change it. |
+| `STRIPE_TIMEOUT_MS` | | no | `10000` | |
+| `STRIPE_SIGNATURE_TOLERANCE_SECONDS` | | no | `300` | How old a webhook timestamp may be before it counts as a replay. |
 
-"With `mock`" / "with `paddle`" means required when `PAYMENTS_ENABLED=true` and that provider
+With Stripe, the webhook endpoint is `https://<bff host>/api/v1/billing/webhook`, subscribed to
+`customer.subscription.created`, `customer.subscription.updated` and `customer.subscription.deleted`,
+and the Customer portal must be switched on in the Stripe dashboard (test and live separately), or
+"Manage billing" fails.
+
+"With `mock`" / "with `paddle`" / "with `stripe`" means required when `PAYMENTS_ENABLED=true` and that provider
 is selected. The app still starts without them; the payment flow is what fails.
 
 ### Seasons and the model

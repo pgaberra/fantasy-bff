@@ -1,5 +1,6 @@
 package com.fantasy.bff.config;
 
+import com.fantasy.bff.payments.StripePaymentProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -124,17 +125,41 @@ public class RestClientConfig {
         return builder.build();
     }
 
+    /**
+     * Stripe's API, when Stripe is the active payment provider. Bearer-authenticated like Paddle's,
+     * but with one host for test and live mode: the key alone decides which. Every request pins
+     * {@link StripePaymentProvider#API_VERSION} and sends a form-encoded body, which is all Stripe
+     * accepts, so the JSON content type the other clients default to is left off.
+     */
+    @Bean
+    public RestClient stripeApiClient(
+            @Value("${payments.stripe.api-base-url:https://api.stripe.com}") String baseUrl,
+            @Value("${payments.stripe.timeout-ms:10000}") int timeoutMs,
+            @Value("${payments.stripe.api-key:}") String apiKey) {
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(requestFactory(timeoutMs))
+                .defaultHeader("Stripe-Version", StripePaymentProvider.API_VERSION);
+        if (StringUtils.hasText(apiKey)) {
+            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey);
+        }
+        return builder.build();
+    }
+
     private RestClient.Builder buildRestClientBuilder(String baseUrl, int timeoutMs) {
+        return RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(requestFactory(timeoutMs))
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+    }
+
+    private static JdkClientHttpRequestFactory requestFactory(int timeoutMs) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(timeoutMs))
                 .build();
 
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
-
-        return RestClient.builder()
-                .baseUrl(baseUrl)
-                .requestFactory(factory)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+        return factory;
     }
 }
