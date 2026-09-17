@@ -127,7 +127,7 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     stays stateless and only relays. Everything goes through the `payments/`
     `PaymentProvider` interface, so which provider is live is a `payments.provider` config
     change and nothing else — `MockPaymentProvider` drives the whole lifecycle locally,
-    `PaddlePaymentProvider` is the real one. Three things to know before changing it: every
+    `StripePaymentProvider` and `PaddlePaymentProvider` are the real ones. Three things to know before changing it: every
     mutating endpoint **404s unless `payments.enabled`** (and `/entitlements` answers "no
     premium" rather than failing, so the web renders the same either way); the **webhook is
     `permitAll`** — the provider calls it unauthenticated, so its only defence is the
@@ -149,6 +149,18 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     billing portal to this account. `PaddleSignatureVerifier` checks the
     `Paddle-Signature` header, which signs `<timestamp>:<raw body>`; it bounds the timestamp's
     age too, because a signature on its own stays valid forever and could be replayed.
+    Paddle refused the live account for good on 2026-09-16, so it stays only until no environment
+    selects it.
+  - `payments/StripePaymentProvider` — Stripe Billing through Stripe-hosted Checkout, with
+    **Managed Payments** (Stripe/Link as merchant of record) on unless `STRIPE_MANAGED_PAYMENTS`
+    turns it off. The checkout URL is Stripe's own, so the web only redirects. The user rides on
+    the subscription's `metadata.user_id` (set through `subscription_data`), and the session's
+    `metadata.price_id` is what `isCheckoutOpen` compares. It calls the API over `RestClient`
+    with a pinned `Stripe-Version` and reads webhooks as plain JSON rather than through Stripe's
+    Java library, whose event deserializer goes silent when the endpoint's API version differs
+    from its own; the one field that moved between versions (`current_period_end`, now on the
+    subscription item) is read from both places. `StripeSignatureVerifier` accepts any matching
+    `v1` in `Stripe-Signature`, since both secrets sign while one is being rolled.
   - `ProjectionModelController` — `/api/v1/projection-model`: the projection service's output
     made usable here. `/seed` returns model lines keyed by *this* platform's player id, ready
     to save as a new projection — deliberately without scoring settings, which belong to the

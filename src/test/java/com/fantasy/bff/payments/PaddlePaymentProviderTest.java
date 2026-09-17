@@ -46,7 +46,7 @@ class PaddlePaymentProviderTest {
     void setUp() {
         PaymentsProperties properties = new PaymentsProperties(true, "paddle", null,
                 new PaymentsProperties.Paddle("pdl_apikey", SECRET, "pri_premium_monthly",
-                        "https://slapstat.test/pay", 300));
+                        "https://slapstat.test/pay", 300), null);
         RestClient.Builder builder = RestClient.builder().baseUrl("https://sandbox-api.paddle.test");
         paddleServer = MockRestServiceServer.bindTo(builder).build();
         provider = new PaddlePaymentProvider(builder.build(), new ObjectMapper(),
