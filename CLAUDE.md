@@ -212,6 +212,15 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     (`DRAFT_LEAGUE_SYNC_ENABLED`, off by default) *and* a pool on Yahoo ids, because the picks
     name players by Yahoo's. Without it the endpoint 404s, and `GET /api/v1/features` reports it
     as `leagueDraftSync`. Not premium.
+  - `StreamerPlannerController` — also `GET /free-agents?platform=&leagueId=&start=&end=`: the
+    players a league has available, each with the **model's line over that stretch**
+    (projection-service's `/projections/range`). The two sides are joined on **identity**, through
+    `PlayerIdResolver` against the NHL-side names, not through the pool's id space — a Yahoo
+    league's wire carries Yahoo ids, which an ESPN-numbered pool could not resolve at all, so the
+    answer is right whichever way `PLAYERS_SOURCE` is set. Stats go out in the projection's own
+    vocabulary and **nothing here scores them**: the client weighs them by the league's scoring
+    settings, as everywhere else. A free agent the model does not project is counted in
+    `unprojected` rather than shown with zeroes. Same switch, same 404.
   - `StreamerPlannerController` — `/api/v1/streamer-planner`: `GET /weeks` (the newest published
     season's Monday-Sunday weeks, numbered from opening night, and the week today falls in) and
     `GET /teams?start=&end=` (every NHL team's games over up to 31 days, with a skater and a goalie

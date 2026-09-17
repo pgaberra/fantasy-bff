@@ -1,7 +1,6 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
-import com.fantasy.bff.config.StreamerPlannerProperties;
 import com.fantasy.bff.dto.response.PlannerWeek;
 import com.fantasy.bff.dto.response.PlannerWeeksResponse;
 import com.fantasy.bff.dto.response.ScheduleNight;
@@ -15,7 +14,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,16 +28,16 @@ public class StreamerPlannerService {
     static final int MAX_STRETCH_DAYS = 31;
 
     private final ProjectionServiceClient projectionServiceClient;
-    private final StreamerPlannerProperties properties;
+    private final StreamerPlannerAvailability availability;
 
     public StreamerPlannerService(
-            ProjectionServiceClient projectionServiceClient, StreamerPlannerProperties properties) {
+            ProjectionServiceClient projectionServiceClient, StreamerPlannerAvailability availability) {
         this.projectionServiceClient = projectionServiceClient;
-        this.properties = properties;
+        this.availability = availability;
     }
 
     public PlannerWeeksResponse weeks() {
-        requireAvailable();
+        availability.require();
         ScheduleWeeksResponse answer = projectionServiceClient.scheduleWeeks();
         if (answer == null) {
             return new PlannerWeeksResponse(null, null, List.of());
@@ -52,15 +50,22 @@ public class StreamerPlannerService {
                         .toList());
     }
 
-    public ScheduleStrengthResponse strength(LocalDate start, LocalDate end) {
-        requireAvailable();
-        // Checked here as well as downstream: a service validates its own input.
+    /**
+     * The stretch rule, checked here as well as downstream: a service validates its own input, and
+     * projection-service's own 400 would reach the web as a 502 about a downstream fault.
+     */
+    static void requireStretch(LocalDate start, LocalDate end) {
         if (end.isBefore(start)) {
             throw new IllegalArgumentException("end must not be before start");
         }
         if (ChronoUnit.DAYS.between(start, end) + 1 > MAX_STRETCH_DAYS) {
             throw new IllegalArgumentException("A stretch may cover at most " + MAX_STRETCH_DAYS + " days");
         }
+    }
+
+    public ScheduleStrengthResponse strength(LocalDate start, LocalDate end) {
+        availability.require();
+        requireStretch(start, end);
         var answer = projectionServiceClient.scheduleStrength(start, end);
         if (answer == null) {
             throw new IllegalStateException("projection-service returned no schedule");
@@ -74,12 +79,6 @@ public class StreamerPlannerService {
                         .map(night -> new ScheduleNight(night.getDate(), night.getGames(), night.getOffNight()))
                         .toList(),
                 answer.getTeams().stream().map(StreamerPlannerService::team).toList());
-    }
-
-    private void requireAvailable() {
-        if (!properties.enabled()) {
-            throw new NoSuchElementException("The streamer planner is not available");
-        }
     }
 
     private static TeamSchedule team(TeamScheduleResponse team) {

@@ -598,6 +598,494 @@
         "title": "PlayerResponse",
         "type": "object"
       },
+      "RangeGoalieResponse": {
+        "properties": {
+          "club_games": {
+            "title": "Club Games",
+            "type": "integer"
+          },
+          "expected_games": {
+            "title": "Expected Games",
+            "type": "number"
+          },
+          "goals_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against"
+          },
+          "goals_against_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against Avg"
+          },
+          "losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losses"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "ot_losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ot Losses"
+          },
+          "save_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save Pct"
+          },
+          "saves": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saves"
+          },
+          "shots_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots Against"
+          },
+          "shutouts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shutouts"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "toi_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Seconds"
+          },
+          "wins": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wins"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "team",
+          "club_games",
+          "expected_games",
+          "wins",
+          "losses",
+          "ot_losses",
+          "shutouts",
+          "shots_against",
+          "saves",
+          "goals_against",
+          "toi_seconds",
+          "goals_against_avg",
+          "save_pct"
+        ],
+        "title": "RangeGoalieResponse",
+        "type": "object"
+      },
+      "RangeProjectionsResponse": {
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "goalies": {
+            "items": {
+              "$ref": "#/components/schemas/RangeGoalieResponse"
+            },
+            "title": "Goalies",
+            "type": "array"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          },
+          "skaters": {
+            "items": {
+              "$ref": "#/components/schemas/RangeSkaterResponse"
+            },
+            "title": "Skaters",
+            "type": "array"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "season",
+          "model_version",
+          "start",
+          "end",
+          "skaters",
+          "goalies"
+        ],
+        "title": "RangeProjectionsResponse",
+        "type": "object"
+      },
+      "RangeSkaterResponse": {
+        "properties": {
+          "assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assists"
+          },
+          "blocks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks"
+          },
+          "club_games": {
+            "title": "Club Games",
+            "type": "integer"
+          },
+          "expected_games": {
+            "title": "Expected Games",
+            "type": "number"
+          },
+          "faceoffs_lost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceoffs Lost"
+          },
+          "faceoffs_won": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceoffs Won"
+          },
+          "goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals"
+          },
+          "gw_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gw Goals"
+          },
+          "hat_tricks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hat Tricks"
+          },
+          "hits": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hits"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "pim": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pim"
+          },
+          "plus_minus": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plus Minus"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "pp_assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Assists"
+          },
+          "pp_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Goals"
+          },
+          "pp_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Points"
+          },
+          "sh_assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Assists"
+          },
+          "sh_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Goals"
+          },
+          "sh_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Points"
+          },
+          "shifts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shifts"
+          },
+          "shooting_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shooting Pct"
+          },
+          "shots": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "toi_per_game_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Per Game Seconds"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "team",
+          "club_games",
+          "expected_games",
+          "goals",
+          "assists",
+          "points",
+          "plus_minus",
+          "pim",
+          "pp_goals",
+          "pp_assists",
+          "pp_points",
+          "sh_goals",
+          "sh_assists",
+          "sh_points",
+          "gw_goals",
+          "shots",
+          "faceoffs_won",
+          "faceoffs_lost",
+          "hits",
+          "blocks",
+          "shifts",
+          "hat_tricks",
+          "toi_per_game_seconds",
+          "shooting_pct"
+        ],
+        "title": "RangeSkaterResponse",
+        "type": "object"
+      },
       "RatedGameResponse": {
         "properties": {
           "back_to_back": {
@@ -1870,6 +2358,132 @@
           }
         },
         "summary": "Get Goalie Projection",
+        "tags": [
+          "projections"
+        ]
+      }
+    },
+    "/api/v1/projections/range": {
+      "get": {
+        "description": "Every projected player's line over the stretch, the best by projected points first.\n\nSkaters and goalies are limited separately, so a limit of 50 gives 50 of each rather than a\nlist of skaters with the goalies cut off the end.",
+        "operationId": "range_projections_api_v1_projections_range_get",
+        "parameters": [
+          {
+            "description": "First date of the stretch",
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "description": "First date of the stretch",
+              "format": "date",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last date of the stretch, inclusive",
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "description": "Last date of the stretch, inclusive",
+              "format": "date",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Season start year, e.g. 2026. Defaults to the newest season with a published schedule",
+            "in": "query",
+            "name": "season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year, e.g. 2026. Defaults to the newest season with a published schedule",
+              "title": "Season"
+            }
+          },
+          {
+            "description": "Omit for the season's most recent run",
+            "in": "query",
+            "name": "model_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Omit for the season's most recent run",
+              "title": "Model Version"
+            }
+          },
+          {
+            "description": "Max skaters and max goalies, each",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "Max skaters and max goalies, each",
+              "maximum": 2000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RangeProjectionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Range Projections",
         "tags": [
           "projections"
         ]

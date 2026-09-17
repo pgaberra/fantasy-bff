@@ -1,6 +1,6 @@
 package com.fantasy.bff.controller;
 
-import com.fantasy.bff.config.StreamerPlannerProperties;
+import com.fantasy.bff.service.StreamerPlannerAvailability;
 import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.LeagueDraftSyncAvailability;
@@ -23,12 +23,12 @@ public class FeatureController {
 
     private final AiProjectionAvailability aiProjection;
     private final LeagueDraftSyncAvailability leagueDraftSync;
-    private final StreamerPlannerProperties streamerPlanner;
+    private final StreamerPlannerAvailability streamerPlanner;
 
     public FeatureController(
             AiProjectionAvailability aiProjection,
             LeagueDraftSyncAvailability leagueDraftSync,
-            StreamerPlannerProperties streamerPlanner) {
+            StreamerPlannerAvailability streamerPlanner) {
         this.aiProjection = aiProjection;
         this.leagueDraftSync = leagueDraftSync;
         this.streamerPlanner = streamerPlanner;
@@ -41,6 +41,6 @@ public class FeatureController {
     @ApiResponse(responseCode = "200", description = "Features retrieved successfully")
     public FeaturesResponse getFeatures() {
         return new FeaturesResponse(
-                aiProjection.available(), leagueDraftSync.available(), streamerPlanner.enabled());
+                aiProjection.available(), leagueDraftSync.available(), streamerPlanner.available());
     }
 }

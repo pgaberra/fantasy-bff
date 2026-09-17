@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
@@ -27,10 +28,25 @@ import java.util.List;
 @Component
 public class HttpEspnServiceClient implements EspnServiceClient {
 
+    private static final ParameterizedTypeReference<List<AvailablePlayer>> AVAILABLE_PLAYERS =
+            new ParameterizedTypeReference<>() {};
+
     private final RestClient restClient;
 
     public HttpEspnServiceClient(@Qualifier("espnFantasyServiceClient") RestClient restClient) {
         this.restClient = restClient;
+    }
+
+    @Override
+    public List<AvailablePlayer> leagueFreeAgents(String appUserId, String leagueId, int limit) {
+        List<AvailablePlayer> available = restClient.get()
+                .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/free-agents")
+                        .queryParam("appUserId", appUserId)
+                        .queryParam("limit", limit)
+                        .build(leagueId))
+                .retrieve()
+                .body(AVAILABLE_PLAYERS);
+        return available == null ? List.of() : available;
     }
 
     @Override

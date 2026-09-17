@@ -298,6 +298,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDto"
+  /api/v1/yahoo/leagues/{leagueKey}/free-agents:
+    get:
+      tags:
+      - Yahoo Leagues
+      summary: List the players the league has available
+      description: "Free agents and players on waivers, in Yahoo's actual-rank order,\
+        \ so the first rows are the best available. Read with the user's own Yahoo\
+        \ token."
+      operationId: freeAgents
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 0
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 150
+          maximum: 300
+          minimum: 1
+      responses:
+        "200":
+          description: Available players returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YahooAvailablePlayerResponse"
+        "400":
+          description: The limit is outside 1-300
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YahooAvailablePlayerResponse"
+        "404":
+          description: User has not connected Yahoo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YahooAvailablePlayerResponse"
+        "403":
+          description: Yahoo refused the request; the message carries Yahoo's own
+            wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/draft:
     get:
       tags:
@@ -857,6 +922,46 @@ components:
       - displayOnly
       - name
       - statId
+    YahooAvailablePlayerResponse:
+      type: object
+      description: "A player no team in the league owns: a free agent, or one on waivers"
+      properties:
+        yahooId:
+          type: string
+          description: Yahoo's player id
+        fullName:
+          type: string
+        teamAbbrev:
+          type: string
+          description: "The NHL club Yahoo has him on, in Yahoo's own abbreviation"
+        position:
+          type: string
+          description: His primary fantasy position
+        uniformNumber:
+          type: integer
+          format: int32
+        goalie:
+          type: boolean
+        eligiblePositions:
+          type: array
+          description: Every position he may be started at in this league
+          items:
+            type: string
+        availability:
+          type: string
+          description: "FREE_AGENT for a player who can be added now, WAIVERS for\
+            \ one who has to clear waivers first, UNKNOWN when Yahoo does not say"
+          enum:
+          - FREE_AGENT
+          - WAIVERS
+          - UNKNOWN
+      required:
+      - availability
+      - eligiblePositions
+      - fullName
+      - goalie
+      - position
+      - yahooId
     LeagueDraftPick:
       type: object
       properties:

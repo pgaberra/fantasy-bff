@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
@@ -138,6 +139,18 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                 })
                 .retrieve()
                 .body(SplitSeasonsResponse.class);
+    }
+
+    @Override
+    public RangeProjectionsResponse rangeProjections(LocalDate start, LocalDate end, int limit) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/projections/range")
+                        .queryParam("start", start)
+                        .queryParam("end", end)
+                        .queryParam("limit", limit)
+                        .build())
+                .retrieve()
+                .body(RangeProjectionsResponse.class);
     }
 
     @Override

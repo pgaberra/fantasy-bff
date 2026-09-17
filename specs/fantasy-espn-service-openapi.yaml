@@ -262,6 +262,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueSettingsResponse"
+  /api/v1/espn/leagues/{leagueId}/free-agents:
+    get:
+      tags:
+      - ESPN Leagues
+      summary: List the players the league has available
+      description: "Free agents and players on waivers, most owned across ESPN first.\
+        \ Needs the user's stored cookies, like any private league read."
+      operationId: freeAgents
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 20
+          minLength: 0
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 0
+      - name: season
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 150
+          maximum: 300
+          minimum: 1
+      responses:
+        "200":
+          description: Available players returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailablePlayer"
+        "400":
+          description: "League is private (cookies missing/invalid), the league id/season\
+            \ is malformed, or the limit is outside 1-300"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailablePlayer"
+        "404":
+          description: No such ESPN league for the id and season
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailablePlayer"
 components:
   schemas:
     SaveCredentialsRequest:
@@ -602,6 +666,49 @@ components:
       required:
       - name
       - statId
+    AvailablePlayer:
+      type: object
+      description: "A player no team in the league owns: a free agent, or one on waivers"
+      properties:
+        espnId:
+          type: integer
+          format: int64
+          description: ESPN's player id
+        fullName:
+          type: string
+        teamAbbrev:
+          type: string
+          description: "The NHL club ESPN has him on, in ESPN's own abbreviation (TB,\
+            \ LA, NJ, SJ rather than the NHL's TBL, LAK, NJD, SJS). Absent for a player\
+            \ ESPN lists on no club"
+        position:
+          type: string
+          description: His primary position
+        uniformNumber:
+          type: integer
+          format: int32
+        goalie:
+          type: boolean
+        eligiblePositions:
+          type: array
+          description: Every position he may be started at in this league
+          items:
+            type: string
+        availability:
+          type: string
+          description: "FREE_AGENT for a player who can be added now, WAIVERS for\
+            \ one who has to clear waivers first, UNKNOWN when ESPN does not say"
+          enum:
+          - FREE_AGENT
+          - WAIVERS
+          - UNKNOWN
+      required:
+      - availability
+      - eligiblePositions
+      - espnId
+      - fullName
+      - goalie
+      - position
     CredentialStatusResponse:
       type: object
       properties:
