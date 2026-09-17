@@ -1178,7 +1178,7 @@ paths:
       summary: The season's weeks
       description: "Monday-Sunday weeks of the newest published NHL season, numbered\
         \ from the week of opening night, and the week today falls in."
-      operationId: weeks
+      operationId: streamerPlannerWeeks
       responses:
         "200":
           description: "The weeks, in order"
@@ -1199,7 +1199,7 @@ paths:
       summary: "Every team's schedule over a stretch, rated for streaming"
       description: "All NHL teams, best skater schedule first. The opponent rates\
         \ are those known the morning of `start`. A stretch covers at most 31 days."
-      operationId: teams_1
+      operationId: streamerPlannerTeams
       parameters:
       - name: start
         in: query
@@ -1717,7 +1717,7 @@ paths:
       tags:
       - ESPN
       summary: List an ESPN league's teams (names + which is the user's own)
-      operationId: teams_2
+      operationId: teams_1
       parameters:
       - name: leagueId
         in: path

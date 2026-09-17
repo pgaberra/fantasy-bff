@@ -31,6 +31,7 @@ public class StreamerPlannerController {
     }
 
     @Operation(
+            operationId = "streamerPlannerWeeks",
             summary = "The season's weeks",
             description = "Monday-Sunday weeks of the newest published NHL season, numbered from the week "
                     + "of opening night, and the week today falls in.")
@@ -44,6 +45,7 @@ public class StreamerPlannerController {
     }
 
     @Operation(
+            operationId = "streamerPlannerTeams",
             summary = "Every team's schedule over a stretch, rated for streaming",
             description = "All NHL teams, best skater schedule first. The opponent rates are those known "
                     + "the morning of `start`. A stretch covers at most 31 days.")
