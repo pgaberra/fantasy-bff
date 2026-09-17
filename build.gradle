@@ -9,7 +9,8 @@ plugins {
 }
 
 group = 'com.fantasy'
-version = '0.0.1-SNAPSHOT'
+// No `version`: the release version is the git tag tag-on-merge.yml derives from the PR title,
+// stamped into the running app as APP_VERSION.
 
 java {
 	toolchain {
