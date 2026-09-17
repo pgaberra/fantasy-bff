@@ -1315,6 +1315,72 @@ components:
       required:
       - playerId
       - teamId
+    DraftSettings:
+      type: object
+      properties:
+        scoringType:
+          type: string
+          enum:
+          - points
+          - category
+        statWeights:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        activeScoringColumns:
+          type: array
+          items:
+            type: string
+            maxLength: 32
+            minLength: 0
+          maxItems: 100
+          minItems: 0
+        activeUtilityColumns:
+          type: array
+          items:
+            type: string
+            maxLength: 32
+            minLength: 0
+          maxItems: 100
+          minItems: 0
+        leagueSize:
+          type: integer
+          format: int32
+          description: Number of teams in the league. Category leagues only — absent
+            for points leagues.
+          maximum: 30
+          minimum: 2
+        rosterSlots:
+          $ref: "#/components/schemas/RosterSlots"
+          description: Roster slots per team. The draft's rosters are built from them
+            in both league types.
+        minGoalieGames:
+          type: integer
+          format: int32
+          description: Minimum projected games a goalie must reach to qualify for
+            category ranking. Category leagues only — absent for points leagues. Capped
+            at a full 84-game season.
+          maximum: 84
+          minimum: 0
+        yahooSync:
+          $ref: "#/components/schemas/YahooSync"
+          description: "The Yahoo league these settings were imported from, if any."
+        espnSync:
+          $ref: "#/components/schemas/EspnSync"
+          description: "The ESPN league these settings were imported from, if any."
+        lastEspnLeagueId:
+          type: string
+          description: "The last ESPN league imported from, kept so a re-import does\
+            \ not have to be retyped."
+          maxLength: 50
+          minLength: 0
+      required:
+      - activeScoringColumns
+      - activeUtilityColumns
+      - rosterSlots
+      - scoringType
+      - statWeights
     DraftState:
       type: object
       properties:
@@ -1341,6 +1407,11 @@ components:
           format: date-time
           description: "When the manager marked this draft finished (ISO-8601, UTC).\
             \ Absent while the draft is still in progress."
+        settings:
+          $ref: "#/components/schemas/DraftSettings"
+          description: "The league this draft is ranked by, set up with the draft.\
+            \ Absent on a draft saved before drafts held their own league, which is\
+            \ ranked by the projection's settings instead."
       required:
       - order
       - picks
@@ -1470,7 +1541,8 @@ components:
           description: Minimum projected games a goalie must reach to qualify for
             category ranking; goalies below it are ranked last to avoid small-sample
             rate-stat inflation. Category leagues only — absent for points leagues.
-          maximum: 82
+            Capped at a full 84-game season.
+          maximum: 84
           minimum: 0
         yahooSync:
           $ref: "#/components/schemas/YahooSync"

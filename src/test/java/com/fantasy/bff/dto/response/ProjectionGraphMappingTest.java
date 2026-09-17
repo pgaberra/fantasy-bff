@@ -2,6 +2,7 @@ package com.fantasy.bff.dto.response;
 
 import com.fantasy.bff.dto.request.UpdateProjectionData;
 import com.fantasy.bff.generated.db.model.DraftPick;
+import com.fantasy.bff.generated.db.model.DraftSettings;
 import com.fantasy.bff.generated.db.model.DraftState;
 import com.fantasy.bff.generated.db.model.DraftTeam;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
@@ -74,7 +75,18 @@ class ProjectionGraphMappingTest {
                         new DraftTeam().id("t2").name("Theirs").mine(false)))
                 .order(List.of("t1", "t2"))
                 .picks(List.of(new DraftPick().playerId(8478402).teamId("t1")))
-                .finishedAt(SYNCED_AT);
+                .finishedAt(SYNCED_AT)
+                .projectionSettings(new DraftSettings()
+                        .scoringType(DraftSettings.ScoringTypeEnum.CATEGORY)
+                        .statWeights(Map.of("goals", 6.0))
+                        .activeScoringColumns(List.of("goals", "hits"))
+                        .activeUtilityColumns(List.of("gp"))
+                        .leagueSize(10)
+                        .rosterSlots(new RosterSlots().c(2).lw(2).rw(2).d(4).util(1).bn(4).g(2))
+                        .minGoalieGames(84)
+                        .espnSync(new EspnSync()
+                                .leagueName("Other League").leagueId("12345").syncedAt(SYNCED_AT))
+                        .lastEspnLeagueId("12345"));
     }
 
     @Test

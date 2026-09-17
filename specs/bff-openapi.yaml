@@ -1855,6 +1855,66 @@ components:
       required:
       - playerId
       - teamId
+    DraftSettings:
+      type: object
+      properties:
+        scoringType:
+          type: string
+          enum:
+          - points
+          - category
+        statWeights:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        activeScoringColumns:
+          type: array
+          items:
+            type: string
+            maxLength: 32
+            minLength: 0
+          maxItems: 100
+          minItems: 0
+        activeUtilityColumns:
+          type: array
+          items:
+            type: string
+            maxLength: 32
+            minLength: 0
+          maxItems: 100
+          minItems: 0
+        leagueSize:
+          type: integer
+          format: int32
+          description: Number of teams. Category leagues only — absent for points
+            leagues.
+          maximum: 30
+          minimum: 2
+        rosterSlots:
+          $ref: "#/components/schemas/RosterSlots"
+          description: Roster slots per team; the draft's rosters are built from them.
+        minGoalieGames:
+          type: integer
+          format: int32
+          description: "Minimum projected games for a goalie to qualify in category\
+            \ ranking, up to a full 84-game season. Category leagues only."
+          maximum: 84
+          minimum: 0
+        yahooSync:
+          $ref: "#/components/schemas/YahooSync"
+        espnSync:
+          $ref: "#/components/schemas/EspnSync"
+        lastEspnLeagueId:
+          type: string
+          maxLength: 50
+          minLength: 0
+      required:
+      - activeScoringColumns
+      - activeUtilityColumns
+      - rosterSlots
+      - scoringType
+      - statWeights
     DraftState:
       type: object
       properties:
@@ -1879,6 +1939,11 @@ components:
         finishedAt:
           type: string
           format: date-time
+        settings:
+          $ref: "#/components/schemas/DraftSettings"
+          description: "The league this draft is ranked by, set up with the draft.\
+            \ Absent on a draft saved before drafts held their own league, which is\
+            \ ranked by the projection's settings instead."
       required:
       - order
       - picks
@@ -2013,7 +2078,7 @@ components:
         minGoalieGames:
           type: integer
           format: int32
-          maximum: 82
+          maximum: 84
           minimum: 0
         yahooSync:
           $ref: "#/components/schemas/YahooSync"

@@ -47,7 +47,7 @@ public record ProjectionSettings(
 
         @Valid RosterSlots rosterSlots,
 
-        @Min(0) @Max(82) Integer minGoalieGames,
+        @Min(0) @Max(84) Integer minGoalieGames,
 
         @Valid YahooSync yahooSync,
 
