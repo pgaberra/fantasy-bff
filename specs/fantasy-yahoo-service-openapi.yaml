@@ -298,6 +298,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDto"
+  /api/v1/yahoo/leagues/{leagueKey}/draft:
+    get:
+      tags:
+      - Yahoo Leagues
+      summary: "Get a league's draft: status, teams in draft order, and the picks\
+        \ made so far"
+      operationId: draft
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Draft returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
+        "404":
+          description: User has not connected Yahoo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
+        "403":
+          description: Yahoo refused the request; the message carries Yahoo's own
+            wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/sync/runs:
     get:
       tags:
@@ -819,6 +857,82 @@ components:
       - displayOnly
       - name
       - statId
+    LeagueDraftPick:
+      type: object
+      properties:
+        pick:
+          type: integer
+          format: int32
+          description: "Overall pick number, from 1."
+        round:
+          type: integer
+          format: int32
+        teamKey:
+          type: string
+        playerKey:
+          type: string
+          description: Yahoo's player key; absent for a pick not yet made.
+          example: 465.p.6743
+        playerId:
+          type: integer
+          format: int32
+          description: "The player id inside the player key, the id the player read\
+            \ model uses; absent for a pick not yet made."
+          example: 6743
+      required:
+      - pick
+      - round
+      - teamKey
+    LeagueDraftResponse:
+      type: object
+      properties:
+        leagueKey:
+          type: string
+        status:
+          type: string
+          enum:
+          - PRE_DRAFT
+          - IN_PROGRESS
+          - FINISHED
+          - UNKNOWN
+        auction:
+          type: boolean
+          description: "True for an auction draft, whose picks are bought rather than\
+            \ taken in turn."
+        teams:
+          type: array
+          description: "The league's teams in first-round draft order once Yahoo has\
+            \ set it, otherwise in Yahoo's team order."
+          items:
+            $ref: "#/components/schemas/LeagueDraftTeam"
+        picks:
+          type: array
+          description: "Every pick Yahoo lists, by overall pick number. Before the\
+            \ draft this can hold the order's slots without players, or nothing at\
+            \ all."
+          items:
+            $ref: "#/components/schemas/LeagueDraftPick"
+      required:
+      - auction
+      - leagueKey
+      - picks
+      - status
+      - teams
+    LeagueDraftTeam:
+      type: object
+      properties:
+        teamKey:
+          type: string
+          example: 465.l.12345.t.3
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team.
+      required:
+      - mine
+      - name
+      - teamKey
     SyncRunResponse:
       type: object
       properties:

@@ -3,11 +3,13 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.request.YahooLinkClaimRequest;
 import com.fantasy.bff.dto.response.ErrorDto;
+import com.fantasy.bff.dto.response.LeagueDraftResponse;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
+import com.fantasy.bff.service.YahooLeagueDraftService;
 import com.fantasy.bff.service.YahooLeagueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,10 +41,13 @@ public class YahooController {
 
     private final YahooServiceClient yahooServiceClient;
     private final YahooLeagueService yahooLeagueService;
+    private final YahooLeagueDraftService yahooLeagueDraftService;
 
-    public YahooController(YahooServiceClient yahooServiceClient, YahooLeagueService yahooLeagueService) {
+    public YahooController(YahooServiceClient yahooServiceClient, YahooLeagueService yahooLeagueService,
+                           YahooLeagueDraftService yahooLeagueDraftService) {
         this.yahooServiceClient = yahooServiceClient;
         this.yahooLeagueService = yahooLeagueService;
+        this.yahooLeagueDraftService = yahooLeagueDraftService;
     }
 
     @Operation(summary = "Start connecting the user's Yahoo account",
@@ -118,5 +124,21 @@ public class YahooController {
     public LeagueTeamsResponse teams(@AuthenticationPrincipal String userId,
                                      @PathVariable String leagueKey) {
         return yahooServiceClient.teams(userId, leagueKey);
+    }
+
+    @Operation(summary = "Get a league's draft: its status, teams in draft order and the picks made so far",
+            description = "Polled by the draft room while it follows the league's live draft. Picks name "
+                    + "players by the pool's own ids. 404 where this environment does not offer following a draft.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Draft returned"),
+            @ApiResponse(responseCode = "404", description = "Not offered here, or the user has not connected Yahoo",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "424", description = REFUSED,
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
+    @GetMapping("/leagues/{leagueKey}/draft")
+    public LeagueDraftResponse draft(@AuthenticationPrincipal String userId,
+                                     @PathVariable @Size(max = 64) String leagueKey) {
+        return yahooLeagueDraftService.draft(userId, leagueKey);
     }
 }

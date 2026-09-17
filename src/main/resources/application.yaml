@@ -152,6 +152,13 @@ services:
 ai-projection:
   enabled: ${AI_PROJECTION_ENABLED:true}
 
+# Following a league's live draft from the draft room (GET /api/v1/yahoo/leagues/{key}/draft,
+# polled while a user follows). Off unless this says otherwise, since the feature is new. It also
+# needs a pool on Yahoo ids, because the picks name players by Yahoo's; LeagueDraftSyncAvailability
+# combines the two, and that answer is what /api/v1/features reports. Not a premium feature.
+league-draft-sync:
+  enabled: ${DRAFT_LEAGUE_SYNC_ENABLED:false}
+
 # Bug reports and feature requests from signed-in users (POST /api/v1/feedback), filed as issues
 # in a PRIVATE GitHub repository: each carries the reporter's email address so the answer can go
 # out by mail. Always served.

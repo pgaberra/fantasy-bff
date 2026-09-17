@@ -2,6 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
+import com.fantasy.bff.service.LeagueDraftSyncAvailability;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,9 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class FeatureController {
 
     private final AiProjectionAvailability aiProjection;
+    private final LeagueDraftSyncAvailability leagueDraftSync;
 
-    public FeatureController(AiProjectionAvailability aiProjection) {
+    public FeatureController(AiProjectionAvailability aiProjection, LeagueDraftSyncAvailability leagueDraftSync) {
         this.aiProjection = aiProjection;
+        this.leagueDraftSync = leagueDraftSync;
     }
 
     @GetMapping
@@ -31,6 +34,6 @@ public class FeatureController {
                     + "The same answer the endpoints behind each feature enforce.")
     @ApiResponse(responseCode = "200", description = "Features retrieved successfully")
     public FeaturesResponse getFeatures() {
-        return new FeaturesResponse(aiProjection.available());
+        return new FeaturesResponse(aiProjection.available(), leagueDraftSync.available());
     }
 }

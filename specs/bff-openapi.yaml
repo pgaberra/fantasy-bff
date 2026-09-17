@@ -1103,6 +1103,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDto"
+  /api/v1/yahoo/leagues/{leagueKey}/draft:
+    get:
+      tags:
+      - Yahoo
+      summary: "Get a league's draft: its status, teams in draft order and the picks\
+        \ made so far"
+      description: Polled by the draft room while it follows the league's live draft.
+        Picks name players by the pool's own ids. 404 where this environment does
+        not offer following a draft.
+      operationId: draft
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: Draft returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
+        "404":
+          description: "Not offered here, or the user has not connected Yahoo"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/connection:
     get:
       tags:
@@ -3022,6 +3060,74 @@ components:
       - scoringType
       - unsupportedRosterCodes
       - unsupportedStats
+    LeagueDraftPick:
+      type: object
+      properties:
+        overall:
+          type: integer
+          format: int32
+          description: "Overall pick number, from 1."
+        round:
+          type: integer
+          format: int32
+        teamId:
+          type: string
+          description: The id of the team that made the pick.
+        playerId:
+          type: integer
+          format: int32
+          description: "The player, by the pool's own id."
+      required:
+      - overall
+      - playerId
+      - round
+      - teamId
+    LeagueDraftResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - PRE_DRAFT
+          - IN_PROGRESS
+          - FINISHED
+          - UNKNOWN
+        auction:
+          type: boolean
+          description: "True for an auction draft, which the draft room does not follow."
+        teams:
+          type: array
+          description: "The league's teams in first-round draft order once the league\
+            \ has set it, otherwise in the platform's own team order."
+          items:
+            $ref: "#/components/schemas/LeagueDraftTeam"
+        picks:
+          type: array
+          description: "The picks made so far, in order and without gaps: pick n is\
+            \ at index n - 1."
+          items:
+            $ref: "#/components/schemas/LeagueDraftPick"
+      required:
+      - auction
+      - picks
+      - status
+      - teams
+    LeagueDraftTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "The platform's own key for the team, stable for the season."
+          example: 465.l.12345.t.3
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the signed-in user's own team.
+      required:
+      - id
+      - mine
+      - name
     ServiceVersion:
       type: object
       properties:
@@ -3635,8 +3741,14 @@ components:
             \ neither is served to anyone, so a client should not offer it. It says\
             \ nothing about this account's plan: an AI projection that needs premium\
             \ is still available."
+        leagueDraftSync:
+          type: boolean
+          description: "Whether the draft room may follow a linked league's live draft.\
+            \ False means the draft endpoint answers 404, so a client should not offer\
+            \ it."
       required:
       - aiProjection
+      - leagueDraftSync
     EspnLeagueTeam:
       type: object
       properties:

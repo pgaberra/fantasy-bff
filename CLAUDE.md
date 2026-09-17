@@ -205,6 +205,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     the admin twin `/admin/yahoo/connect/complete` claims for the service account); ESPN has none, so `EspnController` manages the user's stored
     `espn_s2` + `SWID` cookies instead. Note `GET /espn/credentials/values` hands the caller
     back **their own** cookies (everything else exposes only a `hasCredentials` flag).
+    `GET /yahoo/leagues/{key}/draft` is what the draft room polls while it follows a league's
+    live draft: teams keyed by Yahoo's team key in first-round order, and only the unbroken run
+    of picks made from pick 1, since the board numbers a pick by its place in the list. It is
+    **one answer, `LeagueDraftSyncAvailability`**: `league-draft-sync.enabled`
+    (`DRAFT_LEAGUE_SYNC_ENABLED`, off by default) *and* a pool on Yahoo ids, because the picks
+    name players by Yahoo's. Without it the endpoint 404s, and `GET /api/v1/features` reports it
+    as `leagueDraftSync`. Not premium.
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show
