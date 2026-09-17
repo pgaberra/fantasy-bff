@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 /**
  * Stripe Billing as the payment provider, sold through Stripe-hosted Checkout.
  *
- * <p>Unlike Paddle, Stripe hosts the whole checkout page, so the URL a checkout returns is Stripe's
+ * <p>Stripe hosts the whole checkout page, so the URL a checkout returns is Stripe's
  * own and the web only has to send the browser there. With {@code managed-payments} on, Stripe
  * (through Link) is the merchant of record: it collects and remits the tax and appears as the
  * seller on the buyer's receipt and statement.
@@ -125,7 +125,8 @@ public class StripePaymentProvider implements PaymentProvider {
      * after 24 hours on its own.
      *
      * <p>A lookup that fails answers "not open", logged at ERROR, which opens a new checkout rather
-     * than costing the sale; {@link PaddlePaymentProvider#isCheckoutOpen} made the same call.
+     * than costing the sale. A new checkout is what every checkout did before reuse existed, while
+     * refusing checkout over a failed read would turn away a buyer who was ready to pay.
      */
     @Override
     public boolean isCheckoutOpen(String reference) {
@@ -212,9 +213,14 @@ public class StripePaymentProvider implements PaymentProvider {
     }
 
     /**
-     * Runs a Stripe call and turns an error response into a fault on our side, for the reason
-     * {@link PaddlePaymentProvider}'s own {@code call} gives: Stripe's 4xx is about our key, our
-     * request or our account, never about what the user asked for.
+     * Runs a Stripe call and turns an error response into a fault on our side.
+     *
+     * <p>The advice relays a downstream 400, 404 or 409 to the browser, which is right for our own
+     * services, whose 409 really is a verdict about what the user asked for. Stripe's 4xx is about
+     * our key, our request or our account instead, so relaying it would tell the user to retry
+     * something that will never work and log it as an expected client outcome nothing alerts on.
+     * {@link IllegalStateException} is answered with 502 and an ERROR log, so Stripe's own message
+     * reaches the logs through the cause while the caller is told only that we failed.
      */
     private static JsonNode call(String what, Supplier<JsonNode> stripeCall) {
         try {

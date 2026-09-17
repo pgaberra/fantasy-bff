@@ -5,7 +5,7 @@ import org.springframework.http.HttpHeaders;
 /**
  * A payment provider that hosts checkout + a management portal and reports subscription
  * lifecycle changes via signed webhooks. Provider-agnostic on purpose: the BFF depends only
- * on this interface, so a real provider (Stripe, Paddle, …) drops in as another implementation
+ * on this interface, so a real provider (Stripe, …) drops in as another implementation
  * with no change to the controller, the db-service contract, or the web. The in-repo
  * {@link MockPaymentProvider} drives the whole lifecycle locally for test mode.
  */

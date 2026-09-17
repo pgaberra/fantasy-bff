@@ -19,8 +19,9 @@ import java.util.List;
 /**
  * Verifies the {@code Stripe-Signature} header Stripe puts on every webhook. The header reads
  * {@code t=<unix seconds>,v1=<hex hmac>[,v1=…][,v0=…]}, and the signed string is the timestamp and
- * the raw body joined by a dot, so the body must be the exact bytes Stripe sent (see
- * {@link PaddleSignatureVerifier} for why the path down from the controller stays {@code byte[]}).
+ * the raw body joined by a dot, so the body must be the exact bytes Stripe sent. Re-serializing the
+ * JSON would change whitespace and key order and break the signature, which is why the whole path
+ * from the controller down takes {@code byte[]}.
  *
  * <p>Any one {@code v1} matching is enough: Stripe sends one per active endpoint secret, and while
  * a secret is being rolled both the old and the new one sign. {@code v0} is a test-mode scheme and
@@ -36,7 +37,12 @@ public class StripeSignatureVerifier {
     private final long toleranceSeconds;
     private final Clock clock;
 
-    /** {@code @Autowired} for the reason {@link PaddleSignatureVerifier}'s constructor gives. */
+    /**
+     * {@code @Autowired} is not decoration. There are two constructors and neither takes zero
+     * arguments, so without it Spring looks for a default constructor, fails to find one, and the
+     * context will not start at all. The unit tests call the other constructor directly and never
+     * saw it; a deployment did.
+     */
     @Autowired
     public StripeSignatureVerifier(PaymentsProperties properties) {
         this(properties, Clock.systemUTC());

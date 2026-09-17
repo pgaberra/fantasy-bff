@@ -85,16 +85,9 @@ secret is environment-specific: staging and production never share one.
 | Variable | Secret | Required | Default | Notes |
 |---|---|---|---|---|
 | `PAYMENTS_ENABLED` | | no | `false` | Subscription billing. |
-| `PAYMENTS_PROVIDER` | | no | `mock` | `mock`, `paddle` or `stripe`. |
+| `PAYMENTS_PROVIDER` | | no | `mock` | `mock` or `stripe`. |
 | `PAYMENTS_MOCK_WEBHOOK_SECRET` | yes | with `mock` | empty | Signs the mock provider's tokens and webhooks; the mock flow fails without it. |
 | `PAYMENTS_MOCK_SELF_BASE_URL` | | no | `http://localhost:8080` | Where the mock posts its own webhook. |
-| `PADDLE_API_BASE_URL` | | with `paddle` | `https://sandbox-api.paddle.com` | **The default is the sandbox.** Production must set `https://api.paddle.com`, together with a live key. |
-| `PADDLE_API_KEY` | yes | with `paddle` | empty | Server-side API key; sandbox and live keys belong to separate accounts. |
-| `PADDLE_WEBHOOK_SECRET` | yes | with `paddle` | empty | Verifies the `Paddle-Signature` header. |
-| `PADDLE_PRICE_ID` | | with `paddle` | empty | The recurring price a checkout subscribes to (`pri_…`). |
-| `PADDLE_CHECKOUT_URL` | | no | empty | Our page that hosts the checkout; blank falls back to Paddle's default payment link. |
-| `PADDLE_TIMEOUT_MS` | | no | `10000` | |
-| `PADDLE_SIGNATURE_TOLERANCE_SECONDS` | | no | `300` | How old a webhook timestamp may be before it counts as a replay. |
 | `STRIPE_API_KEY` | yes | with `stripe` | empty | Secret or restricted key. `sk_test_`/`rk_test_` is test mode, `sk_live_`/`rk_live_` live; there is no separate host. A restricted key needs write on Checkout Sessions and Customer portal. |
 | `STRIPE_WEBHOOK_SECRET` | yes | with `stripe` | empty | The endpoint's signing secret (`whsec_…`); verifies the `Stripe-Signature` header. |
 | `STRIPE_PRICE_ID` | | with `stripe` | empty | The recurring price a checkout subscribes to (`price_…`). Its product needs a tax code eligible for Managed Payments. |
@@ -108,7 +101,7 @@ With Stripe, the webhook endpoint is `https://<bff host>/api/v1/billing/webhook`
 and the Customer portal must be switched on in the Stripe dashboard (test and live separately), or
 "Manage billing" fails.
 
-"With `mock`" / "with `paddle`" / "with `stripe`" means required when `PAYMENTS_ENABLED=true` and that provider
+"With `mock`" / "with `stripe`" means required when `PAYMENTS_ENABLED=true` and that provider
 is selected. The app still starts without them; the payment flow is what fails.
 
 ### Seasons and the model

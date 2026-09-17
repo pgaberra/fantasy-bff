@@ -37,7 +37,7 @@ class CheckoutServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(paymentProvider.id()).thenReturn("paddle");
+        when(paymentProvider.id()).thenReturn("stripe");
         when(databaseServiceClient.getSubscription(ACCOUNT_ID)).thenReturn(Optional.empty());
         when(databaseServiceClient.getPendingCheckout(ACCOUNT_ID)).thenReturn(Optional.empty());
         when(databaseServiceClient.findUserById(ACCOUNT_ID))
@@ -77,14 +77,14 @@ class CheckoutServiceTest {
         assertThat(url).isEqualTo("https://slapstat.test/pay?_ptxn=txn_new");
         ReplacePendingCheckoutRequest stored = storedCheckout();
         assertThat(stored.getReference()).isEqualTo("txn_new");
-        assertThat(stored.getProvider()).isEqualTo("paddle");
+        assertThat(stored.getProvider()).isEqualTo("stripe");
         assertThat(stored.getReplacesReference()).isNull();
     }
 
     /** The race this exists for: a second tab gets the checkout the first is paying, not a new one. */
     @Test
     void handsASecondTabTheCheckoutTheFirstIsStillPaying() {
-        when(databaseServiceClient.getPendingCheckout(ACCOUNT_ID)).thenReturn(Optional.of(pending("paddle", "txn_1")));
+        when(databaseServiceClient.getPendingCheckout(ACCOUNT_ID)).thenReturn(Optional.of(pending("stripe", "txn_1")));
         when(paymentProvider.isCheckoutOpen("txn_1")).thenReturn(true);
 
         String url = service.checkoutUrlFor(USER_ID);
@@ -95,7 +95,7 @@ class CheckoutServiceTest {
 
     @Test
     void replacesACheckoutThatCanNoLongerBePaid() {
-        when(databaseServiceClient.getPendingCheckout(ACCOUNT_ID)).thenReturn(Optional.of(pending("paddle", "txn_1")));
+        when(databaseServiceClient.getPendingCheckout(ACCOUNT_ID)).thenReturn(Optional.of(pending("stripe", "txn_1")));
         when(paymentProvider.isCheckoutOpen("txn_1")).thenReturn(false);
         when(paymentProvider.createCheckoutSession(any()))
                 .thenReturn(new CheckoutSession("https://slapstat.test/pay?_ptxn=txn_2", "txn_2"));
@@ -114,7 +114,7 @@ class CheckoutServiceTest {
     @Test
     void handsOutTheWinnersCheckoutWhenAnotherRequestStoredFirst() {
         when(databaseServiceClient.getPendingCheckout(ACCOUNT_ID))
-                .thenReturn(Optional.empty(), Optional.of(pending("paddle", "txn_winner")));
+                .thenReturn(Optional.empty(), Optional.of(pending("stripe", "txn_winner")));
         when(paymentProvider.createCheckoutSession(any()))
                 .thenReturn(new CheckoutSession("https://slapstat.test/pay?_ptxn=txn_mine", "txn_mine"));
         when(databaseServiceClient.replacePendingCheckout(eq(ACCOUNT_ID), any())).thenReturn(false);

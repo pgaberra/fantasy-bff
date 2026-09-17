@@ -112,7 +112,7 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
                 .premium(true)
                 .live(true)
                 .cancelAtPeriodEnd(false)
-                .provider("paddle")));
+                .provider("stripe")));
 
         mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isConflict());
@@ -129,7 +129,7 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
                 .premium(false)
                 .live(false)
                 .cancelAtPeriodEnd(false)
-                .provider("paddle")));
+                .provider("stripe")));
 
         mockMvc.perform(post("/api/v1/billing/checkout-session").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk());
@@ -148,7 +148,7 @@ class BillingControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     /**
-     * An unverified address may belong to someone else. Handed to Paddle it would attach that
+     * An unverified address may belong to someone else. Handed to the provider it would attach that
      * person's customer to this account's subscription, and with it their billing portal.
      */
     @Test
