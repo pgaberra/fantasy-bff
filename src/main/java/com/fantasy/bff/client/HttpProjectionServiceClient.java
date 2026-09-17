@@ -4,10 +4,13 @@ import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
+import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
@@ -135,6 +138,25 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                 })
                 .retrieve()
                 .body(SplitSeasonsResponse.class);
+    }
+
+    @Override
+    public ScheduleWeeksResponse scheduleWeeks() {
+        return restClient.get()
+                .uri("/api/v1/schedule/weeks")
+                .retrieve()
+                .body(ScheduleWeeksResponse.class);
+    }
+
+    @Override
+    public ScheduleStrengthResponse scheduleStrength(LocalDate start, LocalDate end) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/schedule/strength")
+                        .queryParam("start", start)
+                        .queryParam("end", end)
+                        .build())
+                .retrieve()
+                .body(ScheduleStrengthResponse.class);
     }
 
     /**

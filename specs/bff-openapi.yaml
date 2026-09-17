@@ -10,6 +10,8 @@ security:
 tags:
 - name: Shared projections
   description: "Public, read-only projections (no sign-in required)"
+- name: Streamer planner
+  description: Team schedules rated for streaming
 - name: Projection shares
   description: The current user's public links to their projections
 - name: Yahoo
@@ -1169,6 +1171,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VersionsResponse"
+  /api/v1/streamer-planner/weeks:
+    get:
+      tags:
+      - Streamer planner
+      summary: The season's weeks
+      description: "Monday-Sunday weeks of the newest published NHL season, numbered\
+        \ from the week of opening night, and the week today falls in."
+      operationId: streamerPlannerWeeks
+      responses:
+        "200":
+          description: "The weeks, in order"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerWeeksResponse"
+        "404":
+          description: The streamer planner is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerWeeksResponse"
+  /api/v1/streamer-planner/teams:
+    get:
+      tags:
+      - Streamer planner
+      summary: "Every team's schedule over a stretch, rated for streaming"
+      description: "All NHL teams, best skater schedule first. The opponent rates\
+        \ are those known the morning of `start`. A stretch covers at most 31 days."
+      operationId: streamerPlannerTeams
+      parameters:
+      - name: start
+        in: query
+        description: "First date, e.g. 2026-10-12"
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: end
+        in: query
+        description: "Last date, inclusive"
+        required: true
+        schema:
+          type: string
+          format: date
+      responses:
+        "200":
+          description: "The teams, ranked"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleStrengthResponse"
+        "400":
+          description: "`end` is before `start`, or the stretch is too long"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleStrengthResponse"
+        "404":
+          description: The streamer planner is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleStrengthResponse"
   /api/v1/shared/{token}:
     get:
       tags:
@@ -3159,6 +3224,186 @@ components:
       required:
       - playerSource
       - services
+    PlannerWeek:
+      type: object
+      description: A Monday-Sunday week of the NHL season
+      properties:
+        week:
+          type: integer
+          format: int32
+          description: 1 is the week of opening night
+        start:
+          type: string
+          format: date
+          description: "Opening night in week 1, else the Monday"
+        end:
+          type: string
+          format: date
+          description: "The Sunday, or the last game in the final week"
+        games:
+          type: integer
+          format: int32
+          description: Games that week; 0 in a break
+      required:
+      - end
+      - games
+      - start
+      - week
+    PlannerWeeksResponse:
+      type: object
+      description: The season's weeks the streamer planner can show
+      properties:
+        season:
+          type: integer
+          format: int32
+          description: The year the season starts in. Absent when no schedule is published
+        currentWeek:
+          type: integer
+          format: int32
+          description: "The week today falls in: the first before opening night, the\
+            \ last after the season. Absent when there are no weeks"
+        weeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerWeek"
+      required:
+      - weeks
+    ScheduleNight:
+      type: object
+      description: A date in the stretch and how busy it is
+      properties:
+        date:
+          type: string
+          format: date
+        games:
+          type: integer
+          format: int32
+        offNight:
+          type: boolean
+      required:
+      - date
+      - games
+      - offNight
+    ScheduleStrengthResponse:
+      type: object
+      description: "Every NHL team's schedule over a stretch of dates, best for skaters\
+        \ first"
+      properties:
+        season:
+          type: integer
+          format: int32
+          description: The year the season starts in. Absent when no schedule is published
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        offNightMaxGames:
+          type: integer
+          format: int32
+          description: A night with this many games or fewer is an off-night
+        nights:
+          type: array
+          description: Only the nights with games
+          items:
+            $ref: "#/components/schemas/ScheduleNight"
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamSchedule"
+      required:
+      - end
+      - nights
+      - offNightMaxGames
+      - start
+      - teams
+    ScheduledGame:
+      type: object
+      description: "One game on a team's schedule, with what makes it a good or bad\
+        \ one to stream"
+      properties:
+        date:
+          type: string
+          format: date
+        opponent:
+          type: string
+          description: The opponent's NHL abbreviation
+        home:
+          type: boolean
+        offNight:
+          type: boolean
+          description: "A night with few games, when most lineups have a free slot"
+        backToBack:
+          type: boolean
+          description: The team also played the day before
+        opponentGoalsAgainst:
+          type: number
+          format: double
+          description: "Goals the opponent concedes per game against the league average:\
+            \ 1.1 is 10% more"
+        opponentGoalsFor:
+          type: number
+          format: double
+          description: Goals the opponent scores per game against the league average
+      required:
+      - backToBack
+      - date
+      - home
+      - offNight
+      - opponentGoalsAgainst
+      - opponentGoalsFor
+    TeamSchedule:
+      type: object
+      description: "A team's games over the stretch, scored for streaming"
+      properties:
+        team:
+          type: string
+          description: "NHL abbreviation, e.g. TBL"
+        games:
+          type: integer
+          format: int32
+        offNightGames:
+          type: integer
+          format: int32
+        backToBacks:
+          type: integer
+          format: int32
+        homeGames:
+          type: integer
+          format: int32
+        skaterScore:
+          type: number
+          format: double
+          description: "Each game counts 1, 1.25 on an off-night, scaled by the goals\
+            \ the opponent concedes. Higher is better"
+        skaterRank:
+          type: integer
+          format: int32
+          description: 1 is the best; level teams share a rank
+        goalieScore:
+          type: number
+          format: double
+          description: "As skaterScore, scaled by the inverse of the goals the opponent\
+            \ scores"
+        goalieRank:
+          type: integer
+          format: int32
+        schedule:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledGame"
+      required:
+      - backToBacks
+      - games
+      - goalieRank
+      - goalieScore
+      - homeGames
+      - offNightGames
+      - schedule
+      - skaterRank
+      - skaterScore
+      - team
     SharedProjectionData:
       type: object
       properties:
@@ -3746,9 +3991,14 @@ components:
           description: "Whether the draft room may follow a linked league's live draft.\
             \ False means the draft endpoint answers 404, so a client should not offer\
             \ it."
+        streamerPlanner:
+          type: boolean
+          description: "Whether this environment serves the streamer planner. False\
+            \ means its endpoints answer 404, so a client should not offer it."
       required:
       - aiProjection
       - leagueDraftSync
+      - streamerPlanner
     EspnLeagueTeam:
       type: object
       properties:

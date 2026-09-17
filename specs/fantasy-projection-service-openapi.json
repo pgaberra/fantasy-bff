@@ -457,6 +457,30 @@
         "title": "LeaderboardsResponse",
         "type": "object"
       },
+      "NightResponse": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "games": {
+            "title": "Games",
+            "type": "integer"
+          },
+          "off_night": {
+            "title": "Off Night",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "games",
+          "off_night"
+        ],
+        "title": "NightResponse",
+        "type": "object"
+      },
       "PlayerResponse": {
         "properties": {
           "birth_date": {
@@ -572,6 +596,180 @@
           "is_active"
         ],
         "title": "PlayerResponse",
+        "type": "object"
+      },
+      "RatedGameResponse": {
+        "properties": {
+          "back_to_back": {
+            "title": "Back To Back",
+            "type": "boolean"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "home": {
+            "title": "Home",
+            "type": "boolean"
+          },
+          "off_night": {
+            "title": "Off Night",
+            "type": "boolean"
+          },
+          "opponent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent"
+          },
+          "opponent_goals_against": {
+            "title": "Opponent Goals Against",
+            "type": "number"
+          },
+          "opponent_goals_for": {
+            "title": "Opponent Goals For",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "opponent",
+          "home",
+          "off_night",
+          "back_to_back",
+          "opponent_goals_against",
+          "opponent_goals_for"
+        ],
+        "title": "RatedGameResponse",
+        "type": "object"
+      },
+      "ScheduleStrengthResponse": {
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "nights": {
+            "items": {
+              "$ref": "#/components/schemas/NightResponse"
+            },
+            "title": "Nights",
+            "type": "array"
+          },
+          "off_night_max_games": {
+            "title": "Off Night Max Games",
+            "type": "integer"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/TeamScheduleResponse"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "season",
+          "start",
+          "end",
+          "off_night_max_games",
+          "nights",
+          "teams"
+        ],
+        "title": "ScheduleStrengthResponse",
+        "type": "object"
+      },
+      "ScheduleWeekResponse": {
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "games": {
+            "title": "Games",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "week": {
+            "title": "Week",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "week",
+          "start",
+          "end",
+          "games"
+        ],
+        "title": "ScheduleWeekResponse",
+        "type": "object"
+      },
+      "ScheduleWeeksResponse": {
+        "properties": {
+          "current_week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Week"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "weeks": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleWeekResponse"
+            },
+            "title": "Weeks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "season",
+          "current_week",
+          "weeks"
+        ],
+        "title": "ScheduleWeeksResponse",
         "type": "object"
       },
       "SkaterProjectionResponse": {
@@ -1095,6 +1293,67 @@
           "seasons"
         ],
         "title": "SplitSeasonsResponse",
+        "type": "object"
+      },
+      "TeamScheduleResponse": {
+        "properties": {
+          "back_to_backs": {
+            "title": "Back To Backs",
+            "type": "integer"
+          },
+          "games": {
+            "title": "Games",
+            "type": "integer"
+          },
+          "goalie_rank": {
+            "title": "Goalie Rank",
+            "type": "integer"
+          },
+          "goalie_score": {
+            "title": "Goalie Score",
+            "type": "number"
+          },
+          "home_games": {
+            "title": "Home Games",
+            "type": "integer"
+          },
+          "off_night_games": {
+            "title": "Off Night Games",
+            "type": "integer"
+          },
+          "schedule": {
+            "items": {
+              "$ref": "#/components/schemas/RatedGameResponse"
+            },
+            "title": "Schedule",
+            "type": "array"
+          },
+          "skater_rank": {
+            "title": "Skater Rank",
+            "type": "integer"
+          },
+          "skater_score": {
+            "title": "Skater Score",
+            "type": "number"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team",
+          "games",
+          "off_night_games",
+          "back_to_backs",
+          "home_games",
+          "skater_score",
+          "skater_rank",
+          "goalie_score",
+          "goalie_rank",
+          "schedule"
+        ],
+        "title": "TeamScheduleResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -1782,6 +2041,170 @@
         "summary": "Get Skater Projection",
         "tags": [
           "projections"
+        ]
+      }
+    },
+    "/api/v1/schedule/strength": {
+      "get": {
+        "description": "Every club's games over a stretch of dates, scored and ranked for streaming.\n\nThe opponent rates are those known the morning of `start`: last season's goals blended with\nthis season's games before that date, so a week already played is rated as it looked going in.",
+        "operationId": "schedule_strength_api_v1_schedule_strength_get",
+        "parameters": [
+          {
+            "description": "First date of the stretch",
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "description": "First date of the stretch",
+              "format": "date",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last date of the stretch, inclusive",
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "description": "Last date of the stretch, inclusive",
+              "format": "date",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Season start year, e.g. 2026. Defaults to the newest season with a published schedule",
+            "in": "query",
+            "name": "season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year, e.g. 2026. Defaults to the newest season with a published schedule",
+              "title": "Season"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleStrengthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Schedule Strength",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/api/v1/schedule/weeks": {
+      "get": {
+        "description": "The season's Monday-Sunday weeks, numbered from the week of opening night.",
+        "operationId": "schedule_weeks_api_v1_schedule_weeks_get",
+        "parameters": [
+          {
+            "description": "Season start year, e.g. 2026. Defaults to the newest season with a published schedule",
+            "in": "query",
+            "name": "season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year, e.g. 2026. Defaults to the newest season with a published schedule",
+              "title": "Season"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleWeeksResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Schedule Weeks",
+        "tags": [
+          "schedule"
         ]
       }
     },

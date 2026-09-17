@@ -159,6 +159,12 @@ ai-projection:
 league-draft-sync:
   enabled: ${DRAFT_LEAGUE_SYNC_ENABLED:false}
 
+# The streamer planner (/api/v1/streamer-planner/**): every NHL team's schedule rated by week, read
+# from projection-service. Off unless this says otherwise, since the feature is new; off, its
+# endpoints answer 404 and /api/v1/features reports streamerPlanner false. Not a premium feature.
+streamer-planner:
+  enabled: ${STREAMER_PLANNER_ENABLED:false}
+
 # Bug reports and feature requests from signed-in users (POST /api/v1/feedback), filed as issues
 # in a PRIVATE GitHub repository: each carries the reporter's email address so the answer can go
 # out by mail. Always served.

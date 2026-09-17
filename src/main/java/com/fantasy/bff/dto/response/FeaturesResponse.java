@@ -12,5 +12,9 @@ public record FeaturesResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether the draft room may follow a linked league's live draft. False means "
                         + "the draft endpoint answers 404, so a client should not offer it.")
-        boolean leagueDraftSync
+        boolean leagueDraftSync,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves the streamer planner. False means its "
+                        + "endpoints answer 404, so a client should not offer it.")
+        boolean streamerPlanner
 ) {}

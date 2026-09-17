@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
@@ -168,6 +170,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorDto> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorDto.of("NOT_FOUND", "No resource found for the requested path"));
+    }
+
+    /**
+     * A request parameter is missing, or cannot be read as its type ({@code start=next-monday} for
+     * a date, {@code fromGame=abc} for a number). The caller's mistake, so a 400 and no log; without
+     * this the catch-all answered 500 and logged a fault. Names the parameter, never echoes the value.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorDto> handleMissingParameter(MissingServletRequestParameterException ex) {
+        return badParameter(ex.getParameterName());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorDto> handleMalformedParameter(MethodArgumentTypeMismatchException ex) {
+        return badParameter(ex.getName());
+    }
+
+    private static ResponseEntity<ErrorDto> badParameter(String name) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorDto.of("BAD_REQUEST", "Missing or malformed parameter: " + name));
     }
 
     /**
