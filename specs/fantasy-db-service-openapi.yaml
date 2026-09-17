@@ -1018,7 +1018,8 @@ paths:
       tags:
       - Shared projections
       summary: Fetch a shared snapshot by its token
-      description: Carries no owner identity beyond their public username.
+      description: Carries no owner identity beyond their public username and the
+        stamp on their profile picture.
       operationId: get_4
       parameters:
       - name: token
@@ -1039,6 +1040,34 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SharedProjectionResponse"
+  /api/v1/shares/{token}/avatar:
+    get:
+      tags:
+      - Shared projections
+      summary: Fetch the profile picture of the account behind a share token
+      description: "Looked up by token, so the caller serving the public page never\
+        \ learns whose account it is. `authorAvatarUpdatedAt` on the snapshot says\
+        \ whether there is one to ask for."
+      operationId: getAuthorAvatar
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Picture returned
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+        "404":
+          description: "No share with that token, or its author has no picture"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
   /api/v1/premium/customers:
     get:
       tags:
@@ -2430,6 +2459,12 @@ components:
           type: string
           description: "The owner's public name. Read live rather than snapshotted:\
             \ a rename should follow onto links already shared."
+        authorAvatarUpdatedAt:
+          type: string
+          format: date-time
+          description: "When the owner's profile picture last changed, or absent where\
+            \ they have none. The picture itself is served by GET /api/v1/shares/{token}/avatar;\
+            \ this says whether there is one to ask for and which version it is."
         season:
           type: string
           enum:
