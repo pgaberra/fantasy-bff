@@ -3632,14 +3632,8 @@ components:
             \ neither is served to anyone, so a client should not offer it. It says\
             \ nothing about this account's plan: an AI projection that needs premium\
             \ is still available."
-        feedback:
-          type: boolean
-          description: "Whether this environment takes bug reports and feature requests\
-            \ through POST /api/v1/feedback. False means that endpoint answers 404,\
-            \ so a client should not offer the form."
       required:
       - aiProjection
-      - feedback
     EspnLeagueTeam:
       type: object
       properties:

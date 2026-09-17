@@ -16,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClientException;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,9 +40,9 @@ class FeedbackServiceTest {
     @Mock private GitHubIssueClient gitHubIssueClient;
     @Mock private FeedbackNotificationEmailSender notificationEmailSender;
 
-    private FeedbackService service(boolean enabled) {
+    private FeedbackService service() {
         return new FeedbackService(
-                new FeedbackProperties(enabled, new FeedbackProperties.Github(
+                new FeedbackProperties(new FeedbackProperties.Github(
                         "github_pat_test", "pgaberra/slapstat-feedback", "https://api.github.com", 5000), "info@slapstat.com"),
                 databaseServiceClient, gitHubIssueClient, notificationEmailSender);
     }
@@ -58,7 +57,7 @@ class FeedbackServiceTest {
         when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(ISSUE);
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
 
-        service(true).send(USER_ID.toString(), request(FeedbackType.BUG, "Board freezes", "It froze."));
+        service().send(USER_ID.toString(), request(FeedbackType.BUG, "Board freezes", "It froze."));
 
         verify(gitHubIssueClient).createIssue(eq("Board freezes"), body.capture(), eq(List.of("bug")));
         assertThat(body.getValue())
@@ -75,7 +74,7 @@ class FeedbackServiceTest {
 
         when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(ISSUE);
 
-        service(true).send(USER_ID.toString(), request(FeedbackType.FEATURE, "Dark mode", "Please."));
+        service().send(USER_ID.toString(), request(FeedbackType.FEATURE, "Dark mode", "Please."));
 
         verify(gitHubIssueClient).createIssue(eq("Dark mode"), anyString(), eq(List.of("feature")));
     }
@@ -85,7 +84,7 @@ class FeedbackServiceTest {
         when(databaseServiceClient.findUserById(USER_ID)).thenReturn(USER);
         when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(ISSUE);
 
-        service(true).send(USER_ID.toString(), request(FeedbackType.BUG, "Board\nfreezes", "It froze."));
+        service().send(USER_ID.toString(), request(FeedbackType.BUG, "Board\nfreezes", "It froze."));
 
         verify(notificationEmailSender).send(FeedbackType.BUG, "Board freezes", ISSUE.htmlUrl());
     }
@@ -114,19 +113,11 @@ class FeedbackServiceTest {
     }
 
     @Test
-    void refusesWithoutAskingAnyone_whenSwitchedOff() {
-        assertThatThrownBy(() -> service(false).send(USER_ID.toString(), request(FeedbackType.BUG, "t", "d")))
-                .isInstanceOf(NoSuchElementException.class);
-
-        verifyNoInteractions(databaseServiceClient, gitHubIssueClient, notificationEmailSender);
-    }
-
-    @Test
     void aFailedFilingReachesTheCaller() {
         when(databaseServiceClient.findUserById(USER_ID)).thenReturn(USER);
         when(gitHubIssueClient.createIssue(anyString(), anyString(), any())).thenThrow(new RestClientException("down"));
 
-        assertThatThrownBy(() -> service(true).send(USER_ID.toString(), request(FeedbackType.BUG, "t", "d")))
+        assertThatThrownBy(() -> service().send(USER_ID.toString(), request(FeedbackType.BUG, "t", "d")))
                 .isInstanceOf(RestClientException.class);
 
         verifyNoInteractions(notificationEmailSender);

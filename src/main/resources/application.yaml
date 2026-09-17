@@ -2,14 +2,13 @@
 #
 # Required, with no default, so a missing or blank value stops startup: JWT_SECRET,
 # DB_INTERNAL_API_KEY, YAHOO_INTERNAL_API_KEY, ESPN_INTERNAL_API_KEY, PROJECTION_INTERNAL_API_KEY
-# (InternalApiKeyProperties) and RESEND_API_KEY (EmailProperties; only the dev profile may leave
-# it blank).
+# (InternalApiKeyProperties), RESEND_API_KEY (EmailProperties; only the dev profile may leave
+# it blank) and FEEDBACK_GITHUB_TOKEN (FeedbackProperties; the dev profile stands in a placeholder).
 #
 # Optional, and allowed to be empty because the feature they belong to is off or refuses every
 # request without them: PAYMENTS_MOCK_WEBHOOK_SECRET (the mock payment provider), STRIPE_API_KEY
 # and STRIPE_WEBHOOK_SECRET (Stripe, when it is the provider), GOOGLE_CLIENT_SECRET (the Google
-# code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in). FEEDBACK_GITHUB_TOKEN may be empty
-# only while FEEDBACK_ENABLED is off; switched on without it, startup stops (FeedbackProperties).
+# code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in).
 spring:
   application:
     name: fantasy-bff
@@ -155,14 +154,12 @@ ai-projection:
 
 # Bug reports and feature requests from signed-in users (POST /api/v1/feedback), filed as issues
 # in a PRIVATE GitHub repository: each carries the reporter's email address so the answer can go
-# out by mail. Off unless this says otherwise; off, the endpoint answers 404 and /api/v1/features
-# tells the web not to offer the form.
+# out by mail. Always served.
 feedback:
-  enabled: ${FEEDBACK_ENABLED:false}
   github:
     # A fine-grained token with Issues: read and write on the feedback repository and nothing
-    # else. Secret; required when the feature is on.
-    token: ${FEEDBACK_GITHUB_TOKEN:}
+    # else. Secret and required: a missing or blank token stops startup.
+    token: ${FEEDBACK_GITHUB_TOKEN}
     repository: ${FEEDBACK_GITHUB_REPOSITORY:pgaberra/slapstat-feedback}
     api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
     timeout-ms: 10000

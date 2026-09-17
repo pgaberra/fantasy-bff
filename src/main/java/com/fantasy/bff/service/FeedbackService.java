@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,14 +46,7 @@ public class FeedbackService {
         this.notificationEmailSender = notificationEmailSender;
     }
 
-    public boolean enabled() {
-        return properties.enabled();
-    }
-
     public void send(String userId, SendFeedbackRequest request) {
-        if (!properties.enabled()) {
-            throw new NoSuchElementException("Feedback is not enabled");
-        }
         User user = databaseServiceClient.findUserById(UUID.fromString(userId));
         String title = oneLine(request.title());
         GitHubIssue issue = gitHubIssueClient.createIssue(title, body(user, request), List.of(label(request.type())));

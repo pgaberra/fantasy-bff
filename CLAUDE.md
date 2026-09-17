@@ -152,8 +152,8 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     answer can go out by mail, and `ResendFeedbackNotificationEmailSender` mails the title and
     link to `feedback.notify-email` (GitHub never notifies the token's owner of its own issues). The user's text sits in a code block sized past any backticks it
     holds, so it can neither ping nor cross-reference anything; `page` is a bare path, since a
-    query string can carry a reset token. Off by default (`FEEDBACK_ENABLED`); off, it 404s and
-    `GET /api/v1/features` reports `feedback: false`. Never point it at a public repository.
+    query string can carry a reset token. Always served; `FEEDBACK_GITHUB_TOKEN` is required. Never point it at a public
+    repository.
   - `ProjectionModelController` — `/api/v1/projection-model`: the projection service's output
     made usable here. `/seed` returns model lines keyed by *this* platform's player id, ready
     to save as a new projection — deliberately without scoring settings, which belong to the

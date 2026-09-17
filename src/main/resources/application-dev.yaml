@@ -32,3 +32,9 @@ email:
   log-links: true
   resend:
     api-key: ${RESEND_API_KEY:}
+
+feedback:
+  github:
+    # A local run usually has no GitHub token. The placeholder only lets the app start: GitHub
+    # refuses it, so sending feedback locally answers 502 and files nothing.
+    token: ${FEEDBACK_GITHUB_TOKEN:local-run-has-no-token}

@@ -10,6 +10,7 @@ import org.springframework.test.context.TestPropertySource;
         "services.projection.api-key=test-projection-key",
         "email.resend.api-key=",
         "email.log-links=true",
+        "feedback.github.token=github_pat_test",
         "security.rate-limit.enabled=false"
 })
 public abstract class BaseIntegrationTest {

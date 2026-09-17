@@ -32,7 +32,7 @@ class HttpGitHubIssueClientTest {
     void start() {
         server = new WireMockServer(WireMockConfigs.http11());
         server.start();
-        client = new HttpGitHubIssueClient(new FeedbackProperties(true, new FeedbackProperties.Github(
+        client = new HttpGitHubIssueClient(new FeedbackProperties(new FeedbackProperties.Github(
                 "github_pat_test", "pgaberra/slapstat-feedback", server.baseUrl(), 5000), "info@slapstat.com"));
     }
 
