@@ -18,7 +18,10 @@ public enum ProjectionKind {
     @JsonProperty("preset_draft")
     PRESET_DRAFT,
 
-    /** A copy of a board someone published under a share link. */
+    /**
+     * A board the user brought in rather than built: a copy taken from a share link, or rows the
+     * client read out of a spreadsheet. Only the first carries an origin.
+     */
     @JsonProperty("imported")
     IMPORTED
 }

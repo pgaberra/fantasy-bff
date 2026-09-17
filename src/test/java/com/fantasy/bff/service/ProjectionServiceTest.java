@@ -43,6 +43,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -399,6 +400,65 @@ class ProjectionServiceTest {
                 .hasMessageContaining("must not be empty");
 
         verify(databaseServiceClient, never()).createProjection(any(), any());
+    }
+
+    @Test
+    @DisplayName("an imported board sent with its own rows is stored as imported, with those rows")
+    void importedWithOwnRows_isStoredAsImported() {
+        PlayerProjection own = new PlayerProjection()
+                .playerId(7)
+                .type(PlayerProjection.TypeEnum.SKATER)
+                .stats(new PlayerStats().utility(Map.of("gp", 12.0)).scoring(Map.of("goals", 3.0)));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(dataWith(own), null, ProjectionKind.IMPORTED));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getKind())
+                .isEqualTo(com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.IMPORTED);
+        assertThat(sentRequest.getValue().getName()).isEqualTo("My Projection");
+        assertThat(sentRequest.getValue().getPreset()).isNull();
+        assertThat(sentRequest.getValue().getData().getPlayers()).containsExactly(own);
+        verifyNoInteractions(playerService);
+    }
+
+    @Test
+    @DisplayName("an imported board cannot ask the server to fill its rows")
+    void importedWithSource_isRejected() {
+        CreateProjectionRequest request = request(emptyData(), ProjectionSource.DEFAULT, ProjectionKind.IMPORTED);
+
+        assertThatThrownBy(() -> projectionService.create(USER_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("imported board");
+
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
+    @DisplayName("an imported board naming the model is refused for its shape, before any premium lookup")
+    void importedWithModelSource_isRejectedBeforeThePremiumCheck() {
+        CreateProjectionRequest request = request(emptyData(), ProjectionSource.MODEL, ProjectionKind.IMPORTED);
+
+        assertThatThrownBy(() -> projectionService.create(USER_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("imported board");
+
+        verifyNoInteractions(entitlementService, seedService, databaseServiceClient);
+    }
+
+    @Test
+    @DisplayName("a projection, named or defaulted, is still stored as the user's own")
+    void projectionKind_isStoredAsProjection() {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID,
+                request(dataWith(new PlayerProjection().playerId(7)), null, ProjectionKind.PROJECTION));
+        projectionService.create(USER_ID, request(dataWith(new PlayerProjection().playerId(8)), null));
+
+        verify(databaseServiceClient, times(2)).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getAllValues())
+                .extracting(com.fantasy.bff.generated.db.model.CreateProjectionRequest::getKind)
+                .containsOnly(com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION);
     }
 
     private void givenOneSkaterAndOneGoalie() {
