@@ -384,6 +384,23 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
+    public Optional<Avatar> findSharedProjectionAuthorAvatar(String token) {
+        try {
+            AvatarResponse response = restClient.get()
+                    .uri("/api/v1/shares/{token}/avatar", token)
+                    .retrieve()
+                    .body(AvatarResponse.class);
+            return Optional.ofNullable(response)
+                    .map(avatar -> new Avatar(avatar.getContentType(), avatar.getData()));
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
     public Optional<SubscriptionResponse> getSubscription(UUID userId) {
         try {
             SubscriptionResponse response = restClient.get()

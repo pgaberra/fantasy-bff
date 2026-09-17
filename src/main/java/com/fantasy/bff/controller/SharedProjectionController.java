@@ -185,6 +185,40 @@ public class SharedProjectionController {
     }
 
     /**
+     * The author's profile picture, for the byline on the public page. Unauthenticated like the
+     * page itself, and fetched by the share token, so neither the browser nor this service learns
+     * whose account is behind the link.
+     *
+     * <p>A picture the author removed between the page loading and the browser asking for it is a
+     * 404 rather than an error: the page draws their initials instead, as it does for everyone who
+     * never uploaded one.
+     */
+    @Operation(operationId = "getSharedProjectionAuthorAvatar",
+            summary = "Fetch the profile picture of whoever shared a projection",
+            description = "Public, like the page it is drawn on. `authorAvatar` on the shared "
+                    + "projection is the address to ask at, and is absent where the author has "
+                    + "no picture.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Picture returned"),
+        @ApiResponse(responseCode = "404", description = "No share with that token, or its author has no picture")
+    })
+    @GetMapping(value = "/{token}/avatar", produces = "image/*")
+    public ResponseEntity<byte[]> authorAvatar(@PathVariable String token) {
+        return databaseServiceClient.findSharedProjectionAuthorAvatar(token)
+                .map(avatar -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(avatar.contentType()))
+                        // The address carries the picture's stamp, so a cached copy can only be
+                        // stale for as long as it takes a replaced picture to reach a reader who
+                        // already has the page open.
+                        .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                        // Kept out of image search for the reason the card below is: it is a
+                        // person's face, published to whoever holds a link and no further.
+                        .header("X-Robots-Tag", "noindex")
+                        .body(avatar.data()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
      * Who is a rookie, or null where nobody can say — which is any environment without the
      * projection service, production included. Null rather than an empty set so the two stay
      * apart: an empty set would narrow a board to nothing when the filter is on, and would tell
