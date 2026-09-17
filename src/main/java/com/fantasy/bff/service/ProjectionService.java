@@ -149,6 +149,10 @@ public class ProjectionService {
 
     public ProjectionResponse create(UUID userId, CreateProjectionRequest request) {
         ProjectionData data = request.data();
+        if (request.kind() == ProjectionKind.IMPORTED && request.source() != null) {
+            throw new IllegalArgumentException(
+                    "an imported board brings its own rows: send data.players and omit source");
+        }
         // Checked before anything else a model-seeded request would go on to do, so an
         // environment with the AI projection switched off never reaches the projection service.
         // The web drops the preset on the same answer, read from /api/v1/features; this is what
@@ -301,9 +305,14 @@ public class ProjectionService {
 
     private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum kindOf(
             ProjectionKind kind) {
-        return kind == ProjectionKind.PRESET_DRAFT
-                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PRESET_DRAFT
-                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION;
+        if (kind == null) {
+            return com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION;
+        }
+        return switch (kind) {
+            case PRESET_DRAFT -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PRESET_DRAFT;
+            case IMPORTED -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.IMPORTED;
+            case PROJECTION -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION;
+        };
     }
 
     /**
