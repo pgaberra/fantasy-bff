@@ -5,6 +5,8 @@ import com.fantasy.bff.client.GitHubIssueClient;
 import com.fantasy.bff.config.FeedbackProperties;
 import com.fantasy.bff.dto.request.FeedbackType;
 import com.fantasy.bff.dto.request.SendFeedbackRequest;
+import com.fantasy.bff.email.FeedbackNotificationEmailSender;
+import com.fantasy.bff.model.downstream.GitHubIssue;
 import com.fantasy.bff.model.downstream.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +20,8 @@ import java.util.regex.Pattern;
 
 /**
  * Files a signed-in user's bug report or feature request as an issue in the private feedback
- * repository, with the account's email address so the reply can go out by mail.
+ * repository, with the account's email address so the reply can go out by mail, and mails us a
+ * link to it.
  *
  * <p>What the user typed goes into the body inside a code block, so an {@code @name} pings nobody
  * and a {@code #123} links to nothing. A title cannot notify anyone, so it is only flattened to
@@ -33,12 +36,15 @@ public class FeedbackService {
     private final FeedbackProperties properties;
     private final DatabaseServiceClient databaseServiceClient;
     private final GitHubIssueClient gitHubIssueClient;
+    private final FeedbackNotificationEmailSender notificationEmailSender;
 
     public FeedbackService(FeedbackProperties properties, DatabaseServiceClient databaseServiceClient,
-                           GitHubIssueClient gitHubIssueClient) {
+                           GitHubIssueClient gitHubIssueClient,
+                           FeedbackNotificationEmailSender notificationEmailSender) {
         this.properties = properties;
         this.databaseServiceClient = databaseServiceClient;
         this.gitHubIssueClient = gitHubIssueClient;
+        this.notificationEmailSender = notificationEmailSender;
     }
 
     public boolean enabled() {
@@ -50,9 +56,10 @@ public class FeedbackService {
             throw new NoSuchElementException("Feedback is not enabled");
         }
         User user = databaseServiceClient.findUserById(UUID.fromString(userId));
-        int number = gitHubIssueClient.createIssue(
-                oneLine(request.title()), body(user, request), List.of(label(request.type())));
-        log.info("Feedback filed as issue #{}", number);
+        String title = oneLine(request.title());
+        GitHubIssue issue = gitHubIssueClient.createIssue(title, body(user, request), List.of(label(request.type())));
+        log.info("Feedback filed as issue #{}", issue.number());
+        notificationEmailSender.send(request.type(), title, issue.htmlUrl());
     }
 
     static String body(User user, SendFeedbackRequest request) {

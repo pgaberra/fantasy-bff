@@ -78,6 +78,7 @@ secret is environment-specific: staging and production never share one.
 | `FEEDBACK_ENABLED` | | no | `false` | Takes bug reports and feature requests from signed-in users (`POST /api/v1/feedback`) and tells the web to offer the form. Off, the endpoint answers 404. |
 | `FEEDBACK_GITHUB_TOKEN` | yes | when enabled | empty | A fine-grained token with only **Issues: read and write** on the feedback repository. Switched on without it, startup stops. |
 | `FEEDBACK_GITHUB_REPOSITORY` | | no | `pgaberra/slapstat-feedback` | Where the issues go. **Must be private**: each issue carries the reporter's email address. |
+| `FEEDBACK_NOTIFY_EMAIL` | | no | `info@slapstat.com` | Mailed the title and a link to each issue as it is filed (through Resend), since GitHub does not notify the token's owner of issues the token opens. |
 | `GITHUB_API_BASE_URL` | | no | `https://api.github.com` | For tests. |
 
 ### Features and the player pool

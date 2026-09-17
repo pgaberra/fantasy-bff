@@ -2,6 +2,7 @@ package com.fantasy.bff.config;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -15,11 +16,12 @@ import org.springframework.validation.annotation.Validated;
  * repository. Off unless switched on; switched on without a token, the instance does not start.
  *
  * <p>The repository must be private: an issue carries the reporter's email address so the reply
- * can go out by mail, and the message itself is whatever the user typed.
+ * can go out by mail, and the message itself is whatever the user typed. {@code notifyEmail} is told
+ * each time one is filed, since GitHub does not notify the token's owner of an issue they opened.
  */
 @ConfigurationProperties("feedback")
 @Validated
-public record FeedbackProperties(boolean enabled, @Valid @NotNull Github github) {
+public record FeedbackProperties(boolean enabled, @Valid @NotNull Github github, @NotBlank @Email String notifyEmail) {
 
     public record Github(
             String token,
