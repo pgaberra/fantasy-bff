@@ -212,6 +212,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     (`DRAFT_LEAGUE_SYNC_ENABLED`, off by default) *and* a pool on Yahoo ids, because the picks
     name players by Yahoo's. Without it the endpoint 404s, and `GET /api/v1/features` reports it
     as `leagueDraftSync`. Not premium.
+  - `StreamerPlannerController` — `/api/v1/streamer-planner`: `GET /weeks` (the newest published
+    season's Monday-Sunday weeks, numbered from opening night, and the week today falls in) and
+    `GET /teams?start=&end=` (every NHL team's games over up to 31 days, with a skater and a goalie
+    score and rank). Both are projection-service's `/schedule/*`, mapped into the BFF's own records;
+    the rating itself lives there. Signed in, not premium. Behind `streamer-planner.enabled`
+    (`STREAMER_PLANNER_ENABLED`, off by default): without it both 404 and `GET /api/v1/features`
+    reports `streamerPlanner` false. Team codes are the NHL's (`TBL`), not ESPN's (`TB`).
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show

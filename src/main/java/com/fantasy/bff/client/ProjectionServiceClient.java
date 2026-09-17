@@ -4,9 +4,12 @@ import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
+import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface ProjectionServiceClient {
@@ -51,4 +54,10 @@ public interface ProjectionServiceClient {
      * @param targetSeason a season to list even before it has a game, or null
      */
     SplitSeasonsResponse splitSeasons(Integer targetSeason);
+
+    /** The newest published season's Monday-Sunday weeks, numbered from opening night. */
+    ScheduleWeeksResponse scheduleWeeks();
+
+    /** Every club's games from {@code start} to {@code end} inclusive, scored and ranked for streaming. */
+    ScheduleStrengthResponse scheduleStrength(LocalDate start, LocalDate end);
 }
