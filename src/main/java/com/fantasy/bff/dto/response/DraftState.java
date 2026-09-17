@@ -22,7 +22,12 @@ public record DraftState(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @Valid List<DraftPick> picks,
 
-        OffsetDateTime finishedAt
+        OffsetDateTime finishedAt,
+
+        @Schema(description = "The league this draft is ranked by, set up with the draft. Absent on "
+                + "a draft saved before drafts held their own league, which is ranked by the "
+                + "projection's settings instead.")
+        @Valid DraftSettings settings
 ) {
 
     public static DraftState from(com.fantasy.bff.generated.db.model.DraftState draft) {
@@ -33,7 +38,8 @@ public record DraftState(
                 map(draft.getTeams(), DraftTeam::from),
                 draft.getOrder(),
                 map(draft.getPicks(), DraftPick::from),
-                draft.getFinishedAt());
+                draft.getFinishedAt(),
+                DraftSettings.from(draft.getProjectionSettings()));
     }
 
     public com.fantasy.bff.generated.db.model.DraftState toDownstream() {
@@ -41,7 +47,8 @@ public record DraftState(
                 .teams(map(teams, DraftTeam::toDownstream))
                 .order(order)
                 .picks(map(picks, DraftPick::toDownstream))
-                .finishedAt(finishedAt);
+                .finishedAt(finishedAt)
+                .projectionSettings(settings == null ? null : settings.toDownstream());
     }
 
     private static <S, T> List<T> map(List<S> source, java.util.function.Function<S, T> mapper) {

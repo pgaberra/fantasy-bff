@@ -112,7 +112,7 @@ openApiGenerate {
 	// invention in our own spec, typed by the fluent method's return type, so three schemas
 	// carried a self-referencing `tings` — and, worse than the noise, an undocumented second
 	// way to set `settings` on an inbound request body. Any property named `set*` would do the
-	// same; today `settings` is the only one, in ProjectionData, UpdateProjectionData and
+	// same; today `settings` is the only one, in ProjectionData, UpdateProjectionData, DraftState and
 	// SharedProjectionData. `OpenApiSpecSnapshotTest` is what would catch a new one.
 	nameMappings = [settings: 'projectionSettings']
 	configOptions = [
