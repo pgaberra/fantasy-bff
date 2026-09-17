@@ -64,14 +64,15 @@ public class ProjectionController {
             description = "Send `source` with an empty `data.players` to have the server fill the "
                     + "player rows in from its own read model, instead of uploading ~1600 players "
                     + "the client just downloaded. Send `data.players` (and no `source`) when the "
-                    + "rows are user-specific, e.g. copied or carried over from the demo.")
+                    + "rows are user-specific, e.g. copied or carried over from the demo. A `name` "
+                    + "the account already holds is numbered (\"<name> (2)\") rather than "
+                    + "refused, so read the saved name back from the response.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Projection created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "403", description = "source=model needs premium and this account has none"),
         @ApiResponse(responseCode = "409",
-                description = "The name is already taken by a projection or an imported board, "
-                        + "or a draft against that preset already exists")
+                description = "A draft against that preset already exists")
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

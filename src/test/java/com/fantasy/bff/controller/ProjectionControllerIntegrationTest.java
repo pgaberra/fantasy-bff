@@ -134,6 +134,26 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     /**
+     * db-service numbers a name the account already holds rather than refusing it, so the name in
+     * the response is not always the one that was sent. The web renames the board it just saved
+     * from this answer, so the BFF has to pass the stored name through rather than echo the
+     * request's.
+     */
+    @Test
+    void create_whenDownstreamNumberedTheName_answersWithTheStoredName() throws Exception {
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString()).name("My league (2)"));
+
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("My league (2)"));
+    }
+
+    /**
      * The cap comes from the pinned spec rather than from an annotation written here — the
      * generator emits {@code @Size} for {@code maxItems} — so it is worth a test that this
      * boundary actually rejects, instead of trusting that db-service will.
