@@ -107,6 +107,12 @@ public interface DatabaseServiceClient {
 
     SharedProjectionResponse getSharedProjection(String token);
 
+    /**
+     * The profile picture of the account behind a share token, or empty when it has none. Asked
+     * for by token rather than by user id: nothing about who owns a share leaves db-service.
+     */
+    Optional<Avatar> findSharedProjectionAuthorAvatar(String token);
+
     Optional<SubscriptionResponse> getSubscription(UUID userId);
 
     SubscriptionResponse upsertSubscription(UUID userId, UpsertSubscriptionRequest request);

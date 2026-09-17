@@ -10,6 +10,7 @@ import com.fantasy.bff.generated.db.model.SharedPlayer;
 import com.fantasy.bff.generated.db.model.SharedProjectionData;
 import com.fantasy.bff.generated.db.model.SharedProjectionResponse;
 import com.fantasy.bff.dto.response.RookiesResponse;
+import com.fantasy.bff.model.downstream.Avatar;
 import com.fantasy.bff.security.JwtTokenValidator;
 import com.fantasy.bff.service.RookieService;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.Map;
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -191,6 +194,47 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.name").value("My league"))
                 .andExpect(jsonPath("$.authorUsername").value("Alex"))
                 .andExpect(jsonPath("$.data.players[0].name").value("Connor McDavid"));
+    }
+
+    @Test
+    void publicRead_pointsAtTheAuthorsPicture_onlyWhenThereIsOne() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex"));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorAvatar").doesNotExist());
+
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex")
+                        .authorAvatarUpdatedAt(OffsetDateTime.of(2026, 9, 1, 10, 0, 0, 0, ZoneOffset.UTC)));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorAvatar")
+                        .value("/shared/" + TOKEN + "/avatar?v=1788256800"));
+    }
+
+    @Test
+    void authorAvatar_needsNoSignIn_andIsServedUnderItsOwnType() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
+        when(databaseServiceClient.findSharedProjectionAuthorAvatar(TOKEN))
+                .thenReturn(Optional.of(new Avatar("image/png", png)));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/avatar"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andExpect(content().bytes(png))
+                .andExpect(header().string("X-Robots-Tag", "noindex"));
+    }
+
+    @Test
+    void authorAvatar_isNotFoundWhenTheAuthorHasNone() throws Exception {
+        when(databaseServiceClient.findSharedProjectionAuthorAvatar(TOKEN))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN + "/avatar"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

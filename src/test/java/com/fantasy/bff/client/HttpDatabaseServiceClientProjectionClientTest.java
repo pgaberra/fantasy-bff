@@ -108,6 +108,15 @@ class HttpDatabaseServiceClientProjectionClientTest {
         assertThat(requestsTo(projections)).isZero();
     }
 
+    /** And the author's picture behind that token: half a megabyte at most, not a whole pool. */
+    @Test
+    void findSharedProjectionAuthorAvatar_staysOnTheOrdinaryClient() {
+        client.findSharedProjectionAuthorAvatar("share-token");
+
+        assertThat(requestsTo(ordinary)).isEqualTo(1);
+        assertThat(requestsTo(projections)).isZero();
+    }
+
     /** Likewise the share token itself: a row about a projection, not the projection. */
     @Test
     void getProjectionShare_staysOnTheOrdinaryClient() {

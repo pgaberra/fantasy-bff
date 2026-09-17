@@ -580,7 +580,9 @@ paths:
     post:
       tags:
       - User projections
-      summary: Save a new projection for a user
+      summary: "Save a new projection for a user; a name the user already holds is\
+        \ numbered (\"My league (2)\") rather than refused, so the saved name is the\
+        \ one in the response"
       operationId: create_1
       parameters:
       - name: userId
@@ -609,8 +611,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: "The user already has a projection of that kind, or one with\
-            \ that name"
+          description: "The user already has a draft against that preset, or a request\
+            \ racing this one took the name"
           content:
             '*/*':
               schema:
@@ -1016,7 +1018,8 @@ paths:
       tags:
       - Shared projections
       summary: Fetch a shared snapshot by its token
-      description: Carries no owner identity beyond their public username.
+      description: Carries no owner identity beyond their public username and the
+        stamp on their profile picture.
       operationId: get_4
       parameters:
       - name: token
@@ -1037,6 +1040,34 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SharedProjectionResponse"
+  /api/v1/shares/{token}/avatar:
+    get:
+      tags:
+      - Shared projections
+      summary: Fetch the profile picture of the account behind a share token
+      description: "Looked up by token, so the caller serving the public page never\
+        \ learns whose account it is. `authorAvatarUpdatedAt` on the snapshot says\
+        \ whether there is one to ask for."
+      operationId: getAuthorAvatar
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Picture returned
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
+        "404":
+          description: "No share with that token, or its author has no picture"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvatarResponse"
   /api/v1/premium/customers:
     get:
       tags:
@@ -1451,6 +1482,16 @@ components:
       - leagueId
       - leagueName
       - syncedAt
+    ManualRanking:
+      type: object
+      properties:
+        skater:
+          $ref: "#/components/schemas/PlayerTypeRanking"
+        goalie:
+          $ref: "#/components/schemas/PlayerTypeRanking"
+      required:
+      - goalie
+      - skater
     PlayerProjection:
       type: object
       properties:
@@ -1468,6 +1509,29 @@ components:
       - playerId
       - stats
       - type
+    PlayerTypeRanking:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: "How this player type is ordered: by its projected stats, or\
+            \ by the order the owner put it in."
+          enum:
+          - projected
+          - manual
+        order:
+          type: array
+          description: "The player ids the owner placed by hand, best first. Players\
+            \ of this type that are absent keep their projected order below the placed\
+            \ ones, so an owner who ranked only a top twenty does not have to place\
+            \ the rest. Ignored while mode is `projected`."
+          items:
+            type: integer
+            format: int32
+          maxItems: 2000
+          minItems: 0
+      required:
+      - mode
     PositionOverride:
       type: object
       description: "Positions the owner set by hand for one skater, replacing the\
@@ -1589,6 +1653,11 @@ components:
             format: int32
           maxItems: 2000
           minItems: 0
+        manualRanking:
+          $ref: "#/components/schemas/ManualRanking"
+          description: "Per player type, whether the rows are ordered by their projected\
+            \ stats or by the order the owner put them in. Absent means both types\
+            \ are ordered by their projected stats."
       required:
       - activeScoringColumns
       - activeUtilityColumns
@@ -2390,6 +2459,12 @@ components:
           type: string
           description: "The owner's public name. Read live rather than snapshotted:\
             \ a rename should follow onto links already shared."
+        authorAvatarUpdatedAt:
+          type: string
+          format: date-time
+          description: "When the owner's profile picture last changed, or absent where\
+            \ they have none. The picture itself is served by GET /api/v1/shares/{token}/avatar;\
+            \ this says whether there is one to ask for and which version it is."
         season:
           type: string
           enum:
