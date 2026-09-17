@@ -2,7 +2,10 @@ name: Tag & release on merge to master
 
 # Auto-tag every squash-merge to master with a SemVer tag derived from the
 # Conventional-Commit message (the squash commit is the PR title):
-#   feat: -> minor, fix:/chore:/others -> patch, BREAKING CHANGE or "!" -> major.
+#   feat: -> minor, fix:/chore:/others -> patch, a "BREAKING CHANGE:" footer -> major.
+# A "!" in the title (feat!:) does NOT bump major: the action parses with the default Angular
+# preset, which ignores it. The squash body carries the branch's commit messages, so a footer
+# there counts too.
 # The matching GitHub Release is created as a DRAFT with the generated changelog. Publishing
 # that draft is what promotes the version to production (see promote-to-prod.yml), so merging
 # only ever reaches staging — production never moves by itself.
