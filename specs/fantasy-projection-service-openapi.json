@@ -645,6 +645,10 @@
             "title": "Nhl Id",
             "type": "integer"
           },
+          "opponent_strength": {
+            "title": "Opponent Strength",
+            "type": "number"
+          },
           "ot_losses": {
             "anyOf": [
               {
@@ -739,6 +743,7 @@
           "team",
           "club_games",
           "expected_games",
+          "opponent_strength",
           "wins",
           "losses",
           "ot_losses",
@@ -901,6 +906,10 @@
             "title": "Nhl Id",
             "type": "integer"
           },
+          "opponent_strength": {
+            "title": "Opponent Strength",
+            "type": "number"
+          },
           "pim": {
             "anyOf": [
               {
@@ -1061,6 +1070,7 @@
           "team",
           "club_games",
           "expected_games",
+          "opponent_strength",
           "goals",
           "assists",
           "points",
