@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
@@ -60,4 +61,10 @@ public interface ProjectionServiceClient {
 
     /** Every club's games from {@code start} to {@code end} inclusive, scored and ranked for streaming. */
     ScheduleStrengthResponse scheduleStrength(LocalDate start, LocalDate end);
+
+    /**
+     * What the model expects of every player over a stretch of dates: his club's games in it, the
+     * ones he is expected to dress for, and the line over them.
+     */
+    RangeProjectionsResponse rangeProjections(LocalDate start, LocalDate end, int limit);
 }

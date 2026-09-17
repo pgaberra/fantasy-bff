@@ -1234,6 +1234,67 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleStrengthResponse"
+  /api/v1/streamer-planner/free-agents:
+    get:
+      tags:
+      - Streamer planner
+      summary: "The players a league has available, with the model's line for the\
+        \ stretch"
+      description: "Joined on identity, so the answer does not depend on which platform\
+        \ the player pool is served from. The stats are the projection's own vocabulary:\
+        \ score them with the league's scoring settings."
+      operationId: streamerPlannerFreeAgents
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: start
+        in: query
+        description: "First date, e.g. 2026-10-12"
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: end
+        in: query
+        description: "Last date, inclusive"
+        required: true
+        schema:
+          type: string
+          format: date
+      responses:
+        "200":
+          description: "Available players, best projected first"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeAgentListResponse"
+        "400":
+          description: "`end` is before `start`, or the stretch is too long"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeAgentListResponse"
+        "404":
+          description: The streamer planner is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeAgentListResponse"
   /api/v1/shared/{token}:
     get:
       tags:
@@ -3404,6 +3465,94 @@ components:
       - skaterRank
       - skaterScore
       - team
+    FreeAgentListResponse:
+      type: object
+      description: "The players a league has available over a stretch, best projected\
+        \ first"
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        season:
+          type: integer
+          format: int32
+          description: Season the projections are for
+        modelVersion:
+          type: string
+          description: Model version behind them
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/FreeAgentResponse"
+        unprojected:
+          type: integer
+          format: int32
+          description: Available players the model has no projection for. Mostly fringe
+            players and call-ups; they are left out rather than shown with zeroes.
+      required:
+      - end
+      - players
+      - start
+      - unprojected
+    FreeAgentResponse:
+      type: object
+      description: An available player and the model's line for him over the chosen
+        stretch
+      properties:
+        playerId:
+          type: string
+          description: The platform's player id
+        name:
+          type: string
+        teamAbbrev:
+          type: string
+          description: "The club he is on, in the platform's own spelling"
+        type:
+          type: string
+          description: skater or goalie
+        positions:
+          type: array
+          description: Every position the league may start him at
+          items:
+            type: string
+        availability:
+          type: string
+          description: "FREE_AGENT to add now, WAIVERS to claim first, UNKNOWN when\
+            \ the platform does not say"
+          enum:
+          - FREE_AGENT
+          - WAIVERS
+          - UNKNOWN
+        clubGames:
+          type: integer
+          format: int32
+          description: Games his club plays in the stretch
+        expectedGames:
+          type: number
+          format: double
+          description: "Games he is expected to dress for, or starts for a goalie.\
+            \ Below clubGames for a part-time player, and nought before an injury\
+            \ return."
+        stats:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "The model's projected totals over those games, in the projection's\
+            \ own stat vocabulary. Rates (toiPerGame, shPct, svPct, gaa) are the season's\
+            \ own and do not scale with the stretch."
+      required:
+      - availability
+      - clubGames
+      - expectedGames
+      - name
+      - playerId
+      - positions
+      - stats
+      - type
     SharedProjectionData:
       type: object
       properties:

@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
@@ -42,4 +43,7 @@ public interface EspnServiceClient {
      * work runs for minutes; {@link #lastPlayerSync()} is how it is watched to completion.
      */
     SyncAcceptedResponse triggerPlayerSync();
+
+    /** The players a league has available: free agents and players on waivers together. */
+    List<AvailablePlayer> leagueFreeAgents(String appUserId, String leagueId, int limit);
 }

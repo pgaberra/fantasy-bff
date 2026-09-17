@@ -8,6 +8,10 @@ import com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
+import org.springframework.core.ParameterizedTypeReference;
+
+import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.ClientHttpResponse;
@@ -36,6 +40,9 @@ public class HttpYahooServiceClient implements YahooServiceClient {
     private static final String REFUSED = "Yahoo refused the request";
     private static final int MAX_MESSAGE_LENGTH = 300;
     private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    private static final ParameterizedTypeReference<List<YahooAvailablePlayerResponse>> AVAILABLE_PLAYERS =
+            new ParameterizedTypeReference<>() {};
 
     private final RestClient restClient;
 
@@ -98,6 +105,21 @@ public class HttpYahooServiceClient implements YahooServiceClient {
                 .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
                         HttpYahooServiceClient::throwRefusal)
                 .body(LeagueTeamsResponse.class);
+    }
+
+    @Override
+    public List<YahooAvailablePlayerResponse> leagueFreeAgents(
+            String appUserId, String leagueKey, int limit) {
+        List<YahooAvailablePlayerResponse> available = restClient.get()
+                .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/free-agents")
+                        .queryParam("appUserId", appUserId)
+                        .queryParam("limit", limit)
+                        .build(leagueKey))
+                .retrieve()
+                .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
+                        HttpYahooServiceClient::throwRefusal)
+                .body(AVAILABLE_PLAYERS);
+        return available == null ? List.of() : available;
     }
 
     @Override
