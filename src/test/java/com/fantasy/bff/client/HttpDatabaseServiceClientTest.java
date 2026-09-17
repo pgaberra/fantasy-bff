@@ -105,6 +105,26 @@ class HttpDatabaseServiceClientTest {
     }
 
     @Test
+    void findSharedProjectionAuthorAvatar_decodesTheBytes_on200() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/shares/share-token/avatar"))
+                .willReturn(okJson("{\"contentType\":\"image/png\",\"data\":\"AQID\",\"updatedAt\":\"2026-09-03T12:00:00Z\"}")));
+
+        Optional<Avatar> result = client.findSharedProjectionAuthorAvatar("share-token");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().contentType()).isEqualTo("image/png");
+        assertThat(result.get().data()).isEqualTo(new byte[]{1, 2, 3});
+    }
+
+    @Test
+    void findSharedProjectionAuthorAvatar_returnsEmpty_on404() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/shares/share-token/avatar"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertThat(client.findSharedProjectionAuthorAvatar("share-token")).isEmpty();
+    }
+
+    @Test
     void setAvatar_putsTheBytesAsBase64WithTheirType() {
         server.stubFor(put(urlPathEqualTo("/api/v1/users/" + USER_ID + "/avatar"))
                 .willReturn(okJson("{\"contentType\":\"image/png\",\"data\":\"AQID\",\"updatedAt\":\"2026-09-03T12:00:00Z\"}")));

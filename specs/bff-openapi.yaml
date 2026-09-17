@@ -1379,6 +1379,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SharedProjectionResponse"
+  /api/v1/shared/{token}/avatar:
+    get:
+      tags:
+      - Shared projections
+      summary: Fetch the profile picture of whoever shared a projection
+      description: "Public, like the page it is drawn on. `authorAvatar` on the shared\
+        \ projection is the address to ask at, and is absent where the author has\
+        \ no picture."
+      operationId: getSharedProjectionAuthorAvatar
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Picture returned
+          content:
+            image/*:
+              schema:
+                type: string
+                format: byte
+        "404":
+          description: "No share with that token, or its author has no picture"
+          content:
+            image/*:
+              schema:
+                type: string
+                format: byte
   /api/v1/projection-model/splits/skaters:
     get:
       tags:
@@ -3576,6 +3606,11 @@ components:
           type: string
           description: "The owner's public name. Read live rather than snapshotted:\
             \ a rename should follow onto links already shared."
+        authorAvatar:
+          type: string
+          description: "The author's profile picture, as a path relative to this API,\
+            \ or absent where they have none. The address carries the stamp on the\
+            \ picture, so replacing it is a new address rather than a cached old one."
         season:
           type: string
           description: "The season this projection is for, as its 8-digit code."

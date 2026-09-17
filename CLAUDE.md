@@ -94,6 +94,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     JavaScript, so without it every shared link would unfurl as the site-wide preview. nginx routes
     crawler user agents for `/s/*` there; it is `@Hidden` from the spec since it serves HTML to bots
     rather than JSON to the web client.
+    `GET /api/v1/shared/{token}/avatar` is permitted for everyone too: the picture of whoever
+    published the board, for the byline on that page. It is fetched from db-service by the share
+    token, so neither the browser nor this service holds a user id for a public page, and the
+    address the page is given (`authorAvatar`) carries the stamp on the picture so a replacement
+    is a new address rather than a cached old one. It is **not** behind `players.avatars.enabled`
+    below: that switch is about the platform's photographs of players, which we have no licence
+    to show; an account's own picture is its own.
     The tags point at `ShareCardRenderer`'s per-share card (`/{token}/og-image.png`), drawn with
     Java2D from the same snapshot the page shows — which is why the runtime image installs
     `fontconfig` and a font: without them Java2D renders every glyph as a box instead of

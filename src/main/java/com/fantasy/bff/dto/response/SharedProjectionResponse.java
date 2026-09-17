@@ -30,6 +30,11 @@ public record SharedProjectionResponse(
                         + "rename should follow onto links already shared.")
         String authorUsername,
 
+        @Schema(description = "The author's profile picture, as a path relative to this API, or "
+                        + "absent where they have none. The address carries the stamp on the "
+                        + "picture, so replacing it is a new address rather than a cached old one.")
+        String authorAvatar,
+
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "The season this projection is for, as its 8-digit code.")
         String season,
@@ -107,6 +112,7 @@ public record SharedProjectionResponse(
                 shared.getToken(),
                 shared.getName(),
                 shared.getAuthorUsername(),
+                authorAvatarPath(shared),
                 shared.getSeason().getValue(),
                 new SharedProjectionData(
                         ProjectionSettings.from(shared.getData().getProjectionSettings()),
@@ -120,6 +126,21 @@ public record SharedProjectionResponse(
                 rookiesOn(shared, rookieIds),
                 shared.getCreatedAt(),
                 shared.getUpdatedAt());
+    }
+
+    /**
+     * Where the page fetches the author's picture, or null where they have none. A path rather
+     * than the bytes: the picture is the same for every reader of a link and is worth a cache
+     * entry of its own, which a field on this response could never be. The stamp rides along as
+     * {@code v} so a replaced picture is fetched rather than read out of that cache.
+     */
+    private static String authorAvatarPath(
+            com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
+        OffsetDateTime updatedAt = shared.getAuthorAvatarUpdatedAt();
+        if (updatedAt == null) {
+            return null;
+        }
+        return "/shared/" + shared.getToken() + "/avatar?v=" + updatedAt.toEpochSecond();
     }
 
     /**
