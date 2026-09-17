@@ -5,6 +5,8 @@ import com.fantasy.bff.client.GitHubIssueClient;
 import com.fantasy.bff.config.FeedbackProperties;
 import com.fantasy.bff.dto.request.FeedbackType;
 import com.fantasy.bff.dto.request.SendFeedbackRequest;
+import com.fantasy.bff.email.FeedbackNotificationEmailSender;
+import com.fantasy.bff.model.downstream.GitHubIssue;
 import com.fantasy.bff.model.downstream.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,16 +33,19 @@ import static org.mockito.Mockito.when;
 class FeedbackServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final GitHubIssue ISSUE =
+            new GitHubIssue(7, "https://github.com/pgaberra/slapstat-feedback/issues/7");
     private static final User USER = new User(USER_ID.toString(), "manager@example.com", "alex", "hash", 0, true);
 
     @Mock private DatabaseServiceClient databaseServiceClient;
     @Mock private GitHubIssueClient gitHubIssueClient;
+    @Mock private FeedbackNotificationEmailSender notificationEmailSender;
 
     private FeedbackService service(boolean enabled) {
         return new FeedbackService(
                 new FeedbackProperties(enabled, new FeedbackProperties.Github(
-                        "github_pat_test", "pgaberra/slapstat-feedback", "https://api.github.com", 5000)),
-                databaseServiceClient, gitHubIssueClient);
+                        "github_pat_test", "pgaberra/slapstat-feedback", "https://api.github.com", 5000), "info@slapstat.com"),
+                databaseServiceClient, gitHubIssueClient, notificationEmailSender);
     }
 
     private static SendFeedbackRequest request(FeedbackType type, String title, String description) {
@@ -50,7 +55,7 @@ class FeedbackServiceTest {
     @Test
     void filesABugWithTheReportersEmailAndTheBugLabel() {
         when(databaseServiceClient.findUserById(USER_ID)).thenReturn(USER);
-        when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(7);
+        when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(ISSUE);
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
 
         service(true).send(USER_ID.toString(), request(FeedbackType.BUG, "Board freezes", "It froze."));
@@ -68,9 +73,21 @@ class FeedbackServiceTest {
     void aFeatureRequestGetsTheFeatureLabel() {
         when(databaseServiceClient.findUserById(USER_ID)).thenReturn(USER);
 
+        when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(ISSUE);
+
         service(true).send(USER_ID.toString(), request(FeedbackType.FEATURE, "Dark mode", "Please."));
 
         verify(gitHubIssueClient).createIssue(eq("Dark mode"), anyString(), eq(List.of("feature")));
+    }
+
+    @Test
+    void mailsUsTheIssueOnceItIsFiled() {
+        when(databaseServiceClient.findUserById(USER_ID)).thenReturn(USER);
+        when(gitHubIssueClient.createIssue(anyString(), anyString(), anyList())).thenReturn(ISSUE);
+
+        service(true).send(USER_ID.toString(), request(FeedbackType.BUG, "Board\nfreezes", "It froze."));
+
+        verify(notificationEmailSender).send(FeedbackType.BUG, "Board freezes", ISSUE.htmlUrl());
     }
 
     @Test
@@ -101,7 +118,7 @@ class FeedbackServiceTest {
         assertThatThrownBy(() -> service(false).send(USER_ID.toString(), request(FeedbackType.BUG, "t", "d")))
                 .isInstanceOf(NoSuchElementException.class);
 
-        verifyNoInteractions(databaseServiceClient, gitHubIssueClient);
+        verifyNoInteractions(databaseServiceClient, gitHubIssueClient, notificationEmailSender);
     }
 
     @Test
@@ -111,5 +128,7 @@ class FeedbackServiceTest {
 
         assertThatThrownBy(() -> service(true).send(USER_ID.toString(), request(FeedbackType.BUG, "t", "d")))
                 .isInstanceOf(RestClientException.class);
+
+        verifyNoInteractions(notificationEmailSender);
     }
 }

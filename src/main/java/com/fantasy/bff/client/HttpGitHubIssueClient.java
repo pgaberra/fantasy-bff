@@ -1,7 +1,9 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.config.FeedbackProperties;
+import com.fantasy.bff.model.downstream.GitHubIssue;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -41,7 +43,7 @@ public class HttpGitHubIssueClient implements GitHubIssueClient {
     }
 
     @Override
-    public int createIssue(String title, String body, List<String> labels) {
+    public GitHubIssue createIssue(String title, String body, List<String> labels) {
         CreatedIssue created = gitHubClient.post()
                 .uri("/repos/{owner}/{name}/issues", properties.owner(), properties.name())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.token())
@@ -52,9 +54,9 @@ public class HttpGitHubIssueClient implements GitHubIssueClient {
         if (created == null) {
             throw new RestClientException("GitHub answered an issue create with no body");
         }
-        return created.number();
+        return new GitHubIssue(created.number(), created.htmlUrl());
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record CreatedIssue(int number) {}
+    private record CreatedIssue(int number, @JsonProperty("html_url") String htmlUrl) {}
 }

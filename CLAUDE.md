@@ -149,7 +149,8 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   - `FeedbackController` — `POST /api/v1/feedback`: a signed-in user's bug report or feature
     request, filed by `FeedbackService` as an issue in the **private** repository
     `feedback.github.repository` (`HttpGitHubIssueClient`), with the account's email so the
-    answer can go out by mail. The user's text sits in a code block sized past any backticks it
+    answer can go out by mail, and `ResendFeedbackNotificationEmailSender` mails the title and
+    link to `feedback.notify-email` (GitHub never notifies the token's owner of its own issues). The user's text sits in a code block sized past any backticks it
     holds, so it can neither ping nor cross-reference anything; `page` is a bare path, since a
     query string can carry a reset token. Off by default (`FEEDBACK_ENABLED`); off, it 404s and
     `GET /api/v1/features` reports `feedback: false`. Never point it at a public repository.

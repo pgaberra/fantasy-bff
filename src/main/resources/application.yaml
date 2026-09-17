@@ -166,6 +166,9 @@ feedback:
     repository: ${FEEDBACK_GITHUB_REPOSITORY:pgaberra/slapstat-feedback}
     api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
     timeout-ms: 10000
+  # Mailed a link to each issue as it is filed: GitHub does not notify the token's owner of an issue
+  # they opened, so without this a report sits in the repository unseen. Sent through Resend.
+  notify-email: ${FEEDBACK_NOTIFY_EMAIL:info@slapstat.com}
 
 payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.

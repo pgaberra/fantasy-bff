@@ -62,6 +62,7 @@ class RequiredSecretsTest {
             FeedbackProperties feedback = context.getBean(FeedbackProperties.class);
             assertThat(feedback.enabled()).isFalse();
             assertThat(feedback.github().repository()).isEqualTo("pgaberra/slapstat-feedback");
+            assertThat(feedback.notifyEmail()).isEqualTo("info@slapstat.com");
         });
     }
 

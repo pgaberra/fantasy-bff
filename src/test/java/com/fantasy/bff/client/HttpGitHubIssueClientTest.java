@@ -1,6 +1,7 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.config.FeedbackProperties;
+import com.fantasy.bff.model.downstream.GitHubIssue;
 import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
@@ -32,7 +33,7 @@ class HttpGitHubIssueClientTest {
         server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         client = new HttpGitHubIssueClient(new FeedbackProperties(true, new FeedbackProperties.Github(
-                "github_pat_test", "pgaberra/slapstat-feedback", server.baseUrl(), 5000)));
+                "github_pat_test", "pgaberra/slapstat-feedback", server.baseUrl(), 5000), "info@slapstat.com"));
     }
 
     @AfterEach
@@ -41,13 +42,13 @@ class HttpGitHubIssueClientTest {
     }
 
     @Test
-    void opensTheIssueInTheConfiguredRepository_andReturnsItsNumber() {
+    void opensTheIssueInTheConfiguredRepository_andReturnsItsNumberAndLink() {
         server.stubFor(post(urlPathEqualTo(ISSUES))
-                .willReturn(okJson("{\"number\": 42, \"html_url\": \"https://github.com/x\", \"state\": \"open\"}")));
+                .willReturn(okJson("{\"number\": 42, \"html_url\": \"https://github.com/pgaberra/slapstat-feedback/issues/42\", \"state\": \"open\"}")));
 
-        int number = client.createIssue("Draft board freezes", "the body", List.of("bug"));
+        GitHubIssue issue = client.createIssue("Draft board freezes", "the body", List.of("bug"));
 
-        assertThat(number).isEqualTo(42);
+        assertThat(issue).isEqualTo(new GitHubIssue(42, "https://github.com/pgaberra/slapstat-feedback/issues/42"));
         server.verify(postRequestedFor(urlPathEqualTo(ISSUES))
                 .withHeader("Authorization", equalTo("Bearer github_pat_test"))
                 .withHeader("X-GitHub-Api-Version", equalTo("2022-11-28"))
