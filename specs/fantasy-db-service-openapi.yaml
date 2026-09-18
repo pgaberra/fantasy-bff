@@ -623,10 +623,10 @@ paths:
       tags:
       - Projection imports
       summary: "Copy a shared projection into the user's own, by its share token"
-      description: "Anyone holding the token may copy it. The copy is of the snapshot\
-        \ as it was published, carries no draft, and is stamped with who shared it.\
-        \ Copying the same board again is allowed: with no `name` given, a taken name\
-        \ is resolved to \"<name> (2)\" rather than refused."
+      description: "Anyone holding the token may copy it. The copy is of the board\
+        \ as it was last published, carries no draft, and is stamped with who shared\
+        \ it. Copying the same board again is allowed: with no `name` given, a taken\
+        \ name is resolved to \"<name> (2)\" rather than refused."
       operationId: importFromShare
       parameters:
       - name: userId
@@ -663,6 +663,13 @@ paths:
         "409":
           description: The `name` given is already taken by another projection. Omit
             it and the server picks a free one.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "412":
+          description: '`seenUpdatedAt` was sent and the board has changed since.
+            Nothing was copied; read the share again and retry.'
           content:
             '*/*':
               schema:
@@ -2037,6 +2044,13 @@ components:
           description: What to call the copy. Defaults to the name it was shared under.
           maxLength: 100
           minLength: 0
+        seenUpdatedAt:
+          type: string
+          format: date-time
+          description: "The share's `updatedAt` as the reader last saw it. Sent, and\
+            \ the board has changed since, the copy is refused with 412, so nobody\
+            \ is handed a board they never looked at. Left out, the copy is of the\
+            \ board as it is now."
       required:
       - token
     GrantPremiumRequest:
