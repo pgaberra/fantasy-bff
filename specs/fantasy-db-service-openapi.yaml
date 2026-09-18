@@ -178,9 +178,10 @@ paths:
     put:
       tags:
       - Projection shares
-      summary: Publish or refresh the projection's public snapshot
-      description: "Idempotent: an already-shared projection keeps its token, so links\
-        \ already posted elsewhere stay valid and start showing the refreshed snapshot."
+      summary: Publish or refresh the projection's public board
+      description: "An already-shared projection keeps its token and has its board\
+        \ replaced, so links already posted elsewhere stay valid and show the projection\
+        \ as it was last published."
       operationId: share
       parameters:
       - name: userId
@@ -203,7 +204,7 @@ paths:
         required: true
       responses:
         "200":
-          description: "Share created, or the existing one returned"
+          description: "Share created, or the existing one refreshed"
           content:
             '*/*':
               schema:

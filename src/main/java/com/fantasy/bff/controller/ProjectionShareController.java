@@ -48,10 +48,13 @@ public class ProjectionShareController {
     }
 
     @Operation(operationId = "shareProjection",
-            summary = "Publish the projection's public snapshot",
-            description = "Idempotent: an already-shared projection returns the link it has. A published snapshot cannot be refreshed or withdrawn.")
+            summary = "Publish the projection's public board, or publish it again",
+            description = "An already-shared projection keeps its link and has the board behind it "
+                    + "replaced, so the link follows the projection. The web publishes again after "
+                    + "every save of a shared projection. A link cannot be withdrawn short of "
+                    + "deleting the projection.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Share created, or the existing one returned"),
+        @ApiResponse(responseCode = "200", description = "Share created, or the existing one refreshed"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "404", description = "No such projection for this user"),
         @ApiResponse(responseCode = "409", description = "The account has no username yet")
