@@ -2481,6 +2481,8 @@ components:
         updatedAt:
           type: string
           format: date-time
+          description: "When the published board last changed: the author's last saved\
+            \ edit that altered what the page shows."
       required:
       - authorUsername
       - createdAt
