@@ -82,8 +82,8 @@ public class ProjectionController {
 
     @Operation(summary = "Copy a shared projection into the current user's own, by its share token",
             description = "Anyone holding a share link may copy the board behind it and draft "
-                    + "against it. The copy is of the snapshot as it was published, carries none "
-                    + "of the author's draft, and records who shared it. Copying the same board "
+                    + "against it. The copy is of the board as it was last published, carries "
+                    + "none of the author's draft, and records who shared it. Copying the same board "
                     + "again is allowed: with no `name`, a taken one is numbered (\"<name> (2)\") "
                     + "rather than refused.")
     @ApiResponses({
@@ -91,7 +91,9 @@ public class ProjectionController {
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "404", description = "No share with that token"),
         @ApiResponse(responseCode = "409",
-                description = "The `name` sent is already taken. Omit it and a free one is chosen.")
+                description = "The `name` sent is already taken. Omit it and a free one is chosen."),
+        @ApiResponse(responseCode = "412", description = "`seenUpdatedAt` was sent and the author "
+                + "has changed the board since. Nothing was copied.")
     })
     @PostMapping("/imports")
     @ResponseStatus(HttpStatus.CREATED)

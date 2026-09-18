@@ -271,7 +271,7 @@ class ProjectionServiceTest {
         ProjectionResponse imported = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
         when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
 
-        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null, null));
 
         verifyNoInteractions(reconciler);
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
@@ -346,7 +346,7 @@ class ProjectionServiceTest {
         when(reconciler.reconcile(imported.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
         when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(imported);
 
-        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null, null));
 
         ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
         verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
@@ -359,7 +359,7 @@ class ProjectionServiceTest {
         when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
         when(reconciler.reconcile(imported.getData())).thenReturn(Optional.empty());
 
-        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null));
+        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null, null));
 
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
     }

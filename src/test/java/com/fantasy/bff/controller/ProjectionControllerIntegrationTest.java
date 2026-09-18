@@ -22,6 +22,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -337,6 +338,49 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                 ArgumentCaptor.forClass(ImportProjectionRequest.class);
         verify(databaseServiceClient).importProjection(eq(USER_ID), sent.capture());
         assertThat(sent.getValue().getToken()).isEqualTo("s0mErAnd0mT0k3nV4lu3ab");
+    }
+
+    /** The page sends the stamp it read, so a board changed since can be refused downstream. */
+    @Test
+    void importFromShare_passesOnTheStampThePageRead() throws Exception {
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse()
+                        .season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString())
+                        .name("Their league")
+                        .kind(ProjectionResponse.KindEnum.IMPORTED));
+
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\", "
+                                + "\"seenUpdatedAt\": \"2026-09-18T08:00:00.123456Z\" }"))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<ImportProjectionRequest> sent =
+                ArgumentCaptor.forClass(ImportProjectionRequest.class);
+        verify(databaseServiceClient).importProjection(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getSeenUpdatedAt())
+                .isEqualTo(OffsetDateTime.parse("2026-09-18T08:00:00.123456Z"));
+    }
+
+    /**
+     * A board changed since it was read reaches the page as 412, not as the 502 every other
+     * downstream status becomes: the page reloads the board on it, where a 502 it would retry.
+     */
+    @Test
+    void importFromShare_ofABoardChangedSinceItWasRead_returns412() throws Exception {
+        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenThrow(
+                new RestClientResponseException("Precondition Failed", HttpStatus.PRECONDITION_FAILED,
+                        "Precondition Failed", null, null, null));
+
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\", "
+                                + "\"seenUpdatedAt\": \"2026-09-18T08:00:00Z\" }"))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.code").value("PRECONDITION_FAILED"));
     }
 
     @Test

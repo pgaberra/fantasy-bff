@@ -449,7 +449,7 @@ paths:
       summary: "Copy a shared projection into the current user's own, by its share\
         \ token"
       description: "Anyone holding a share link may copy the board behind it and draft\
-        \ against it. The copy is of the snapshot as it was published, carries none\
+        \ against it. The copy is of the board as it was last published, carries none\
         \ of the author's draft, and records who shared it. Copying the same board\
         \ again is allowed: with no `name`, a taken one is numbered (\"<name> (2)\"\
         ) rather than refused."
@@ -482,6 +482,13 @@ paths:
         "409":
           description: The `name` sent is already taken. Omit it and a free one is
             chosen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "412":
+          description: '`seenUpdatedAt` was sent and the author has changed the board
+            since. Nothing was copied.'
           content:
             application/json:
               schema:
@@ -2758,6 +2765,13 @@ components:
             \ change."
           maxLength: 100
           minLength: 0
+        seenUpdatedAt:
+          type: string
+          format: date-time
+          description: "The shared board's `updatedAt` as the page last read it. Send\
+            \ it, and a board its author has changed since is refused with 412 instead\
+            \ of copied, so the reader never gets numbers they did not see: read the\
+            \ share again and retry. Left out, the board is copied as it is now."
       required:
       - token
     SendFeedbackRequest:

@@ -131,15 +131,15 @@ public class GlobalExceptionHandler {
 
     /**
      * A downstream service returned a non-2xx response. Resource-level client errors
-     * (404 not found, 409 conflict, 400 bad request) are genuine verdicts about the
-     * request, so we relay them to the caller. Anything else (an auth/key mismatch,
+     * (404 not found, 409 conflict, 400 bad request, 412 for a read that has gone stale) are
+     * genuine verdicts about the request, so we relay them to the caller. Anything else (an auth/key mismatch,
      * a 5xx) is a failure on our side of the boundary and is surfaced as 502.
      */
     @ExceptionHandler(RestClientResponseException.class)
     public ResponseEntity<ErrorDto> handleDownstreamResponse(RestClientResponseException ex) {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
         if (status == HttpStatus.NOT_FOUND || status == HttpStatus.CONFLICT
-                || status == HttpStatus.BAD_REQUEST) {
+                || status == HttpStatus.BAD_REQUEST || status == HttpStatus.PRECONDITION_FAILED) {
             log.warn("Relaying downstream {}: {}", status, ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"));
             return ResponseEntity.status(status).body(ErrorDto.of(status.name(), ex.getMessage()));
         }

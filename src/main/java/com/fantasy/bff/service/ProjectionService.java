@@ -219,7 +219,8 @@ public class ProjectionService {
                 databaseServiceClient.importProjection(userId,
                         new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
                                 .token(request.token())
-                                .name(request.name()));
+                                .name(request.name())
+                                .seenUpdatedAt(request.seenUpdatedAt()));
         if (!keyedByThePool(imported) || reconciler.reconcile(imported.getData()).isEmpty()) {
             return ProjectionResponse.of(imported);
         }
