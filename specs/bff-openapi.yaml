@@ -156,9 +156,11 @@ paths:
     put:
       tags:
       - Projection shares
-      summary: Publish the projection's public snapshot
-      description: "Idempotent: an already-shared projection returns the link it has.\
-        \ A published snapshot cannot be refreshed or withdrawn."
+      summary: "Publish the projection's public board, or publish it again"
+      description: "An already-shared projection keeps its link and has the board\
+        \ behind it replaced, so the link follows the projection. The web publishes\
+        \ again after every save of a shared projection. A link cannot be withdrawn\
+        \ short of deleting the projection."
       operationId: shareProjection
       parameters:
       - name: id
@@ -175,7 +177,7 @@ paths:
         required: true
       responses:
         "200":
-          description: "Share created, or the existing one returned"
+          description: "Share created, or the existing one refreshed"
           content:
             application/json:
               schema:
