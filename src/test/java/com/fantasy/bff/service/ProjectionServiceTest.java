@@ -4,6 +4,8 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
+import com.fantasy.bff.client.DatabaseServiceClient.FollowedProjection;
+import com.fantasy.bff.dto.request.CopyProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
@@ -267,11 +269,24 @@ class ProjectionServiceTest {
     }
 
     @Test
-    void anImportKeyedByAnotherPlatformIsNotSquared() {
-        ProjectionResponse imported = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
-        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
+    void aFollowKeyedByAnotherPlatformIsNotSquared() {
+        ProjectionResponse followed = followedProjection()
+                .playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
+        when(databaseServiceClient.followShare(eq(USER_ID), any()))
+                .thenReturn(new FollowedProjection(followed, true));
 
-        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null, null));
+        projectionService.follow(USER_ID, new ImportProjectionRequest("token", null));
+
+        verifyNoInteractions(reconciler);
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    @Test
+    void aCopyKeyedByAnotherPlatformIsNotSquared() {
+        ProjectionResponse copied = storedProjection().playerIdSpace(ProjectionResponse.PlayerIdSpaceEnum.ESPN);
+        when(databaseServiceClient.copyShare(eq(USER_ID), any())).thenReturn(copied);
+
+        projectionService.copyFromShare(USER_ID, new CopyProjectionRequest("token", null));
 
         verifyNoInteractions(reconciler);
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
@@ -338,15 +353,15 @@ class ProjectionServiceTest {
         assertThat(capturedSettings().getUnacknowledgedNewPlayerIds()).isNull();
     }
 
-    /** A shared board is the author's pool, not ours, so it is squared and saved as it arrives. */
+    /** A shared board is the author's pool, not ours, so a copy is squared and saved as it arrives. */
     @Test
-    void anImportIsSquaredWithThePoolAndSavedWithoutReportingIt() {
-        ProjectionResponse imported = storedProjection();
-        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
-        when(reconciler.reconcile(imported.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
-        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(imported);
+    void aCopyIsSquaredWithThePoolAndSavedWithoutReportingIt() {
+        ProjectionResponse copied = storedProjection();
+        when(databaseServiceClient.copyShare(eq(USER_ID), any())).thenReturn(copied);
+        when(reconciler.reconcile(copied.getData())).thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(copied);
 
-        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null, null));
+        projectionService.copyFromShare(USER_ID, new CopyProjectionRequest("token", null));
 
         ArgumentCaptor<UpdateProjectionRequest> saved = ArgumentCaptor.forClass(UpdateProjectionRequest.class);
         verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), saved.capture());
@@ -354,14 +369,55 @@ class ProjectionServiceTest {
     }
 
     @Test
-    void anImportAlreadySquaredWithThePoolIsNotWrittenAgain() {
-        ProjectionResponse imported = storedProjection();
-        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(imported);
-        when(reconciler.reconcile(imported.getData())).thenReturn(Optional.empty());
+    void aCopyAlreadySquaredWithThePoolIsNotWrittenAgain() {
+        ProjectionResponse copied = storedProjection();
+        when(databaseServiceClient.copyShare(eq(USER_ID), any())).thenReturn(copied);
+        when(reconciler.reconcile(copied.getData())).thenReturn(Optional.empty());
 
-        projectionService.importFromShare(USER_ID, new ImportProjectionRequest("token", null, null));
+        projectionService.copyFromShare(USER_ID, new CopyProjectionRequest("token", null));
 
         verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+    }
+
+    /**
+     * A follow holds nothing of the follower's but their draft, so db-service would store none
+     * of the reconciled rows: the write is skipped and the rows are squared in memory instead.
+     */
+    @Test
+    void aFollowIsSquaredInMemoryAndNeverWritten() {
+        ProjectionResponse followed = followedProjection();
+        when(databaseServiceClient.followShare(eq(USER_ID), any()))
+                .thenReturn(new FollowedProjection(followed, true));
+        when(reconciler.reconcile(followed.getData()))
+                .thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+
+        var response = projectionService.follow(USER_ID, new ImportProjectionRequest("token", null));
+
+        assertThat(response.created()).isTrue();
+        verify(reconciler).reconcile(followed.getData());
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+        assertThat(response.projection().data().settings().unacknowledgedNewPlayerIds()).isNullOrEmpty();
+    }
+
+    /**
+     * Every read of a follow squares it again, since nothing was stored to settle it — and the
+     * players that turns up are never reported: the follower did not build this board and
+     * cannot edit it, and the author's own unread notice travelled across with the publish.
+     */
+    @Test
+    void readingAFollowSquaresItInMemoryWithoutWritingOrReportingNewPlayers() {
+        ProjectionResponse followed = followedProjection();
+        followed.getData().getProjectionSettings().setUnacknowledgedNewPlayerIds(List.of(3));
+        when(databaseServiceClient.getProjection(USER_ID, PROJECTION_ID)).thenReturn(followed);
+        when(reconciler.reconcile(followed.getData()))
+                .thenReturn(Optional.of(new Reconciliation(List.of(7, 8))));
+
+        var response = projectionService.get(USER_ID, PROJECTION_ID);
+
+        verify(reconciler).reconcile(followed.getData());
+        verify(databaseServiceClient, never()).updateProjection(any(), any(), any());
+        assertThat(response.data().settings().unacknowledgedNewPlayerIds()).isNullOrEmpty();
+        assertThat(response.origin().shareToken()).isEqualTo("t0k3n");
     }
 
     @Test
@@ -492,6 +548,15 @@ class ProjectionServiceTest {
     /** db-service always stamps a season; the response type takes it as given. */
     private static ProjectionResponse created() {
         return new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027);
+    }
+
+    /** A board the user follows: db-service's mirror of someone else's, marked by its origin. */
+    private static ProjectionResponse followedProjection() {
+        return storedProjection()
+                .kind(ProjectionResponse.KindEnum.IMPORTED)
+                .origin(new com.fantasy.bff.generated.db.model.ProjectionOrigin()
+                        .shareToken("t0k3n")
+                        .authorUsername("alex"));
     }
 
     private static ProjectionResponse storedProjection() {

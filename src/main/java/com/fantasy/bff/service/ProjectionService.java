@@ -1,6 +1,7 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.CopyProjectionRequest;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
@@ -73,22 +74,68 @@ public class ProjectionService {
     /**
      * Reads a projection and squares its player rows with the current pool first, so a projection
      * opened after a player sync covers the players that exist now rather than the ones that did
-     * when it was written. A reconciliation is written back rather than recomputed per read: it
-     * settles what the rows are, and the next read then has nothing to do.
+     * when it was written.
      */
     public ProjectionResponse get(UUID userId, UUID projectionId) {
         com.fantasy.bff.generated.db.model.ProjectionResponse stored =
                 databaseServiceClient.getProjection(userId, projectionId);
+        return ProjectionResponse.of(reconciled(userId, projectionId, stored));
+    }
+
+    /**
+     * Squares a stored projection with the pool and decides whether the result is worth keeping.
+     *
+     * <p>On a board the user owns it is: the reconciliation settles what the rows are, the write
+     * back leaves the next read with nothing to do, and the players it added are kept on the
+     * projection until the owner acknowledges them.
+     *
+     * <p>On a <em>follow</em> it is not. A follow is db-service's mirror of someone else's board
+     * and holds nothing of the follower's but their draft, so a write back stores none of the
+     * reconciled rows — it would cost a round trip to save nothing, and a read that reported
+     * rows the next write could not keep would be inconsistent with what is stored. So a follow
+     * is reconciled in memory on every read and never written. Its new players are not reported
+     * either: the follower did not build this board and cannot edit it, so there is nothing for
+     * them to do about a player who joined, and the list the author had not acknowledged on his
+     * own board travelled across with the publish and is none of their business.
+     */
+    private com.fantasy.bff.generated.db.model.ProjectionResponse reconciled(
+            UUID userId, UUID projectionId,
+            com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
         if (!keyedByThePool(stored)) {
-            return ProjectionResponse.of(stored);
+            return stored;
         }
         Optional<Reconciliation> reconciliation = reconciler.reconcile(stored.getData());
+        if (isFollow(stored)) {
+            clearUnacknowledged(stored);
+            return stored;
+        }
         if (reconciliation.isEmpty()) {
-            return ProjectionResponse.of(stored);
+            return stored;
         }
         keepUnacknowledged(stored.getData().getProjectionSettings(),
                 reconciliation.get().addedPlayerIds());
-        return ProjectionResponse.of(save(userId, projectionId, stored));
+        return save(userId, projectionId, stored);
+    }
+
+    /**
+     * Drops the list of players waiting to be acknowledged. On a follow it is the author's own
+     * unread notice, travelled across with the publish; on a fresh copy it is the same list,
+     * about a board the user took seconds ago. Neither is theirs to be nagged about.
+     */
+    private static void clearUnacknowledged(
+            com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
+        Optional.ofNullable(stored.getData())
+                .map(ProjectionData::getProjectionSettings)
+                .ifPresent(settings -> settings.setUnacknowledgedNewPlayerIds(null));
+    }
+
+    /**
+     * A followed board, as opposed to one of the user's own. The origin is what says so: it is
+     * the link the row mirrors, and db-service sets it on a follow and on nothing else — a copy
+     * taken from a link is the user's own board and carries none.
+     */
+    private static boolean isFollow(com.fantasy.bff.generated.db.model.ProjectionResponse stored) {
+        return stored.getOrigin() != null;
     }
 
     /**
@@ -208,23 +255,51 @@ public class ProjectionService {
     }
 
     /**
-     * Copies a shared board into the user's own projections. The rows come across as they were
-     * published, which is a snapshot of the author's player pool rather than the current one, so
-     * they are squared with it and saved straight away. Left to the first read, the players the
-     * snapshot lacked would be reported as having joined since the user imported it. db-service
-     * writes the copy and cannot read the pool, hence the second write rather than one.
+     * Follows a shared board: db-service records the link and mirrors the board behind it, and
+     * rewrites that mirror every time the author publishes again. Nothing is written back from
+     * here — a follow holds nothing of the follower's but their draft — so the rows are squared
+     * with the pool in memory, exactly as they are on every later read.
+     *
+     * @return the follow, and whether it was created now rather than already held
      */
-    public ProjectionResponse importFromShare(UUID userId, ImportProjectionRequest request) {
-        com.fantasy.bff.generated.db.model.ProjectionResponse imported =
-                databaseServiceClient.importProjection(userId,
+    public Followed follow(UUID userId, ImportProjectionRequest request) {
+        DatabaseServiceClient.FollowedProjection followed =
+                databaseServiceClient.followShare(userId,
                         new com.fantasy.bff.generated.db.model.ImportProjectionRequest()
                                 .token(request.token())
-                                .name(request.name())
                                 .seenUpdatedAt(request.seenUpdatedAt()));
-        if (!keyedByThePool(imported) || reconciler.reconcile(imported.getData()).isEmpty()) {
-            return ProjectionResponse.of(imported);
+        com.fantasy.bff.generated.db.model.ProjectionResponse stored = followed.projection();
+        if (keyedByThePool(stored)) {
+            reconciler.reconcile(stored.getData());
         }
-        return ProjectionResponse.of(save(userId, UUID.fromString(imported.getId()), imported));
+        clearUnacknowledged(stored);
+        return new Followed(ProjectionResponse.of(stored), followed.created());
+    }
+
+    /** @param created false when the user already followed this link and it was handed back. */
+    public record Followed(ProjectionResponse projection, boolean created) {}
+
+    /**
+     * Copies a shared board into a projection of the user's own. The rows come across as they
+     * were published, which is a snapshot of the author's player pool rather than the current
+     * one, so they are squared with it and saved straight away — this board is the user's, so
+     * the reconciliation is theirs to keep. Left to the first read, the players the snapshot
+     * lacked would be reported as having joined since they took the copy. db-service writes the
+     * copy and cannot read the pool, hence the second write rather than one.
+     */
+    public ProjectionResponse copyFromShare(UUID userId, CopyProjectionRequest request) {
+        com.fantasy.bff.generated.db.model.ProjectionResponse copied =
+                databaseServiceClient.copyShare(userId,
+                        new com.fantasy.bff.generated.db.model.CopyProjectionRequest()
+                                .token(request.token())
+                                .seenUpdatedAt(request.seenUpdatedAt()));
+        if (!keyedByThePool(copied) || reconciler.reconcile(copied.getData()).isEmpty()) {
+            return ProjectionResponse.of(copied);
+        }
+        // Nothing is reported: a board copied seconds ago has no "since", and the players the
+        // author had not acknowledged on his own board are no news to the copy either.
+        clearUnacknowledged(copied);
+        return ProjectionResponse.of(save(userId, UUID.fromString(copied.getId()), copied));
     }
 
     /**

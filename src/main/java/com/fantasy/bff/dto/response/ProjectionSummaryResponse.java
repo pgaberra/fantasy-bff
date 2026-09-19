@@ -32,6 +32,10 @@ public record ProjectionSummaryResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) DraftStatus draftStatus,
 
+        @Schema(description = "The share link this board follows, and who published it. Present "
+                + "only on a follow. `kind: imported` alone does not mean one: a spreadsheet "
+                + "import is the user's own rows and a copy taken from a link is their own "
+                + "board, and neither carries an origin.")
         ProjectionResponse.ProjectionOrigin origin
 ) {
 
