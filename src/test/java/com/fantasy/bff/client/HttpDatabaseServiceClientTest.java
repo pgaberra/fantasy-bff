@@ -1,5 +1,7 @@
 package com.fantasy.bff.client;
 
+import com.fantasy.bff.client.DatabaseServiceClient.FollowedProjection;
+import com.fantasy.bff.generated.db.model.CopyProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.PlayerIdPair;
 import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
@@ -273,20 +275,58 @@ class HttpDatabaseServiceClientTest {
     }
 
     @Test
-    void importProjection_postsTheTokenToTheImportsCollection() {
+    void followShare_postsTheTokenToTheImportsCollection() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
+                .willReturn(aResponse().withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"p-1\",\"name\":\"Their league\",\"kind\":\"imported\","
+                                + "\"season\":\"20262027\",\"createdAt\":\"2026-08-01T10:00:00Z\","
+                                + "\"updatedAt\":\"2026-08-01T10:00:00Z\","
+                                + "\"origin\":{\"shareToken\":\"t0k3n\",\"authorUsername\":\"alex\"}}")));
+
+        FollowedProjection followed = client.followShare(
+                UUID.fromString(USER_ID), new ImportProjectionRequest().token("t0k3n"));
+
+        assertThat(followed.created()).isTrue();
+        assertThat(followed.projection().getKind()).isEqualTo(ProjectionResponse.KindEnum.IMPORTED);
+        assertThat(followed.projection().getOrigin().getAuthorUsername()).isEqualTo("alex");
+        server.verify(postRequestedFor(
+                        urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
+                .withRequestBody(equalToJson("{\"token\":\"t0k3n\"}", true, true)));
+    }
+
+    /**
+     * db-service answers 200 for a link the user already followed. The status is the only thing
+     * that says so, so it has to survive the client rather than be thrown away with the response.
+     */
+    @Test
+    void followShare_ofALinkAlreadyFollowed_reportsThatNothingWasCreated() {
         server.stubFor(post(urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
                 .willReturn(okJson("{\"id\":\"p-1\",\"name\":\"Their league\",\"kind\":\"imported\","
                         + "\"season\":\"20262027\",\"createdAt\":\"2026-08-01T10:00:00Z\","
-                        + "\"updatedAt\":\"2026-08-01T10:00:00Z\","
-                        + "\"origin\":{\"shareToken\":\"t0k3n\",\"authorUsername\":\"alex\"}}")));
+                        + "\"updatedAt\":\"2026-08-01T10:00:00Z\"}")));
 
-        ProjectionResponse imported = client.importProjection(
+        FollowedProjection followed = client.followShare(
                 UUID.fromString(USER_ID), new ImportProjectionRequest().token("t0k3n"));
 
-        assertThat(imported.getKind()).isEqualTo(ProjectionResponse.KindEnum.IMPORTED);
-        assertThat(imported.getOrigin().getAuthorUsername()).isEqualTo("alex");
+        assertThat(followed.created()).isFalse();
+    }
+
+    @Test
+    void copyShare_postsTheTokenToTheCopiesCollection() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/copies"))
+                .willReturn(okJson("{\"id\":\"p-2\",\"name\":\"Copy of Their league\","
+                        + "\"kind\":\"projection\",\"season\":\"20262027\","
+                        + "\"createdAt\":\"2026-08-01T10:00:00Z\","
+                        + "\"updatedAt\":\"2026-08-01T10:00:00Z\"}")));
+
+        ProjectionResponse copy = client.copyShare(
+                UUID.fromString(USER_ID), new CopyProjectionRequest().token("t0k3n"));
+
+        assertThat(copy.getName()).isEqualTo("Copy of Their league");
+        assertThat(copy.getOrigin()).isNull();
         server.verify(postRequestedFor(
-                        urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/imports"))
+                        urlPathEqualTo("/api/v1/users/" + USER_ID + "/projections/copies"))
                 .withRequestBody(equalToJson("{\"token\":\"t0k3n\"}", true, true)));
     }
 

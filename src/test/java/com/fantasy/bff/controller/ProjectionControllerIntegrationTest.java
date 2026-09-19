@@ -6,6 +6,8 @@ import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.client.DatabaseServiceClient.FollowedProjection;
+import com.fantasy.bff.generated.db.model.CopyProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.ProjectionOrigin;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
@@ -314,16 +316,16 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void importFromShare_copiesTheBoardAndReportsWhoseItWas() throws Exception {
-        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse()
+    void importFromShare_followsTheBoardAndReportsWhoseItIs() throws Exception {
+        when(databaseServiceClient.followShare(eq(USER_ID), any())).thenReturn(
+                new FollowedProjection(new ProjectionResponse()
                         .season(ProjectionResponse.SeasonEnum._20262027)
                         .id(PROJECTION_ID.toString())
                         .name("Their league")
                         .kind(ProjectionResponse.KindEnum.IMPORTED)
                         .origin(new ProjectionOrigin()
                                 .shareToken("s0mErAnd0mT0k3nV4lu3ab")
-                                .authorUsername("alex")));
+                                .authorUsername("alex")), true));
 
         mockMvc.perform(post("/api/v1/projections/imports")
                         .header("Authorization", "Bearer " + token())
@@ -336,19 +338,43 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
 
         ArgumentCaptor<ImportProjectionRequest> sent =
                 ArgumentCaptor.forClass(ImportProjectionRequest.class);
-        verify(databaseServiceClient).importProjection(eq(USER_ID), sent.capture());
+        verify(databaseServiceClient).followShare(eq(USER_ID), sent.capture());
         assertThat(sent.getValue().getToken()).isEqualTo("s0mErAnd0mT0k3nV4lu3ab");
+    }
+
+    /**
+     * Following a link the user already follows is not a second copy and not a failure: the
+     * follow they have comes back, and the 200 is what tells the page which of the two happened.
+     */
+    @Test
+    void importFromShare_ofALinkAlreadyFollowed_returns200() throws Exception {
+        when(databaseServiceClient.followShare(eq(USER_ID), any())).thenReturn(
+                new FollowedProjection(new ProjectionResponse()
+                        .season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString())
+                        .name("Their league")
+                        .kind(ProjectionResponse.KindEnum.IMPORTED)
+                        .origin(new ProjectionOrigin()
+                                .shareToken("s0mErAnd0mT0k3nV4lu3ab")
+                                .authorUsername("alex")), false));
+
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.origin.shareToken").value("s0mErAnd0mT0k3nV4lu3ab"));
     }
 
     /** The page sends the stamp it read, so a board changed since can be refused downstream. */
     @Test
     void importFromShare_passesOnTheStampThePageRead() throws Exception {
-        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse()
+        when(databaseServiceClient.followShare(eq(USER_ID), any())).thenReturn(
+                new FollowedProjection(new ProjectionResponse()
                         .season(ProjectionResponse.SeasonEnum._20262027)
                         .id(PROJECTION_ID.toString())
                         .name("Their league")
-                        .kind(ProjectionResponse.KindEnum.IMPORTED));
+                        .kind(ProjectionResponse.KindEnum.IMPORTED), true));
 
         mockMvc.perform(post("/api/v1/projections/imports")
                         .header("Authorization", "Bearer " + token())
@@ -359,7 +385,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
 
         ArgumentCaptor<ImportProjectionRequest> sent =
                 ArgumentCaptor.forClass(ImportProjectionRequest.class);
-        verify(databaseServiceClient).importProjection(eq(USER_ID), sent.capture());
+        verify(databaseServiceClient).followShare(eq(USER_ID), sent.capture());
         assertThat(sent.getValue().getSeenUpdatedAt())
                 .isEqualTo(OffsetDateTime.parse("2026-09-18T08:00:00.123456Z"));
     }
@@ -370,7 +396,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void importFromShare_ofABoardChangedSinceItWasRead_returns412() throws Exception {
-        when(databaseServiceClient.importProjection(eq(USER_ID), any())).thenThrow(
+        when(databaseServiceClient.followShare(eq(USER_ID), any())).thenThrow(
                 new RestClientResponseException("Precondition Failed", HttpStatus.PRECONDITION_FAILED,
                         "Precondition Failed", null, null, null));
 
@@ -383,6 +409,37 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.code").value("PRECONDITION_FAILED"));
     }
 
+    /**
+     * Following one's own link is the caller's mistake, so db-service's 400 travels on as a 400
+     * rather than becoming a 502 about a service that is perfectly well.
+     */
+    @Test
+    void importFromShare_ofOnesOwnBoard_relaysThe400() throws Exception {
+        when(databaseServiceClient.followShare(eq(USER_ID), any())).thenThrow(
+                new RestClientResponseException("Bad Request", HttpStatus.BAD_REQUEST,
+                        "Bad Request", null, null, null));
+
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void importFromShare_ofAnUnknownToken_relaysThe404() throws Exception {
+        when(databaseServiceClient.followShare(eq(USER_ID), any())).thenThrow(
+                new RestClientResponseException("Not Found", HttpStatus.NOT_FOUND,
+                        "Not Found", null, null, null));
+
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
+                .andExpect(status().isNotFound());
+    }
+
     @Test
     void importFromShare_withoutToken_returns401() throws Exception {
         mockMvc.perform(post("/api/v1/projections/imports")
@@ -390,7 +447,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                         .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
                 .andExpect(status().isUnauthorized());
 
-        verify(databaseServiceClient, never()).importProjection(any(), any());
+        verify(databaseServiceClient, never()).followShare(any(), any());
     }
 
     @Test
@@ -401,6 +458,66 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                         .content("{ \"token\": \" \" }"))
                 .andExpect(status().isBadRequest());
 
-        verify(databaseServiceClient, never()).importProjection(any(), any());
+        verify(databaseServiceClient, never()).followShare(any(), any());
+    }
+
+    /** The BFF validates its own inbound data rather than trusting db-service to catch it. */
+    @Test
+    void importFromShare_withAnOversizedToken_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/projections/imports")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"" + "t".repeat(65) + "\" }"))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).followShare(any(), any());
+    }
+
+    @Test
+    void copyFromShare_createsABoardOfTheUsersOwn() throws Exception {
+        when(databaseServiceClient.copyShare(eq(USER_ID), any())).thenReturn(
+                new ProjectionResponse()
+                        .season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString())
+                        .name("Copy of Their league")
+                        .kind(ProjectionResponse.KindEnum.PROJECTION));
+
+        mockMvc.perform(post("/api/v1/projections/copies")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\", "
+                                + "\"seenUpdatedAt\": \"2026-09-18T08:00:00.123456Z\" }"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.kind").value("projection"))
+                .andExpect(jsonPath("$.name").value("Copy of Their league"))
+                .andExpect(jsonPath("$.origin").doesNotExist());
+
+        ArgumentCaptor<CopyProjectionRequest> sent =
+                ArgumentCaptor.forClass(CopyProjectionRequest.class);
+        verify(databaseServiceClient).copyShare(eq(USER_ID), sent.capture());
+        assertThat(sent.getValue().getToken()).isEqualTo("s0mErAnd0mT0k3nV4lu3ab");
+        assertThat(sent.getValue().getSeenUpdatedAt())
+                .isEqualTo(OffsetDateTime.parse("2026-09-18T08:00:00.123456Z"));
+    }
+
+    @Test
+    void copyFromShare_withBlankToken_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/projections/copies")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \" \" }"))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).copyShare(any(), any());
+    }
+
+    @Test
+    void copyFromShare_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/projections/copies")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"token\": \"s0mErAnd0mT0k3nV4lu3ab\" }"))
+                .andExpect(status().isUnauthorized());
+
+        verify(databaseServiceClient, never()).copyShare(any(), any());
     }
 }

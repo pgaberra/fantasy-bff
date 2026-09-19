@@ -1,6 +1,7 @@
 package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
+import com.fantasy.bff.generated.db.model.CopyProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.UpdateProjectionRequest;
 import com.fantasy.bff.support.WireMockConfigs;
@@ -70,10 +71,18 @@ class HttpDatabaseServiceClientProjectionClientTest {
         assertThat(requestsTo(ordinary)).isZero();
     }
 
-    /** Importing a shared projection writes the same whole-pool payload as a save of one's own. */
+    /** Following a shared board reads back the same whole-pool payload as one's own. */
     @Test
-    void importProjection_goesThroughTheProjectionClient() {
-        client.importProjection(USER_ID, new ImportProjectionRequest());
+    void followShare_goesThroughTheProjectionClient() {
+        client.followShare(USER_ID, new ImportProjectionRequest());
+
+        assertThat(requestsTo(projections)).isEqualTo(1);
+        assertThat(requestsTo(ordinary)).isZero();
+    }
+
+    @Test
+    void copyShare_goesThroughTheProjectionClient() {
+        client.copyShare(USER_ID, new CopyProjectionRequest());
 
         assertThat(requestsTo(projections)).isEqualTo(1);
         assertThat(requestsTo(ordinary)).isZero();

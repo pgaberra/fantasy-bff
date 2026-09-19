@@ -70,6 +70,9 @@ paths:
       tags:
       - Projections
       summary: Update one of the current user's saved projections
+      description: "On a followed board only `data.draft` is kept: the rest is the\
+        \ author's and is rewritten whenever they publish. The request is not refused,\
+        \ it is simply taken in part, and the board as stored comes back."
       operationId: update
       parameters:
       - name: id
@@ -446,13 +449,14 @@ paths:
     post:
       tags:
       - Projections
-      summary: "Copy a shared projection into the current user's own, by its share\
-        \ token"
-      description: "Anyone holding a share link may copy the board behind it and draft\
-        \ against it. The copy is of the board as it was last published, carries none\
-        \ of the author's draft, and records who shared it. Copying the same board\
-        \ again is allowed: with no `name`, a taken one is numbered (\"<name> (2)\"\
-        ) rather than refused."
+      summary: Follow a shared board by its link
+      description: "Anyone holding a share link may follow the board behind it and\
+        \ draft against it. A follow is a live mirror: it is rewritten, name and all,\
+        \ every time the author publishes again, and the follower's own draft is the\
+        \ only thing on it they may change. Following a link twice does not make a\
+        \ second copy — the follow already held comes back, with 200 rather than 201.\
+        \ It disappears when the share does. To take a board of your own that the\
+        \ author's changes never reach, copy it instead."
       operationId: importFromShare
       requestBody:
         content:
@@ -462,7 +466,63 @@ paths:
         required: true
       responses:
         "201":
-          description: Projection imported
+          description: Now following the board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "200":
+          description: This link was already followed; that follow is returned untouched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "400":
+          description: "Validation failed, or the link is the caller's own board"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "404":
+          description: No share with that token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "409":
+          description: A request racing this one created the follow; list the projections
+            again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "412":
+          description: '`seenUpdatedAt` was sent and the author has changed the board
+            since. Nothing was written.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/projections/copies:
+    post:
+      tags:
+      - Projections
+      summary: Copy a shared board into the current user's own projections
+      description: "The copy is the board as it is published now, named after the\
+        \ share (\"Copy of <name>\", numbered if that one is taken), with no draft\
+        \ and no link back: it is the user's to edit, and nothing the author publishes\
+        \ afterwards reaches it. Taking a copy also leaves the user following the\
+        \ link, unless the board is their own."
+      operationId: copyFromShare
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyProjectionRequest"
+        required: true
+      responses:
+        "201":
+          description: Copy created
           content:
             application/json:
               schema:
@@ -480,15 +540,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: The `name` sent is already taken. Omit it and a free one is
-            chosen.
+          description: A request racing this one took the name or created the follow
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "412":
           description: '`seenUpdatedAt` was sent and the author has changed the board
-            since. Nothing was copied.'
+            since. Nothing was written.'
           content:
             application/json:
               schema:
@@ -2550,8 +2609,10 @@ components:
           format: date-time
         origin:
           $ref: "#/components/schemas/ProjectionOrigin"
-          description: "Who this board was copied from, on a projection imported from\
-            \ a share link. Absent on the user's own."
+          description: "The share link this board follows, and who published it. Present\
+            \ only on a follow, which is read-only apart from its draft, and never\
+            \ stale: the follow goes when the share does. Absent on the user's own\
+            \ boards, including a copy taken from a link."
       required:
       - createdAt
       - data
@@ -2756,14 +2817,23 @@ components:
           description: "The token from the share link, i.e. the last segment of /s/{token}."
           maxLength: 64
           minLength: 0
-        name:
+        seenUpdatedAt:
           type: string
-          description: "What to call the copy. Left out, the server uses the name\
-            \ it was shared under, numbering it (\"<name> (2)\") if that one is taken\
-            \ — so the same board can be copied more than once. Send one to choose\
-            \ the name yourself; a clash on that is refused, since it is yours to\
-            \ change."
-          maxLength: 100
+          format: date-time
+          description: "The shared board's `updatedAt` as the page last read it. Send\
+            \ it, and a board its author has changed since is refused with 412 instead\
+            \ of followed, so the reader never starts following numbers they did not\
+            \ see: read the share again and retry. Left out, the board is followed\
+            \ as it is now."
+      required:
+      - token
+    CopyProjectionRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: "The token from the share link, i.e. the last segment of /s/{token}."
+          maxLength: 64
           minLength: 0
         seenUpdatedAt:
           type: string
@@ -3758,6 +3828,10 @@ components:
           - finished
         origin:
           $ref: "#/components/schemas/ProjectionOrigin"
+          description: "The share link this board follows, and who published it. Present\
+            \ only on a follow. `kind: imported` alone does not mean one: a spreadsheet\
+            \ import is the user's own rows and a copy taken from a link is their\
+            \ own board, and neither carries an origin."
       required:
       - createdAt
       - draftStatus

@@ -10,6 +10,8 @@ tags:
   description: "Snapshot lookup by share token, for the BFF's public page"
 - name: Email verification
   description: Single-use email-verification token issuance and consumption
+- name: Projection imports
+  description: "Following a shared board, and copying one into a user's own projections"
 - name: Password reset
   description: Single-use password reset token issuance and consumption
 - name: Premium
@@ -21,8 +23,6 @@ tags:
   description: The account's profile picture
 - name: Subscriptions
   description: "A user's billing subscription, at most one per user"
-- name: Projection imports
-  description: Copying a shared board into a user's own projections
 - name: Player ids
   description: "One-off: rewrite stored player ids from one platform's numbering to\
     \ another's"
@@ -622,12 +622,16 @@ paths:
     post:
       tags:
       - Projection imports
-      summary: "Copy a shared projection into the user's own, by its share token"
-      description: "Anyone holding the token may copy it. The copy is of the board\
-        \ as it was last published, carries no draft, and is stamped with who shared\
-        \ it. Copying the same board again is allowed: with no `name` given, a taken\
-        \ name is resolved to \"<name> (2)\" rather than refused."
-      operationId: importFromShare
+      summary: Follow a shared board by its token
+      description: "Anyone holding the token may follow it. The follow holds the board\
+        \ as it is published now and is rewritten, name and all, every time the author\
+        \ publishes again; the follower's own draft survives that, and is the only\
+        \ thing they may change on it — an update may send the whole projection and\
+        \ only its `data.draft` is taken. Following is idempotent: a user has at most\
+        \ one follow of a token, and following it again returns that one with 200\
+        \ rather than 201. The follow disappears with the share. For a board of one's\
+        \ own, copy it instead (`/projections/copies`)."
+      operationId: follow
       parameters:
       - name: userId
         in: path
@@ -642,14 +646,22 @@ paths:
               $ref: "#/components/schemas/ImportProjectionRequest"
         required: true
       responses:
+        "200":
+          description: The user already followed this link; their follow is returned
+            untouched
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
         "201":
-          description: Projection imported
+          description: Now following the board
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "400":
-          description: Validation failed (blank or oversized token/name)
+          description: "Validation failed (blank or oversized token), or the link\
+            \ is the caller's own board"
           content:
             '*/*':
               schema:
@@ -661,15 +673,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: The `name` given is already taken by another projection. Omit
-            it and the server picks a free one.
+          description: A request racing this one created the follow; read the user's
+            projections again
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "412":
           description: '`seenUpdatedAt` was sent and the board has changed since.
-            Nothing was copied; read the share again and retry.'
+            Nothing was written; read the share again and retry.'
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/users/{userId}/projections/copies:
+    post:
+      tags:
+      - Projection imports
+      summary: Copy a shared board into the user's own projections
+      description: "The copy is the board as it is published now, named \"Copy of\
+        \ <the share's name>\" (numbered where the user holds that name already),\
+        \ with no draft and no link back to the share: it is theirs to edit, and nothing\
+        \ the author publishes afterwards reaches it. The user is left following the\
+        \ link as well, unless the link is their own board."
+      operationId: copy
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyProjectionRequest"
+        required: true
+      responses:
+        "201":
+          description: Copy created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "400":
+          description: Validation failed (blank or oversized token)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "404":
+          description: No share with that token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "409":
+          description: A request racing this one took the name or created the follow
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "412":
+          description: '`seenUpdatedAt` was sent and the board has changed since.
+            Nothing was written; read the share again and retry.'
           content:
             '*/*':
               schema:
@@ -1837,12 +1905,12 @@ components:
       properties:
         shareToken:
           type: string
-          description: "The share the board was copied from. Still set once that share\
-            \ is gone, so a stale token here is expected."
+          description: "The share this board follows. Never stale: the follow goes\
+            \ away with the share (V25)."
         authorUsername:
           type: string
-          description: "The author's public name as it read at import time. Snapshotted\
-            \ with the rows, unlike the live name on the public page."
+          description: "The author's public name as it read when the link was first\
+            \ followed. Snapshotted, unlike the live name on the public page."
       required:
       - authorUsername
       - shareToken
@@ -1876,8 +1944,9 @@ components:
           format: date-time
         origin:
           $ref: "#/components/schemas/ProjectionOrigin"
-          description: "Who the board was copied from, on an imported projection.\
-            \ Absent on the user's own."
+          description: "The share link this board follows, and who published it. Present\
+            \ only on a follow, which is read-only apart from its draft. Absent on\
+            \ the user's own boards, including a copy taken from a link."
         playerIdSpace:
           type: string
           description: Which platform's numbering the player ids in data are. A caller
@@ -2039,10 +2108,22 @@ components:
           description: The share link's token.
           maxLength: 64
           minLength: 0
-        name:
+        seenUpdatedAt:
           type: string
-          description: What to call the copy. Defaults to the name it was shared under.
-          maxLength: 100
+          format: date-time
+          description: "The share's `updatedAt` as the reader last saw it. Sent, and\
+            \ the board has changed since, the request is refused with 412, so nobody\
+            \ starts following a board they never looked at. Left out, the board as\
+            \ it is now is followed."
+      required:
+      - token
+    CopyProjectionRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The share link's token.
+          maxLength: 64
           minLength: 0
         seenUpdatedAt:
           type: string
@@ -2378,8 +2459,9 @@ components:
           - finished
         origin:
           $ref: "#/components/schemas/ProjectionOrigin"
-          description: "Who the board was copied from, on an imported projection.\
-            \ Absent on the user's own."
+          description: "The share link this board follows, and who published it. Present\
+            \ only on a follow, which is read-only apart from its draft. Absent on\
+            \ the user's own boards, including a copy taken from a link."
       required:
       - createdAt
       - draftStatus
