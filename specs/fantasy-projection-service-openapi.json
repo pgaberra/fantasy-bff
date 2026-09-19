@@ -1,79 +1,6 @@
 {
   "components": {
     "schemas": {
-      "AbsenceResponse": {
-        "description": "Whether he is out and until when, as every injury source together has it.\n\nThe stored resolution (`player_absence`, restated nightly by `projection injuries`) of ESPN's\nreport, Daily Faceoff's out-of-lineup group and the injury register: the same reading the\nprojection, the week split and the goalie guard charge games from. Prefer it to the\n`injury_*` fields beside it, which are ESPN's alone and miss players the other two carry.",
-        "properties": {
-          "back_on": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Back On"
-          },
-          "date_source": {
-            "enum": [
-              "espn",
-              "register",
-              "none"
-            ],
-            "title": "Date Source",
-            "type": "string"
-          },
-          "dfo_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dfo Status"
-          },
-          "espn_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Espn Status"
-          },
-          "out": {
-            "title": "Out",
-            "type": "boolean"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status"
-          }
-        },
-        "required": [
-          "out",
-          "status",
-          "espn_status",
-          "dfo_status",
-          "back_on",
-          "date_source"
-        ],
-        "title": "AbsenceResponse",
-        "type": "object"
-      },
       "BacktestSummaryResponse": {
         "properties": {
           "created_at": {
@@ -724,16 +651,6 @@
       },
       "PlayerResponse": {
         "properties": {
-          "absence": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AbsenceResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "birth_date": {
             "anyOf": [
               {

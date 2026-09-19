@@ -134,11 +134,31 @@ public class GlobalExceptionHandler {
         if (status == HttpStatus.NOT_FOUND || status == HttpStatus.CONFLICT
                 || status == HttpStatus.BAD_REQUEST || status == HttpStatus.PRECONDITION_FAILED) {
             log.warn("Relaying downstream {}: {}", status, ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"));
-            return error(status, status.name(), ex.getMessage());
+            return error(status, status.name(), relayedMessage(ex, status));
         }
         log.error("Downstream service returned {}: {}", ex.getStatusCode(),
                 ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"), ex);
         return error(HttpStatus.BAD_GATEWAY, "DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable");
+    }
+
+    /**
+     * What a relayed client error says. The downstream services answer the same {@link ErrorDto}
+     * this one does, so the sentence they wrote is the one the caller should read - "this link is
+     * your own board" rather than a status name. It is read out of the parsed body and nothing
+     * else: {@code ex.getMessage()} carries the whole raw body inline, which on a verdict that
+     * never reached the service (a proxy's HTML error page) is not a message at all. When there
+     * is no ErrorDto to read, the status speaks for itself.
+     */
+    private static String relayedMessage(RestClientResponseException ex, HttpStatus status) {
+        try {
+            ErrorDto body = ex.getResponseBodyAs(ErrorDto.class);
+            if (body != null && body.message() != null && !body.message().isBlank()) {
+                return body.message();
+            }
+        } catch (RuntimeException ignored) {
+            // Not our ErrorDto, so there is no message of ours in it to relay.
+        }
+        return status.getReasonPhrase();
     }
 
     /**

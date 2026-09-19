@@ -4,6 +4,7 @@ import com.fantasy.bff.generated.db.model.CreateProjectionRequest;
 import com.fantasy.bff.generated.db.model.PlayerIdPair;
 import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
+import com.fantasy.bff.generated.db.model.CopyProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.RenameProjectionRequest;
 import com.fantasy.bff.generated.db.model.StartDraftRequest;
@@ -96,7 +97,22 @@ public interface DatabaseServiceClient {
 
     ProjectionResponse createProjection(UUID userId, CreateProjectionRequest request);
 
-    ProjectionResponse importProjection(UUID userId, ImportProjectionRequest request);
+    /**
+     * Follows a shared board. The follow is db-service's live mirror of the link, so this is the
+     * one write that may legitimately answer 200 rather than 201: a user has at most one follow
+     * per link, and following it again hands back the one they already have.
+     *
+     * @param created whether a follow was created (201) rather than already held (200)
+     */
+    record FollowedProjection(ProjectionResponse projection, boolean created) {}
+
+    FollowedProjection followShare(UUID userId, ImportProjectionRequest request);
+
+    /**
+     * Copies a shared board into a projection of the user's own: theirs to edit, with no origin
+     * and no link back to the share. It leaves them following the link as well.
+     */
+    ProjectionResponse copyShare(UUID userId, CopyProjectionRequest request);
 
     /** Copies one of the user's boards into a draft of its own, server-side. */
     ProjectionResponse startDraft(UUID userId, UUID boardId, StartDraftRequest request);

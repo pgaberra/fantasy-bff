@@ -8,6 +8,7 @@ import com.fantasy.bff.generated.db.model.PlayerIdPair;
 import com.fantasy.bff.generated.db.model.PlayerIdRemapRequest;
 import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
+import com.fantasy.bff.generated.db.model.CopyProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
 import com.fantasy.bff.generated.db.model.RenameProjectionRequest;
 import com.fantasy.bff.generated.db.model.StartDraftRequest;
@@ -40,6 +41,7 @@ import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -330,10 +332,27 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(ProjectionResponse.class);
     }
 
+    /**
+     * The status is carried out of here rather than dropped: db-service answers 201 for a follow
+     * it created and 200 for one the user already held, and that difference is the whole of what
+     * tells the page "you are now following this" from "you already were".
+     */
     @Override
-    public ProjectionResponse importProjection(UUID userId, ImportProjectionRequest request) {
-        return projectionClient.post()
+    public FollowedProjection followShare(UUID userId, ImportProjectionRequest request) {
+        ResponseEntity<ProjectionResponse> response = projectionClient.post()
                 .uri("/api/v1/users/{userId}/projections/imports", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .toEntity(ProjectionResponse.class);
+        return new FollowedProjection(response.getBody(),
+                response.getStatusCode() == HttpStatus.CREATED);
+    }
+
+    @Override
+    public ProjectionResponse copyShare(UUID userId, CopyProjectionRequest request) {
+        return projectionClient.post()
+                .uri("/api/v1/users/{userId}/projections/copies", userId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()

@@ -29,8 +29,10 @@ public record ProjectionResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime updatedAt,
 
-        @Schema(description = "Who this board was copied from, on a projection imported from a "
-                + "share link. Absent on the user's own.")
+        @Schema(description = "The share link this board follows, and who published it. Present "
+                + "only on a follow, which is read-only apart from its draft, and never stale: "
+                + "the follow goes when the share does. Absent on the user's own boards, "
+                + "including a copy taken from a link.")
         ProjectionOrigin origin,
 
         @Schema(description = "The board a draft was started from. Absent on anything that is not "
@@ -45,8 +47,8 @@ public record ProjectionResponse(
 ) {
 
     /**
-     * @param shareToken     the link the board was copied from, which may since have gone
-     * @param authorUsername the author's name as it read when the copy was taken
+     * @param shareToken     the link this board follows
+     * @param authorUsername the author's name as it read when the link was first followed
      */
     public record ProjectionOrigin(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String shareToken,

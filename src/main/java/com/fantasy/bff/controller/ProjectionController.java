@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.dto.request.CopyProjectionRequest;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.response.ProjectionResponse;
@@ -10,11 +11,14 @@ import com.fantasy.bff.dto.request.UpdateProjectionRequest;
 import com.fantasy.bff.dto.response.ProjectionSummaryResponse;
 import com.fantasy.bff.service.ProjectionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -82,26 +86,58 @@ public class ProjectionController {
         return projectionService.create(UUID.fromString(userId), request);
     }
 
-    @Operation(summary = "Copy a shared projection into the current user's own, by its share token",
-            description = "Anyone holding a share link may copy the board behind it and draft "
-                    + "against it. The copy is of the board as it was last published, carries "
-                    + "none of the author's draft, and records who shared it. Copying the same board "
-                    + "again is allowed: with no `name`, a taken one is numbered (\"<name> (2)\") "
-                    + "rather than refused.")
+    @Operation(summary = "Follow a shared board by its link",
+            description = "Anyone holding a share link may follow the board behind it and draft "
+                    + "against it. A follow is a live mirror: it is rewritten, name and all, "
+                    + "every time the author publishes again, and the follower's own draft is "
+                    + "the only thing on it they may change. Following a link twice does not "
+                    + "make a second copy — the follow already held comes back, with 200 rather "
+                    + "than 201. It disappears when the share does. To take a board of your own "
+                    + "that the author's changes never reach, copy it instead.")
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Projection imported"),
+        @ApiResponse(responseCode = "201", description = "Now following the board",
+                content = @Content(schema = @Schema(implementation = ProjectionResponse.class))),
+        @ApiResponse(responseCode = "200",
+                description = "This link was already followed; that follow is returned untouched",
+                content = @Content(schema = @Schema(implementation = ProjectionResponse.class))),
+        @ApiResponse(responseCode = "400",
+                description = "Validation failed, or the link is the caller's own board"),
+        @ApiResponse(responseCode = "404", description = "No share with that token"),
+        @ApiResponse(responseCode = "409",
+                description = "A request racing this one created the follow; list the projections again"),
+        @ApiResponse(responseCode = "412", description = "`seenUpdatedAt` was sent and the author "
+                + "has changed the board since. Nothing was written.")
+    })
+    @PostMapping("/imports")
+    public ResponseEntity<ProjectionResponse> importFromShare(
+            @AuthenticationPrincipal String userId,
+            @Valid @RequestBody ImportProjectionRequest request) {
+        ProjectionService.Followed followed =
+                projectionService.follow(UUID.fromString(userId), request);
+        return ResponseEntity.status(followed.created() ? HttpStatus.CREATED : HttpStatus.OK)
+                .body(followed.projection());
+    }
+
+    @Operation(summary = "Copy a shared board into the current user's own projections",
+            description = "The copy is the board as it is published now, named after the share "
+                    + "(\"Copy of <name>\", numbered if that one is taken), with no draft and no "
+                    + "link back: it is the user's to edit, and nothing the author publishes "
+                    + "afterwards reaches it. Taking a copy also leaves the user following the "
+                    + "link, unless the board is their own.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Copy created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "404", description = "No share with that token"),
         @ApiResponse(responseCode = "409",
-                description = "The `name` sent is already taken. Omit it and a free one is chosen."),
+                description = "A request racing this one took the name or created the follow"),
         @ApiResponse(responseCode = "412", description = "`seenUpdatedAt` was sent and the author "
-                + "has changed the board since. Nothing was copied.")
+                + "has changed the board since. Nothing was written.")
     })
-    @PostMapping("/imports")
+    @PostMapping("/copies")
     @ResponseStatus(HttpStatus.CREATED)
-    public ProjectionResponse importFromShare(@AuthenticationPrincipal String userId,
-                                              @Valid @RequestBody ImportProjectionRequest request) {
-        return projectionService.importFromShare(UUID.fromString(userId), request);
+    public ProjectionResponse copyFromShare(@AuthenticationPrincipal String userId,
+                                            @Valid @RequestBody CopyProjectionRequest request) {
+        return projectionService.copyFromShare(UUID.fromString(userId), request);
     }
 
     @Operation(summary = "Start a draft against one of the current user's boards",
@@ -143,7 +179,10 @@ public class ProjectionController {
         return projectionService.rename(UUID.fromString(userId), id, request);
     }
 
-    @Operation(summary = "Update one of the current user's saved projections")
+    @Operation(summary = "Update one of the current user's saved projections",
+            description = "On a followed board only `data.draft` is kept: the rest is the "
+                    + "author's and is rewritten whenever they publish. The request is not "
+                    + "refused, it is simply taken in part, and the board as stored comes back.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Projection updated"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
