@@ -13,8 +13,8 @@ import java.util.List;
  * tell them apart would quietly show a full injury list as a clean bill of health for the whole
  * league. The projection service is not deployed everywhere and is switched off in production.
  *
- * <p>Unlike every other decoration on a player, this one describes <b>today</b>. It comes from
- * sources that keep no archive, refreshed nightly, and the return dates are a club's public guess
+ * <p>Unlike every other decoration on a player, this one describes <b>today</b>. It comes from a
+ * source that keeps no archive, refreshed nightly, and the return dates are a club's public guess
  * restated by a broadcaster. Held for a week it is worse than nothing, because a recovered player
  * keeps reading as hurt.
  */
@@ -37,18 +37,16 @@ public record InjuriesResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int playerId,
 
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                    description = "Out, Injured Reserve, Suspension or Day-To-Day, read across "
-                            + "ESPN, Daily Faceoff and a hand-kept injury register. Day-To-Day "
-                            + "usually costs no games.")
+                    description = "The report's own wording: Out, Injured Reserve, Suspension or "
+                            + "Day-To-Day. Day-To-Day usually costs no games.")
             String status,
 
             @Schema(description = "Where he is hurt, as reported: Knee, Upper Body, Undisclosed. "
                     + "Absent when the report gives none.")
             String bodyPart,
 
-            @Schema(description = "When he is expected back, the date the projection counts "
-                    + "missed games up to. A club's guess, so read it as the middle of a range "
-                    + "rather than a date. Absent when no source dates him.")
+            @Schema(description = "When he is expected back. A club's guess, so read it as the "
+                    + "middle of a range rather than a date. Absent when none is given.")
             LocalDate expectedReturn
     ) {}
 
