@@ -6,6 +6,9 @@ import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.request.ProjectionSource;
+import com.fantasy.bff.dto.request.RenameProjectionRequest;
+import com.fantasy.bff.dto.request.StartDraftRequest;
+import com.fantasy.bff.dto.response.ProjectionSummaryResponse;
 import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.exception.PremiumRequiredException;
 import com.fantasy.bff.generated.db.model.ProjectionData;
@@ -218,10 +221,12 @@ public class ProjectionService {
             // has nothing to sell.
             requirePremiumFor(userId);
         }
-        if (request.kind() == ProjectionKind.PRESET_DRAFT && !isPreset(request.source())) {
+        if (request.kind() == ProjectionKind.DRAFT && !isPreset(request.source())) {
             throw new IllegalArgumentException(
-                    "a preset draft is defined by the server: send source=default or source=model "
-                            + "and let it fill in the player rows");
+                    "a draft created here is a draft against a preset, and the preset is defined "
+                            + "by the server: send source=default or source=model and let it fill "
+                            + "in the player rows. To draft against a board of your own, POST "
+                            + "/api/v1/projections/{id}/drafts instead");
         }
         if (request.source() != null) {
             if (!data.getPlayers().isEmpty()) {
@@ -252,6 +257,35 @@ public class ProjectionService {
                         .preset(presetOf(request))
                         .data(data)
                         .playerIdSpace(idSpaceOf(playerPool.playerIdSpace()))));
+    }
+
+    /**
+     * Starts a draft against one of the user's own boards. db-service copies the board's rows
+     * into a draft of its own, so the ~0.5 MB the caller would otherwise download and upload
+     * again never leaves the servers — and so the board stays editable, and deletable, while the
+     * draft is under way.
+     *
+     * <p>The rows are the board's, which this BFF already squared with the pool when the board
+     * was last read, so nothing is reconciled here: a draft is a snapshot by design, and adding
+     * players to it after it started would move the numbers under somebody mid-draft.
+     */
+    public ProjectionResponse startDraft(UUID userId, UUID boardId, StartDraftRequest request) {
+        return ProjectionResponse.of(databaseServiceClient.startDraft(userId, boardId,
+                new com.fantasy.bff.generated.db.model.StartDraftRequest()
+                        .name(request.name())
+                        .data(request.data())));
+    }
+
+    /**
+     * Renames a board or a draft. A name the user typed is refused where it is taken; one the app
+     * derived — a draft taking the name of the league it was just synced with — is numbered
+     * instead, and is skipped where the user has named the row themselves.
+     */
+    public ProjectionSummaryResponse rename(UUID userId, UUID id, RenameProjectionRequest request) {
+        return ProjectionSummaryResponse.from(databaseServiceClient.renameProjection(userId, id,
+                new com.fantasy.bff.generated.db.model.RenameProjectionRequest()
+                        .name(request.name())
+                        .derived(request.derived())));
     }
 
     /**
@@ -334,12 +368,13 @@ public class ProjectionService {
     }
 
     /**
-     * A preset draft is named here rather than by the caller. The name is what the draft board
-     * shows as its heading, so letting a client choose it would let a draft claim to be drafted
-     * against something it wasn't.
+     * A draft against a preset is named here rather than by the caller. The name is what the
+     * draft board shows as its heading, so letting a client choose it would let a draft claim to
+     * be drafted against something it wasn't. db-service numbers it from there where the user
+     * already holds that name ("AI Projection (2)"), so a preset can be drafted repeatedly.
      */
     private static String nameOf(CreateProjectionRequest request) {
-        if (request.kind() != ProjectionKind.PRESET_DRAFT) {
+        if (request.kind() != ProjectionKind.DRAFT) {
             return request.name();
         }
         return request.source() == ProjectionSource.MODEL
@@ -353,7 +388,7 @@ public class ProjectionService {
      */
     private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum presetOf(
             CreateProjectionRequest request) {
-        if (request.kind() != ProjectionKind.PRESET_DRAFT) {
+        if (request.kind() != ProjectionKind.DRAFT) {
             return null;
         }
         return request.source() == ProjectionSource.MODEL
@@ -385,7 +420,7 @@ public class ProjectionService {
             return com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION;
         }
         return switch (kind) {
-            case PRESET_DRAFT -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PRESET_DRAFT;
+            case DRAFT -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.DRAFT;
             case IMPORTED -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.IMPORTED;
             case PROJECTION -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum.PROJECTION;
         };

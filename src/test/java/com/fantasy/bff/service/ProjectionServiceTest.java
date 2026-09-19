@@ -782,7 +782,7 @@ class ProjectionServiceTest {
 
         projectionService.create(
                 USER_ID,
-                request(emptyData(), ProjectionSource.MODEL, ProjectionKind.PRESET_DRAFT));
+                request(emptyData(), ProjectionSource.MODEL, ProjectionKind.DRAFT));
 
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
         // The board heading comes from here, so it must name the preset actually drafted against.
@@ -800,7 +800,7 @@ class ProjectionServiceTest {
 
         projectionService.create(
                 USER_ID,
-                request(emptyData(), ProjectionSource.DEFAULT, ProjectionKind.PRESET_DRAFT));
+                request(emptyData(), ProjectionSource.DEFAULT, ProjectionKind.DRAFT));
 
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
         assertThat(sentRequest.getValue().getPreset())
@@ -823,7 +823,7 @@ class ProjectionServiceTest {
     void presetDraftFromBlank_isRejected() {
         assertThatThrownBy(() -> projectionService.create(
                         USER_ID,
-                        request(emptyData(), ProjectionSource.BLANK, ProjectionKind.PRESET_DRAFT)))
+                        request(emptyData(), ProjectionSource.BLANK, ProjectionKind.DRAFT)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("source=default or source=model");
     }
@@ -851,7 +851,7 @@ class ProjectionServiceTest {
         when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
 
         CreateProjectionRequest request = new CreateProjectionRequest(
-                "AI Projection", ProjectionKind.PRESET_DRAFT, emptyData(), ProjectionSource.MODEL);
+                "AI Projection", ProjectionKind.DRAFT, emptyData(), ProjectionSource.MODEL);
 
         assertThatThrownBy(() -> projectionService.create(USER_ID, request))
                 .isInstanceOf(PremiumRequiredException.class);

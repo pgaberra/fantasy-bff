@@ -19,9 +19,9 @@ public record ProjectionSummaryResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProjectionKind kind,
 
-        @Schema(description = "Which shared starting point a preset draft was started from. "
-                + "Absent on any other kind, and on preset drafts saved before this was "
-                + "recorded. This, not the name, is what tells two preset drafts apart.")
+        @Schema(description = "Which shared starting point a draft was started from. Absent on "
+                + "any other kind, on a draft started from one of the user's own boards, and on "
+                + "preset drafts saved before this was recorded.")
         ProjectionPreset preset,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Season season,
@@ -36,7 +36,17 @@ public record ProjectionSummaryResponse(
                 + "only on a follow. `kind: imported` alone does not mean one: a spreadsheet "
                 + "import is the user's own rows and a copy taken from a link is their own "
                 + "board, and neither carries an origin.")
-        ProjectionResponse.ProjectionOrigin origin
+        ProjectionResponse.ProjectionOrigin origin,
+
+        @Schema(description = "The board a draft was started from. Absent on anything that is not "
+                + "a draft, on a draft started from a preset, and once that board is deleted — a "
+                + "draft holds its own copy of the numbers and outlives it.")
+        String sourceProjectionId,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether the name is still the one the server gave this row. False "
+                        + "once its owner has renamed it, which a league sync then leaves alone.")
+        boolean autoNamed
 ) {
 
     /** The season a projection is for, as its 8-digit code. */
@@ -52,8 +62,8 @@ public record ProjectionSummaryResponse(
     }
 
     /**
-     * Which shared starting point a preset draft came from. A draft records that it came from a
-     * preset in its kind; this says which, so nothing has to read it back out of the name.
+     * Which shared starting point a draft came from, where it came from one rather than from a
+     * board of the user's own. Said outright, so nothing has to read it back out of the name.
      */
     public enum ProjectionPreset {
         @JsonProperty("last_season")
@@ -87,7 +97,9 @@ public record ProjectionSummaryResponse(
                 origin == null
                         ? null
                         : new ProjectionResponse.ProjectionOrigin(
-                                origin.getShareToken(), origin.getAuthorUsername()));
+                                origin.getShareToken(), origin.getAuthorUsername()),
+                summary.getSourceProjectionId(),
+                Boolean.TRUE.equals(summary.getAutoNamed()));
     }
 
     private static ProjectionKind kindOf(
@@ -96,7 +108,7 @@ public record ProjectionSummaryResponse(
             return ProjectionKind.PROJECTION;
         }
         return switch (kind) {
-            case PRESET_DRAFT -> ProjectionKind.PRESET_DRAFT;
+            case DRAFT -> ProjectionKind.DRAFT;
             case IMPORTED -> ProjectionKind.IMPORTED;
             case PROJECTION -> ProjectionKind.PROJECTION;
         };

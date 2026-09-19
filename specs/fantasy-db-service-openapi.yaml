@@ -333,6 +333,60 @@ paths:
           description: Projection deleted
         "404":
           description: No such projection for this user
+  /api/v1/users/{userId}/projections/{id}/name:
+    put:
+      tags:
+      - User projections
+      summary: Rename a projection or a draft
+      description: "Without sending the board with it. A name the user typed is refused\
+        \ where it is taken; one the app derived (`derived: true`) is numbered instead,\
+        \ and is skipped altogether where the user has named the row themselves. The\
+        \ saved name is in the response either way."
+      operationId: rename
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenameProjectionRequest"
+        required: true
+      responses:
+        "200":
+          description: "Renamed, or left as it was"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionSummaryResponse"
+        "400":
+          description: Validation failed (blank or too long)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionSummaryResponse"
+        "404":
+          description: No such projection for this user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionSummaryResponse"
+        "409":
+          description: Another row of the user's holds that name
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionSummaryResponse"
   /api/v1/users/{userId}/pending-checkout:
     get:
       tags:
@@ -614,6 +668,60 @@ paths:
         "409":
           description: "The user already has a draft against that preset, or a request\
             \ racing this one took the name"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+  /api/v1/users/{userId}/projections/{id}/drafts:
+    post:
+      tags:
+      - User projections
+      summary: Start a draft against one of the user's boards
+      description: "Copies the board's player rows and position corrections into a\
+        \ draft of its own, with the setup sent here. The board is not written to\
+        \ and is not read again afterwards, so it can be edited or deleted while the\
+        \ draft is under way, and any number of drafts can be started against it."
+      operationId: startDraft
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartDraftRequest"
+        required: true
+      responses:
+        "201":
+          description: Draft created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "400":
+          description: "Validation failed, or the source is itself a draft"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "404":
+          description: No such projection for this user
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProjectionResponse"
+        "409":
+          description: A request racing this one took the name
           content:
             '*/*':
               schema:
@@ -1925,7 +2033,7 @@ components:
           type: string
           enum:
           - projection
-          - preset_draft
+          - draft
           - imported
         season:
           type: string
@@ -1947,6 +2055,17 @@ components:
           description: "The share link this board follows, and who published it. Present\
             \ only on a follow, which is read-only apart from its draft. Absent on\
             \ the user's own boards, including a copy taken from a link."
+        sourceProjectionId:
+          type: string
+          description: "The board a draft was started from. Absent on anything that\
+            \ is not a draft, on a draft started from a preset, and once that board\
+            \ is deleted — the draft holds its own copy of the numbers and outlives\
+            \ it."
+        autoNamed:
+          type: boolean
+          description: "Whether the name is still the one the server gave this row.\
+            \ False once its owner has named it, which a derived rename then leaves\
+            \ alone."
         playerIdSpace:
           type: string
           description: Which platform's numbering the player ids in data are. A caller
@@ -1955,12 +2074,94 @@ components:
           - yahoo
           - espn
       required:
+      - autoNamed
       - createdAt
       - data
       - id
       - kind
       - name
       - playerIdSpace
+      - season
+      - updatedAt
+    RenameProjectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        derived:
+          type: boolean
+          description: "True when the name was derived by the app rather than typed\
+            \ by the user — a draft taking the name of the league it was just synced\
+            \ with. Such a rename is skipped where the user has named the row themselves,\
+            \ and a name another row holds is numbered rather than refused. Defaults\
+            \ to false."
+      required:
+      - name
+    ProjectionSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum:
+          - projection
+          - draft
+          - imported
+        preset:
+          type: string
+          description: "Which preset a draft was started from. Absent on any other\
+            \ kind, on a draft started from one of the user's own boards, and on preset\
+            \ drafts stored before this was recorded."
+          enum:
+          - last_season
+          - model
+        season:
+          type: string
+          enum:
+          - "20252026"
+          - "20262027"
+          - "20272028"
+          - "20282029"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        draftStatus:
+          type: string
+          enum:
+          - none
+          - in_progress
+          - finished
+        origin:
+          $ref: "#/components/schemas/ProjectionOrigin"
+          description: "The share link this board follows, and who published it. Present\
+            \ only on a follow, which is read-only apart from its draft. Absent on\
+            \ the user's own boards, including a copy taken from a link."
+        sourceProjectionId:
+          type: string
+          description: "The board a draft was started from. Absent on anything that\
+            \ is not a draft, on a draft started from a preset, and once that board\
+            \ is deleted — the draft holds its own copy of the numbers and outlives\
+            \ it."
+        autoNamed:
+          type: boolean
+          description: "Whether the name is still the one the server gave this row.\
+            \ False once its owner has named it, which a derived rename then leaves\
+            \ alone."
+      required:
+      - autoNamed
+      - createdAt
+      - draftStatus
+      - id
+      - kind
+      - name
       - season
       - updatedAt
     ReplacePendingCheckoutRequest:
@@ -2077,12 +2278,13 @@ components:
           description: What the projection is for. Defaults to the user's own.
           enum:
           - projection
-          - preset_draft
+          - draft
           - imported
         preset:
           type: string
-          description: Which preset a preset draft was started from. A user may hold
-            one draft per preset. Ignored on any other kind.
+          description: "Which preset a draft was started from. Ignored on any other\
+            \ kind, and left unset on a draft started from one of the user's own boards\
+            \ — that one is created through POST /projections/{id}/drafts instead."
           enum:
           - last_season
           - model
@@ -2100,6 +2302,21 @@ components:
       - data
       - name
       - playerIdSpace
+    StartDraftRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: What to call the draft. Defaults to the board's name. A name
+            another draft holds is numbered ("Board (2)") rather than refused.
+          maxLength: 100
+          minLength: 0
+        data:
+          $ref: "#/components/schemas/ProjectionData"
+          description: "The draft's own settings and its setup. `players` is ignored:\
+            \ the rows are copied from the board being drafted against."
+      required:
+      - data
     ImportProjectionRequest:
       type: object
       properties:
@@ -2418,58 +2635,6 @@ components:
       - sharesScanned
       - to
       - unmappedPlayerIds
-    ProjectionSummaryResponse:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        kind:
-          type: string
-          enum:
-          - projection
-          - preset_draft
-          - imported
-        preset:
-          type: string
-          description: "Which preset a preset draft was started from. Absent on any\
-            \ other kind, and on preset drafts stored before this was recorded."
-          enum:
-          - last_season
-          - model
-        season:
-          type: string
-          enum:
-          - "20252026"
-          - "20262027"
-          - "20272028"
-          - "20282029"
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        draftStatus:
-          type: string
-          enum:
-          - none
-          - in_progress
-          - finished
-        origin:
-          $ref: "#/components/schemas/ProjectionOrigin"
-          description: "The share link this board follows, and who published it. Present\
-            \ only on a follow, which is read-only apart from its draft. Absent on\
-            \ the user's own boards, including a copy taken from a link."
-      required:
-      - createdAt
-      - draftStatus
-      - id
-      - kind
-      - name
-      - season
-      - updatedAt
     PremiumEntitlementResponse:
       type: object
       properties:

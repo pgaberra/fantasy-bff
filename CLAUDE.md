@@ -69,12 +69,22 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
 - `controller/` — REST endpoints under `/api/v1` (`AuthController`, `PlayerController`,
   `ProjectionController` — the user's saved projections; takes the user id from the JWT
   and forwards to db-service, never trusting a client-supplied user id. A create may set
-  `kind: preset_draft`, which stores a projection that only holds the picks of a draft
-  started from a preset — db-service keeps one of each kind per user, and the web filters
-  preset drafts out of "my projections". A preset is defined here, not by the caller: a
-  `preset_draft` must be created with `source=default` and is named server-side, so a
-  draft cannot claim to be drafted against something it wasn't). Reading one runs it
-  through `ProjectionPoolReconciler` first — see below
+  `kind: draft`, which is how a draft **against a preset** is started: the preset is defined
+  here and not by the caller, so it must come with `source=default` or `source=model` and is
+  named server-side, and a draft cannot claim to be drafted against something it wasn't.
+  Drafts are kept out of "my projections" by the web filtering on `kind`). Reading one runs
+  it through `ProjectionPoolReconciler` first — see below
+  - `POST /api/v1/projections/{id}/drafts` — starting a draft **against one of the user's own
+    boards**. db-service copies that board's rows into a draft of its own, so the ~0.5 MB never
+    travels and the board stays editable, and deletable, while the draft is under way. A board
+    may be drafted against **any number of times**: the draft is a row, not a field on the
+    board, and a name another draft holds is numbered (`My league (2)`) rather than refused.
+    Nothing is reconciled here — a draft is a snapshot by design, and adding players to it
+    mid-draft would move the numbers under whoever is picking.
+  - `PUT /api/v1/projections/{id}/name` — renaming a board or a draft without sending the board
+    with it. A name the **user** typed is refused where it is taken (409); one the **app**
+    derived (`derived: true`, a draft taking the name of the league it was just synced with) is
+    numbered instead, and is skipped altogether where the user has already named the row.
   - `POST /api/v1/projections/imports` on `ProjectionController` — copying a shared board into
     the caller's own projections by its share token. Anyone signed in who holds a link may take
     a copy; it arrives as `kind: imported`, carries the author's rows but none of their draft,
@@ -182,7 +192,7 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     prefix is open.
     **The model's lines are premium**, and there are two ways to them that share no code, so
     both are gated: `/seed`, which hands them to the new-projection page, and `source=model`
-    in `ProjectionService.create`, which fills a projection or a preset draft with them
+    in `ProjectionService.create`, which fills a projection or a preset's draft with them
     server-side without the client ever seeing a row. Either refuses with **403
     `PREMIUM_REQUIRED`**. The switch is checked first — an environment without the feature
     answers about the switch, since "subscribe" would point at a page that cannot make it

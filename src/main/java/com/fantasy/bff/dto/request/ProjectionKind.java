@@ -3,9 +3,9 @@ package com.fantasy.bff.dto.request;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * What a projection is for. A preset draft is not a projection the user made — it only exists
- * to hold the picks of a draft started from a preset (currently last season's stats), so it is
- * kept out of the projections the app lists as their own. Neither is an imported board: it is a
+ * What a saved board is. A draft is not a projection the user made — it is a copy of the board
+ * it was drafted against, kept apart so the picks live somewhere of their own and so one board
+ * can be drafted against as many times as its owner likes. Neither is an imported board: it is a
  * copy of someone else's, taken from their share link.
  */
 public enum ProjectionKind {
@@ -14,9 +14,13 @@ public enum ProjectionKind {
     @JsonProperty("projection")
     PROJECTION,
 
-    /** Storage for a draft started from a preset rather than from a projection. */
-    @JsonProperty("preset_draft")
-    PRESET_DRAFT,
+    /**
+     * A draft: the picks, the league it is played in, and a copy of the numbers it is drafted
+     * against. Started from one of the user's boards (POST /projections/{id}/drafts) or from a
+     * preset, which is the one case the rows are seeded here.
+     */
+    @JsonProperty("draft")
+    DRAFT,
 
     /**
      * A board the user brought in rather than built: a copy taken from a share link, or rows the

@@ -13,10 +13,11 @@ import jakarta.validation.constraints.Size;
  * complete projection.
  *
  * <p>{@code kind} is likewise a concern of this API: db-service stores whichever kind it is
- * told, while the app decides that a draft started from a preset gets a {@code PRESET_DRAFT}
- * so it never shows up among the projections the user made. A preset is defined by the
- * server, so a {@code PRESET_DRAFT} takes its name and its player rows from here and not from
- * the caller — see {@code ProjectionService}.
+ * told, while the app decides that a draft started from a preset gets a {@code DRAFT} so it
+ * never shows up among the projections the user made. A preset is defined by the server, so
+ * such a draft takes its name and its player rows from here and not from the caller — see
+ * {@code ProjectionService}. A draft against a board of the user's own is not created here at
+ * all: {@code POST /api/v1/projections/{id}/drafts} copies that board server-side.
  *
  * <p>A projection covers every player in the league, which is ~0.5 MB of JSON the client had
  * just downloaded from {@code /api/v1/players/*}. Uploading it back was failing in production

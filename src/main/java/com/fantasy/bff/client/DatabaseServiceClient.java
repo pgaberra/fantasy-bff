@@ -6,6 +6,8 @@ import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import com.fantasy.bff.generated.db.model.CopyProjectionRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
+import com.fantasy.bff.generated.db.model.RenameProjectionRequest;
+import com.fantasy.bff.generated.db.model.StartDraftRequest;
 import com.fantasy.bff.generated.db.model.ProjectionResponse;
 import com.fantasy.bff.generated.db.model.ProjectionSummaryResponse;
 import com.fantasy.bff.generated.db.model.ShareResponse;
@@ -111,6 +113,12 @@ public interface DatabaseServiceClient {
      * and no link back to the share. It leaves them following the link as well.
      */
     ProjectionResponse copyShare(UUID userId, CopyProjectionRequest request);
+
+    /** Copies one of the user's boards into a draft of its own, server-side. */
+    ProjectionResponse startDraft(UUID userId, UUID boardId, StartDraftRequest request);
+
+    /** Renames a board or a draft. Returns the row as saved, which may be numbered or unchanged. */
+    ProjectionSummaryResponse renameProjection(UUID userId, UUID id, RenameProjectionRequest request);
 
     ProjectionResponse updateProjection(UUID userId, UUID projectionId, UpdateProjectionRequest request);
 

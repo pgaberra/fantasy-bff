@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -62,6 +63,26 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
 
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID PROJECTION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID DRAFT_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
+    /** What the draft page sends: its own league and setup, with the rows left to the server. */
+    private static final String START_DRAFT_BODY = """
+            {
+              "name": "My mock",
+              "data": {
+                "settings": {
+                  "scoringType": "points",
+                  "statWeights": { "goals": 4.5 },
+                  "activeScoringColumns": ["goals"],
+                  "activeUtilityColumns": ["gp"],
+                  "scaleSettings": {},
+                  "decimalSettings": { "goals": 0 },
+                  "useDefaultDecimals": true
+                },
+                "players": []
+              }
+            }
+            """;
 
     private static final String VALID_BODY = """
             {
@@ -213,7 +234,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
      * own kind — kept out of the projections the user made.
      */
     @Test
-    void create_withPresetDraftKind_forwardsTheKindDownstream() throws Exception {
+    void create_withDraftKind_forwardsTheKindDownstream() throws Exception {
         when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
         when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
@@ -223,12 +244,12 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SOURCED_BODY.replace("\"source\": \"default\",",
-                                "\"source\": \"default\", \"kind\": \"preset_draft\",")))
+                                "\"source\": \"default\", \"kind\": \"draft\",")))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<CreateProjectionRequest> sent = ArgumentCaptor.forClass(CreateProjectionRequest.class);
         verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
-        assertThat(sent.getValue().getKind()).isEqualTo(CreateProjectionRequest.KindEnum.PRESET_DRAFT);
+        assertThat(sent.getValue().getKind()).isEqualTo(CreateProjectionRequest.KindEnum.DRAFT);
     }
 
     /**
@@ -236,7 +257,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
      * draft claim it was drafted against something it wasn't.
      */
     @Test
-    void create_asPresetDraft_isNamedByTheServerNotTheCaller() throws Exception {
+    void create_asAPresetDraft_isNamedByTheServerNotTheCaller() throws Exception {
         when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
         when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
@@ -248,7 +269,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                         .content(SOURCED_BODY
                                 .replace("\"name\": \"My league\",", "\"name\": \"Totally legit ranking\",")
                                 .replace("\"source\": \"default\",",
-                                        "\"source\": \"default\", \"kind\": \"preset_draft\",")))
+                                        "\"source\": \"default\", \"kind\": \"draft\",")))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<CreateProjectionRequest> sent = ArgumentCaptor.forClass(CreateProjectionRequest.class);
@@ -258,12 +279,12 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
 
     /** A preset whose rows came from the caller would not be the preset. */
     @Test
-    void create_asPresetDraftWithoutTheDefaultSource_isRejected() throws Exception {
+    void create_asADraftWithoutAPresetSource_isRejected() throws Exception {
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY.replace("\"name\": \"My league\",",
-                                "\"name\": \"My league\", \"kind\": \"preset_draft\",")))
+                                "\"name\": \"My league\", \"kind\": \"draft\",")))
                 .andExpect(status().isBadRequest());
 
         verify(databaseServiceClient, never()).createProjection(any(), any());
@@ -519,5 +540,124 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         verify(databaseServiceClient, never()).copyShare(any(), any());
+    }
+    /**
+     * The whole of what was asked for: a board can be drafted against again and again. The rows
+     * are copied downstream, so nothing of the board travels in either direction.
+     */
+    @Test
+    void startDraft_copiesTheBoardDownstreamAndReturnsTheDraft() throws Exception {
+        when(databaseServiceClient.startDraft(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(DRAFT_ID.toString()).name("My league (2)")
+                        .kind(ProjectionResponse.KindEnum.DRAFT)
+                        .sourceProjectionId(PROJECTION_ID.toString())
+                        .autoNamed(true));
+
+        mockMvc.perform(post("/api/v1/projections/{id}/drafts", PROJECTION_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(START_DRAFT_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.kind").value("draft"))
+                .andExpect(jsonPath("$.name").value("My league (2)"))
+                .andExpect(jsonPath("$.sourceProjectionId").value(PROJECTION_ID.toString()))
+                .andExpect(jsonPath("$.autoNamed").value(true));
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.StartDraftRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.StartDraftRequest.class);
+        verify(databaseServiceClient).startDraft(eq(USER_ID), eq(PROJECTION_ID), sent.capture());
+        assertThat(sent.getValue().getData().getPlayers()).isEmpty();
+    }
+
+    @Test
+    void startDraft_withoutAName_leavesTheNamingToTheServer() throws Exception {
+        when(databaseServiceClient.startDraft(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(DRAFT_ID.toString()).name("My league")
+                        .kind(ProjectionResponse.KindEnum.DRAFT).autoNamed(true));
+
+        mockMvc.perform(post("/api/v1/projections/{id}/drafts", PROJECTION_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(START_DRAFT_BODY.replace("\"name\": \"My mock\",", "")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("My league"));
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.StartDraftRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.StartDraftRequest.class);
+        verify(databaseServiceClient).startDraft(eq(USER_ID), eq(PROJECTION_ID), sent.capture());
+        assertThat(sent.getValue().getName()).isNull();
+    }
+
+    @Test
+    void startDraft_needsAToken() throws Exception {
+        mockMvc.perform(post("/api/v1/projections/{id}/drafts", PROJECTION_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(START_DRAFT_BODY))
+                .andExpect(status().isUnauthorized());
+
+        verify(databaseServiceClient, never()).startDraft(any(), any(), any());
+    }
+
+    @Test
+    void rename_forwardsTheNameAndReturnsWhatWasSaved() throws Exception {
+        when(databaseServiceClient.renameProjection(eq(USER_ID), eq(DRAFT_ID), any())).thenReturn(
+                summary("Mock #3", ProjectionSummaryResponse.KindEnum.DRAFT));
+
+        mockMvc.perform(put("/api/v1/projections/{id}/name", DRAFT_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Mock #3\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Mock #3"));
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.RenameProjectionRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.RenameProjectionRequest.class);
+        verify(databaseServiceClient).renameProjection(eq(USER_ID), eq(DRAFT_ID), sent.capture());
+        assertThat(sent.getValue().getName()).isEqualTo("Mock #3");
+        assertThat(sent.getValue().getDerived()).isNull();
+    }
+
+    /** A league sync's rename carries the flag that lets the server decline it. */
+    @Test
+    void rename_passesTheDerivedFlagDownstream() throws Exception {
+        when(databaseServiceClient.renameProjection(eq(USER_ID), eq(DRAFT_ID), any())).thenReturn(
+                summary("Beer League", ProjectionSummaryResponse.KindEnum.DRAFT));
+
+        mockMvc.perform(put("/api/v1/projections/{id}/name", DRAFT_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Beer League\", \"derived\": true}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.RenameProjectionRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.RenameProjectionRequest.class);
+        verify(databaseServiceClient).renameProjection(eq(USER_ID), eq(DRAFT_ID), sent.capture());
+        assertThat(sent.getValue().getDerived()).isTrue();
+    }
+
+    @Test
+    void rename_rejectsABlankName() throws Exception {
+        mockMvc.perform(put("/api/v1/projections/{id}/name", DRAFT_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"  \"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).renameProjection(any(), any(), any());
+    }
+
+    private static ProjectionSummaryResponse summary(String name,
+                                                     ProjectionSummaryResponse.KindEnum kind) {
+        return new ProjectionSummaryResponse()
+                .id(DRAFT_ID.toString())
+                .name(name)
+                .kind(kind)
+                .season(ProjectionSummaryResponse.SeasonEnum._20262027)
+                .createdAt(OffsetDateTime.parse("2026-09-19T10:00:00Z"))
+                .updatedAt(OffsetDateTime.parse("2026-09-19T10:00:00Z"))
+                .draftStatus(ProjectionSummaryResponse.DraftStatusEnum.IN_PROGRESS)
+                .autoNamed(false);
     }
 }

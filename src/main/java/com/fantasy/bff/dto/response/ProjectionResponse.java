@@ -33,7 +33,17 @@ public record ProjectionResponse(
                 + "only on a follow, which is read-only apart from its draft, and never stale: "
                 + "the follow goes when the share does. Absent on the user's own boards, "
                 + "including a copy taken from a link.")
-        ProjectionOrigin origin
+        ProjectionOrigin origin,
+
+        @Schema(description = "The board a draft was started from. Absent on anything that is not "
+                + "a draft, on a draft started from a preset, and once that board is deleted — a "
+                + "draft holds its own copy of the numbers and outlives it.")
+        String sourceProjectionId,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether the name is still the one the server gave this row. False "
+                        + "once its owner has renamed it, which a league sync then leaves alone.")
+        boolean autoNamed
 ) {
 
     /**
@@ -54,7 +64,9 @@ public record ProjectionResponse(
                 ProjectionData.from(stored.getData()),
                 stored.getCreatedAt(),
                 stored.getUpdatedAt(),
-                originOf(stored.getOrigin()));
+                originOf(stored.getOrigin()),
+                stored.getSourceProjectionId(),
+                Boolean.TRUE.equals(stored.getAutoNamed()));
     }
 
     private static ProjectionKind kindOf(
@@ -63,7 +75,7 @@ public record ProjectionResponse(
             return ProjectionKind.PROJECTION;
         }
         return switch (kind) {
-            case PRESET_DRAFT -> ProjectionKind.PRESET_DRAFT;
+            case DRAFT -> ProjectionKind.DRAFT;
             case IMPORTED -> ProjectionKind.IMPORTED;
             case PROJECTION -> ProjectionKind.PROJECTION;
         };
