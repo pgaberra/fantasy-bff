@@ -26,6 +26,174 @@
         "title": "BacktestSummaryResponse",
         "type": "object"
       },
+      "GoalieFinishingTableResponse": {
+        "description": "One goalie's row of the finishing table: the leaderboard, not his projection.\n\nThe crease is shaped the way a season's is and shutouts are their own table, so a starter's\nworkload and a leader's shutouts run above his expectation. Carries no uncertainty band.",
+        "properties": {
+          "games_played": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Played"
+          },
+          "games_started": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Started"
+          },
+          "goals_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against"
+          },
+          "goals_against_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against Avg"
+          },
+          "losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losses"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "ot_losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ot Losses"
+          },
+          "save_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save Pct"
+          },
+          "saves": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saves"
+          },
+          "shots_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots Against"
+          },
+          "shutouts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shutouts"
+          },
+          "target_season": {
+            "title": "Target Season",
+            "type": "integer"
+          },
+          "toi_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Seconds"
+          },
+          "wins": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wins"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "target_season",
+          "model_version",
+          "games_played",
+          "games_started",
+          "wins",
+          "losses",
+          "ot_losses",
+          "shutouts",
+          "shots_against",
+          "saves",
+          "goals_against",
+          "goals_against_avg",
+          "save_pct",
+          "toi_seconds"
+        ],
+        "title": "GoalieFinishingTableResponse",
+        "type": "object"
+      },
       "GoalieProjectionResponse": {
         "properties": {
           "games_played": {
@@ -1270,6 +1438,294 @@
         "title": "ScheduleWeeksResponse",
         "type": "object"
       },
+      "SkaterFinishingTableResponse": {
+        "description": "One skater's row of the finishing table: the leaderboard, not his projection.\n\nRank k of each column holds what rank k of a real season usually takes, so every number is\ndeliberately higher than the player's own expectation near the top. Sort the rows on a column\nto read that column's leaderboard. Carries no uncertainty band.",
+        "properties": {
+          "assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assists"
+          },
+          "blocks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks"
+          },
+          "faceoffs_lost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceoffs Lost"
+          },
+          "faceoffs_won": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceoffs Won"
+          },
+          "games_played": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Played"
+          },
+          "goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals"
+          },
+          "gw_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gw Goals"
+          },
+          "hat_tricks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hat Tricks"
+          },
+          "hits": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hits"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "pim": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pim"
+          },
+          "plus_minus": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plus Minus"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "pp_assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Assists"
+          },
+          "pp_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Goals"
+          },
+          "pp_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Points"
+          },
+          "sh_assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Assists"
+          },
+          "sh_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Goals"
+          },
+          "sh_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Points"
+          },
+          "shifts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shifts"
+          },
+          "shooting_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shooting Pct"
+          },
+          "shots": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots"
+          },
+          "target_season": {
+            "title": "Target Season",
+            "type": "integer"
+          },
+          "toi_per_game_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Per Game Seconds"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "target_season",
+          "model_version",
+          "games_played",
+          "toi_per_game_seconds",
+          "goals",
+          "assists",
+          "points",
+          "plus_minus",
+          "pim",
+          "pp_goals",
+          "pp_assists",
+          "pp_points",
+          "sh_goals",
+          "sh_assists",
+          "sh_points",
+          "gw_goals",
+          "shots",
+          "shooting_pct",
+          "faceoffs_won",
+          "faceoffs_lost",
+          "hits",
+          "blocks",
+          "shifts",
+          "hat_tricks"
+        ],
+        "title": "SkaterFinishingTableResponse",
+        "type": "object"
+      },
       "SkaterProjectionResponse": {
         "properties": {
           "assists": {
@@ -1947,6 +2403,172 @@
           }
         },
         "summary": "Latest Backtest",
+        "tags": [
+          "projections"
+        ]
+      }
+    },
+    "/api/v1/finishing-table/goalies": {
+      "get": {
+        "description": "The goalie leaderboard the season is likely to end on, one row per goalie.\n\nSee `/finishing-table/skaters`. Empty for a run before `marcel-v81`.",
+        "operationId": "goalie_finishing_table_api_v1_finishing_table_goalies_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+            "in": "query",
+            "name": "model_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoalieFinishingTableResponse"
+                  },
+                  "title": "Response Goalie Finishing Table Api V1 Finishing Table Goalies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Goalie Finishing Table",
+        "tags": [
+          "projections"
+        ]
+      }
+    },
+    "/api/v1/finishing-table/skaters": {
+      "get": {
+        "description": "The skater leaderboard the season is likely to end on, one row per player.\n\nThe same field as `/projections/skaters`, restated so that rank k of each column holds what\nrank k of a real season takes. It answers what the leaderboard will look like, not what any\none player will do; his projection is the expectation. Empty for a run before `marcel-v81`.",
+        "operationId": "skater_finishing_table_api_v1_finishing_table_skaters_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+            "in": "query",
+            "name": "model_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Projection model version. Omit for the season's most recent run, which is what a caller almost always wants; give one to pin an older version.",
+              "title": "Model Version"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SkaterFinishingTableResponse"
+                  },
+                  "title": "Response Skater Finishing Table Api V1 Finishing Table Skaters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skater Finishing Table",
         "tags": [
           "projections"
         ]
