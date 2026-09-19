@@ -473,7 +473,13 @@ the root `CLAUDE.md`. What is specific here: `GlobalExceptionHandler` maps
 | `IllegalArgumentException` | 400 | Invalid input, business rule violation |
 | `IllegalStateException` | 502 | Downstream error or timeout |
 | `MethodArgumentNotValidException` | 400 | Bean Validation failure |
+| Spring MVC's own `ErrorResponse` 4xx | its own | Wrong method (405), body type (415) or `Accept` (406), missing part — not logged |
 | `Exception` | 500 | Catch-all — logs the stack trace |
+
+Whatever ends outside a controller (an exception in a filter, a `sendError` from Spring
+Security's refusals) reaches `ErrorPageController`, which answers with the status the error
+already has and the same `ErrorDto`. `SecurityConfig` permits the `ERROR` dispatch for it:
+that dispatch carries no token, and judging it again turned each such error into a 401.
 
 Set connect + read timeouts on every `RestClient`, use `onStatus()` so a non-2xx becomes an
 exception, and let the `RestClientException` handler capture the upstream status.
