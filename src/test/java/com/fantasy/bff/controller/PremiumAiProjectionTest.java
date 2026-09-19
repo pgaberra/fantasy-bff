@@ -177,7 +177,7 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
     }
 
     private static String presetDraftFromModel() {
-        return bodyWith("\"source\": \"model\", \"kind\": \"preset_draft\",");
+        return bodyWith("\"source\": \"model\", \"kind\": \"draft\",");
     }
 
     @Test

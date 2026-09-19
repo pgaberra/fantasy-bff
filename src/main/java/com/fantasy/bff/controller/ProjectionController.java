@@ -4,6 +4,8 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.dto.request.ImportProjectionRequest;
 import com.fantasy.bff.dto.response.ProjectionResponse;
+import com.fantasy.bff.dto.request.RenameProjectionRequest;
+import com.fantasy.bff.dto.request.StartDraftRequest;
 import com.fantasy.bff.dto.request.UpdateProjectionRequest;
 import com.fantasy.bff.dto.response.ProjectionSummaryResponse;
 import com.fantasy.bff.service.ProjectionService;
@@ -100,6 +102,45 @@ public class ProjectionController {
     public ProjectionResponse importFromShare(@AuthenticationPrincipal String userId,
                                               @Valid @RequestBody ImportProjectionRequest request) {
         return projectionService.importFromShare(UUID.fromString(userId), request);
+    }
+
+    @Operation(summary = "Start a draft against one of the current user's boards",
+            description = "The draft is a row of its own, holding a copy of the board's numbers "
+                    + "and its own picks — so the board can be edited or deleted while the draft "
+                    + "is under way, and a board can be drafted against as many times as its "
+                    + "owner likes. The rows are copied server-side and are not sent. Without a "
+                    + "`name` the draft takes the board's, numbered (\"Board (2)\") where "
+                    + "another draft already holds it.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Draft created"),
+        @ApiResponse(responseCode = "400", description = "Validation failed, or the source is itself a draft"),
+        @ApiResponse(responseCode = "404", description = "No such projection for this user")
+    })
+    @PostMapping("/{id}/drafts")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectionResponse startDraft(@AuthenticationPrincipal String userId,
+                                         @PathVariable UUID id,
+                                         @Valid @RequestBody StartDraftRequest request) {
+        return projectionService.startDraft(UUID.fromString(userId), id, request);
+    }
+
+    @Operation(summary = "Rename one of the current user's boards or drafts",
+            description = "Without sending the board with it. A name the user typed is refused "
+                    + "where it is taken; one the app derived (`derived: true`, a draft taking "
+                    + "the name of the league it was just synced with) is numbered instead, and "
+                    + "is skipped altogether where the user has named the row themselves. The "
+                    + "saved name is in the response either way.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Renamed, or left as it was"),
+        @ApiResponse(responseCode = "400", description = "Validation failed"),
+        @ApiResponse(responseCode = "404", description = "No such projection for this user"),
+        @ApiResponse(responseCode = "409", description = "Another row of the user's holds that name")
+    })
+    @PutMapping("/{id}/name")
+    public ProjectionSummaryResponse rename(@AuthenticationPrincipal String userId,
+                                            @PathVariable UUID id,
+                                            @Valid @RequestBody RenameProjectionRequest request) {
+        return projectionService.rename(UUID.fromString(userId), id, request);
     }
 
     @Operation(summary = "Update one of the current user's saved projections")

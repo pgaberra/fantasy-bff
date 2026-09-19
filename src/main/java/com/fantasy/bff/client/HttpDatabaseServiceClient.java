@@ -9,6 +9,8 @@ import com.fantasy.bff.generated.db.model.PlayerIdRemapRequest;
 import com.fantasy.bff.generated.db.model.PlayerIdRemapResponse;
 import com.fantasy.bff.generated.db.model.CreateShareRequest;
 import com.fantasy.bff.generated.db.model.ImportProjectionRequest;
+import com.fantasy.bff.generated.db.model.RenameProjectionRequest;
+import com.fantasy.bff.generated.db.model.StartDraftRequest;
 import com.fantasy.bff.generated.db.model.CreateUserRequest;
 import com.fantasy.bff.generated.db.model.EmailVerificationTokenResponse;
 import com.fantasy.bff.generated.db.model.ExistsResponse;
@@ -336,6 +338,27 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
                 .body(request)
                 .retrieve()
                 .body(ProjectionResponse.class);
+    }
+
+    @Override
+    public ProjectionResponse startDraft(UUID userId, UUID boardId, StartDraftRequest request) {
+        return projectionClient.post()
+                .uri("/api/v1/users/{userId}/projections/{id}/drafts", userId, boardId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(ProjectionResponse.class);
+    }
+
+    @Override
+    public ProjectionSummaryResponse renameProjection(UUID userId, UUID id,
+                                                      RenameProjectionRequest request) {
+        return restClient.put()
+                .uri("/api/v1/users/{userId}/projections/{id}/name", userId, id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(ProjectionSummaryResponse.class);
     }
 
     @Override
