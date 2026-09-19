@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Optional;
@@ -54,6 +55,8 @@ class AccountControllerIntegrationTest extends BaseIntegrationTest {
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
     private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 4, 5};
+    // What the web's generated client sends for the picture: the type the spec says it serves.
+    private static final String PICTURE = "image/*";
 
     private String token() {
         return jwtTokenValidator.generateToken(USER_ID.toString(), "owner@example.com");
@@ -132,7 +135,8 @@ class AccountControllerIntegrationTest extends BaseIntegrationTest {
         when(databaseServiceClient.findAvatar(USER_ID))
                 .thenReturn(Optional.of(new Avatar("image/jpeg", JPEG)));
 
-        mockMvc.perform(get("/api/v1/account/avatar").header("Authorization", "Bearer " + token()))
+        mockMvc.perform(get("/api/v1/account/avatar").header("Authorization", "Bearer " + token())
+                        .accept(PICTURE))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_JPEG))
                 .andExpect(header().string("Cache-Control", "no-store"))
@@ -143,8 +147,21 @@ class AccountControllerIntegrationTest extends BaseIntegrationTest {
     void answersAnAccountWithoutAPictureWithNothingRatherThanAnError() throws Exception {
         when(databaseServiceClient.findAvatar(USER_ID)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/v1/account/avatar").header("Authorization", "Bearer " + token()))
+        mockMvc.perform(get("/api/v1/account/avatar").header("Authorization", "Bearer " + token())
+                        .accept(PICTURE))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void reportsAFaultFetchingThePictureAsTheFaultItIsRatherThanAsASignedOutSession() throws Exception {
+        when(databaseServiceClient.findAvatar(USER_ID))
+                .thenThrow(new ResourceAccessException("I/O error on GET request: Connection refused"));
+
+        mockMvc.perform(get("/api/v1/account/avatar").header("Authorization", "Bearer " + token())
+                        .accept(PICTURE))
+                .andExpect(status().isBadGateway())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.code").value("DOWNSTREAM_UNAVAILABLE"));
     }
 
     @Test

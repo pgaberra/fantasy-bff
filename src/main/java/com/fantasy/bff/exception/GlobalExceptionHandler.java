@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
@@ -34,14 +35,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<ErrorDto> handleSecurity(SecurityException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ErrorDto.of("UNAUTHORIZED", ex.getMessage()));
+        return error(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.getMessage());
     }
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorDto> handleNotFound(NoSuchElementException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorDto.of("NOT_FOUND", ex.getMessage()));
+        return error(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage());
     }
 
     /**
@@ -51,8 +50,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(PremiumRequiredException.class)
     public ResponseEntity<ErrorDto> handlePremiumRequired(PremiumRequiredException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorDto.of("PREMIUM_REQUIRED", ex.getMessage()));
+        return error(HttpStatus.FORBIDDEN, "PREMIUM_REQUIRED", ex.getMessage());
     }
 
     /**
@@ -61,14 +59,12 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(SubscriptionAlreadyLiveException.class)
     public ResponseEntity<ErrorDto> handleSubscriptionAlreadyLive(SubscriptionAlreadyLiveException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorDto.of("SUBSCRIPTION_ALREADY_LIVE", ex.getMessage()));
+        return error(HttpStatus.CONFLICT, "SUBSCRIPTION_ALREADY_LIVE", ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDto> handleBadRequest(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorDto.of("BAD_REQUEST", ex.getMessage()));
+        return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage());
     }
 
     /**
@@ -78,8 +74,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorDto> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
-        return ResponseEntity.status(HttpStatusCode.valueOf(413))
-                .body(ErrorDto.of("PAYLOAD_TOO_LARGE", "The upload is larger than allowed"));
+        return error(HttpStatusCode.valueOf(413), "PAYLOAD_TOO_LARGE", "The upload is larger than allowed");
     }
 
     @ExceptionHandler(IllegalStateException.class)
@@ -88,8 +83,7 @@ public class GlobalExceptionHandler {
         // Services that wrap a downstream failure as IllegalStateException land here, so
         // without this log the fault would be silently swallowed.
         log.error("Downstream unavailable", ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", ex.getMessage()));
+        return error(HttpStatus.BAD_GATEWAY, "DOWNSTREAM_UNAVAILABLE", ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -97,8 +91,7 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorDto.of("VALIDATION_ERROR", message));
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message);
     }
 
     /**
@@ -112,8 +105,7 @@ public class GlobalExceptionHandler {
         String message = ex.getConstraintViolations().stream()
                 .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
                 .collect(Collectors.joining(", "));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorDto.of("VALIDATION_ERROR", message));
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message);
     }
 
     /**
@@ -125,8 +117,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(YahooAccessDeniedException.class)
     public ResponseEntity<ErrorDto> handleYahooAccessDenied(YahooAccessDeniedException ex) {
         log.warn("Yahoo refused a request: {}", ex.getMessage().replace("\r", "_").replace("\n", "_"));
-        return ResponseEntity.status(HttpStatus.FAILED_DEPENDENCY)
-                .body(ErrorDto.of("YAHOO_ACCESS_DENIED", ex.getMessage()));
+        return error(HttpStatus.FAILED_DEPENDENCY, "YAHOO_ACCESS_DENIED", ex.getMessage());
     }
 
     /**
@@ -141,12 +132,11 @@ public class GlobalExceptionHandler {
         if (status == HttpStatus.NOT_FOUND || status == HttpStatus.CONFLICT
                 || status == HttpStatus.BAD_REQUEST || status == HttpStatus.PRECONDITION_FAILED) {
             log.warn("Relaying downstream {}: {}", status, ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"));
-            return ResponseEntity.status(status).body(ErrorDto.of(status.name(), ex.getMessage()));
+            return error(status, status.name(), ex.getMessage());
         }
         log.error("Downstream service returned {}: {}", ex.getStatusCode(),
                 ex.getResponseBodyAsString().replace("\r", "_").replace("\n", "_"), ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable"));
+        return error(HttpStatus.BAD_GATEWAY, "DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable");
     }
 
     /**
@@ -156,8 +146,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ErrorDto> handleDownstreamCall(RestClientException ex) {
         log.error("Downstream service call failed", ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ErrorDto.of("DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable"));
+        return error(HttpStatus.BAD_GATEWAY, "DOWNSTREAM_UNAVAILABLE", "A downstream service is unavailable");
     }
 
     /**
@@ -168,8 +157,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorDto> handleNoResource(NoResourceFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorDto.of("NOT_FOUND", "No resource found for the requested path"));
+        return error(HttpStatus.NOT_FOUND, "NOT_FOUND", "No resource found for the requested path");
     }
 
     /**
@@ -188,8 +176,7 @@ public class GlobalExceptionHandler {
     }
 
     private static ResponseEntity<ErrorDto> badParameter(String name) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorDto.of("BAD_REQUEST", "Missing or malformed parameter: " + name));
+        return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Missing or malformed parameter: " + name);
     }
 
     /**
@@ -210,12 +197,10 @@ public class GlobalExceptionHandler {
             log.warn("Request body stopped arriving: {} {} — read {} of {} declared bytes",
                     request.getMethod(), request.getRequestURI(),
                     RequestBodyByteCountFilter.bytesRead(request), request.getContentLengthLong());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ErrorDto.of("REQUEST_INCOMPLETE", "The request body was not received in full"));
+            return error(HttpStatus.BAD_REQUEST, "REQUEST_INCOMPLETE", "The request body was not received in full");
         }
         log.warn("Unreadable request body: {} {}", request.getMethod(), request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorDto.of("BAD_REQUEST", "The request body could not be read"));
+        return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "The request body could not be read");
     }
 
     /**
@@ -237,8 +222,7 @@ public class GlobalExceptionHandler {
             return null;
         }
         log.error("Response could not be written: {} {}", request.getMethod(), request.getRequestURI(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorDto.of("INTERNAL_ERROR", "An unexpected error occurred"));
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred");
     }
 
     /**
@@ -262,7 +246,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDto> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorDto.of("INTERNAL_ERROR", "An unexpected error occurred"));
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred");
+    }
+
+    /**
+     * Every error goes out as JSON, whatever the request's {@code Accept} asked for. Left to
+     * negotiation, an error on an endpoint that serves a picture — asked for as {@code image/*},
+     * as the web's generated client asks for the profile picture — found no way to write an
+     * ErrorDto. The handler itself then failed, the request fell through to the servlet container's
+     * error page, and that runs without the caller's token: a db-service fault on the picture
+     * reached the web as a 401, a signed-out session, instead of the 502 it was.
+     */
+    private static ResponseEntity<ErrorDto> error(HttpStatusCode status, String code, String message) {
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ErrorDto.of(code, message));
     }
 }
