@@ -5,6 +5,7 @@ import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.InjuriesResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import com.fantasy.bff.generated.projection.model.AbsenceResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
@@ -248,23 +249,36 @@ public class PlayerSplitContextProvider {
      * one the platform does not carry is dropped: there is no row in the app for him to mark.
      * There is no wholesale unknown here as there is for rookies — an empty report is a real
      * answer, and the "we could not ask" case is the whole context failing to load.
+     *
+     * <p>Status and date come from the projection service's {@code absence}, its one reading of
+     * ESPN, Daily Faceoff and its injury register, and the date games are charged up to. ESPN's
+     * report alone missed players who were out (Bedard in September 2026), so this passes the
+     * service's resolution through rather than working one out here. The body part is ESPN's,
+     * the only source that gives one.
      */
     private static List<InjuriesResponse.Injury> injuries(
             List<PlayerResponse> nhlPlayers, PlayerIdMapping mapping) {
         List<InjuriesResponse.Injury> injuries = new ArrayList<>();
         for (PlayerResponse player : nhlPlayers) {
-            if (player.getInjuryStatus() == null) {
-                continue;
-            }
             Integer platformId = mapping.nhlIdToPlatformId().get(player.getNhlId().longValue());
             if (platformId == null) {
                 continue;
             }
-            injuries.add(new InjuriesResponse.Injury(
-                    platformId,
-                    player.getInjuryStatus(),
-                    player.getInjuryBodyPart(),
-                    player.getInjuryExpectedReturn()));
+            AbsenceResponse absence = player.getAbsence();
+            if (absence != null && absence.getStatus() != null) {
+                injuries.add(new InjuriesResponse.Injury(
+                        platformId,
+                        absence.getStatus(),
+                        player.getInjuryBodyPart(),
+                        absence.getBackOn()));
+            } else if (absence == null && player.getInjuryStatus() != null) {
+                // A projection service from before `absence` was served: ESPN's report alone.
+                injuries.add(new InjuriesResponse.Injury(
+                        platformId,
+                        player.getInjuryStatus(),
+                        player.getInjuryBodyPart(),
+                        player.getInjuryExpectedReturn()));
+            }
         }
         return injuries;
     }

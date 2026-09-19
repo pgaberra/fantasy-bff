@@ -4098,8 +4098,9 @@ components:
           format: int32
         status:
           type: string
-          description: "The report's own wording: Out, Injured Reserve, Suspension\
-            \ or Day-To-Day. Day-To-Day usually costs no games."
+          description: "Out, Injured Reserve, Suspension or Day-To-Day, read across\
+            \ ESPN, Daily Faceoff and a hand-kept injury register. Day-To-Day usually\
+            \ costs no games."
         bodyPart:
           type: string
           description: "Where he is hurt, as reported: Knee, Upper Body, Undisclosed.\
@@ -4107,8 +4108,9 @@ components:
         expectedReturn:
           type: string
           format: date
-          description: "When he is expected back. A club's guess, so read it as the\
-            \ middle of a range rather than a date. Absent when none is given."
+          description: "When he is expected back, the date the projection counts missed\
+            \ games up to. A club's guess, so read it as the middle of a range rather\
+            \ than a date. Absent when no source dates him."
       required:
       - playerId
       - status

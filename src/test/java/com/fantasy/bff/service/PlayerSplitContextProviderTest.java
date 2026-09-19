@@ -8,10 +8,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
+import com.fantasy.bff.dto.response.InjuriesResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
+import com.fantasy.bff.generated.projection.model.AbsenceResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -153,6 +156,58 @@ class PlayerSplitContextProviderTest {
         provider(HALF_AN_HOUR_MS).context();
 
         verify(projectionServiceClient).activePlayers(SEASON);
+    }
+
+    @Test
+    @DisplayName("marks a player out from the model's reading of every source, not ESPN's alone")
+    void injuriesComeFromTheMergedAbsence() {
+        // Bedard's case: ESPN does not list him, Daily Faceoff has him out, the register dates him.
+        PlayerResponse hurt = nhlMcDavid();
+        hurt.setAbsence(new AbsenceResponse()
+                .out(true)
+                .status("Out")
+                .dfoStatus("out")
+                .backOn(LocalDate.of(2026, 11, 8))
+                .dateSource(AbsenceResponse.DateSourceEnum.REGISTER));
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(hurt));
+
+        assertThat(provider(HALF_AN_HOUR_MS).context().injuries()).containsExactly(
+                new InjuriesResponse.Injury(
+                        MCDAVID_PLATFORM_ID, "Out", null, LocalDate.of(2026, 11, 8)));
+    }
+
+    @Test
+    @DisplayName("keeps ESPN's body part beside the merged status and date")
+    void injuriesKeepEspnsBodyPart() {
+        PlayerResponse hurt = nhlMcDavid();
+        hurt.setInjuryStatus("Day-To-Day");
+        hurt.setInjuryBodyPart("Knee");
+        hurt.setInjuryExpectedReturn(LocalDate.of(2026, 10, 1));
+        hurt.setAbsence(new AbsenceResponse()
+                .out(true)
+                .status("Injured Reserve")
+                .espnStatus("Day-To-Day")
+                .dfoStatus("ir")
+                .dateSource(AbsenceResponse.DateSourceEnum.NONE));
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(hurt));
+
+        // Daily Faceoff has him out and ESPN does not; ESPN's date is not one games are charged
+        // up to, so none is shown.
+        assertThat(provider(HALF_AN_HOUR_MS).context().injuries()).containsExactly(
+                new InjuriesResponse.Injury(MCDAVID_PLATFORM_ID, "Injured Reserve", "Knee", null));
+    }
+
+    @Test
+    @DisplayName("falls back to ESPN's report from a projection service that serves no absence")
+    void injuriesFallBackToEspnWithoutAbsence() {
+        PlayerResponse hurt = nhlMcDavid();
+        hurt.setInjuryStatus("Out");
+        hurt.setInjuryExpectedReturn(LocalDate.of(2026, 11, 7));
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(hurt));
+
+        assertThat(provider(HALF_AN_HOUR_MS).context().injuries()).containsExactly(
+                new InjuriesResponse.Injury(
+                        MCDAVID_PLATFORM_ID, "Out", null, LocalDate.of(2026, 11, 7)));
     }
 
     private void upstreamStartsTimingOut() {
