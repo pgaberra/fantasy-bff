@@ -1,6 +1,79 @@
 {
   "components": {
     "schemas": {
+      "AbsenceResponse": {
+        "description": "Whether he is out and until when, as every injury source together has it.\n\nThe stored resolution (`player_absence`, restated nightly by `projection injuries`) of ESPN's\nreport, Daily Faceoff's out-of-lineup group and the injury register: the same reading the\nprojection, the week split and the goalie guard charge games from. Prefer it to the\n`injury_*` fields beside it, which are ESPN's alone and miss players the other two carry.",
+        "properties": {
+          "back_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Back On"
+          },
+          "date_source": {
+            "enum": [
+              "espn",
+              "register",
+              "none"
+            ],
+            "title": "Date Source",
+            "type": "string"
+          },
+          "dfo_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dfo Status"
+          },
+          "espn_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espn Status"
+          },
+          "out": {
+            "title": "Out",
+            "type": "boolean"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "out",
+          "status",
+          "espn_status",
+          "dfo_status",
+          "back_on",
+          "date_source"
+        ],
+        "title": "AbsenceResponse",
+        "type": "object"
+      },
       "BacktestSummaryResponse": {
         "properties": {
           "created_at": {
@@ -651,6 +724,16 @@
       },
       "PlayerResponse": {
         "properties": {
+          "absence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AbsenceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "birth_date": {
             "anyOf": [
               {
@@ -1313,6 +1396,508 @@
           "opponent_goals_for"
         ],
         "title": "RatedGameResponse",
+        "type": "object"
+      },
+      "RestOfSeasonGoalieResponse": {
+        "description": "A goalie's expected line over his club's remaining games, the crease divided among the\nclub's goalies over what it has left.",
+        "properties": {
+          "games_played": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Played"
+          },
+          "games_remaining": {
+            "title": "Games Remaining",
+            "type": "integer"
+          },
+          "games_started": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Started"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "goals_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against"
+          },
+          "goals_against_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals Against Avg"
+          },
+          "losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losses"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "ot_losses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ot Losses"
+          },
+          "save_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save Pct"
+          },
+          "saves": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saves"
+          },
+          "shots_against": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots Against"
+          },
+          "shutouts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shutouts"
+          },
+          "target_season": {
+            "title": "Target Season",
+            "type": "integer"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "toi_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Seconds"
+          },
+          "wins": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wins"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "target_season",
+          "model_version",
+          "team",
+          "games_remaining",
+          "games_played",
+          "games_started",
+          "wins",
+          "losses",
+          "ot_losses",
+          "shutouts",
+          "shots_against",
+          "saves",
+          "goals_against",
+          "goals_against_avg",
+          "save_pct",
+          "toi_seconds",
+          "generated_at"
+        ],
+        "title": "RestOfSeasonGoalieResponse",
+        "type": "object"
+      },
+      "RestOfSeasonSkaterResponse": {
+        "description": "A skater's expected line over his club's remaining games. The season line's stats, without\nits bands: there is no finishing table over this line and no band fitted for it.",
+        "properties": {
+          "assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assists"
+          },
+          "blocks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks"
+          },
+          "faceoffs_lost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceoffs Lost"
+          },
+          "faceoffs_won": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceoffs Won"
+          },
+          "games_played": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Games Played"
+          },
+          "games_remaining": {
+            "title": "Games Remaining",
+            "type": "integer"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals"
+          },
+          "gw_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gw Goals"
+          },
+          "hat_tricks": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hat Tricks"
+          },
+          "hits": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hits"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "pim": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pim"
+          },
+          "plus_minus": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plus Minus"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "pp_assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Assists"
+          },
+          "pp_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Goals"
+          },
+          "pp_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Points"
+          },
+          "sh_assists": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Assists"
+          },
+          "sh_goals": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Goals"
+          },
+          "sh_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Points"
+          },
+          "shifts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shifts"
+          },
+          "shooting_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shooting Pct"
+          },
+          "shots": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shots"
+          },
+          "target_season": {
+            "title": "Target Season",
+            "type": "integer"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "toi_per_game_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toi Per Game Seconds"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "target_season",
+          "model_version",
+          "team",
+          "games_remaining",
+          "games_played",
+          "toi_per_game_seconds",
+          "goals",
+          "assists",
+          "points",
+          "plus_minus",
+          "pim",
+          "pp_goals",
+          "pp_assists",
+          "pp_points",
+          "sh_goals",
+          "sh_assists",
+          "sh_points",
+          "gw_goals",
+          "shots",
+          "shooting_pct",
+          "faceoffs_won",
+          "faceoffs_lost",
+          "hits",
+          "blocks",
+          "shifts",
+          "hat_tricks",
+          "generated_at"
+        ],
+        "title": "RestOfSeasonSkaterResponse",
         "type": "object"
       },
       "ScheduleStrengthResponse": {
@@ -3287,6 +3872,134 @@
         "summary": "Get Skater Projection",
         "tags": [
           "projections"
+        ]
+      }
+    },
+    "/api/v1/rest-of-season/goalies": {
+      "get": {
+        "operationId": "list_rest_of_season_goalies_api_v1_rest_of_season_goalies_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RestOfSeasonGoalieResponse"
+                  },
+                  "title": "Response List Rest Of Season Goalies Api V1 Rest Of Season Goalies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rest Of Season Goalies",
+        "tags": [
+          "rest-of-season"
+        ]
+      }
+    },
+    "/api/v1/rest-of-season/skaters": {
+      "get": {
+        "operationId": "list_rest_of_season_skaters_api_v1_rest_of_season_skaters_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RestOfSeasonSkaterResponse"
+                  },
+                  "title": "Response List Rest Of Season Skaters Api V1 Rest Of Season Skaters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rest Of Season Skaters",
+        "tags": [
+          "rest-of-season"
         ]
       }
     },
