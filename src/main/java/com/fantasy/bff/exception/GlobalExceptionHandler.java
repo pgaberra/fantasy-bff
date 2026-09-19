@@ -7,12 +7,14 @@ import com.fantasy.bff.dto.response.ErrorDto;
 import org.apache.catalina.connector.ClientAbortException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -243,10 +245,33 @@ public class GlobalExceptionHandler {
         return false;
     }
 
+    /**
+     * Anything no handler above names. Most of it is a fault: a 500, logged with its trace. But
+     * Spring MVC's own refusals ({@code ErrorResponse}: a method the path does not serve, a body
+     * type or an {@code Accept} it cannot meet, a missing multipart part) carry the status they
+     * mean, and a 4xx among them is the caller's mistake. Taking those for faults turned every
+     * GET a scanner sent to the sign-in endpoint into a 500 and an ERROR in Sentry.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDto> handleGeneric(Exception ex) {
+        if (ex instanceof ErrorResponse refusal && refusal.getStatusCode().is4xxClientError()) {
+            return forStatus(refusal.getStatusCode(), refusal.getHeaders());
+        }
         log.error("Unhandled exception", ex);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred");
+    }
+
+    /**
+     * An error with nothing more to say than its status: named after it, and described by its
+     * reason phrase rather than by any message that came with it, which may be an exception's.
+     * A 5xx is the catch-all's {@code INTERNAL_ERROR}, whatever went wrong.
+     */
+    static ResponseEntity<ErrorDto> forStatus(HttpStatusCode status, HttpHeaders headers) {
+        HttpStatus known = HttpStatus.resolve(status.value());
+        if (known == null || status.is5xxServerError()) {
+            return error(status, headers, "INTERNAL_ERROR", "An unexpected error occurred");
+        }
+        return error(status, headers, known.name(), known.getReasonPhrase());
     }
 
     /**
@@ -258,7 +283,13 @@ public class GlobalExceptionHandler {
      * reached the web as a 401, a signed-out session, instead of the 502 it was.
      */
     private static ResponseEntity<ErrorDto> error(HttpStatusCode status, String code, String message) {
+        return error(status, HttpHeaders.EMPTY, code, message);
+    }
+
+    private static ResponseEntity<ErrorDto> error(HttpStatusCode status, HttpHeaders headers,
+                                                  String code, String message) {
         return ResponseEntity.status(status)
+                .headers(headers)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(ErrorDto.of(code, message));
     }

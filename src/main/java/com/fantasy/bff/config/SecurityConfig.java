@@ -22,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.time.Duration;
 import java.util.List;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
@@ -49,6 +50,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth
+                            // The container's error dispatch renders an error the request already
+                            // got; it carries no token, so judging it again turned every one into a
+                            // 401. A request made to /error directly is still a REQUEST and denied.
+                            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                             .requestMatchers(securityProperties.permittedUrls().toArray(String[]::new)).permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/skaters").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/players/goalies").permitAll()
