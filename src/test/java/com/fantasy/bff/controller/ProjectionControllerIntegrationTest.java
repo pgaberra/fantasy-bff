@@ -522,6 +522,7 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(sent.getValue().getToken()).isEqualTo("s0mErAnd0mT0k3nV4lu3ab");
         assertThat(sent.getValue().getSeenUpdatedAt())
                 .isEqualTo(OffsetDateTime.parse("2026-09-18T08:00:00.123456Z"));
+        verify(databaseServiceClient, never()).followShare(any(), any());
     }
 
     @Test

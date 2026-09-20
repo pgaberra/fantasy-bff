@@ -604,8 +604,9 @@ paths:
       description: "The copy is the board as it is published now, named after the\
         \ share (\"Copy of <name>\", numbered if that one is taken), with no draft\
         \ and no link back: it is the user's to edit, and nothing the author publishes\
-        \ afterwards reaches it. Taking a copy also leaves the user following the\
-        \ link, unless the board is their own."
+        \ afterwards reaches it. Only the copy is made: it does not follow the link\
+        \ and leaves a follow the user already has untouched. To follow a board, call\
+        \ `/projections/imports` instead. A board of one's own may be copied."
       operationId: copyFromShare
       requestBody:
         content:
@@ -633,7 +634,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectionResponse"
         "409":
-          description: A request racing this one took the name or created the follow
+          description: A request racing this one took the name
           content:
             application/json:
               schema:

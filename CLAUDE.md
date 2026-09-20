@@ -88,16 +88,23 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     with it. A name the **user** typed is refused where it is taken (409); one the **app**
     derived (`derived: true`, a draft taking the name of the league it was just synced with) is
     numbered instead, and is skipped altogether where the user has already named the row.
-  - `POST /api/v1/projections/imports` on `ProjectionController` — copying a shared board into
-    the caller's own projections by its share token. Anyone signed in who holds a link may take
-    a copy; it arrives as `kind: imported`, carries the author's rows but none of their draft,
-    and reports `origin` (share token + the author's name as it read at import time) so the app
-    can say whose numbers it holds. The rows come across as they were published, i.e. against
-    the author's player pool — squaring them with the current one is left to the first read,
-    which reconciles every projection anyway. **The same board may be copied more than once.**
-    With no `name` in the request, db-service numbers a taken one (`My league (2)`) instead of
-    answering 409, so the share page's two buttons keep working however often they are pressed;
-    a `name` the caller chose is still refused when taken, since that one they can change.
+  - `POST /api/v1/projections/imports` on `ProjectionController` — **following** a shared board
+    by its share token. Anyone signed in who holds a link may follow it; the follow is a live
+    mirror, rewritten name and all every time the author publishes again, and the follower's own
+    draft is the only thing on it they may change. It reports `origin` (share token + the
+    author's name) so the app can say whose numbers it holds. Following is idempotent — a user
+    has at most one follow per token, and following again returns that one with **200** instead
+    of 201 — and the follow disappears with the share. The link being the caller's **own** board
+    is refused with 400 here. The mirrored rows are squared with the pool **in memory on every
+    read** and never written back (db-service takes only `data.draft` on a follow).
+  - `POST /api/v1/projections/copies` on `ProjectionController` — **copying** a shared board into
+    a projection of the caller's own: the board as published now, named `Copy of <name>`
+    (numbered where that name is taken), with no draft, no `origin` and no link back. Nothing
+    the author publishes afterwards reaches it. **Only the copy is made** — no follow is created
+    and a follow the user already holds is left alone (fantasy-db-service#143) — and a board of
+    one's **own** may be copied, so the 400 for "this link is your own board" lives on
+    `/imports` only. The rows arrive against the author's pool, so the BFF squares them and
+    saves them straight away, reporting nothing: a board copied seconds ago has no "since".
   - `ProjectionShareController` / `SharedProjectionController` — publishing a projection under a
     public link, which is a one-way action: there is no endpoint to refresh or withdraw a
     published snapshot. The owner's side lives under `/api/v1/projections/{id}/share` (authenticated);
