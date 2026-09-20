@@ -253,28 +253,31 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     /**
-     * The name is the heading the draft board shows, so a client must not be able to make a
-     * draft claim it was drafted against something it wasn't.
+     * The name is the caller's, including on a draft against a preset: someone naming a mock
+     * before they start it is the point, and what it was played against is recorded in `preset`
+     * rather than in the name. db-service numbers a name the user already holds.
      */
     @Test
-    void create_asAPresetDraft_isNamedByTheServerNotTheCaller() throws Exception {
+    void create_asAPresetDraft_takesTheNameTheCallerSent() throws Exception {
         when(playerServiceClient.getSkaters(nullable(Integer.class))).thenReturn(List.of());
         when(playerServiceClient.getGoalies(nullable(Integer.class))).thenReturn(List.of());
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(
-                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("Last Season's Stats"));
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027).id(PROJECTION_ID.toString()).name("Mock #3"));
 
         mockMvc.perform(post("/api/v1/projections")
                         .header("Authorization", "Bearer " + token())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SOURCED_BODY
-                                .replace("\"name\": \"My league\",", "\"name\": \"Totally legit ranking\",")
+                                .replace("\"name\": \"My league\",", "\"name\": \"Mock #3\",")
                                 .replace("\"source\": \"default\",",
                                         "\"source\": \"default\", \"kind\": \"draft\",")))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<CreateProjectionRequest> sent = ArgumentCaptor.forClass(CreateProjectionRequest.class);
         verify(databaseServiceClient).createProjection(eq(USER_ID), sent.capture());
-        assertThat(sent.getValue().getName()).isEqualTo("Last Season's Stats");
+        assertThat(sent.getValue().getName()).isEqualTo("Mock #3");
+        // What it was drafted against is still the server's to record, and still comes from the source.
+        assertThat(sent.getValue().getPreset()).isEqualTo(CreateProjectionRequest.PresetEnum.LAST_SEASON);
     }
 
     /** A preset whose rows came from the caller would not be the preset. */

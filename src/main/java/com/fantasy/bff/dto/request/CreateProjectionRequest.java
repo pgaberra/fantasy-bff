@@ -15,9 +15,11 @@ import jakarta.validation.constraints.Size;
  * <p>{@code kind} is likewise a concern of this API: db-service stores whichever kind it is
  * told, while the app decides that a draft started from a preset gets a {@code DRAFT} so it
  * never shows up among the projections the user made. A preset is defined by the server, so
- * such a draft takes its name and its player rows from here and not from the caller — see
- * {@code ProjectionService}. A draft against a board of the user's own is not created here at
- * all: {@code POST /api/v1/projections/{id}/drafts} copies that board server-side.
+ * such a draft takes its <b>player rows</b> from here and not from the caller — see
+ * {@code ProjectionService}; its <b>name</b> is the caller's, since a draft can be renamed the
+ * moment it exists and what it was played against is recorded in {@code preset} rather than in
+ * the name. A draft against a board of the user's own is not created here at all:
+ * {@code POST /api/v1/projections/{id}/drafts} copies that board server-side.
  *
  * <p>A projection covers every player in the league, which is ~0.5 MB of JSON the client had
  * just downloaded from {@code /api/v1/players/*}. Uploading it back was failing in production
@@ -29,7 +31,9 @@ import jakarta.validation.constraints.Size;
 public record CreateProjectionRequest(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Ignored for a preset draft, which the server names itself.")
+                description = "What to call it. A name the user already holds is numbered "
+                        + "(\"AI Projection (2)\") rather than refused, so the saved name is the "
+                        + "one in the response.")
         @NotBlank @Size(max = 100) String name,
 
         @Schema(description = "What the projection is for. Defaults to the user's own. A preset "

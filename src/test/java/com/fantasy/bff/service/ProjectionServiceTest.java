@@ -774,8 +774,8 @@ class ProjectionServiceTest {
     }
 
     @Test
-    @DisplayName("a preset draft may be started from the model, and is named for it")
-    void presetDraftFromModel_isNamedForThePreset() {
+    @DisplayName("a preset draft may be started from the model, and records that preset")
+    void presetDraftFromModel_recordsThePreset() {
         when(seedService.seed(SEASON, MODEL_VERSION))
                 .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
@@ -785,10 +785,11 @@ class ProjectionServiceTest {
                 request(emptyData(), ProjectionSource.MODEL, ProjectionKind.DRAFT));
 
         verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
-        // The board heading comes from here, so it must name the preset actually drafted against.
-        assertThat(sentRequest.getValue().getName()).isEqualTo("AI Projection");
-        // And the preset is stored outright, so nothing downstream has to read it back out of
-        // that name — which is also what lets a user hold a draft against each preset at once.
+        // The name is the caller's, here as anywhere: a draft can be renamed the moment it
+        // exists, so overruling the caller only ever held for the seconds in between.
+        assertThat(sentRequest.getValue().getName()).isEqualTo("My Projection");
+        // What it was drafted against is stored outright instead, so nothing downstream has to
+        // read it back out of a name its owner may since have changed.
         assertThat(sentRequest.getValue().getPreset())
                 .isEqualTo(com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.MODEL);
     }

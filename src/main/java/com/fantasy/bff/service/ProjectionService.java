@@ -35,15 +35,6 @@ public class ProjectionService {
 
     private static final Logger log = LoggerFactory.getLogger(ProjectionService.class);
 
-    /**
-     * The presets a draft can be started from. The name is what the draft board shows as its
-     * heading, so it is decided here rather than by the caller — otherwise a draft could claim
-     * to have been drafted against something it was not.
-     */
-    private static final String LAST_SEASON_PRESET_NAME = "Last Season's Stats";
-
-    private static final String MODEL_PRESET_NAME = "AI Projection";
-
     private final DatabaseServiceClient databaseServiceClient;
     private final PlayerPoolRows playerPoolRows;
     private final PlayerPoolSource playerPool;
@@ -252,7 +243,7 @@ public class ProjectionService {
         reconciler.reconcile(data);
         return ProjectionResponse.of(databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
-                        .name(nameOf(request))
+                        .name(request.name())
                         .kind(kindOf(request.kind()))
                         .preset(presetOf(request))
                         .data(data)
@@ -365,21 +356,6 @@ public class ProjectionService {
         return space == PlayerIdSpace.ESPN
                 ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.ESPN
                 : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PlayerIdSpaceEnum.YAHOO;
-    }
-
-    /**
-     * A draft against a preset is named here rather than by the caller. The name is what the
-     * draft board shows as its heading, so letting a client choose it would let a draft claim to
-     * be drafted against something it wasn't. db-service numbers it from there where the user
-     * already holds that name ("AI Projection (2)"), so a preset can be drafted repeatedly.
-     */
-    private static String nameOf(CreateProjectionRequest request) {
-        if (request.kind() != ProjectionKind.DRAFT) {
-            return request.name();
-        }
-        return request.source() == ProjectionSource.MODEL
-                ? MODEL_PRESET_NAME
-                : LAST_SEASON_PRESET_NAME;
     }
 
     /**
