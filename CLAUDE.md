@@ -70,10 +70,13 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
   `ProjectionController` — the user's saved projections; takes the user id from the JWT
   and forwards to db-service, never trusting a client-supplied user id. A create may set
   `kind: draft`, which is how a draft **against a preset** is started: the preset is defined
-  here and not by the caller, so it must come with `source=default` or `source=model` and is
-  named server-side, and a draft cannot claim to be drafted against something it wasn't.
-  Drafts are kept out of "my projections" by the web filtering on `kind`). Reading one runs
-  it through `ProjectionPoolReconciler` first — see below
+  here and not by the caller, so it must come with `source=default` or `source=model` — the
+  **player rows** are the server's. The **name** is the caller's, here as anywhere: a draft can
+  be renamed the moment it exists, so overruling the caller only ever held for the seconds in
+  between, and what a draft was played against is recorded in `preset` (and
+  `sourceProjectionId`) rather than in its name. Drafts are kept out of "my projections" by the
+  web filtering on `kind`). Reading one runs it through `ProjectionPoolReconciler` first — see
+  below
   - `POST /api/v1/projections/{id}/drafts` — starting a draft **against one of the user's own
     boards**. db-service copies that board's rows into a draft of its own, so the ~0.5 MB never
     travels and the board stays editable, and deletable, while the draft is under way. A board

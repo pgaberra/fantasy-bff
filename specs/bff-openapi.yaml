@@ -2967,7 +2967,9 @@ components:
       properties:
         name:
           type: string
-          description: "Ignored for a preset draft, which the server names itself."
+          description: "What to call it. A name the user already holds is numbered\
+            \ (\"AI Projection (2)\") rather than refused, so the saved name is the\
+            \ one in the response."
           maxLength: 100
           minLength: 0
         kind:
