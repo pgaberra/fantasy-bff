@@ -122,14 +122,15 @@ public class ProjectionController {
             description = "The copy is the board as it is published now, named after the share "
                     + "(\"Copy of <name>\", numbered if that one is taken), with no draft and no "
                     + "link back: it is the user's to edit, and nothing the author publishes "
-                    + "afterwards reaches it. Taking a copy also leaves the user following the "
-                    + "link, unless the board is their own.")
+                    + "afterwards reaches it. Only the copy is made: it does not follow the link "
+                    + "and leaves a follow the user already has untouched. To follow a board, "
+                    + "call `/projections/imports` instead. A board of one's own may be copied.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Copy created"),
         @ApiResponse(responseCode = "400", description = "Validation failed"),
         @ApiResponse(responseCode = "404", description = "No share with that token"),
         @ApiResponse(responseCode = "409",
-                description = "A request racing this one took the name or created the follow"),
+                description = "A request racing this one took the name"),
         @ApiResponse(responseCode = "412", description = "`seenUpdatedAt` was sent and the author "
                 + "has changed the board since. Nothing was written.")
     })

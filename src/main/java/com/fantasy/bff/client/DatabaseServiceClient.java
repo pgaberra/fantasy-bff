@@ -110,7 +110,8 @@ public interface DatabaseServiceClient {
 
     /**
      * Copies a shared board into a projection of the user's own: theirs to edit, with no origin
-     * and no link back to the share. It leaves them following the link as well.
+     * and no link back to the share. Only the copy is made: no follow is created, and one the
+     * user already holds is left untouched. A board of one's own may be copied.
      */
     ProjectionResponse copyShare(UUID userId, CopyProjectionRequest request);
 
