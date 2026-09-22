@@ -613,6 +613,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LeagueTeam"
+        draftPosition:
+          type: integer
+          format: int32
+          description: "The signed-in manager's own seat in the draft order, 1-based,\
+            \ or null when we do not know it: ESPN gave no pick order, or no team\
+            \ could be matched to the user. Null is meaningful — a caller must ask\
+            \ the user rather than guess from the position of their team in the list."
+          example: 12
       required:
       - teams
     LeagueSettingsResponse:

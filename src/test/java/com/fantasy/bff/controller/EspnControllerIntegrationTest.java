@@ -116,13 +116,27 @@ class EspnControllerIntegrationTest extends BaseIntegrationTest {
         when(espnServiceClient.teams(USER_ID, "123")).thenReturn(
                 new LeagueTeamsResponse().teams(List.of(
                         new LeagueTeam().name("Alpha").mine(false),
-                        new LeagueTeam().name("Beta Squad").mine(true))));
+                        new LeagueTeam().name("Beta Squad").mine(true))).draftPosition(2));
 
         mockMvc.perform(get("/api/v1/espn/leagues/123/teams")
                         .header("Authorization", "Bearer " + token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.teams[0].name").value("Alpha"))
                 .andExpect(jsonPath("$.teams[1].name").value("Beta Squad"))
-                .andExpect(jsonPath("$.teams[1].mine").value(true));
+                .andExpect(jsonPath("$.teams[1].mine").value(true))
+                .andExpect(jsonPath("$.draftPosition").value(2));
+    }
+
+    @Test
+    void teams_leavesTheDraftPositionOutWhenEspnNamesNoSeat() throws Exception {
+        when(espnServiceClient.teams(USER_ID, "123")).thenReturn(
+                new LeagueTeamsResponse().teams(List.of(
+                        new LeagueTeam().name("Alpha").mine(false),
+                        new LeagueTeam().name("Beta Squad").mine(true))));
+
+        mockMvc.perform(get("/api/v1/espn/leagues/123/teams")
+                        .header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.draftPosition").doesNotExist());
     }
 }

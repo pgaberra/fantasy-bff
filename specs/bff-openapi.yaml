@@ -3551,6 +3551,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LeagueTeam"
+        draftPosition:
+          type: integer
+          format: int32
       required:
       - teams
     LeagueProjectionSettingsResponse:
@@ -4678,6 +4681,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EspnLeagueTeam"
+        draftPosition:
+          type: integer
+          format: int32
+          description: "The signed-in manager's own seat in the draft order, counting\
+            \ from 1, or null when ESPN does not name it. Null is meaningful: ask\
+            \ the user rather than read a seat off the list order."
       required:
       - teams
     CredentialStatusResponse:
