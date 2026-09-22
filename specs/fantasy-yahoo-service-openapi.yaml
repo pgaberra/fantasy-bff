@@ -468,6 +468,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/YahooProbeResponse"
+  /api/v1/sync/probe/league:
+    get:
+      tags:
+      - Sync
+      summary: Read one of a league's resources raw
+      description: "What Yahoo sends for a league's settings, teams, draftresults,\
+        \ or the three together (draft), verbatim, read with the service account's\
+        \ token, so only a league that account belongs to answers. For checking which\
+        \ fields Yahoo really fills before code relies on them."
+      operationId: probeLeague
+      parameters:
+      - name: leagueKey
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: resource
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 32
+          minLength: 0
+      responses:
+        "200":
+          description: "What Yahoo answered, refusal included"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YahooLeagueProbeResponse"
   /api/v1/sync/leagues:
     get:
       tags:
@@ -1110,6 +1142,28 @@ components:
       required:
       - ok
       - path
+    YahooLeagueProbeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          description: Whether Yahoo answered 200.
+        path:
+          type: string
+          description: The path asked for. Absent when no call was made.
+        status:
+          type: integer
+          format: int32
+          description: Yahoo's HTTP status. Absent when the call never got a response.
+        body:
+          type: string
+          description: "Yahoo's response body, verbatim. Absent when the call failed."
+        error:
+          type: string
+          description: "Yahoo's own error text, or ours if the call never reached\
+            \ them."
+      required:
+      - ok
     SkaterResponse:
       type: object
       properties:
