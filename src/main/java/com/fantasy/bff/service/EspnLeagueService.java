@@ -26,9 +26,10 @@ public class EspnLeagueService {
     }
 
     public EspnLeagueTeamsResponse teams(String appUserId, String leagueId) {
-        List<EspnLeagueTeam> teams = espnServiceClient.teams(appUserId, leagueId).getTeams().stream()
+        var response = espnServiceClient.teams(appUserId, leagueId);
+        List<EspnLeagueTeam> teams = response.getTeams().stream()
                 .map(team -> new EspnLeagueTeam(team.getName(), Boolean.TRUE.equals(team.getMine())))
                 .toList();
-        return new EspnLeagueTeamsResponse(teams);
+        return new EspnLeagueTeamsResponse(teams, response.getDraftPosition());
     }
 }

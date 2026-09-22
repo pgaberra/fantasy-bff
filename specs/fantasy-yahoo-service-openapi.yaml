@@ -893,6 +893,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LeagueTeam"
+        draftPosition:
+          type: integer
+          format: int32
+          description: "The signed-in manager's own seat in the draft order, counting\
+            \ from 1. Null when Yahoo names it nowhere, which is not the same as the\
+            \ first seat: the teams then carry Yahoo's own order, which says nothing\
+            \ about who picks when."
       required:
       - teams
     LeagueSettingsResponse:
