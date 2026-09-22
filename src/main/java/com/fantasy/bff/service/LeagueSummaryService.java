@@ -107,6 +107,7 @@ public class LeagueSummaryService {
                 source,
                 source == SummarySource.MODEL ? defaultModelVersion : null,
                 premium,
+                settings.scoringType(),
                 draft.status(),
                 draft.picks().size());
     }
@@ -116,6 +117,7 @@ public class LeagueSummaryService {
      * @param source which projection they were scored against
      * @param modelVersion the model's version where it was the model, null otherwise
      * @param premium whether the per-player halves are filled in
+     * @param scoringType how the league scores, which is what its totals are in
      * @param status where the league's draft has got to
      * @param picks how many picks it has made, so a league yet to draft can say so rather than
      *     showing every team at nothing
@@ -125,6 +127,7 @@ public class LeagueSummaryService {
             SummarySource source,
             String modelVersion,
             boolean premium,
+            ScoringBasis scoringType,
             com.fantasy.bff.dto.response.LeagueDraftStatus status,
             int picks) {
     }

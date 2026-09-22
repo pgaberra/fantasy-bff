@@ -27,6 +27,11 @@ public record LeagueSummaryResponse(
         boolean premium,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "How the league scores, which decides what the totals are: fantasy "
+                        + "points, or a z-score across the categories it counts")
+        ScoringBasis scoringType,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Where the league's draft has got to")
         LeagueDraftStatus status,
 
@@ -90,12 +95,14 @@ public record LeagueSummaryResponse(
             SummarySource source,
             String modelVersion,
             boolean premium,
+            ScoringBasis scoringType,
             LeagueDraftStatus status,
             int picks) {
         return new LeagueSummaryResponse(
                 source,
                 modelVersion,
                 premium,
+                scoringType,
                 status,
                 picks,
                 summary.categoryKeys(),

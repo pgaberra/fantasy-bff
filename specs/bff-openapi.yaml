@@ -4526,6 +4526,13 @@ components:
           type: boolean
           description: "Whether the per-player halves are filled in, which premium\
             \ pays for"
+        scoringType:
+          type: string
+          description: "How the league scores, which decides what the totals are:\
+            \ fantasy points, or a z-score across the categories it counts"
+          enum:
+          - points
+          - category
         status:
           type: string
           description: Where the league's draft has got to
@@ -4559,6 +4566,7 @@ components:
       - picks
       - positionKeys
       - premium
+      - scoringType
       - source
       - status
       - teams

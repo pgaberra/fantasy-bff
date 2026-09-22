@@ -113,6 +113,18 @@ class LeagueSummaryServiceTest {
                 List.of());
     }
 
+    /** The totals are fantasy points or z-scores depending on the league, and the page has to say
+     * which — so the answer travels with them rather than being asked for again. */
+    @Test
+    @DisplayName("says how the league scores, which is what its totals are in")
+    void saysHowTheLeagueScores() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.scoringType()).isEqualTo(ScoringBasis.POINTS);
+    }
+
     @Test
     @DisplayName("totals the league's own teams from the league's own picks")
     void totalsTheLeague() {
