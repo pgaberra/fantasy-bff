@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooLeagueProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -126,6 +127,32 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andExpect(jsonPath("$.players").value(25));
+    }
+
+    /**
+     * The raw league probe reads as the admin themselves, since the service account is in none of
+     * the leagues worth asking about. The id must come from the token and nowhere else, or the
+     * endpoint would read any member's league for whoever asked.
+     */
+    @Test
+    void readsARawLeagueResourceAsTheSignedInAdmin() throws Exception {
+        when(playerServiceClient.probeLeagueResource("477.l.124453", "draft", "admin-1")).thenReturn(
+                new YahooLeagueProbeResponse().ok(true)
+                        .path("/league/477.l.124453;out=settings,draftresults,teams")
+                        .status(200).body("{\"fantasy_content\":{}}"));
+
+        mockMvc.perform(get("/api/v1/admin/yahoo/probe/league?leagueKey=477.l.124453&resource=draft")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true))
+                .andExpect(jsonPath("$.body").value("{\"fantasy_content\":{}}"));
+    }
+
+    @Test
+    void refusesTheRawLeagueProbeToANonAdmin() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/yahoo/probe/league?leagueKey=477.l.124453&resource=draft")
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
     }
 
     /**

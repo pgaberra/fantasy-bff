@@ -7,6 +7,7 @@ import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.service.PlayerPoolSource;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooLeagueProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -146,6 +147,23 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 })
                 .retrieve()
                 .body(YahooProbeResponse.class);
+    }
+
+    @Override
+    public YahooLeagueProbeResponse probeLeagueResource(
+            String leagueKey, String resource, String appUserId) {
+        return restClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder.path("/api/v1/sync/probe/league")
+                            .queryParam("leagueKey", leagueKey)
+                            .queryParam("resource", resource);
+                    if (appUserId != null && !appUserId.isBlank()) {
+                        uriBuilder.queryParam("appUserId", appUserId);
+                    }
+                    return uriBuilder.build();
+                })
+                .retrieve()
+                .body(YahooLeagueProbeResponse.class);
     }
 
     private static SkaterResponse toSkater(com.fantasy.bff.generated.yahoo.model.SkaterResponse s) {
