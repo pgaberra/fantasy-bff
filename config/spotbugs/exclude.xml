@@ -57,4 +57,15 @@
         <Bug pattern="CRLF_INJECTION_LOGS"/>
         <Class name="com.fantasy.bff.service.mapping.PlayerIdResolver"/>
     </Match>
+
+    <!-- FE_FLOATING_POINT_EQUALITY in the scoring engine: the two comparisons are exact by
+         intent, not a tolerance someone forgot. A pool whose rates are all the same number, and
+         a category whose standard deviation is exactly zero, are both "this stat separates
+         nobody, leave it out of the ranking" — and the web's engine, which this one has to
+         agree with cell for cell, asks the same question the same way. A tolerance here would
+         make the two disagree. -->
+    <Match>
+        <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+        <Class name="com.fantasy.bff.service.scoring.ProjectionScoring"/>
+    </Match>
 </FindBugsFilter>
