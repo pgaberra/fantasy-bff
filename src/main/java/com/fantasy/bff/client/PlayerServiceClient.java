@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooLeagueProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 
 import java.util.List;
@@ -46,4 +47,12 @@ public interface PlayerServiceClient {
      */
     YahooProbeResponse probeYahooAccess(
             String gameKey, String season, String leagueKey, String target);
+
+    /**
+     * One of a league's resources exactly as Yahoo sends it.
+     *
+     * @param appUserId read with this user's own Yahoo token, which is the only way to see a real
+     *     league; null reads with the service account's, which belongs to no member league.
+     */
+    YahooLeagueProbeResponse probeLeagueResource(String leagueKey, String resource, String appUserId);
 }

@@ -14,6 +14,7 @@ import com.fantasy.bff.service.PlayerIdRemapService;
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncAcceptedResponse;
 import com.fantasy.bff.generated.yahoo.model.SyncRunResponse;
+import com.fantasy.bff.generated.yahoo.model.YahooLeagueProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooProbeResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
@@ -23,6 +24,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
+import org.springframework.validation.annotation.Validated;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +53,7 @@ import java.util.UUID;
  */
 @Tag(name = "Admin", description = "Admin-only: Yahoo service account + player sync")
 @RestController
+@Validated
 @RequestMapping("/api/v1/admin")
 public class AdminController {
 
@@ -171,6 +175,24 @@ public class AdminController {
                     + "wrong one was chosen.")
             @RequestParam(required = false) String target) {
         return playerServiceClient.probeYahooAccess(gameKey, season, leagueKey, target);
+    }
+
+    @Operation(summary = "Read one of your own leagues' Yahoo resources raw",
+            description = "What Yahoo sends for a league's settings, teams, draftresults, or the "
+                    + "three together (draft), verbatim, read with your own Yahoo connection. Only "
+                    + "your own: the user id comes from the signed-in admin and never from the "
+                    + "request, so this cannot be aimed at another member's league. For seeing "
+                    + "which fields Yahoo actually fills in a real league before code relies on "
+                    + "them — the service account belongs to no such league.")
+    @ApiResponse(responseCode = "200", description = "What Yahoo answered, refusal included")
+    @GetMapping("/yahoo/probe/league")
+    public YahooLeagueProbeResponse probeOwnLeagueResource(
+            @AuthenticationPrincipal String userId,
+            @Parameter(description = "A league the signed-in admin belongs to, e.g. 477.l.124453")
+            @RequestParam @Size(max = 64) String leagueKey,
+            @Parameter(description = "settings, teams, draftresults, or draft for the three together")
+            @RequestParam @Size(max = 32) String resource) {
+        return playerServiceClient.probeLeagueResource(leagueKey, resource, userId);
     }
 
     @Operation(summary = "The Yahoo service account's own leagues",

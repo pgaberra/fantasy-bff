@@ -2155,6 +2155,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/YahooProbeResponse"
+  /api/v1/admin/yahoo/probe/league:
+    get:
+      tags:
+      - Admin
+      summary: Read one of your own leagues' Yahoo resources raw
+      description: "What Yahoo sends for a league's settings, teams, draftresults,\
+        \ or the three together (draft), verbatim, read with your own Yahoo connection.\
+        \ Only your own: the user id comes from the signed-in admin and never from\
+        \ the request, so this cannot be aimed at another member's league. For seeing\
+        \ which fields Yahoo actually fills in a real league before code relies on\
+        \ them — the service account belongs to no such league."
+      operationId: probeOwnLeagueResource
+      parameters:
+      - name: leagueKey
+        in: query
+        description: "A league the signed-in admin belongs to, e.g. 477.l.124453"
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: resource
+        in: query
+        description: "settings, teams, draftresults, or draft for the three together"
+        required: true
+        schema:
+          type: string
+          maxLength: 32
+          minLength: 0
+      responses:
+        "200":
+          description: "What Yahoo answered, refusal included"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YahooLeagueProbeResponse"
   /api/v1/admin/yahoo/leagues:
     get:
       tags:
@@ -4745,6 +4781,22 @@ components:
       required:
       - ok
       - path
+    YahooLeagueProbeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        path:
+          type: string
+        status:
+          type: integer
+          format: int32
+        body:
+          type: string
+        error:
+          type: string
+      required:
+      - ok
     AdminPremiumCustomerResponse:
       type: object
       properties:
