@@ -70,6 +70,7 @@ public class LeagueSummaryController {
                 result.source(),
                 result.modelVersion(),
                 result.premium(),
+                result.scoringType(),
                 result.status(),
                 result.picks());
     }
