@@ -10,3 +10,10 @@
 # Keep committed OpenAPI specs LF-normalised so they diff cleanly between
 # Windows dev machines and Linux CI runners (the spec drift check uses diff).
 specs/*.yaml text eol=lf
+
+# The decision log is append-only: every entry is a new line at the end of the file, so two
+# branches that both record a decision conflict on that last line every time — three times in
+# one session before this. Union merge keeps both sides instead, which is all an append-only
+# log ever wanted. It keeps both sides of a rewritten line too, silently, so revising an
+# existing entry is a merge to read rather than one to trust.
+DECISIONS.md merge=union
