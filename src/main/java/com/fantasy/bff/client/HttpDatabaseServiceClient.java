@@ -40,17 +40,22 @@ import com.fantasy.bff.model.downstream.Avatar;
 import com.fantasy.bff.model.downstream.EmailVerificationToken;
 import com.fantasy.bff.model.downstream.PasswordResetToken;
 import com.fantasy.bff.model.downstream.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * {@link DatabaseServiceClient} that talks to fantasy-db-service over HTTP.
@@ -61,6 +66,15 @@ import java.util.UUID;
 @Component
 public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
+    private static final Logger log = LoggerFactory.getLogger(HttpDatabaseServiceClient.class);
+
+    /**
+     * How deep a cause chain is walked looking for the {@link IOException} that marks a transport
+     * failure. Generous for the four-deep chains actually seen, and bounded so a self-referencing
+     * cause cannot spin here.
+     */
+    private static final int MAX_CAUSE_DEPTH = 10;
+
     private final RestClient restClient;
     private final RestClient migrationClient;
 
@@ -68,7 +82,9 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
      * Moving a whole projection — in either direction — gets its own client, with a timeout sized
      * for the payload rather than for the calls that carry an id and return a row. The summary
      * list and the share-token calls stay on the ordinary client: they are small, and a slow
-     * failure there is worse than a fast one. See databaseProjectionClient.
+     * failure there is worse than a fast one. See databaseProjectionClient. When the list did
+     * start losing to that ceiling anyway it was given {@link #retryingRead} rather than moved
+     * here: a second three-second attempt is not the same concession as a fifteen-second one.
      */
     private final RestClient projectionClient;
 
@@ -80,13 +96,75 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
         this.projectionClient = projectionClient;
     }
 
+    /**
+     * Asks once more for a read db-service did not get back to us in time.
+     *
+     * <p>{@code services.database.timeout-ms} is three seconds, and Spring's read timeout is a
+     * deadline on the whole exchange rather than a gap between bytes: when it elapses the request is
+     * cancelled and the response body stream is closed underneath whoever is reading it. So a moment
+     * of slowness in db-service — a cold start after a deploy, a GC pause, a pool stall — costs the
+     * caller a 502 even when the answer was on its way. Sometimes when it had already arrived: in
+     * JAVA-SPRING-BOOT-2Q the array had been deserialised in full and the cancellation landed on
+     * Jackson's read-ahead for end-of-input, so a complete response was thrown away.
+     *
+     * <p>Asking again is cheap, and only sound for a read: these carry no body and change nothing, so
+     * a second attempt has no consequence beyond the extra call. The three seconds stay as they are —
+     * the reason the summary list is on the ordinary client is that it gives up quickly when
+     * db-service is genuinely gone, and two attempts at three seconds still gives up sooner than the
+     * fifteen-second projection client would.
+     *
+     * <p>What counts as worth retrying is deliberately narrow: a transport failure, never a response.
+     * A status db-service chose to send is an answer and is rethrown as it is — a 404 included, since
+     * {@link #findUserByEmail} reads one — and a body that will not parse for any reason other than
+     * the stream going away is a defect worth seeing rather than doubling.
+     *
+     * @param call the name of the read, for the log line. Pass a literal: this class is excluded
+     *             from the CRLF log-injection check (see config/spotbugs/exclude.xml) precisely
+     *             because nothing here can come from a request, and anything taken off one would
+     *             reach the log unchecked.
+     */
+    private static <T> T retryingRead(String call, Supplier<T> read) {
+        try {
+            return read.get();
+        } catch (RestClientException e) {
+            if (!isTransportFailure(e)) {
+                throw e;
+            }
+            log.warn("db-service read {} failed at the transport level ({}); asking once more",
+                    call, e.getClass().getSimpleName());
+            return read.get();
+        }
+    }
+
+    /**
+     * Whether nothing was heard back, as opposed to something we did not like. A cancelled request
+     * arrives as a {@link org.springframework.web.client.ResourceAccessException} wrapping an
+     * {@link IOException}; a cancellation that lands while Jackson is still on the stream arrives as
+     * a plain {@code RestClientException} with the same {@code IOException} further down. Both are
+     * the one fault, so both are found by looking for the {@code IOException} rather than by
+     * matching exception types.
+     */
+    private static boolean isTransportFailure(RestClientException e) {
+        if (e instanceof RestClientResponseException) {
+            return false;
+        }
+        Throwable cause = e;
+        for (int depth = 0; cause != null && depth < MAX_CAUSE_DEPTH; depth++) {
+            if (cause instanceof IOException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
     @Override
     public Optional<User> findUserByEmail(String email) {
         try {
-            UserResponse response = restClient.get()
+            UserResponse response = retryingRead("findUserByEmail", () -> restClient.get()
                     .uri(uriBuilder -> uriBuilder.path("/api/v1/users").queryParam("email", email).build())
                     .retrieve()
-                    .body(UserResponse.class);
+                    .body(UserResponse.class));
             return Optional.ofNullable(response)
                     .map(HttpDatabaseServiceClient::toUser);
         } catch (RestClientResponseException e) {
@@ -307,10 +385,10 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
 
     @Override
     public List<ProjectionSummaryResponse> listProjections(UUID userId) {
-        ProjectionSummaryResponse[] response = restClient.get()
+        ProjectionSummaryResponse[] response = retryingRead("listProjections", () -> restClient.get()
                 .uri("/api/v1/users/{userId}/projections", userId)
                 .retrieve()
-                .body(ProjectionSummaryResponse[].class);
+                .body(ProjectionSummaryResponse[].class));
         return response == null ? List.of() : List.of(response);
     }
 

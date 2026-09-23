@@ -94,6 +94,12 @@ services:
     timeout-ms: 5000
   database:
     base-url: ${DATABASE_SERVICE_URL:http://localhost:8086}
+    # Three seconds for the calls that carry an id and return a row. Note this is a deadline on the
+    # whole exchange, body included, not a gap between bytes: when it elapses the request is
+    # cancelled and the response stream closes under the reader. Before raising it, see
+    # HttpDatabaseServiceClient.retryingRead — the reads that were losing to a slow moment in
+    # db-service (JAVA-SPRING-BOOT-1C, 2Q, 2J) ask a second time instead, which recovers the call
+    # without making a real outage slower to notice.
     timeout-ms: 3000
     # The one-off player-id remap is not an ordinary call: it reads, rewrites and writes back
     # every stored projection in a single request — on staging that is 110 projections and some
