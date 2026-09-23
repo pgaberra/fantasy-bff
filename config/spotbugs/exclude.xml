@@ -58,6 +58,16 @@
         <Class name="com.fantasy.bff.service.mapping.PlayerIdResolver"/>
     </Match>
 
+    <!-- CRLF_INJECTION_LOGS in HttpDatabaseServiceClient: a third reason again, so again kept
+         separate. Nothing is stripped and nothing needs to be, because neither interpolated value
+         can come from a request: one is the name of the read, which both call sites pass as a
+         literal, and the other is a Java class name off the caught exception. The taint analysis
+         sees two Objects handed to Logger.warn and flags the site regardless. -->
+    <Match>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+        <Class name="com.fantasy.bff.client.HttpDatabaseServiceClient"/>
+    </Match>
+
     <!-- FE_FLOATING_POINT_EQUALITY in the scoring engine: the two comparisons are exact by
          intent, not a tolerance someone forgot. A pool whose rates are all the same number, and
          a category whose standard deviation is exactly zero, are both "this stat separates
