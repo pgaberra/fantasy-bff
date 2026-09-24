@@ -28,7 +28,8 @@ public record SeededProjectionResponse(
         @Schema(
                         requiredMode = Schema.RequiredMode.REQUIRED,
                         description =
-                                "Goalies the model projects no starts for. Left out rather than seeded "
-                                        + "with a zero save percentage, which would read as the worst "
-                                        + "goalie in the league.")
+                                "Goalies the model projects no starts for, not counted in `goalies`. "
+                                        + "Their lines are in `players` at zero starts with no save "
+                                        + "percentage or GAA, since a zero there would read as the "
+                                        + "worst goalie in the league.")
                 int goaliesWithoutWorkload) {}

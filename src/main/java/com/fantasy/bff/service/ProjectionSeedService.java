@@ -67,9 +67,10 @@ public class ProjectionSeedService {
      *     necessarily the one asked for: with nothing pinned, projection-service picks the
      *     season's most recent run and says so on every row
      * @param skatersSeeded how many skaters made it through
-     * @param goaliesSeeded how many goalies made it through
+     * @param goaliesSeeded how many goalies made it through with a projected workload
      * @param unmapped players the model projected that the platform doesn't carry
-     * @param withoutWorkload goalies the model projects no starts for, left out on purpose
+     * @param withoutWorkload goalies the model projects no starts for, seeded at nought starts
+     *     with no save % and no GAA
      * @param retiredZeroed pool players who have left the league, seeded at zero
      */
     public record Seed(
@@ -162,6 +163,7 @@ public class ProjectionSeedService {
         }
         int skaters = seeded.size();
 
+        int goalies = 0;
         for (GoalieProjectionResponse projection : projectionServiceClient.goalieProjections(season, modelVersion)) {
             servedVersion = stampedOr(projection.getModelVersion(), servedVersion);
             Integer platformId = mapping.nhlIdToPlatformId().get(projection.getNhlId().longValue());
@@ -169,16 +171,22 @@ public class ProjectionSeedService {
                 unmapped++;
                 continue;
             }
-            // No starts means no rate stats. Seeding a .000 save % would read as the worst
-            // goalie in the league rather than one the model expects not to play.
+            // A goalie the model gives no starts is still the model's answer about him, so he is
+            // seeded like anyone else: nought starts, and no save % or GAA, which his line leaves
+            // out rather than filling in with a .000 that would read as the worst goalie in the
+            // league. He used to be left off the board instead, and whatever builds a board from
+            // this one reads a player missing from it as a player the model cannot reach - the
+            // pool reconciler gives those last season's line - so each club's starts came to its
+            // schedule plus what its idle goalies had started a year ago. On staging's
+            // marcel-v94 board five clubs read over, the Islanders at 103 of 84.
             if (projection.getSavePct() == null || projection.getGamesStarted() == null) {
                 withoutWorkload++;
-                continue;
+            } else {
+                goalies++;
             }
             seeded.add(goalieLine(platformId, projection));
         }
 
-        int goalies = seeded.size() - skaters;
         int retiredZeroed = seedRetired(seeded, pool);
 
         // Unmodifiable because it is about to be shared with every reader of this season's seed.
