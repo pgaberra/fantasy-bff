@@ -9,6 +9,9 @@
 # request without them: PAYMENTS_MOCK_WEBHOOK_SECRET (the mock payment provider), STRIPE_API_KEY
 # and STRIPE_WEBHOOK_SECRET (Stripe, when it is the provider), GOOGLE_CLIENT_SECRET (the Google
 # code-flow sign-in) and FACEBOOK_APP_SECRET (Facebook sign-in).
+#
+# Optional and not a secret: SIGNUP_NOTIFY_EMAIL (SignupNotificationProperties), the address mailed
+# each new account; unset or blank turns those mails off, with a WARN at startup.
 spring:
   application:
     name: fantasy-bff
@@ -185,6 +188,11 @@ feedback:
   # Mailed a link to each issue as it is filed: GitHub does not notify the token's owner of an issue
   # they opened, so without this a report sits in the repository unseen. Sent through Resend.
   notify-email: ${FEEDBACK_NOTIFY_EMAIL:info@slapstat.com}
+
+# The owner is mailed each new account (password, Google or Facebook) with its address and sign-up
+# method, through Resend. Unset or blank turns it off; the bff says so once at startup.
+signup-notification:
+  notify-email: ${SIGNUP_NOTIFY_EMAIL:}
 
 payments:
   # Subscription billing. Off by default (dark launch); enable per environment when going live.

@@ -202,37 +202,43 @@ public class HttpDatabaseServiceClient implements DatabaseServiceClient {
     }
 
     @Override
-    public User findOrCreateGoogleUser(String email, String googleSub) {
+    public ResolvedUser findOrCreateGoogleUser(String email, String googleSub) {
         GoogleUserRequest request = new GoogleUserRequest()
                 .email(email)
                 .googleSub(googleSub);
-        UserResponse response = restClient.post()
+        ResponseEntity<UserResponse> response = restClient.post()
                 .uri("/api/v1/users/google")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
-                .body(UserResponse.class);
-        if (response == null) {
-            throw new IllegalStateException("db-service returned no body when resolving the Google user");
-        }
-        return toUser(response);
+                .toEntity(UserResponse.class);
+        return resolvedUser(response, "Google");
     }
 
     @Override
-    public User findOrCreateFacebookUser(String email, String facebookSub) {
+    public ResolvedUser findOrCreateFacebookUser(String email, String facebookSub) {
         FacebookUserRequest request = new FacebookUserRequest()
                 .email(email)
                 .facebookSub(facebookSub);
-        UserResponse response = restClient.post()
+        ResponseEntity<UserResponse> response = restClient.post()
                 .uri("/api/v1/users/facebook")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
-                .body(UserResponse.class);
-        if (response == null) {
-            throw new IllegalStateException("db-service returned no body when resolving the Facebook user");
+                .toEntity(UserResponse.class);
+        return resolvedUser(response, "Facebook");
+    }
+
+    /**
+     * db-service answers 201 when the call created the account and 200 when it found or linked
+     * one; the status is kept because it is the only thing that tells a sign-up from a sign-in.
+     */
+    private ResolvedUser resolvedUser(ResponseEntity<UserResponse> response, String provider) {
+        UserResponse body = response.getBody();
+        if (body == null) {
+            throw new IllegalStateException("db-service returned no body when resolving the " + provider + " user");
         }
-        return toUser(response);
+        return new ResolvedUser(toUser(body), response.getStatusCode() == HttpStatus.CREATED);
     }
 
     @Override

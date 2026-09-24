@@ -170,11 +170,40 @@ class HttpDatabaseServiceClientTest {
         server.stubFor(post(urlPathEqualTo("/api/v1/users/google"))
                 .willReturn(okJson("{\"id\":\"u-5\",\"email\":\"g@b.com\",\"passwordHash\":null,\"tokenVersion\":0,\"emailVerified\":true}")));
 
-        User resolved = client.findOrCreateGoogleUser("g@b.com", "google-sub-5");
+        DatabaseServiceClient.ResolvedUser resolved = client.findOrCreateGoogleUser("g@b.com", "google-sub-5");
 
-        assertThat(resolved).isEqualTo(new User("u-5", "g@b.com", null, null, 0, true));
+        assertThat(resolved.user()).isEqualTo(new User("u-5", "g@b.com", null, null, 0, true));
+        assertThat(resolved.created()).isFalse();
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/users/google"))
                 .withRequestBody(equalToJson("{\"email\":\"g@b.com\",\"googleSub\":\"google-sub-5\"}")));
+    }
+
+    @Test
+    void findOrCreateGoogleUser_reportsCreated_on201() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/google"))
+                .willReturn(okJson("{\"id\":\"u-6\",\"email\":\"n@b.com\",\"passwordHash\":null,\"tokenVersion\":0,\"emailVerified\":true}")
+                        .withStatus(201)));
+
+        assertThat(client.findOrCreateGoogleUser("n@b.com", "google-sub-6").created()).isTrue();
+    }
+
+    @Test
+    void findOrCreateFacebookUser_reportsCreatedOnlyOn201() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/facebook"))
+                .withRequestBody(equalToJson("{\"email\":\"new@b.com\",\"facebookSub\":\"fb-new\"}"))
+                .willReturn(okJson("{\"id\":\"u-7\",\"email\":\"new@b.com\",\"passwordHash\":null,\"tokenVersion\":0,\"emailVerified\":true}")
+                        .withStatus(201)));
+        server.stubFor(post(urlPathEqualTo("/api/v1/users/facebook"))
+                .withRequestBody(equalToJson("{\"email\":\"old@b.com\",\"facebookSub\":\"fb-old\"}"))
+                .willReturn(okJson("{\"id\":\"u-8\",\"email\":\"old@b.com\",\"passwordHash\":null,\"tokenVersion\":0,\"emailVerified\":true}")));
+
+        DatabaseServiceClient.ResolvedUser created = client.findOrCreateFacebookUser("new@b.com", "fb-new");
+        DatabaseServiceClient.ResolvedUser found = client.findOrCreateFacebookUser("old@b.com", "fb-old");
+
+        assertThat(created.created()).isTrue();
+        assertThat(created.user().id()).isEqualTo("u-7");
+        assertThat(found.created()).isFalse();
+        assertThat(found.user().id()).isEqualTo("u-8");
     }
 
     @Test

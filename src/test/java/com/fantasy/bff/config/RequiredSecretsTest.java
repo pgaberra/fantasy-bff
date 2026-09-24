@@ -16,7 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class RequiredSecretsTest {
 
-    @EnableConfigurationProperties({InternalApiKeyProperties.class, EmailProperties.class, FeedbackProperties.class})
+    @EnableConfigurationProperties({InternalApiKeyProperties.class, EmailProperties.class, FeedbackProperties.class,
+            SignupNotificationProperties.class})
     static class PropertiesOnly {
     }
 
@@ -86,5 +87,28 @@ class RequiredSecretsTest {
     void theStagingProfileDoesNotLogLinks() {
         runner.withPropertyValues("RESEND_API_KEY=", "spring.profiles.active=staging")
                 .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void signupNotificationsAreOffWhenTheVariableIsUnset() {
+        runner.run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(SignupNotificationProperties.class).enabled()).isFalse();
+        });
+    }
+
+    @Test
+    void signupNotificationsGoToTheAddressTheVariableNames() {
+        runner.withPropertyValues("SIGNUP_NOTIFY_EMAIL=owner@example.com").run(context -> {
+            assertThat(context).hasNotFailed();
+            SignupNotificationProperties signup = context.getBean(SignupNotificationProperties.class);
+            assertThat(signup.enabled()).isTrue();
+            assertThat(signup.notifyEmail()).isEqualTo("owner@example.com");
+        });
+    }
+
+    @Test
+    void aMalformedSignupNotifyAddressStopsStartup() {
+        runner.withPropertyValues("SIGNUP_NOTIFY_EMAIL=not-an-address").run(context -> assertThat(context).hasFailed());
     }
 }

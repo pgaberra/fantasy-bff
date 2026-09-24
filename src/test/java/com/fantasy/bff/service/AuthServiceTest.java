@@ -1,8 +1,11 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.client.DatabaseServiceClient.ResolvedUser;
 import com.fantasy.bff.config.SecurityProperties;
+import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
+import com.fantasy.bff.dto.request.GoogleLoginRequest;
 import com.fantasy.bff.dto.request.LoginRequest;
 import com.fantasy.bff.dto.request.RefreshRequest;
 import com.fantasy.bff.dto.request.RegisterRequest;
@@ -11,7 +14,10 @@ import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
+import com.fantasy.bff.email.SignupMethod;
+import com.fantasy.bff.email.SignupNotificationEmailSender;
 import com.fantasy.bff.model.downstream.User;
+import com.fantasy.bff.security.FacebookIdentity;
 import com.fantasy.bff.security.FacebookTokenVerifier;
 import com.fantasy.bff.security.GoogleCodeExchanger;
 import com.fantasy.bff.security.GoogleIdentity;
@@ -34,6 +40,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -48,6 +55,8 @@ class AuthServiceTest {
     private EmailSendThrottle emailSendThrottle;
     private PasswordResetEmailSender passwordResetEmailSender;
     private EmailVerificationEmailSender emailVerificationEmailSender;
+    private SignupNotificationEmailSender signupNotificationEmailSender;
+    private FacebookTokenVerifier facebookTokenVerifier;
     private AuthService authService;
 
     @BeforeEach
@@ -61,6 +70,8 @@ class AuthServiceTest {
         when(emailSendThrottle.tryAcquire(anyString(), anyString())).thenReturn(true);
         passwordResetEmailSender = mock(PasswordResetEmailSender.class);
         emailVerificationEmailSender = mock(EmailVerificationEmailSender.class);
+        signupNotificationEmailSender = mock(SignupNotificationEmailSender.class);
+        facebookTokenVerifier = mock(FacebookTokenVerifier.class);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$dummyDummyDummyDummyDummyDummyDummyDummyDummyDummyDu");
         authService = authServiceWithAdmins();
     }
@@ -72,9 +83,10 @@ class AuthServiceTest {
                 passwordEncoder,
                 googleTokenVerifier,
                 googleCodeExchanger,
-                mock(FacebookTokenVerifier.class),
+                facebookTokenVerifier,
                 passwordResetEmailSender,
                 emailVerificationEmailSender,
+                signupNotificationEmailSender,
                 new SecurityProperties(List.of(), List.of(), List.of(adminEmails), false),
                 emailSendThrottle,
                 "http://localhost:4200");
@@ -172,7 +184,7 @@ class AuthServiceTest {
         when(googleTokenVerifier.verify("google-id-token"))
                 .thenReturn(new GoogleIdentity("google-sub-9", "g@example.com"));
         when(databaseServiceClient.findOrCreateGoogleUser("g@example.com", "google-sub-9"))
-                .thenReturn(new User("user-9", "g@example.com", null, null, 0, true));
+                .thenReturn(new ResolvedUser(new User("user-9", "g@example.com", null, null, 0, true), false));
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("access");
         when(jwtTokenValidator.generateRefreshToken(anyString(), anyString(), anyInt())).thenReturn("refresh");
 
@@ -182,6 +194,70 @@ class AuthServiceTest {
         assertThat(response.token()).isEqualTo("access");
         assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(databaseServiceClient).findOrCreateGoogleUser("g@example.com", "google-sub-9");
+    }
+
+    @Test
+    void register_tellsTheOwnerOfTheNewAccount() {
+        when(databaseServiceClient.createUser(eq("new@example.com"), anyString()))
+                .thenReturn(new User("user-5", "new@example.com", null, "hash", 0, false));
+
+        authService.register(new RegisterRequest("new@example.com", "Passw0rd!"));
+
+        verify(signupNotificationEmailSender).send("new@example.com", SignupMethod.EMAIL);
+    }
+
+    @Test
+    void register_ofATakenAddress_tellsTheOwnerNothing() {
+        when(databaseServiceClient.existsByEmail("taken@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(new RegisterRequest("taken@example.com", "Passw0rd!")))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verifyNoInteractions(signupNotificationEmailSender);
+    }
+
+    @Test
+    void googleLogin_thatCreatesTheAccount_tellsTheOwner() {
+        when(googleTokenVerifier.verify("id-token")).thenReturn(new GoogleIdentity("google-new", "gnew@example.com"));
+        when(databaseServiceClient.findOrCreateGoogleUser("gnew@example.com", "google-new"))
+                .thenReturn(new ResolvedUser(new User("user-6", "gnew@example.com", null, null, 0, true), true));
+
+        authService.googleLogin(new GoogleLoginRequest("id-token"));
+
+        verify(signupNotificationEmailSender).send("gnew@example.com", SignupMethod.GOOGLE);
+    }
+
+    @Test
+    void googleLogin_ofAFoundOrLinkedAccount_tellsTheOwnerNothing() {
+        when(googleTokenVerifier.verify("id-token")).thenReturn(new GoogleIdentity("google-old", "gold@example.com"));
+        when(databaseServiceClient.findOrCreateGoogleUser("gold@example.com", "google-old"))
+                .thenReturn(new ResolvedUser(new User("user-7", "gold@example.com", null, "hash", 0, true), false));
+
+        authService.googleLogin(new GoogleLoginRequest("id-token"));
+
+        verify(signupNotificationEmailSender, never()).send(anyString(), eq(SignupMethod.GOOGLE));
+    }
+
+    @Test
+    void facebookLogin_thatCreatesTheAccount_tellsTheOwner() {
+        when(facebookTokenVerifier.verify("fb-token")).thenReturn(new FacebookIdentity("fb-new", "fnew@example.com"));
+        when(databaseServiceClient.findOrCreateFacebookUser("fnew@example.com", "fb-new"))
+                .thenReturn(new ResolvedUser(new User("user-8", "fnew@example.com", null, null, 0, true), true));
+
+        authService.facebookLogin(new FacebookLoginRequest("fb-token"));
+
+        verify(signupNotificationEmailSender).send("fnew@example.com", SignupMethod.FACEBOOK);
+    }
+
+    @Test
+    void facebookLogin_ofAFoundOrLinkedAccount_tellsTheOwnerNothing() {
+        when(facebookTokenVerifier.verify("fb-token")).thenReturn(new FacebookIdentity("fb-old", "fold@example.com"));
+        when(databaseServiceClient.findOrCreateFacebookUser("fold@example.com", "fb-old"))
+                .thenReturn(new ResolvedUser(new User("user-9", "fold@example.com", null, null, 0, true), false));
+
+        authService.facebookLogin(new FacebookLoginRequest("fb-token"));
+
+        verifyNoInteractions(signupNotificationEmailSender);
     }
 
     @Test

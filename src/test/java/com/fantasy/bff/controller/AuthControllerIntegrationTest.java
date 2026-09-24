@@ -170,7 +170,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         when(googleTokenVerifier.verify("valid-google-token"))
                 .thenReturn(new GoogleIdentity("google-sub-1", "g@example.com"));
         when(databaseServiceClient.findOrCreateGoogleUser("g@example.com", "google-sub-1"))
-                .thenReturn(new User("user-3", "g@example.com", null, null, 0, true));
+                .thenReturn(new DatabaseServiceClient.ResolvedUser(new User("user-3", "g@example.com", null, null, 0, true), false));
 
         mockMvc.perform(post("/api/v1/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -210,7 +210,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         when(googleTokenVerifier.verify("google-id-token"))
                 .thenReturn(new GoogleIdentity("google-sub-2", "gc@example.com"));
         when(databaseServiceClient.findOrCreateGoogleUser("gc@example.com", "google-sub-2"))
-                .thenReturn(new User("user-4", "gc@example.com", null, null, 0, true));
+                .thenReturn(new DatabaseServiceClient.ResolvedUser(new User("user-4", "gc@example.com", null, null, 0, true), false));
 
         mockMvc.perform(post("/api/v1/auth/google/code")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -262,7 +262,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         when(facebookTokenVerifier.verify("valid-fb-token"))
                 .thenReturn(new FacebookIdentity("fb-sub-1", "f@example.com"));
         when(databaseServiceClient.findOrCreateFacebookUser("f@example.com", "fb-sub-1"))
-                .thenReturn(new User("user-4", "f@example.com", null, null, 0, true));
+                .thenReturn(new DatabaseServiceClient.ResolvedUser(new User("user-4", "f@example.com", null, null, 0, true), false));
 
         mockMvc.perform(post("/api/v1/auth/facebook")
                         .contentType(MediaType.APPLICATION_JSON)
