@@ -4,26 +4,19 @@ import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.PlayerAvatarsProperties;
 import com.fantasy.bff.service.RookieService;
 import com.fantasy.bff.service.ShareCardRenderer;
-import com.fantasy.bff.service.SharedBoardFilters;
 import com.fantasy.bff.dto.response.SharedProjectionResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Hidden;
-import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
 
@@ -35,7 +28,6 @@ import java.util.stream.Collectors;
 @Tag(name = "Shared projections", description = "Public, read-only projections (no sign-in required)")
 @RestController
 @RequestMapping("/api/v1/shared")
-@Validated
 public class SharedProjectionController {
 
     /**
@@ -43,23 +35,6 @@ public class SharedProjectionController {
      * explains the scoring settings, leave room for eight where three full names filled the line.
      */
     private static final int PREVIEW_PLAYERS = 8;
-
-    /**
-     * The longest search term worth reading. A player's name is capped at 100 where a share is
-     * stored, so anything past that matches nobody, and this is an unauthenticated endpoint: the
-     * cap is what stops a megabyte of query string being walked over every row of a board.
-     */
-    private static final int MAX_SEARCH_LENGTH = 100;
-
-    /** As long as the team abbreviation a share stores, and for the same reason. */
-    private static final int MAX_TEAM_LENGTH = 10;
-
-    /**
-     * How much of a board someone who is not signed in gets to read. Enough that a link posted in
-     * a league chat is worth opening and worth passing on, and short of handing over a board its
-     * author spent a season building.
-     */
-    private static final int ANONYMOUS_PREVIEW_ROWS = 25;
 
     /**
      * Filled by {@code replace} rather than {@code formatted}: the same value appears in several
@@ -119,69 +94,22 @@ public class SharedProjectionController {
 
     /**
      * The page behind a share link. Unauthenticated on purpose — a link has to open for someone
-     * who has never signed in — but how much it returns depends on whether it was asked with a
-     * token. The JWT filter runs on this path too and leaves a principal behind when one was
-     * presented, so a signed-in reader is recognised here without the endpoint being guarded.
+     * who has never signed in — and the same whole board for everyone who opens it: the page
+     * sorts, filters and searches it in the browser.
      */
     @Operation(operationId = "getSharedProjection",
             summary = "Fetch a shared projection by its token",
-            description = "Public: anyone holding the link can read it. A signed-in reader gets "
-                    + "the whole published board; anyone else gets its top rows, with "
-                    + "`truncated` set and `totalPlayers` saying what the board holds. Which "
-                    + "top rows those are follows the filters, `sort` and `direction`, so a "
-                    + "column sorts the whole board and a search reaches all of it rather than "
-                    + "the rows already sent. Returns the snapshot as it was when shared, with "
-                    + "no identity beyond the owner's public username.")
+            description = "Public: anyone holding the link reads the whole published board, "
+                    + "signed in or not. Returns the snapshot as it was when shared, with no "
+                    + "identity beyond the owner's public username.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Shared projection found"),
         @ApiResponse(responseCode = "404", description = "No share with that token, or it was taken down")
     })
     @GetMapping("/{token}")
-    public SharedProjectionResponse get(Authentication authentication,
-                                        @PathVariable String token,
-                                        @Parameter(description = "Position to filter the board by "
-                                                + "before its top rows are taken: `ALL`, `SKATER`, "
-                                                + "`G`, or one of a skater's positions. Read only "
-                                                + "for a reader who is not signed in — one holding "
-                                                + "the whole board filters it in the browser.")
-                                        @RequestParam(required = false) String position,
-                                        @Parameter(description = "Name to search the board for, "
-                                                + "matched as a case-insensitive substring, as "
-                                                + "the browser matches it. Read only for a reader "
-                                                + "who is not signed in.")
-                                        @RequestParam(required = false)
-                                        @Size(max = MAX_SEARCH_LENGTH) String search,
-                                        @Parameter(description = "Team abbreviation to keep, or "
-                                                + "`ALL`. Read only for a reader who is not "
-                                                + "signed in.")
-                                        @RequestParam(required = false)
-                                        @Size(max = MAX_TEAM_LENGTH) String team,
-                                        @Parameter(description = "True to keep only the rookies. "
-                                                + "Read only for a reader who is not signed in, "
-                                                + "and ignored where rookie status cannot be "
-                                                + "determined — `rookieIds` says whether it can.")
-                                        @RequestParam(required = false) Boolean rookies,
-                                        @Parameter(description = "Column to order the board by "
-                                                + "before its top rows are taken: `summary` (the "
-                                                + "published ranking), `name`, or a stat key. Read "
-                                                + "only for a reader who is not signed in. An "
-                                                + "unknown column leaves the published order.")
-                                        @RequestParam(required = false) String sort,
-                                        @Parameter(description = "`asc` or `desc`; anything else "
-                                                + "reads as `desc`, which is best-first for every "
-                                                + "column the page opens in.")
-                                        @RequestParam(required = false) String direction) {
-        com.fantasy.bff.generated.db.model.SharedProjectionResponse shared =
-                databaseServiceClient.getSharedProjection(token);
-        Set<Integer> rookieIds = rookieIds();
-        boolean headshots = avatars.enabled();
-        if (isSignedIn(authentication)) {
-            return SharedProjectionResponse.full(shared, rookieIds, headshots);
-        }
-        SharedBoardFilters filters = new SharedBoardFilters(
-                position, search, team, Boolean.TRUE.equals(rookies) ? rookieIds : null);
-        return SharedProjectionResponse.preview(
-                shared, filters, sort, direction, ANONYMOUS_PREVIEW_ROWS, rookieIds, headshots);
+    public SharedProjectionResponse get(@PathVariable String token) {
+        return SharedProjectionResponse.of(
+                databaseServiceClient.getSharedProjection(token), rookieIds(), avatars.enabled());
     }
 
     /**
@@ -227,18 +155,6 @@ public class SharedProjectionController {
     private Set<Integer> rookieIds() {
         var rookies = rookieService.rookies();
         return rookies.known() ? Set.copyOf(rookies.playerIds()) : null;
-    }
-
-    /**
-     * Asked rather than assumed from the principal being absent. On a permitted path Spring
-     * Security still fills the context in — with an anonymous token whose principal is the
-     * <em>string</em> {@code "anonymousUser"} — so {@code @AuthenticationPrincipal String} is
-     * never null here and every visitor would read as signed in.
-     */
-    private static boolean isSignedIn(Authentication authentication) {
-        return authentication != null
-                && authentication.isAuthenticated()
-                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 
     /**

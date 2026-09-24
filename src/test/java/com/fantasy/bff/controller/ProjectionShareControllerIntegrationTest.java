@@ -238,22 +238,43 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void publicRead_withoutSignIn_stopsAtTheTopOfTheBoard() throws Exception {
+    void publicRead_withoutSignIn_carriesTheWholeBoard() throws Exception {
         when(databaseServiceClient.getSharedProjection(TOKEN))
                 .thenReturn(sharedProjection("My league", "Alex", 400));
 
         mockMvc.perform(get("/api/v1/shared/" + TOKEN))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(25))
-                .andExpect(jsonPath("$.totalPlayers").value(400))
-                .andExpect(jsonPath("$.truncated").value(true));
+                .andExpect(jsonPath("$.data.players.length()").value(400))
+                .andExpect(jsonPath("$.truncated").doesNotExist())
+                .andExpect(jsonPath("$.totalPlayers").doesNotExist());
+    }
+
+    @Test
+    void publicRead_whenSignedIn_carriesTheWholeBoard() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
+                        .header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(400));
+    }
+
+    @Test
+    void publicRead_withAnExpiredToken_isServedRatherThanRejected() throws Exception {
+        when(databaseServiceClient.getSharedProjection(TOKEN))
+                .thenReturn(sharedProjection("My league", "Alex", 400));
+
+        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
+                        .header("Authorization", "Bearer not-a-jwt"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(400));
     }
 
     /**
-     * A board whose best players sit at the bottom of the published ranking: goals climb with the
-     * rank, and the defencemen are every even row. A preview cut before the sort was applied could
-     * not answer either question correctly, which is the point. Three teams, cycling on a
-     * different period to the positions so that a team filter cannot pass by matching one.
+     * A board whose published order is the reverse of its goal column, over three teams. A server
+     * that still sorted, filtered or cut on the way out would answer the parameters below with
+     * something other than the whole board in the order it was published.
      */
     private static SharedProjectionResponse boardOrderedAgainstItself(int rows) {
         SharedProjectionResponse shared = sharedProjection("My league", "Alex", rows);
@@ -275,106 +296,29 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
         return shared;
     }
 
+    /**
+     * A page loaded before the gate came down still sends its sort and filters with every read.
+     * They are no longer the server's to apply, so the answer is the whole published board.
+     */
     @Test
-    void publicRead_withoutSignIn_sortsTheWholeBoardBeforeTakingItsTop() throws Exception {
+    void publicRead_ignoresTheSortAndFiltersAnOlderPageSends() throws Exception {
         when(databaseServiceClient.getSharedProjection(TOKEN))
                 .thenReturn(boardOrderedAgainstItself(400));
 
         mockMvc.perform(get("/api/v1/shared/" + TOKEN)
                         .param("sort", "goals")
-                        .param("direction", "desc"))
+                        .param("direction", "desc")
+                        .param("position", "D")
+                        .param("search", "x".repeat(101))
+                        .param("team", "COL")
+                        .param("rookies", "true"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(25))
-                .andExpect(jsonPath("$.data.players[0].name").value("Player 400"))
-                .andExpect(jsonPath("$.totalPlayers").value(400))
-                .andExpect(jsonPath("$.truncated").value(true));
-    }
-
-    @Test
-    void publicRead_withoutSignIn_filtersTheWholeBoardBeforeTakingItsTop() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("position", "D"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(25))
-                .andExpect(jsonPath("$.data.players[0].name").value("Player 2"))
-                .andExpect(jsonPath("$.data.players[1].name").value("Player 4"));
-    }
-
-    /** The gate is about the reader, not the filter: a board longer than the preview is cut. */
-    @Test
-    void publicRead_withoutSignIn_staysTruncatedUnderAFilterThatMatchesFewRows() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("position", "G"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(0))
-                .andExpect(jsonPath("$.truncated").value(true));
-    }
-
-    @Test
-    void publicRead_withAnUnknownColumn_keepsThePublishedOrder() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("sort", "not-a-stat"))
-                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.players.length()").value(400))
                 .andExpect(jsonPath("$.data.players[0].name").value("Player 1"));
     }
 
     @Test
-    void publicRead_withoutSignIn_searchesTheWholeBoardBeforeTakingItsTop() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("search", "player 399"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(1))
-                .andExpect(jsonPath("$.data.players[0].name").value("Player 399"));
-    }
-
-    @Test
-    void publicRead_withoutSignIn_filtersTheWholeBoardByTeam() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("team", "COL"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(25))
-                .andExpect(jsonPath("$.data.players[0].name").value("Player 1"))
-                .andExpect(jsonPath("$.data.players[1].name").value("Player 4"));
-    }
-
-    @Test
-    void publicRead_withoutSignIn_keepsOnlyTheRookiesWhenAsked() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-        when(rookieService.rookies()).thenReturn(RookiesResponse.of(Set.of(300, 301)));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("rookies", "true"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(2))
-                .andExpect(jsonPath("$.data.players[0].name").value("Player 300"));
-    }
-
-    /** The filter is only as good as the answer behind it, and there isn't always one. */
-    @Test
-    void publicRead_withoutSignIn_ignoresTheRookieFilterWhenNobodyCanSayWhoIsOne() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(boardOrderedAgainstItself(400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("rookies", "true"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(25))
-                .andExpect(jsonPath("$.rookieIds.length()").value(0));
-    }
-
-    /** Both controls are filled from the whole board, or they would offer a reader behind the
-     * gate only what the rows they were sent happen to contain. */
-    @Test
-    void publicRead_namesTheTeamsAndRookiesOfTheWholeBoard() throws Exception {
+    void publicRead_namesTheTeamsAndRookiesOfTheBoard() throws Exception {
         when(databaseServiceClient.getSharedProjection(TOKEN))
                 .thenReturn(boardOrderedAgainstItself(400));
         when(rookieService.rookies()).thenReturn(RookiesResponse.of(Set.of(399, 12345)));
@@ -385,70 +329,15 @@ class ProjectionShareControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.rookieIds").value(contains(399)));
     }
 
+    /** Nobody being able to say who is a rookie reads as nobody being one: no filter offered. */
     @Test
-    void publicRead_withAnOverlongSearch_isRejected() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(sharedProjection("My league", "Alex", 400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN).param("search", "x".repeat(101)))
-                .andExpect(status().isBadRequest());
-    }
-
-    /** Someone holding the whole board sorts it in the browser; the params are not theirs. */
-    @Test
-    void publicRead_whenSignedIn_ignoresTheOrderAskedForAndSendsEverything() throws Exception {
+    void publicRead_namesNoRookiesWhenNobodyCanSayWhoIsOne() throws Exception {
         when(databaseServiceClient.getSharedProjection(TOKEN))
                 .thenReturn(boardOrderedAgainstItself(400));
 
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
-                        .header("Authorization", "Bearer " + token())
-                        .param("sort", "goals")
-                        .param("direction", "desc")
-                        .param("position", "D")
-                        .param("search", "Player 399")
-                        .param("team", "COL")
-                        .param("rookies", "true"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(400))
-                .andExpect(jsonPath("$.data.players[0].name").value("Player 1"));
-    }
-
-    @Test
-    void publicRead_whenSignedIn_carriesTheWholeBoard() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(sharedProjection("My league", "Alex", 400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
-                        .header("Authorization", "Bearer " + token()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(400))
-                .andExpect(jsonPath("$.totalPlayers").value(400))
-                .andExpect(jsonPath("$.truncated").value(false));
-    }
-
-    @Test
-    void publicRead_withoutSignIn_isNotTruncatedWhenTheBoardIsShorterThanThePreview()
-            throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(sharedProjection("My league", "Alex", 10));
-
         mockMvc.perform(get("/api/v1/shared/" + TOKEN))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(10))
-                .andExpect(jsonPath("$.totalPlayers").value(10))
-                .andExpect(jsonPath("$.truncated").value(false));
-    }
-
-    @Test
-    void publicRead_withAnExpiredToken_isTreatedAsAnonymousRatherThanRejected() throws Exception {
-        when(databaseServiceClient.getSharedProjection(TOKEN))
-                .thenReturn(sharedProjection("My league", "Alex", 400));
-
-        mockMvc.perform(get("/api/v1/shared/" + TOKEN)
-                        .header("Authorization", "Bearer not-a-jwt"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.players.length()").value(25))
-                .andExpect(jsonPath("$.truncated").value(true));
+                .andExpect(jsonPath("$.rookieIds.length()").value(0));
     }
 
     @Test
