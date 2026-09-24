@@ -1464,70 +1464,14 @@ paths:
       tags:
       - Shared projections
       summary: Fetch a shared projection by its token
-      description: "Public: anyone holding the link can read it. A signed-in reader\
-        \ gets the whole published board; anyone else gets its top rows, with `truncated`\
-        \ set and `totalPlayers` saying what the board holds. Which top rows those\
-        \ are follows the filters, `sort` and `direction`, so a column sorts the whole\
-        \ board and a search reaches all of it rather than the rows already sent.\
-        \ Returns the snapshot as it was when shared, with no identity beyond the\
-        \ owner's public username."
+      description: "Public: anyone holding the link reads the whole published board,\
+        \ signed in or not. Returns the snapshot as it was when shared, with no identity\
+        \ beyond the owner's public username."
       operationId: getSharedProjection
       parameters:
       - name: token
         in: path
         required: true
-        schema:
-          type: string
-      - name: position
-        in: query
-        description: "Position to filter the board by before its top rows are taken:\
-          \ `ALL`, `SKATER`, `G`, or one of a skater's positions. Read only for a\
-          \ reader who is not signed in — one holding the whole board filters it in\
-          \ the browser."
-        required: false
-        schema:
-          type: string
-      - name: search
-        in: query
-        description: "Name to search the board for, matched as a case-insensitive\
-          \ substring, as the browser matches it. Read only for a reader who is not\
-          \ signed in."
-        required: false
-        schema:
-          type: string
-          maxLength: 100
-          minLength: 0
-      - name: team
-        in: query
-        description: "Team abbreviation to keep, or `ALL`. Read only for a reader\
-          \ who is not signed in."
-        required: false
-        schema:
-          type: string
-          maxLength: 10
-          minLength: 0
-      - name: rookies
-        in: query
-        description: "True to keep only the rookies. Read only for a reader who is\
-          \ not signed in, and ignored where rookie status cannot be determined —\
-          \ `rookieIds` says whether it can."
-        required: false
-        schema:
-          type: boolean
-      - name: sort
-        in: query
-        description: "Column to order the board by before its top rows are taken:\
-          \ `summary` (the published ranking), `name`, or a stat key. Read only for\
-          \ a reader who is not signed in. An unknown column leaves the published\
-          \ order."
-        required: false
-        schema:
-          type: string
-      - name: direction
-        in: query
-        description: "`asc` or `desc`; anything else reads as `desc`, which is best-first\
-          \ for every column the page opens in."
-        required: false
         schema:
           type: string
       responses:
@@ -4086,22 +4030,10 @@ components:
           description: "The season this projection is for, as its 8-digit code."
         data:
           $ref: "#/components/schemas/SharedProjectionData"
-          description: "The snapshot. Its rows are the whole published board for a\
-            \ signed-in reader, and the top of it otherwise."
-        totalPlayers:
-          type: integer
-          format: int32
-          description: "How many rows the published board has in total, whether or\
-            \ not this response carries them all."
-        truncated:
-          type: boolean
-          description: True when rows were withheld because the reader is not signed
-            in.
+          description: "The snapshot: every row the owner published."
         teams:
           type: array
-          description: "Every team with a player on the published board, alphabetically.\
-            \ Read off the whole board rather than the rows in this response, so the\
-            \ team filter offers the same choices to every reader."
+          description: "Every team with a player on the published board, alphabetically."
           items:
             type: string
         rookieIds:
@@ -4128,8 +4060,6 @@ components:
       - season
       - teams
       - token
-      - totalPlayers
-      - truncated
       - updatedAt
     PlayerSplitResponse:
       type: object
