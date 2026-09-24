@@ -29,7 +29,7 @@ class YahooLeagueServiceTest {
 
     private final LeagueSettingsResponse settings = new LeagueSettingsResponse()
             .leagueKey(LEAGUE_KEY)
-            .name("VNHLFL")
+            .name("Test League")
             .scoringType("headpoint")
             .statCategories(List.of())
             .rosterPositions(List.of());
@@ -42,7 +42,7 @@ class YahooLeagueServiceTest {
     void resolvesNumTeamsFromTheLeagueListAndDelegatesToTheMapper() {
         when(client.settings(USER_ID, LEAGUE_KEY)).thenReturn(settings);
         when(client.leagues(USER_ID)).thenReturn(new LeaguesResponse().leagues(List.of(
-                new LeagueSummary().leagueKey(LEAGUE_KEY).name("VNHLFL").numTeams(14),
+                new LeagueSummary().leagueKey(LEAGUE_KEY).name("Test League").numTeams(14),
                 new LeagueSummary().leagueKey("other").name("Other").numTeams(8))));
         when(mapper.toProjectionSettings(settings, 14)).thenReturn(mapped);
 
@@ -65,7 +65,7 @@ class YahooLeagueServiceTest {
     void passesNullNumTeamsWhenTheMatchedLeagueHasNoTeamCount() {
         when(client.settings(USER_ID, LEAGUE_KEY)).thenReturn(settings);
         when(client.leagues(USER_ID)).thenReturn(new LeaguesResponse().leagues(List.of(
-                new LeagueSummary().leagueKey(LEAGUE_KEY).name("VNHLFL"))));
+                new LeagueSummary().leagueKey(LEAGUE_KEY).name("Test League"))));
         when(mapper.toProjectionSettings(settings, null)).thenReturn(mapped);
 
         assertThat(service.projectionSettings(USER_ID, LEAGUE_KEY)).isSameAs(mapped);
