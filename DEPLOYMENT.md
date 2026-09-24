@@ -80,6 +80,12 @@ secret is environment-specific: staging and production never share one.
 | `FEEDBACK_NOTIFY_EMAIL` | | no | `info@slapstat.com` | Mailed the title and a link to each issue as it is filed (through Resend), since GitHub does not notify the token's owner of issues the token opens. |
 | `GITHUB_API_BASE_URL` | | no | `https://api.github.com` | For tests. |
 
+### Sign-up notification
+
+| Variable | Secret | Required | Default | Notes |
+|---|---|---|---|---|
+| `SIGNUP_NOTIFY_EMAIL` | | no | none (off) | Mailed each new account's address and sign-up method (password, Google or Facebook) through Resend. Unset or blank turns it off, with one warning at startup. Set in prod only; staging leaves it unset on purpose. |
+
 ### Features and the player pool
 
 | Variable | Secret | Required | Default | Notes |
