@@ -146,7 +146,7 @@ public class ProjectionModelController {
                 seed.skatersSeeded(),
                 seed.goaliesSeeded(),
                 seed.unmapped(),
-                seed.withoutWorkload());
+                seed.withoutWorkload().size());
     }
 
     @Operation(
