@@ -234,7 +234,9 @@ endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
     back **their own** cookies (everything else exposes only a `hasCredentials` flag).
     `GET /yahoo/leagues/{key}/draft` is what the draft room polls while it follows a league's
     live draft: teams keyed by Yahoo's team key in first-round order, and only the unbroken run
-    of picks made from pick 1, since the board numbers a pick by its place in the list. It is
+    of picks made from pick 1, since the board numbers a pick by its place in the list.
+    `orderKnown` is yahoo-service's, passed on unchanged: false while the teams are in Yahoo's own
+    list order rather than the draft's, as they are before a live draft runs. It is
     **one answer, `LeagueDraftSyncAvailability`**: `league-draft-sync.enabled`
     (`DRAFT_LEAGUE_SYNC_ENABLED`, off by default) *and* a pool on Yahoo ids, because the picks
     name players by Yahoo's. Without it the endpoint 404s, and `GET /api/v1/features` reports it

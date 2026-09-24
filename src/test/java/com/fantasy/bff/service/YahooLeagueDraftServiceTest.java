@@ -41,6 +41,7 @@ class YahooLeagueDraftServiceTest {
                         .teams(List.of(
                                 new LeagueDraftTeam().teamKey("465.l.9.t.2").name("Bravo").mine(false),
                                 new LeagueDraftTeam().teamKey("465.l.9.t.1").name("Alpha").mine(true)))
+                        .orderKnown(true)
                         .picks(List.of(
                                 pick(2, 1, "465.l.9.t.1", 7109),
                                 pick(1, 1, "465.l.9.t.2", 6743),
@@ -53,9 +54,38 @@ class YahooLeagueDraftServiceTest {
         assertThat(draft.auction()).isFalse();
         assertThat(draft.teams()).extracting("id").containsExactly("465.l.9.t.2", "465.l.9.t.1");
         assertThat(draft.teams().get(1).mine()).isTrue();
+        assertThat(draft.orderKnown()).isTrue();
         assertThat(draft.picks()).extracting("overall").containsExactly(1, 2);
         assertThat(draft.picks()).extracting("playerId").containsExactly(6743, 7109);
         assertThat(draft.picks()).extracting("teamId").containsExactly("465.l.9.t.2", "465.l.9.t.1");
+    }
+
+    /**
+     * Before a live draft runs, Yahoo lists its teams in an order of its own, which is not who picks
+     * when. The list alone looks the same either way, so whether it is the draft order has to travel
+     * beside it, and a Yahoo answer that does not say is read as not known.
+     */
+    @Test
+    void saysWhenTheTeamOrderIsNotTheDraftOrder() {
+        when(availability.available()).thenReturn(true);
+        var unknown = new com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse()
+                .leagueKey(LEAGUE_KEY)
+                .status(com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse.StatusEnum.PRE_DRAFT)
+                .auction(false)
+                .teams(List.of(
+                        new LeagueDraftTeam().teamKey("465.l.9.t.1").name("Alpha").mine(true),
+                        new LeagueDraftTeam().teamKey("465.l.9.t.2").name("Bravo").mine(false)))
+                .orderKnown(false)
+                .picks(List.of());
+        when(client.draft(USER_ID, LEAGUE_KEY)).thenReturn(unknown);
+
+        LeagueDraftResponse draft = service.draft(USER_ID, LEAGUE_KEY);
+
+        assertThat(draft.orderKnown()).isFalse();
+        assertThat(draft.teams()).extracting("id").containsExactly("465.l.9.t.1", "465.l.9.t.2");
+
+        unknown.setOrderKnown(null);
+        assertThat(service.draft(USER_ID, LEAGUE_KEY).orderKnown()).isFalse();
     }
 
     @Test

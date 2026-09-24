@@ -41,6 +41,7 @@ class LeagueDraftSyncEnabledTest extends BaseIntegrationTest {
                 .status(LeagueDraftResponse.StatusEnum.IN_PROGRESS)
                 .auction(false)
                 .teams(List.of(new LeagueDraftTeam().teamKey("465.l.9.t.1").name("Alpha").mine(true)))
+                .orderKnown(true)
                 .picks(List.of(new LeagueDraftPick().pick(1).round(1).teamKey("465.l.9.t.1")
                         .playerKey("465.p.6743").playerId(6743))));
 
@@ -50,6 +51,7 @@ class LeagueDraftSyncEnabledTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
                 .andExpect(jsonPath("$.teams[0].id").value("465.l.9.t.1"))
                 .andExpect(jsonPath("$.teams[0].mine").value(true))
+                .andExpect(jsonPath("$.orderKnown").value(true))
                 .andExpect(jsonPath("$.picks[0].overall").value(1))
                 .andExpect(jsonPath("$.picks[0].playerId").value(6743));
     }

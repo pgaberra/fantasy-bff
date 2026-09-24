@@ -93,6 +93,7 @@ class LeagueSummaryServiceTest {
                 List.of(
                         new LeagueDraftTeam("t1", "Mine", true),
                         new LeagueDraftTeam("t2", "Theirs", false)),
+                true,
                 List.of(
                         new LeagueDraftPick(1, 1, "t1", 1),
                         new LeagueDraftPick(2, 1, "t2", 2),
@@ -204,6 +205,7 @@ class LeagueSummaryServiceTest {
                 LeagueDraftStatus.FINISHED,
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true)),
+                true,
                 List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "ghost", 2))));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
@@ -235,6 +237,7 @@ class LeagueSummaryServiceTest {
                 LeagueDraftStatus.PRE_DRAFT,
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true)),
+                false,
                 List.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
