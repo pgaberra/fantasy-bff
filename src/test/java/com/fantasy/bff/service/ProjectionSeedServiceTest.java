@@ -233,14 +233,11 @@ class ProjectionSeedServiceTest {
         when(projectionServiceClient.goalieProjections(anyInt(), anyString())).thenReturn(List.of());
     }
 
-    /**
-     * A goalie behind two starters has no save % to state. Seeding a .000 would read as the worst
-     * goalie in the league rather than one who isn't expected to play — but he is named, because a
-     * board that took him for a player the model never reached would give him last season's line.
-     */
     @Test
-    @DisplayName("leaves out the lines of goalies the model projects no starts for, and names them")
+    @DisplayName("leaves out goalies the model projects no starts for")
     void skipsGoaliesWithoutWorkload() {
+        // A goalie behind two starters has no save % to state. Seeding a .000 would read as the
+        // worst goalie in the league rather than one who isn't expected to play.
         when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(
                         nhlPlayer(1, "Connor Hellebuyck", "WPG", 37),
@@ -257,7 +254,7 @@ class ProjectionSeedServiceTest {
         ProjectionSeedService.Seed seed = service.seed(2026, "marcel-v3");
 
         assertThat(seed.goaliesSeeded()).isEqualTo(1);
-        assertThat(seed.withoutWorkload()).containsExactly(6001);
+        assertThat(seed.withoutWorkload()).isEqualTo(1);
         assertThat(seed.players()).singleElement().satisfies(p -> {
             assertThat(p.getPlayerId()).isEqualTo(6000);
             assertThat(p.getStats().getScoring()).containsEntry("svPct", 0.912);

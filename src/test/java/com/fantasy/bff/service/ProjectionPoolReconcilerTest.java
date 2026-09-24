@@ -167,40 +167,6 @@ class ProjectionPoolReconcilerTest {
         assertThat(gained(data, 2).getStats().getScoring()).isNotSameAs(shared.getStats().getScoring());
     }
 
-    /**
-     * The model reached this goalie and projected him no starts, which is a line of nothing, not
-     * the absence of a line. Last season's .910 would put a goalie the model benches among the
-     * best on the board; the zero row a board built from scratch holds says he is not expected
-     * to play.
-     */
-    @Test
-    void seedsAGoalieTheModelProjectsNoStartsForAtZeroRatherThanFromLastSeason() {
-        givenTheModel(Set.of(101), modelLine(2, 41.0));
-        ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1));
-
-        Reconciliation change = reconciler.reconcile(data).orElseThrow();
-
-        assertThat(change.addedPlayerIds()).containsExactly(2, 101);
-        PlayerProjection benched = gained(data, 101);
-        assertThat(benched.getType()).isEqualTo(PlayerProjection.TypeEnum.GOALIE);
-        assertThat(benched.getStats().getScoring()).containsKeys("w", "svPct", "gaa");
-        assertThat(benched.getStats().getScoring().values()).containsOnly(0.0);
-        assertThat(benched.getStats().getUtility()).containsEntry("gp", 0.0);
-        assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 41.0);
-    }
-
-    /** Only the model can say a goalie will not play; a board built on last season never asks it. */
-    @Test
-    void seedsEveryGoalieFromLastSeasonOnABoardBuiltOnLastSeason() {
-        givenTheModel(Set.of(101));
-        ProjectionData data = projection(PlayerBasisEnum.LAST_SEASON, null, row(1));
-
-        reconciler.reconcile(data);
-
-        assertThat(gained(data, 101).getStats().getScoring()).containsEntry("svPct", 0.910);
-        verifyNoInteractions(seedService);
-    }
-
     @Test
     void doesNotReadTheModelWhenNobodyArrived() {
         ProjectionData data = projection(PlayerBasisEnum.MODEL, null, row(1), row(2), row(101));
@@ -325,13 +291,8 @@ class ProjectionPoolReconcilerTest {
     }
 
     private void givenTheModelProjects(PlayerProjection... lines) {
-        givenTheModel(Set.of(), lines);
-    }
-
-    private void givenTheModel(Set<Integer> withoutWorkload, PlayerProjection... lines) {
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(
-                        List.of(lines), MODEL_VERSION, lines.length, 0, 0, withoutWorkload, 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(lines), MODEL_VERSION, lines.length, 0, 0, 0, 0));
     }
 
     private static PlayerProjection modelLine(int playerId, double goals) {

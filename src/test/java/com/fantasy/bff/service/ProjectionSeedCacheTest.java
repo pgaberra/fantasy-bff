@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ProjectionSeedCacheTest {
@@ -16,7 +15,7 @@ class ProjectionSeedCacheTest {
     private final MovableClock clock = new MovableClock(Instant.parse("2026-09-03T12:00:00Z"));
     private final ProjectionSeedCache cache = new ProjectionSeedCache(clock);
 
-    private static final Seed SEED = new Seed(List.of(), "marcel-v3", 400, 60, 3, Set.of(6001, 6002), 1);
+    private static final Seed SEED = new Seed(List.of(), "marcel-v3", 400, 60, 3, 2, 1);
 
     @Test
     void handsBackWhatWasPutIn() {

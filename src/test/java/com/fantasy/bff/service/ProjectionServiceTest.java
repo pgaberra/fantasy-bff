@@ -325,7 +325,7 @@ class ProjectionServiceTest {
     void aNewProjectionIsSquaredWithThePoolBeforeItIsWritten() {
         PlayerProjection projected = new PlayerProjection().playerId(4242).type(PlayerProjection.TypeEnum.SKATER);
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, Set.of(), 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
         PlayerProjection lacked = new PlayerProjection().playerId(9).type(PlayerProjection.TypeEnum.SKATER);
         when(reconciler.reconcile(any())).thenAnswer(invocation -> {
             ProjectionData data = invocation.getArgument(0);
@@ -613,7 +613,7 @@ class ProjectionServiceTest {
         projected.setPlayerId(4242);
         projected.setType(PlayerProjection.TypeEnum.SKATER);
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, Set.of(), 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
@@ -679,7 +679,7 @@ class ProjectionServiceTest {
         // playerBasis answers "what should a player who joins the pool later be seeded with".
         // Left unset, the reconciliation before the write read the model's rows as last season's.
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, Set.of(), 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
@@ -777,7 +777,7 @@ class ProjectionServiceTest {
     @DisplayName("a preset draft may be started from the model, and records that preset")
     void presetDraftFromModel_recordsThePreset() {
         when(seedService.seed(SEASON, MODEL_VERSION))
-                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, Set.of(), 0));
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
         projectionService.create(

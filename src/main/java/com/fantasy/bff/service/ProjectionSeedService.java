@@ -69,9 +69,7 @@ public class ProjectionSeedService {
      * @param skatersSeeded how many skaters made it through
      * @param goaliesSeeded how many goalies made it through
      * @param unmapped players the model projected that the platform doesn't carry
-     * @param withoutWorkload the platform ids of goalies the model projects no starts for. Their
-     *     lines are left out of {@code players} on purpose, but the model did reach them, and a
-     *     board has to be able to tell them from players it never reached at all
+     * @param withoutWorkload goalies the model projects no starts for, left out on purpose
      * @param retiredZeroed pool players who have left the league, seeded at zero
      */
     public record Seed(
@@ -80,7 +78,7 @@ public class ProjectionSeedService {
             int skatersSeeded,
             int goaliesSeeded,
             int unmapped,
-            Set<Integer> withoutWorkload,
+            int withoutWorkload,
             int retiredZeroed) {}
 
     public Seed seed(int season, String modelVersion) {
@@ -147,7 +145,7 @@ public class ProjectionSeedService {
 
         List<PlayerProjection> seeded = new ArrayList<>();
         int unmapped = 0;
-        Set<Integer> withoutWorkload = new HashSet<>();
+        int withoutWorkload = 0;
         // What we asked for, until a row tells us otherwise. Unpinned, the version is the
         // service's to choose, and the only honest way to report it is to read it off what came
         // back rather than to echo the request.
@@ -172,12 +170,9 @@ public class ProjectionSeedService {
                 continue;
             }
             // No starts means no rate stats. Seeding a .000 save % would read as the worst
-            // goalie in the league rather than one the model expects not to play. He is named
-            // rather than dropped, though: a board still holds a row for him, and without the
-            // name it would take him for a player the model never reached and give him last
-            // season's line.
+            // goalie in the league rather than one the model expects not to play.
             if (projection.getSavePct() == null || projection.getGamesStarted() == null) {
-                withoutWorkload.add(platformId);
+                withoutWorkload++;
                 continue;
             }
             seeded.add(goalieLine(platformId, projection));
@@ -193,7 +188,7 @@ public class ProjectionSeedService {
                 skaters,
                 goalies,
                 unmapped,
-                Set.copyOf(withoutWorkload),
+                withoutWorkload,
                 retiredZeroed);
         log.info(
                 "Seeded {} projections for {} ({}): {} skaters, {} goalies; {} unmapped, "
@@ -205,7 +200,7 @@ public class ProjectionSeedService {
                 seed.skatersSeeded(),
                 seed.goaliesSeeded(),
                 seed.unmapped(),
-                seed.withoutWorkload().size(),
+                seed.withoutWorkload(),
                 seed.retiredZeroed(),
                 byNhlId.size());
         return seed;
