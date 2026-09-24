@@ -29,7 +29,10 @@ import java.util.Set;
  * A player the pool has gained is added, seeded from what the projection started as — last
  * season's stat line, zeros for one built from scratch, or the model's line for one started from
  * the AI projection. The model has no line for a player with no NHL season behind him, and that
- * is most of who arrives mid-season, so those fall back to last season's line.
+ * is most of who arrives mid-season, so those fall back to last season's line. A goalie the model
+ * reached and projects no starts for is not one of them: it has said he will not play, so he gets
+ * the zero row a board built from scratch would hold, never a season the model chose not to give
+ * him.
  *
  * <p><b>Nothing is ever removed.</b> A row whose player has left the pool is left exactly where
  * it is and simply not shown, which the client already does for any row it cannot draw. Deleting
@@ -122,17 +125,21 @@ public class ProjectionPoolReconciler {
         }
         // Asked only when someone actually arrived: the model's board is the one expensive read
         // here, and most reconciliations of a model-based projection add nobody.
-        Map<Integer, PlayerProjection> modelLines = basis == PlayerBasisEnum.MODEL && !added.isEmpty()
-                ? modelLines()
-                : Map.of();
+        ModelBoard model = basis == PlayerBasisEnum.MODEL && !added.isEmpty()
+                ? modelBoard()
+                : ModelBoard.NONE;
 
         List<PlayerProjection> players = new ArrayList<>(stored);
         int fromModel = 0;
+        int notPlaying = 0;
         for (Integer playerId : added) {
-            PlayerProjection modelLine = modelLines.get(playerId);
+            PlayerProjection modelLine = model.lines().get(playerId);
             if (modelLine != null) {
                 players.add(copyOf(modelLine));
                 fromModel++;
+            } else if (model.notPlaying().contains(playerId)) {
+                players.add(pool.row(playerId, true));
+                notPlaying++;
             } else {
                 players.add(pool.row(playerId, blank));
             }
@@ -143,7 +150,8 @@ public class ProjectionPoolReconciler {
         settings.setPlayerPoolSyncedAt(syncedAt);
         if (basis == PlayerBasisEnum.MODEL && !added.isEmpty()) {
             log.info("Squared a model-based projection with the player pool: +{} added, {} from "
-                    + "the model and {} from last season", added.size(), fromModel, added.size() - fromModel);
+                    + "the model, {} zeroed as not expected to play and {} from last season",
+                    added.size(), fromModel, notPlaying, added.size() - fromModel - notPlaying);
         } else if (blank && !added.isEmpty()) {
             log.info("Squared a projection with the player pool: +{} added, seeded from zeros", added.size());
         } else if (!added.isEmpty()) {
@@ -166,7 +174,19 @@ public class ProjectionPoolReconciler {
     }
 
     /**
-     * The model's current line for every player it reaches, keyed by platform id.
+     * What the model says about the players it reaches, by platform id: a line for each player it
+     * projects, and the goalies it projects no starts for, who have no line but are not strangers
+     * to it either.
+     *
+     * @param lines the model's current line per player
+     * @param notPlaying goalies the model reached and expects not to play
+     */
+    private record ModelBoard(Map<Integer, PlayerProjection> lines, Set<Integer> notPlaying) {
+        static final ModelBoard NONE = new ModelBoard(Map.of(), Set.of());
+    }
+
+    /**
+     * The model's current board.
      *
      * <p>Premium is deliberately not asked. The projection was started from the model by someone
      * entitled to it, and a player who joins it later is part of that same projection; a lapsed
@@ -178,20 +198,21 @@ public class ProjectionPoolReconciler {
      * season. That is the same fallback a player the model does not reach gets, and a failed read
      * must not cost the user the projection they were opening.
      */
-    private Map<Integer, PlayerProjection> modelLines() {
+    private ModelBoard modelBoard() {
         if (!aiProjection.available()) {
-            return Map.of();
+            return ModelBoard.NONE;
         }
         try {
+            ProjectionSeedService.Seed seed = seedService.seed(projectionSeason, projectionModelVersion);
             Map<Integer, PlayerProjection> lines = new HashMap<>();
-            for (PlayerProjection line : seedService.seed(projectionSeason, projectionModelVersion).players()) {
+            for (PlayerProjection line : seed.players()) {
                 lines.put(line.getPlayerId(), line);
             }
-            return lines;
+            return new ModelBoard(lines, seed.withoutWorkload());
         } catch (RuntimeException e) {
             log.error("Could not read the projection model; seeding a model-based projection's new "
                     + "players from last season", e);
-            return Map.of();
+            return ModelBoard.NONE;
         }
     }
 
