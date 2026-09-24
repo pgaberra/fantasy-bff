@@ -3686,9 +3686,16 @@ components:
         teams:
           type: array
           description: "The league's teams in first-round draft order once the league\
-            \ has set it, otherwise in the platform's own team order."
+            \ has set it, otherwise in the platform's own team order; `orderKnown`\
+            \ says which."
           items:
             $ref: "#/components/schemas/LeagueDraftTeam"
+        orderKnown:
+          type: boolean
+          description: "True when `teams` is the league's draft order, read from its\
+            \ first-round slots. False before the league lists them (for a live draft,\
+            \ until it runs): a team's place in `teams` then says nothing about when\
+            \ it picks, so no seat may be read from it."
         picks:
           type: array
           description: "The picks made so far, in order and without gaps: pick n is\
@@ -3697,6 +3704,7 @@ components:
             $ref: "#/components/schemas/LeagueDraftPick"
       required:
       - auction
+      - orderKnown
       - picks
       - status
       - teams
