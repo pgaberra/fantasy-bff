@@ -988,7 +988,7 @@ paths:
       summary: Resolve the account for a verified Google identity
       description: "Returns the user linked to this Google subject, linking it to\
         \ an existing account with the same email or creating a new password-less\
-        \ user."
+        \ user. Answers 201 only when this call created the account."
       operationId: findOrCreateGoogleUser
       requestBody:
         content:
@@ -998,7 +998,13 @@ paths:
         required: true
       responses:
         "200":
-          description: "User resolved (found, linked, or created)"
+          description: "Existing user found, or linked by email"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "201":
+          description: New user created
           content:
             '*/*':
               schema:
@@ -1016,7 +1022,7 @@ paths:
       summary: Resolve the account for a verified Facebook identity
       description: "Returns the user linked to this Facebook subject, linking it to\
         \ an existing account with the same email or creating a new password-less\
-        \ user."
+        \ user. Answers 201 only when this call created the account."
       operationId: findOrCreateFacebookUser
       requestBody:
         content:
@@ -1026,7 +1032,13 @@ paths:
         required: true
       responses:
         "200":
-          description: "User resolved (found, linked, or created)"
+          description: "Existing user found, or linked by email"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "201":
+          description: New user created
           content:
             '*/*':
               schema:

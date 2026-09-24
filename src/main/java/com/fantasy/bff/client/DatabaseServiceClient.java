@@ -56,16 +56,24 @@ public interface DatabaseServiceClient {
     boolean existsByEmail(String email);
 
     /**
+     * An account resolved for a verified social identity.
+     *
+     * @param created whether this call created the account (db-service's 201) rather than found or
+     *                linked an existing one (200)
+     */
+    record ResolvedUser(User user, boolean created) {}
+
+    /**
      * Resolves the account for a verified Google identity — finds it by subject,
      * links it to an existing same-email account, or creates a password-less user.
      */
-    User findOrCreateGoogleUser(String email, String googleSub);
+    ResolvedUser findOrCreateGoogleUser(String email, String googleSub);
 
     /**
      * Resolves the account for a verified Facebook identity — finds it by subject,
      * links it to an existing same-email account, or creates a password-less user.
      */
-    User findOrCreateFacebookUser(String email, String facebookSub);
+    ResolvedUser findOrCreateFacebookUser(String email, String facebookSub);
 
     /**
      * Issues a single-use password reset token for the account with this email, or empty

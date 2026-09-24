@@ -1,6 +1,7 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
+import com.fantasy.bff.client.DatabaseServiceClient.ResolvedUser;
 import com.fantasy.bff.dto.request.FacebookLoginRequest;
 import com.fantasy.bff.dto.request.ForgotPasswordRequest;
 import com.fantasy.bff.dto.request.GoogleCodeLoginRequest;
@@ -16,6 +17,8 @@ import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.email.EmailVerificationEmailSender;
 import com.fantasy.bff.email.PasswordResetEmailSender;
+import com.fantasy.bff.email.SignupMethod;
+import com.fantasy.bff.email.SignupNotificationEmailSender;
 import com.fantasy.bff.model.downstream.User;
 import com.fantasy.bff.security.FacebookIdentity;
 import com.fantasy.bff.security.FacebookTokenVerifier;
@@ -49,6 +52,7 @@ public class AuthService {
     private final FacebookTokenVerifier facebookTokenVerifier;
     private final PasswordResetEmailSender passwordResetEmailSender;
     private final EmailVerificationEmailSender emailVerificationEmailSender;
+    private final SignupNotificationEmailSender signupNotificationEmailSender;
     private final SecurityProperties securityProperties;
     private final EmailSendThrottle emailSendThrottle;
     private final String webBaseUrl;
@@ -62,6 +66,7 @@ public class AuthService {
                        FacebookTokenVerifier facebookTokenVerifier,
                        PasswordResetEmailSender passwordResetEmailSender,
                        EmailVerificationEmailSender emailVerificationEmailSender,
+                       SignupNotificationEmailSender signupNotificationEmailSender,
                        SecurityProperties securityProperties,
                        EmailSendThrottle emailSendThrottle,
                        @Value("${app.web-base-url:http://localhost:4200}") String webBaseUrl) {
@@ -73,6 +78,7 @@ public class AuthService {
         this.facebookTokenVerifier = facebookTokenVerifier;
         this.passwordResetEmailSender = passwordResetEmailSender;
         this.emailVerificationEmailSender = emailVerificationEmailSender;
+        this.signupNotificationEmailSender = signupNotificationEmailSender;
         this.securityProperties = securityProperties;
         this.emailSendThrottle = emailSendThrottle;
         this.webBaseUrl = webBaseUrl;
@@ -136,6 +142,7 @@ public class AuthService {
 
         String passwordHash = passwordEncoder.encode(request.password());
         User user = databaseServiceClient.createUser(request.email(), passwordHash);
+        signupNotificationEmailSender.send(user.email(), SignupMethod.EMAIL);
         // Send a verification email, but never let its failure fail the registration: the account
         // already exists and the user can request a fresh link later (soft gate — they can still log
         // in while unverified).
@@ -172,7 +179,8 @@ public class AuthService {
      * creates a new password-less user.
      */
     private AuthResponse loginWithGoogleIdentity(GoogleIdentity identity) {
-        User user = databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub());
+        User user = notifyIfCreated(
+                databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub()), SignupMethod.GOOGLE);
         return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
     }
 
@@ -184,8 +192,16 @@ public class AuthService {
      */
     public AuthResponse facebookLogin(FacebookLoginRequest request) {
         FacebookIdentity identity = facebookTokenVerifier.verify(request.accessToken());
-        User user = databaseServiceClient.findOrCreateFacebookUser(identity.email(), identity.sub());
+        User user = notifyIfCreated(
+                databaseServiceClient.findOrCreateFacebookUser(identity.email(), identity.sub()), SignupMethod.FACEBOOK);
         return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
+    }
+
+    private User notifyIfCreated(ResolvedUser resolved, SignupMethod method) {
+        if (resolved.created()) {
+            signupNotificationEmailSender.send(resolved.user().email(), method);
+        }
+        return resolved.user();
     }
 
     /**
