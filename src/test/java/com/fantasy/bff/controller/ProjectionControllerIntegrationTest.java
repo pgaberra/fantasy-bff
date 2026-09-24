@@ -594,6 +594,64 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(sent.getValue().getName()).isNull();
     }
 
+    /**
+     * Draft mode's sync switch is saved with the draft: what the page sends reaches db-service,
+     * and what db-service holds comes back, so reopening the draft finds it as it was left.
+     */
+    @Test
+    void update_carriesWhetherADraftFollowsItsLeagueBothWays() throws Exception {
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(DRAFT_ID), any())).thenReturn(
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(DRAFT_ID.toString()).name("My mock")
+                        .kind(ProjectionResponse.KindEnum.DRAFT)
+                        .data(new com.fantasy.bff.generated.db.model.ProjectionData()
+                                .projectionSettings(new com.fantasy.bff.generated.db.model.ProjectionSettings()
+                                        .scoringType(com.fantasy.bff.generated.db.model.ProjectionSettings.ScoringTypeEnum.POINTS))
+                                .players(List.of())
+                                .draft(new com.fantasy.bff.generated.db.model.DraftState()
+                                        .teams(List.of(new com.fantasy.bff.generated.db.model.DraftTeam()
+                                                .id("t1").name("Me").mine(true)))
+                                        .order(List.of("t1"))
+                                        .picks(List.of())
+                                        .following(true))));
+
+        mockMvc.perform(put("/api/v1/projections/{id}", DRAFT_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(FOLLOWING_DRAFT_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.draft.following").value(true));
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.UpdateProjectionRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(DRAFT_ID), sent.capture());
+        assertThat(sent.getValue().getData().getDraft().getFollowing()).isTrue();
+    }
+
+    /** A save from draft mode that has left its league's draft on. */
+    private static final String FOLLOWING_DRAFT_BODY = """
+            {
+              "name": "My mock",
+              "data": {
+                "settings": {
+                  "scoringType": "points",
+                  "statWeights": { "goals": 4.5 },
+                  "activeScoringColumns": ["goals"],
+                  "activeUtilityColumns": ["gp"],
+                  "scaleSettings": {},
+                  "decimalSettings": { "goals": 0 },
+                  "useDefaultDecimals": true
+                },
+                "draft": {
+                  "teams": [{ "id": "t1", "name": "Me", "mine": true }],
+                  "order": ["t1"],
+                  "picks": [],
+                  "following": true
+                }
+              }
+            }
+            """;
+
     @Test
     void startDraft_needsAToken() throws Exception {
         mockMvc.perform(post("/api/v1/projections/{id}/drafts", PROJECTION_ID)
