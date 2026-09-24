@@ -59,10 +59,10 @@ SPRING_PROFILES_ACTIVE=dev JWT_SECRET=<32chars> DB_INTERNAL_API_KEY=… YAHOO_IN
 
 Swagger UI (when running): `http://localhost:8080/swagger-ui.html`
 
-**Updating db-service client models:** when `fantasy-db-service` adds or changes an
-endpoint, update `specs/fantasy-db-service-openapi.yaml` to match, then run
-`./gradlew openApiGenerate`. Generated classes land in
-`com.fantasy.bff.generated.db.model` (not committed — regenerated on every build).
+**Updating a downstream client:** never edit a pinned spec by hand — copy the producer's
+committed spec over it verbatim and regenerate (see
+[OpenAPI-first downstream clients](#openapi-first-downstream-clients)). Generated classes
+are not committed; every build regenerates them.
 
 ## Architecture
 
@@ -525,11 +525,11 @@ Workflow for a new downstream service:
 Every downstream client is fully generated, each from its pinned spec in `specs/`:
 `com.fantasy.bff.generated.db.model`, `.yahoo.model`, `.espn.model` and `.projection.model`.
 
-The `specs/fantasy-*-openapi.yaml` files are **verbatim pinned copies** of each
-service's `specs/openapi.yaml`. CI fails if they drift from the respective repo's
-`master` (see below). To update after a downstream API change: copy the new
-`specs/openapi.yaml` over the pinned copy, re-run the generate task, and fix any
-resulting compile errors.
+The `specs/fantasy-*-openapi.*` files are **verbatim pinned copies** of each service's
+committed spec: `specs/openapi.yaml` in the three Spring services, `specs/openapi.json` in
+projection-service. To update after a downstream API change: copy the producer's file from its
+`master` over the pinned copy, re-run the generate task, and fix any resulting compile errors.
+Re-pin in a PR of its own, never inside unrelated work (see below).
 
 ### Own spec snapshot (`specs/bff-openapi.yaml`)
 
@@ -548,8 +548,12 @@ git add specs/bff-openapi.yaml
 ## CI / workflow
 
 - `.github/workflows/pr-checks.yml`: runs `./gradlew build --no-daemon` on PRs to `master`.
-- A **spec drift check** runs first: it fetches each downstream service's spec from
-  its `master` and fails if the pinned copy differs. This needs a repo secret
+- A **spec drift check** runs first (`.github/scripts/check-pinned-spec.sh`): it fetches each
+  downstream service's spec from its `master` and compares the pinned copy. It **fails only
+  when this branch broke the pin** (edited it by hand, or re-pinned and the producer has merged
+  since); a pin that was already behind on the base branch is a warning, since the PR did not
+  cause it. The weekday `spec-freshness.yml` run fails on any stale pin. A 401 there is an
+  expired token, not drift. This needs a repo secret
   `SPEC_READ_TOKEN` — a fine-grained PAT with read access to the contents of every service
   whose spec is pinned here (db, yahoo, espn, projection). Adding a downstream means adding
   it to that token too, or the check 404s rather than reporting drift.
