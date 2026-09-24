@@ -86,7 +86,7 @@ class LeagueSummaryServiceTest {
                         row(1, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 40.0)),
                         row(2, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 30.0)),
                         row(3, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 15.0))),
-                "v1.2.3", 3, 0, 0, Set.of(), 0));
+                "v1.2.3", 3, 0, 0, 0, 0));
         when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
                 LeagueDraftStatus.FINISHED,
                 false,

@@ -4206,9 +4206,9 @@ components:
         goaliesWithoutWorkload:
           type: integer
           format: int32
-          description: "Goalies the model projects no starts for. Left out rather\
-            \ than seeded with a zero save percentage, which would read as the worst\
-            \ goalie in the league."
+          description: "Goalies the model projects no starts for, not counted in `goalies`.\
+            \ Their lines are in `players` at zero starts with no save percentage\
+            \ or GAA, since a zero there would read as the worst goalie in the league."
       required:
       - goalies
       - goaliesWithoutWorkload
