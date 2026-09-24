@@ -31,6 +31,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -338,6 +339,67 @@ class ProjectionServiceTest {
 
         assertThat(capturedPlayers()).extracting(PlayerProjection::getPlayerId).containsExactly(4242, 9);
         assertThat(capturedSettings().getUnacknowledgedNewPlayerIds()).isNull();
+    }
+
+    /**
+     * The new-projection page previews the AI starting point from these rows, so its top five
+     * are the created board's top five only while both are the same rows. A stand-in reconciler
+     * that squares only what it would square for real (a model basis, never squared) proves the
+     * preview goes through the same filling and squaring as the create.
+     */
+    @Test
+    void theModelBoard_isExactlyTheRowsAModelSeededProjectionIsWrittenWith() {
+        PlayerProjection projected = new PlayerProjection().playerId(4242).type(PlayerProjection.TypeEnum.SKATER)
+                .stats(new PlayerStats().utility(Map.of("gp", 81.5)).scoring(Map.of("goals", 49.4)));
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
+        PlayerProjection lacked = new PlayerProjection().playerId(9).type(PlayerProjection.TypeEnum.GOALIE)
+                .stats(new PlayerStats().utility(Map.of("gp", 60.0)).scoring(Map.of("w", 38.0)));
+        givenAReconcilerThatAddsToAnUnsquaredModelBoard(lacked);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        List<com.fantasy.bff.dto.response.PlayerProjection> board = projectionService.modelBoard();
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
+
+        assertThat(board).containsExactlyElementsOf(
+                capturedPlayers().stream().map(com.fantasy.bff.dto.response.PlayerProjection::from).toList());
+        assertThat(board).extracting(com.fantasy.bff.dto.response.PlayerProjection::playerId)
+                .containsExactly(4242, 9);
+    }
+
+    /**
+     * The rows a server-side starting point fills in have never been squared with any sync. A
+     * stamp the client sent with its settings used to stand, and one matching the latest sync
+     * had the reconciliation skip every player the model does not reach — a board the preview
+     * of it would not match.
+     */
+    @Test
+    void aSyncStampTheClientSent_doesNotSkipSquaringTheModelsRows() {
+        PlayerProjection projected = new PlayerProjection().playerId(4242).type(PlayerProjection.TypeEnum.SKATER);
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(projected), "marcel-v14", 1, 0, 0, 0, 0));
+        PlayerProjection lacked = new PlayerProjection().playerId(9).type(PlayerProjection.TypeEnum.SKATER);
+        givenAReconcilerThatAddsToAnUnsquaredModelBoard(lacked);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+        ProjectionData claimed = emptyData();
+        claimed.getProjectionSettings().setPlayerPoolSyncedAt(OffsetDateTime.parse("2026-09-24T04:00:00Z"));
+
+        projectionService.create(USER_ID, request(claimed, ProjectionSource.MODEL));
+
+        assertThat(capturedPlayers()).extracting(PlayerProjection::getPlayerId).containsExactly(4242, 9);
+    }
+
+    private void givenAReconcilerThatAddsToAnUnsquaredModelBoard(PlayerProjection lacked) {
+        when(reconciler.reconcile(any())).thenAnswer(invocation -> {
+            ProjectionData data = invocation.getArgument(0);
+            ProjectionSettings settings = data.getProjectionSettings();
+            if (settings.getPlayerBasis() != PlayerBasisEnum.MODEL || settings.getPlayerPoolSyncedAt() != null) {
+                return Optional.empty();
+            }
+            data.setPlayers(Stream.concat(data.getPlayers().stream(), Stream.of(lacked)).toList());
+            settings.setPlayerPoolSyncedAt(OffsetDateTime.parse("2026-09-24T04:00:00Z"));
+            return Optional.of(new Reconciliation(List.of(lacked.getPlayerId())));
+        });
     }
 
     /** A copied board brings its source's settings, and the source's unread notice is not the copy's. */

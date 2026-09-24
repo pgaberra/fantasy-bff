@@ -225,22 +225,14 @@ public class ProjectionService {
                         "source and data.players are mutually exclusive: omit players to have the "
                                 + "server fill them in, or omit source to send your own");
             }
-            data.setPlayers(playersFrom(request.source()));
-            data.getProjectionSettings().setPlayerBasis(basisOf(request.source()));
+            fillFrom(request.source(), data);
         } else if (data.getPlayers().isEmpty()) {
             throw new IllegalArgumentException("data.players must not be empty unless source is set");
         } else {
             // A new projection has nothing stored to have held the basis already.
             settleClaimedBasis(userId, data.getProjectionSettings(), () -> false);
         }
-        // Squared with the pool before it is written, not on its first read. A starting point that
-        // does not cover the whole pool — the model's lines, a copied board — would otherwise have
-        // that read add the players it lacked and report them to the user as having joined since
-        // the projection was created, seconds earlier. Nothing is reported from here: a projection
-        // that did not exist yet has no "since". A copied board's settings carry its source's
-        // unacknowledged players, and those are no news to the copy either.
-        data.getProjectionSettings().setUnacknowledgedNewPlayerIds(null);
-        reconciler.reconcile(data);
+        squareWithPool(data);
         return ProjectionResponse.of(databaseServiceClient.createProjection(userId,
                 new com.fantasy.bff.generated.db.model.CreateProjectionRequest()
                         .name(request.name())
@@ -248,6 +240,49 @@ public class ProjectionService {
                         .preset(presetOf(request))
                         .data(data)
                         .playerIdSpace(idSpaceOf(playerPool.playerIdSpace()))));
+    }
+
+    /**
+     * The rows a projection created with {@code source=model} is written with, without writing
+     * one: the model's lines, squared with the pool exactly as {@link #create} squares them. What
+     * the new-projection page ranks to preview the AI starting point, so its top rows are the top
+     * rows of the board it creates; the two share {@link #fillFrom} and {@link #squareWithPool}
+     * so they cannot come apart. Availability and premium are the caller's to check.
+     */
+    public List<com.fantasy.bff.dto.response.PlayerProjection> modelBoard() {
+        ProjectionData data = new ProjectionData()
+                .projectionSettings(new ProjectionSettings())
+                .players(new ArrayList<>());
+        fillFrom(ProjectionSource.MODEL, data);
+        squareWithPool(data);
+        return data.getPlayers().stream()
+                .map(com.fantasy.bff.dto.response.PlayerProjection::from)
+                .toList();
+    }
+
+    /**
+     * Fills a new projection's rows from a starting point the server owns, and records that
+     * starting point as the basis. The rows have never been squared with any sync, so a stamp
+     * the client sent with its settings is dropped: left standing, it would have the
+     * reconciliation skip the players the starting point does not cover.
+     */
+    private void fillFrom(ProjectionSource source, ProjectionData data) {
+        data.setPlayers(playersFrom(source));
+        data.getProjectionSettings().setPlayerBasis(basisOf(source));
+        data.getProjectionSettings().setPlayerPoolSyncedAt(null);
+    }
+
+    /**
+     * Squares a projection that does not exist yet with the pool. A starting point that does not
+     * cover the whole pool — the model's lines, a copied board — would otherwise have its first
+     * read add the players it lacked and report them to the user as having joined since the
+     * projection was created, seconds earlier. Nothing is reported from here: a projection that
+     * did not exist yet has no "since". A copied board's settings carry its source's
+     * unacknowledged players, and those are no news to the copy either.
+     */
+    private void squareWithPool(ProjectionData data) {
+        data.getProjectionSettings().setUnacknowledgedNewPlayerIds(null);
+        reconciler.reconcile(data);
     }
 
     /**

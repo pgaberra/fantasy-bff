@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.request.GameRange;
+import com.fantasy.bff.dto.response.ModelBoardResponse;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
 import com.fantasy.bff.dto.response.SplitSeasonListResponse;
@@ -8,6 +9,7 @@ import com.fantasy.bff.exception.PremiumRequiredException;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.EntitlementService;
 import com.fantasy.bff.service.PlayerSplitService;
+import com.fantasy.bff.service.ProjectionService;
 import com.fantasy.bff.service.ProjectionSeedService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -63,6 +65,7 @@ public class ProjectionModelController {
     private final PlayerSplitService splitService;
     private final AiProjectionAvailability aiProjection;
     private final EntitlementService entitlementService;
+    private final ProjectionService projectionService;
     private final int defaultSeason;
     private final String defaultModelVersion;
 
@@ -71,12 +74,14 @@ public class ProjectionModelController {
             PlayerSplitService splitService,
             AiProjectionAvailability aiProjection,
             EntitlementService entitlementService,
+            ProjectionService projectionService,
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
         this.seedService = seedService;
         this.splitService = splitService;
         this.aiProjection = aiProjection;
         this.entitlementService = entitlementService;
+        this.projectionService = projectionService;
         this.defaultSeason = defaultSeason;
         this.defaultModelVersion = defaultModelVersion;
     }
@@ -147,6 +152,32 @@ public class ProjectionModelController {
                 seed.goaliesSeeded(),
                 seed.unmapped(),
                 seed.withoutWorkload());
+    }
+
+    @Operation(
+            operationId = "modelBoard",
+            summary = "The rows a projection created from the model would start with",
+            description =
+                    "Exactly the rows `POST /api/v1/projections` with `source=model` writes, without "
+                            + "writing anything: the model's lines, plus last season's line for every "
+                            + "player in the pool the model does not reach. For previewing the AI "
+                            + "starting point, so the preview ranks the board it creates and not a "
+                            + "slice of it. Needs a premium subscription.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Every row the new projection would hold"),
+        @ApiResponse(responseCode = "403", description = "This account has no premium"),
+        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
+    })
+    @GetMapping("/board")
+    public ModelBoardResponse board(@AuthenticationPrincipal String userId) {
+        if (!aiProjection.available()) {
+            throw new NoSuchElementException("The AI projection is not enabled");
+        }
+        if (!entitlementService.hasPremiumAccess(userId)) {
+            throw new PremiumRequiredException(
+                    "The AI projection is part of premium. Subscribe to see the model's lines.");
+        }
+        return new ModelBoardResponse(projectionService.modelBoard());
     }
 
     @Operation(
