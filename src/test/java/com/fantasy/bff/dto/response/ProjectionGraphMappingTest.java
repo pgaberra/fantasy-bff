@@ -95,7 +95,8 @@ class ProjectionGraphMappingTest {
                         .minGoalieGames(84)
                         .espnSync(new EspnSync()
                                 .leagueName("Other League").leagueId("12345").syncedAt(SYNCED_AT))
-                        .lastEspnLeagueId("12345"));
+                        .lastEspnLeagueId("12345"))
+                .following(true);
     }
 
     @Test
@@ -133,6 +134,23 @@ class ProjectionGraphMappingTest {
 
         assertThat(com.fantasy.bff.dto.response.DraftState.from(original).toDownstream())
                 .isEqualTo(original);
+    }
+
+    /**
+     * A draft that never followed its league says nothing about it, and has to come back saying
+     * nothing: mapped to false, the next save would write a choice the user never made.
+     */
+    @Test
+    void leavesFollowingUnsetOnADraftThatNeverFollowed() {
+        DraftState never = new DraftState()
+                .teams(List.of(new DraftTeam().id("t1").name("Mine").mine(true)))
+                .order(List.of("t1"))
+                .picks(List.of());
+
+        var mapped = com.fantasy.bff.dto.response.DraftState.from(never);
+
+        assertThat(mapped.following()).isNull();
+        assertThat(mapped.toDownstream()).isEqualTo(never);
     }
 
     @Test

@@ -27,7 +27,12 @@ public record DraftState(
         @Schema(description = "The league this draft is ranked by, set up with the draft. Absent on "
                 + "a draft saved before drafts held their own league, which is ranked by the "
                 + "projection's settings instead.")
-        @Valid DraftSettings settings
+        @Valid DraftSettings settings,
+
+        @Schema(description = "Whether the board follows its linked league's live draft: the sync "
+                + "switch as the user left it, so a reload picks the league's draft back up. Absent "
+                + "on a board that never followed, which reads as not following.")
+        Boolean following
 ) {
 
     public static DraftState from(com.fantasy.bff.generated.db.model.DraftState draft) {
@@ -39,7 +44,8 @@ public record DraftState(
                 draft.getOrder(),
                 map(draft.getPicks(), DraftPick::from),
                 draft.getFinishedAt(),
-                DraftSettings.from(draft.getProjectionSettings()));
+                DraftSettings.from(draft.getProjectionSettings()),
+                draft.getFollowing());
     }
 
     public com.fantasy.bff.generated.db.model.DraftState toDownstream() {
@@ -48,7 +54,8 @@ public record DraftState(
                 .order(order)
                 .picks(map(picks, DraftPick::toDownstream))
                 .finishedAt(finishedAt)
-                .projectionSettings(settings == null ? null : settings.toDownstream());
+                .projectionSettings(settings == null ? null : settings.toDownstream())
+                .following(following);
     }
 
     private static <S, T> List<T> map(List<S> source, java.util.function.Function<S, T> mapper) {
