@@ -1799,6 +1799,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SeededProjectionResponse"
+  /api/v1/projection-model/board:
+    get:
+      tags:
+      - Projection model
+      summary: The rows a projection created from the model would start with
+      description: "Exactly the rows `POST /api/v1/projections` with `source=model`\
+        \ writes, without writing anything: the model's lines, plus last season's\
+        \ line for every player in the pool the model does not reach. For previewing\
+        \ the AI starting point, so the preview ranks the board it creates and not\
+        \ a slice of it. Needs a premium subscription."
+      operationId: modelBoard
+      responses:
+        "200":
+          description: Every row the new projection would hold
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelBoardResponse"
+        "403":
+          description: This account has no premium
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelBoardResponse"
+        "404":
+          description: The AI projection is switched off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelBoardResponse"
   /api/v1/players/{playerId}/headshot:
     get:
       tags:
@@ -4217,6 +4247,19 @@ components:
       - season
       - skaters
       - unmapped
+    ModelBoardResponse:
+      type: object
+      description: The rows a projection created with source=model would be written
+        with
+      properties:
+        players:
+          type: array
+          description: "Every row, keyed by the platform's player id: the model's\
+            \ line where it has one, last season's otherwise"
+          items:
+            $ref: "#/components/schemas/PlayerProjection"
+      required:
+      - players
     SkaterResponse:
       type: object
       properties:

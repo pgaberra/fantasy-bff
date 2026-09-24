@@ -54,6 +54,12 @@ class ProjectionModelDisabledTest extends BaseIntegrationTest {
     }
 
     @Test
+    void board_whenDisabled_isForbiddenEvenForASignedInUser() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/board").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void skaterSplits_whenDisabled_areForbidden() throws Exception {
         mockMvc.perform(get("/api/v1/projection-model/splits/skaters").header("Authorization", "Bearer " + token()))
                 .andExpect(status().isForbidden());

@@ -233,6 +233,30 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
     }
 
+    /** The whole board is what premium buys, previewed or not. */
+    @Test
+    @DisplayName("the board a model-seeded projection starts with is refused to an account without premium")
+    void board_withoutPremium_isForbidden() throws Exception {
+        withoutASubscription();
+
+        mockMvc.perform(get("/api/v1/projection-model/board").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
+        verifyNoInteractions(projectionServiceClient);
+    }
+
+    @Test
+    @DisplayName("and served to a subscriber")
+    void board_withPremium_isServed() throws Exception {
+        withPremium();
+        withOneProjectedSkater();
+
+        mockMvc.perform(get("/api/v1/projection-model/board").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players[0].playerId").value(5000))
+                .andExpect(jsonPath("$.players[0].type").value("skater"));
+    }
+
     /** The refusal lands before the model is asked, so a board nobody may read is never built. */
     @Test
     @DisplayName("the refusal never reaches the projection service")
