@@ -211,11 +211,17 @@ public class SharedProjectionController {
                 .limit(PREVIEW_PLAYERS)
                 .map(player -> surname(player.getName()))
                 .collect(Collectors.joining(", "));
-        String author = shared.getAuthorUsername();
+        String lead = "Fantasy Hockey projection for the " + season(shared) + " season.";
         if (top.isBlank()) {
-            return author + "'s NHL projections for the upcoming season.";
+            return lead;
         }
-        return author + "'s NHL projections for the upcoming season. Top players: " + top + ".";
+        return lead + " Top players: " + top + ".";
+    }
+
+    /** The stored season code as people write it, with an en dash: 20262027 → 2026–27. */
+    private static String season(com.fantasy.bff.generated.db.model.SharedProjectionResponse shared) {
+        String code = String.valueOf(shared.getSeason());
+        return code.length() == 8 ? code.substring(0, 4) + "–" + code.substring(6) : code;
     }
 
     /**
