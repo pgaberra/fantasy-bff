@@ -38,6 +38,7 @@ public class YahooLeagueDraftService {
                 status(draft.getStatus()),
                 Boolean.TRUE.equals(draft.getAuction()),
                 teams,
+                Boolean.TRUE.equals(draft.getOrderKnown()),
                 madePicks(draft.getPicks()));
     }
 
