@@ -17,20 +17,34 @@ class LeagueDraftSyncAvailabilityTest {
 
     @Test
     void isOffUnlessConfigured() {
-        assertThat(new LeagueDraftSyncProperties(null).enabled()).isFalse();
-        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(null), pool(PlayerIdSpace.YAHOO))
+        assertThat(new LeagueDraftSyncProperties(null, null).enabled()).isFalse();
+        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(null, null), pool(PlayerIdSpace.YAHOO))
                 .available()).isFalse();
     }
 
     @Test
     void isOnWhenEnabledOverAYahooPool() {
-        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(true), pool(PlayerIdSpace.YAHOO))
+        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(true, null), pool(PlayerIdSpace.YAHOO))
                 .available()).isTrue();
     }
 
     @Test
     void staysOffOverAnEspnPoolSinceThePicksNameYahooIds() {
-        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(true), pool(PlayerIdSpace.ESPN))
+        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(true, null), pool(PlayerIdSpace.ESPN))
                 .available()).isFalse();
+    }
+
+    @Test
+    void espnIsOffUnlessConfiguredWhateverYahooSays() {
+        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(true, null), pool(PlayerIdSpace.YAHOO))
+                .espnAvailable()).isFalse();
+    }
+
+    @Test
+    void espnIsOnWhenEnabledOverEitherPoolSinceItsPicksAreMapped() {
+        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(null, true), pool(PlayerIdSpace.YAHOO))
+                .espnAvailable()).isTrue();
+        assertThat(new LeagueDraftSyncAvailability(new LeagueDraftSyncProperties(null, true), pool(PlayerIdSpace.ESPN))
+                .espnAvailable()).isTrue();
     }
 }

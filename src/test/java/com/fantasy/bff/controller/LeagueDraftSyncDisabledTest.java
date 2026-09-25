@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.BaseIntegrationTest;
+import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.security.JwtTokenValidator;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ class LeagueDraftSyncDisabledTest extends BaseIntegrationTest {
     @Autowired private JwtTokenValidator jwtTokenValidator;
 
     @MockitoBean private YahooServiceClient yahooServiceClient;
+    @MockitoBean private EspnServiceClient espnServiceClient;
 
     @Test
     void theDraftIsNotServedAndYahooIsNotAsked() throws Exception {
@@ -37,9 +39,18 @@ class LeagueDraftSyncDisabledTest extends BaseIntegrationTest {
     }
 
     @Test
+    void theEspnDraftIsNotServedAndEspnIsNotAsked() throws Exception {
+        mockMvc.perform(get("/api/v1/espn/leagues/123/draft")
+                        .header("Authorization", "Bearer " + jwtTokenValidator.generateToken("user-1", "a@example.com")))
+                .andExpect(status().isNotFound());
+        verifyNoInteractions(espnServiceClient);
+    }
+
+    @Test
     void theFeatureIsReportedOff() throws Exception {
         mockMvc.perform(get("/api/v1/features"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.leagueDraftSync").value(false));
+                .andExpect(jsonPath("$.leagueDraftSync").value(false))
+                .andExpect(jsonPath("$.espnLeagueDraftSync").value(false));
     }
 }
