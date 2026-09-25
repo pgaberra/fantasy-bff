@@ -114,9 +114,11 @@ public class ShareCardRenderer {
         int right = WIDTH - MARGIN;
         int baseline = 150;
 
+        // Right-aligned like the values below it: the label names that column, not the rows.
+        String label = valueLabel(shared).toUpperCase(Locale.ROOT);
         graphics.setFont(FOOTER);
         graphics.setColor(TEXT_MUTED);
-        graphics.drawString(valueLabel(shared).toUpperCase(Locale.ROOT), left, baseline - 34);
+        graphics.drawString(label, right - graphics.getFontMetrics().stringWidth(label), baseline - 34);
 
         for (int index = 0; index < Math.min(PLAYER_ROWS, players.size()); index++) {
             SharedPlayer player = players.get(index);
