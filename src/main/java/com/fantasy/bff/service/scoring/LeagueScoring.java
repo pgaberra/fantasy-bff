@@ -39,6 +39,9 @@ public record LeagueScoring(
 
     private static final int DEFAULT_MIN_GOALIE_GAMES = 25;
 
+    /** What a team counts where the league's slots add up to nothing: a standard Yahoo roster. */
+    static final int DEFAULT_COUNTED_PLAYERS = 16;
+
     public LeagueScoring {
         statWeights = statWeights == null ? Map.of() : new LinkedHashMap<>(statWeights);
         activeScoringColumns = activeScoringColumns == null ? List.of() : List.copyOf(activeScoringColumns);
@@ -84,5 +87,18 @@ public record LeagueScoring(
     /** How many goalies the league drafts. */
     public int goaliePoolSize() {
         return leagueSize * rosterSlots.g();
+    }
+
+    /**
+     * How many of a team's players count towards its totals: every roster spot the league plays,
+     * starters and bench, but no injured-reserve spot. A team carrying injured players and their
+     * replacements holds more than that, and counting them all would credit it for players no
+     * lineup can hold. The league's settings leave IR, IR+ and NA out of the slots, so the slots
+     * add up to exactly this.
+     */
+    public int countedPlayers() {
+        RosterSlots slots = rosterSlots;
+        int spots = slots.c() + slots.lw() + slots.rw() + slots.d() + slots.util() + slots.bn() + slots.g();
+        return spots > 0 ? spots : DEFAULT_COUNTED_PLAYERS;
     }
 }

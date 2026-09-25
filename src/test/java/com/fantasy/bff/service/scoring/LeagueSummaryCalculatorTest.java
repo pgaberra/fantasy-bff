@@ -111,13 +111,13 @@ class LeagueSummaryCalculatorTest {
         List<ScoredPlayer> pool = List.of(
                 skater(1, "Starter", Set.of("C"), 50),
                 skater(2, "Spare", Set.of("C"), 40));
-        RosterSlots slots = new RosterSlots(1, 0, 0, 0, 0, 0, 0);
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0);
         LeagueSummary summary = calculator.summarise(
                 pool,
                 List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2))),
                 pointsLeague(slots));
 
-        assertThat(summary.positionKeys()).containsExactly("C", "BN");
+        assertThat(summary.positionKeys()).containsExactly("LW", "C", "BN");
         assertThat(summary.teams().get(0).positionPlayers().get("BN"))
                 .extracting(LeagueSummary.Contributor::name).containsExactly("Spare");
     }
@@ -189,5 +189,81 @@ class LeagueSummaryCalculatorTest {
 
         assertThat(summary.teams().get(0).roster()).hasSize(1);
         assertThat(summary.teams().get(0).total()).isCloseTo(40, within(1e-9));
+    }
+
+    /**
+     * The rule the rankings count by: a team's best players, as many as the league plays. The
+     * injured star still counts — the projection rates him above the man picked up for him — and
+     * the pickup is the one who drops out, whatever slot either holds in Yahoo.
+     */
+    @Test
+    @DisplayName("an injured star the projection rates highest is kept and a lesser pickup drops out")
+    void injuredStarIsKeptAndThePickupDrops() {
+        List<ScoredPlayer> pool = List.of(
+                skater(1, "Injured star", Set.of("C"), 60),
+                skater(2, "Winger", Set.of("LW"), 30),
+                skater(3, "Depth centre", Set.of("C"), 25),
+                skater(4, "Pickup", Set.of("C"), 20));
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 1, 0);
+        LeagueSummary summary = calculator.summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3, 4))),
+                pointsLeague(slots));
+
+        LeagueSummary.Team team = summary.teams().get(0);
+        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::name)
+                .containsExactly("Injured star", "Winger", "Depth centre");
+        assertThat(team.total()).isCloseTo(115, within(1e-9));
+        assertThat(team.values().get("goals")).isCloseTo(115, within(1e-9));
+        assertThat(team.positionPlayers().values().stream().flatMap(List::stream))
+                .extracting(LeagueSummary.Contributor::name)
+                .doesNotContain("Pickup");
+    }
+
+    /**
+     * Picked by value alone: with two spots the two best count even when both are centres, and
+     * the lineup then places them as it would any roster — one starts, one sits.
+     */
+    @Test
+    @DisplayName("a team holding more than the league plays shows exactly that many, by value")
+    void aLargeRosterShowsExactlyTheCount() {
+        List<ScoredPlayer> pool = List.of(
+                skater(1, "First", Set.of("C"), 50),
+                skater(2, "Second", Set.of("C"), 45),
+                skater(3, "Winger", Set.of("LW"), 10),
+                skater(4, "Fourth", Set.of("C"), 5),
+                skater(5, "Fifth", Set.of("RW"), 4));
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0);
+        LeagueSummary summary = calculator.summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(5, 4, 3, 2, 1))),
+                pointsLeague(slots));
+
+        LeagueSummary.Team team = summary.teams().get(0);
+        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::name).containsExactly("First", "Second");
+        assertThat(team.positionPlayers().values().stream().mapToInt(List::size).sum()).isEqualTo(2);
+        assertThat(team.positionPlayers().get("C")).extracting(LeagueSummary.Contributor::name)
+                .containsExactly("First");
+        assertThat(team.positionPlayers().get("BN")).extracting(LeagueSummary.Contributor::name)
+                .containsExactly("Second");
+        assertThat(team.total()).isCloseTo(95, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("a team holding fewer than the league plays counts everyone")
+    void aShortRosterCountsEveryone() {
+        List<ScoredPlayer> pool = List.of(
+                skater(1, "Centre", Set.of("C"), 40),
+                skater(2, "Winger", Set.of("LW"), 30),
+                skater(3, "Spare", Set.of("C"), 5));
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 2, 0);
+        LeagueSummary summary = calculator.summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3))),
+                pointsLeague(slots));
+
+        LeagueSummary.Team team = summary.teams().get(0);
+        assertThat(team.roster()).hasSize(3);
+        assertThat(team.total()).isCloseTo(75, within(1e-9));
     }
 }

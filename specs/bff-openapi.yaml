@@ -1933,11 +1933,13 @@ paths:
       summary: Total a Yahoo league's teams against a projection
       description: "Reads the league's rosters, draft and scoring settings from Yahoo\
         \ and totals every team's current roster, or its picks until the draft is\
-        \ over. The teams, their totals and where each one places are returned to\
-        \ any signed-in manager; the roster rows and lineups behind those totals need\
-        \ premium, and are absent without it. 404 where this environment does not\
-        \ offer reading a league's draft, or where the AI projection is off and the\
-        \ model was asked for."
+        \ over. Only a team's best players by projected value count, as many as the\
+        \ league's roster spots less injured reserve, whatever slot each holds. The\
+        \ teams, their totals and where each one places are returned to any signed-in\
+        \ manager; the roster rows and lineups behind those totals need premium, and\
+        \ are absent without it. 404 where this environment does not offer reading\
+        \ a league's draft, or where the AI projection is off and the model was asked\
+        \ for."
       operationId: yahooLeague
       parameters:
       - name: leagueKey
@@ -4687,8 +4689,9 @@ components:
             to the total.
         roster:
           type: array
-          description: "The team's players, best first: its current roster once the\
-            \ draft is over, its picks until then. Premium only; absent otherwise."
+          description: "The team's counted players, best first: the best of its current\
+            \ roster once the draft is over, of its picks until then, as many as the\
+            \ league has roster spots less injured reserve. Premium only; absent otherwise."
           items:
             $ref: "#/components/schemas/LeagueSummaryRosterRow"
         positionPlayers:
