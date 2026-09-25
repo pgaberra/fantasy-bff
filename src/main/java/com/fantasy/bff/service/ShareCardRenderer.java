@@ -141,13 +141,11 @@ public class ShareCardRenderer {
         }
     }
 
-    private String subtitle(SharedProjectionResponse shared) {
-        String author = shared.getAuthorUsername();
+    // No league size: it pushed the line past the column, and the scoring type is what tells a
+    // reader whether the board applies to them.
+    String subtitle(SharedProjectionResponse shared) {
         String scoring = isPointsLeague(shared) ? "Points league" : "Category league";
-        Integer leagueSize = shared.getData().getProjectionSettings().getLeagueSize();
-        return leagueSize == null
-                ? "by " + author + " · " + scoring
-                : "by " + author + " · " + scoring + " · " + leagueSize + " teams";
+        return "by " + shared.getAuthorUsername() + " · " + scoring;
     }
 
     private String valueLabel(SharedProjectionResponse shared) {
