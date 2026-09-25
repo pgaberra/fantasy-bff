@@ -42,7 +42,9 @@ public class LeagueSummaryController {
     @Operation(
             summary = "Total a Yahoo league's teams against a projection",
             description = "Reads the league's rosters, draft and scoring settings from Yahoo and totals "
-                    + "every team's current roster, or its picks until the draft is over. The teams, their totals and where each one places are "
+                    + "every team's current roster, or its picks until the draft is over. Only a team's best "
+                    + "players by projected value count, as many as the league's roster spots less "
+                    + "injured reserve, whatever slot each holds. The teams, their totals and where each one places are "
                     + "returned to any signed-in manager; the roster rows and lineups behind those "
                     + "totals need premium, and are absent without it. 404 where this environment "
                     + "does not offer reading a league's draft, or where the AI projection is off "

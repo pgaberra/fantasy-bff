@@ -7,12 +7,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * Adds a drafted league up: every team's roster placed into its lineup, and its totals by category
- * and by slot.
+ * Adds a drafted league up: every team's best players, as many as the league plays, placed into its
+ * lineup, and its totals by category and by slot.
  *
  * <p>A port of {@code fantasy-web/src/app/draft-mode/league-projection.ts}, minus the column
  * labels and decimals — how a number is written is the web's business, and keeping the copy on one
@@ -120,10 +122,10 @@ public class LeagueSummaryCalculator {
             ProjectionScoring.Scores scores,
             List<String> categoryKeys,
             LeagueScoring league) {
-        List<ScoredPlayer> drafted = team.playerIds().stream()
+        List<ScoredPlayer> drafted = counted(team.playerIds().stream()
                 .map(byId::get)
                 .filter(player -> player != null)
-                .toList();
+                .toList(), scores, league.countedPlayers());
 
         double total = drafted.stream()
                 .mapToDouble(player -> scores.values().getOrDefault(player.playerId(), 0.0))
@@ -159,6 +161,28 @@ public class LeagueSummaryCalculator {
         return new Partial(
                 team.teamId(), team.name(), team.mine(), total, values, roster,
                 lineup.byColumn(), lineup.bench());
+    }
+
+    /**
+     * A team's best players by value, as many as the league counts, whatever slot each holds in
+     * the league: an injured star the projection still rates above his replacement counts, and
+     * the replacement drops out. Picked by value alone, not by who fits the lineup — placing them
+     * is {@link #assign}'s job. The kept players stay in the order they came in, so the sums add up
+     * in the same order as before.
+     */
+    private List<ScoredPlayer> counted(List<ScoredPlayer> players, ProjectionScoring.Scores scores, int limit) {
+        if (players.size() <= limit) {
+            return players;
+        }
+        Set<Integer> best = players.stream()
+                .sorted(Comparator.comparingDouble(
+                                (ScoredPlayer player) -> scores.values().getOrDefault(player.playerId(), 0.0))
+                        .reversed()
+                        .thenComparingInt(ScoredPlayer::playerId))
+                .limit(limit)
+                .map(ScoredPlayer::playerId)
+                .collect(Collectors.toSet());
+        return players.stream().filter(player -> best.contains(player.playerId())).toList();
     }
 
     private LeagueSummary.RosterRow rosterRow(

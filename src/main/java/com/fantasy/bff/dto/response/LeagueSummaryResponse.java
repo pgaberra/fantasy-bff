@@ -65,8 +65,9 @@ public record LeagueSummaryResponse(
                     description = "The cell per category key and per lineup slot. Each set sums to "
                             + "the total.")
             Map<String, Double> values,
-            @Schema(description = "The team's players, best first: its current roster once the draft "
-                    + "is over, its picks until then. Premium only; absent otherwise.")
+            @Schema(description = "The team's counted players, best first: the best of its current "
+                    + "roster once the draft is over, of its picks until then, as many as the league "
+                    + "has roster spots less injured reserve. Premium only; absent otherwise.")
             List<RosterRow> roster,
             @Schema(description = "Who fills each lineup slot. Premium only; absent otherwise.")
             Map<String, List<Contributor>> positionPlayers) {
