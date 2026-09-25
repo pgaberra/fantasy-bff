@@ -161,12 +161,15 @@ services:
 ai-projection:
   enabled: ${AI_PROJECTION_ENABLED:true}
 
-# Following a league's live draft from the draft room (GET /api/v1/yahoo/leagues/{key}/draft,
-# polled while a user follows). Off unless this says otherwise, since the feature is new. It also
-# needs a pool on Yahoo ids, because the picks name players by Yahoo's; LeagueDraftSyncAvailability
-# combines the two, and that answer is what /api/v1/features reports. Not a premium feature.
+# Following a league's live draft from the draft room (GET /api/v1/{yahoo,espn}/leagues/{id}/draft,
+# polled while a user follows), one switch per platform. Each is off unless this says otherwise,
+# since each is new. Yahoo's also needs a pool on Yahoo ids, because its picks name players by
+# Yahoo's; ESPN's picks are put into the pool's numbering by EspnPoolIdCrosswalk, which holds the
+# matched pools for espn-crosswalk-ttl-ms. LeagueDraftSyncAvailability combines them, and that
+# answer is what /api/v1/features reports. Not a premium feature.
 league-draft-sync:
   enabled: ${DRAFT_LEAGUE_SYNC_ENABLED:false}
+  espn-enabled: ${ESPN_DRAFT_LEAGUE_SYNC_ENABLED:false}
 
 # The streamer planner (/api/v1/streamer-planner/**): every NHL team's schedule rated by week, read
 # from projection-service. Off unless this says otherwise, since the feature is new; off, its

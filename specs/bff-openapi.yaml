@@ -2065,6 +2065,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
+  /api/v1/espn/leagues/{leagueId}/draft:
+    get:
+      tags:
+      - ESPN
+      summary: "Get an ESPN league's draft: its status, teams in draft order and the\
+        \ picks made so far"
+      description: "Polled by the draft room while it follows the league's live draft,\
+        \ in the same shape as a Yahoo league's. Picks name players by the pool's\
+        \ own ids; a player the pool has no counterpart for is the negative of his\
+        \ ESPN id, so the pick keeps its place. Read for the current season only.\
+        \ 404 where this environment does not offer following an ESPN draft."
+      operationId: draft_1
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 20
+          minLength: 0
+      responses:
+        "200":
+          description: Draft returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "404":
+          description: "Not offered here, or no such ESPN league this season"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/billing/entitlements:
     get:
       tags:
@@ -4674,15 +4714,21 @@ components:
             \ is still available."
         leagueDraftSync:
           type: boolean
-          description: "Whether the draft room may follow a linked league's live draft.\
-            \ False means the draft endpoint answers 404, so a client should not offer\
-            \ it."
+          description: "Whether the draft room may follow a linked Yahoo league's\
+            \ live draft. False means the draft endpoint answers 404, so a client\
+            \ should not offer it."
+        espnLeagueDraftSync:
+          type: boolean
+          description: "Whether the draft room may follow a linked ESPN league's live\
+            \ draft. False means the ESPN draft endpoint answers 404, so a client\
+            \ should not offer it."
         streamerPlanner:
           type: boolean
           description: "Whether this environment serves the streamer planner. False\
             \ means its endpoints answer 404, so a client should not offer it."
       required:
       - aiProjection
+      - espnLeagueDraftSync
       - leagueDraftSync
       - streamerPlanner
     EspnLeagueTeam:

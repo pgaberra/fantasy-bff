@@ -326,6 +326,52 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AvailablePlayer"
+  /api/v1/espn/leagues/{leagueId}/draft:
+    get:
+      tags:
+      - ESPN Leagues
+      summary: "Get a league's draft: its status, teams in draft order and the picks\
+        \ made so far"
+      description: "Read for the configured season only, never the one before: it\
+        \ is polled while a draft room follows the live draft, and last season's finished\
+        \ draft would read as this one having ended. Picks name players by ESPN's\
+        \ own ids."
+      operationId: draft
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 20
+          minLength: 0
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 0
+      responses:
+        "200":
+          description: Draft returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
+        "404":
+          description: No such ESPN league this season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueDraftResponse"
 components:
   schemas:
     SaveCredentialsRequest:
@@ -717,6 +763,101 @@ components:
       - fullName
       - goalie
       - position
+    LeagueDraftPick:
+      type: object
+      properties:
+        pick:
+          type: integer
+          format: int32
+          description: "Overall pick number, from 1."
+        round:
+          type: integer
+          format: int32
+        teamId:
+          type: integer
+          format: int32
+          description: The team that made the pick.
+        playerId:
+          type: integer
+          format: int64
+          description: "ESPN's player id, the id this service's player read model\
+            \ uses."
+          example: 4697382
+        keeper:
+          type: boolean
+          description: "True for a keeper: a player the team kept, placed in the draft\
+            \ rather than taken."
+      required:
+      - keeper
+      - pick
+      - playerId
+      - round
+      - teamId
+    LeagueDraftResponse:
+      type: object
+      properties:
+        leagueId:
+          type: string
+        season:
+          type: integer
+          format: int32
+          description: "The season read, as ESPN's season id (the year the season\
+            \ ends in)."
+          example: 2027
+        status:
+          type: string
+          enum:
+          - PRE_DRAFT
+          - IN_PROGRESS
+          - FINISHED
+          - UNKNOWN
+        auction:
+          type: boolean
+          description: "True for an auction draft, whose picks are bought rather than\
+            \ taken in turn."
+        teams:
+          type: array
+          description: "The league's teams in first-round draft order (`draftSettings.pickOrder`),\
+            \ then any team the order does not name, in ESPN's team order; `orderKnown`\
+            \ says whether every team was placed by the order."
+          items:
+            $ref: "#/components/schemas/LeagueDraftTeam"
+        orderKnown:
+          type: boolean
+          description: "True when `teams` is the draft order: ESPN's pick order names\
+            \ every team exactly once. False otherwise, when a team's place in the\
+            \ list says nothing about when it picks."
+        picks:
+          type: array
+          description: "The picks made so far, by overall pick number."
+          items:
+            $ref: "#/components/schemas/LeagueDraftPick"
+      required:
+      - auction
+      - leagueId
+      - orderKnown
+      - picks
+      - season
+      - status
+      - teams
+    LeagueDraftTeam:
+      type: object
+      properties:
+        teamId:
+          type: integer
+          format: int32
+          description: "ESPN's id for the team, unique within the league."
+          example: 3
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team (matched via their
+            SWID; always false for a league read without cookies).
+      required:
+      - mine
+      - name
+      - teamId
     CredentialStatusResponse:
       type: object
       properties:
