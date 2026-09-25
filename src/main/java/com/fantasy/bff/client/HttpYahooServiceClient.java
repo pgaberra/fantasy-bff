@@ -5,6 +5,7 @@ import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.CompleteLinkRequest;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse;
+import com.fantasy.bff.generated.yahoo.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
@@ -131,6 +132,17 @@ public class HttpYahooServiceClient implements YahooServiceClient {
                 .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
                         HttpYahooServiceClient::throwRefusal)
                 .body(LeagueDraftResponse.class);
+    }
+
+    @Override
+    public LeagueRostersResponse rosters(String appUserId, String leagueKey) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/rosters")
+                        .queryParam("appUserId", appUserId).build(leagueKey))
+                .retrieve()
+                .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
+                        HttpYahooServiceClient::throwRefusal)
+                .body(LeagueRostersResponse.class);
     }
 
     /**

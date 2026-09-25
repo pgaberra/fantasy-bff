@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse;
+import com.fantasy.bff.generated.yahoo.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
@@ -30,6 +31,9 @@ public interface YahooServiceClient {
     LeagueTeamsResponse teams(String appUserId, String leagueKey);
 
     LeagueDraftResponse draft(String appUserId, String leagueKey);
+
+    /** Every team in the league with the players on its roster today. */
+    LeagueRostersResponse rosters(String appUserId, String leagueKey);
 
     /** The players a league has available: free agents and players on waivers together. */
     List<YahooAvailablePlayerResponse> leagueFreeAgents(String appUserId, String leagueKey, int limit);
