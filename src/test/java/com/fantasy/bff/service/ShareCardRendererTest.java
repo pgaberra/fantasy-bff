@@ -85,6 +85,30 @@ class ShareCardRendererTest {
     }
 
     @Test
+    void putsTheValueLabelOverTheValueColumnNotTheRanks() throws Exception {
+        byte[] card = renderer.render(shared("My league", "Alex", fivePlayers()));
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(card));
+        int panel = new java.awt.Color(0x0C2A4E).getRGB();
+        int panelLeft = ShareCardRenderer.WIDTH / 2 + 56;
+        int panelRight = ShareCardRenderer.WIDTH - 72;
+        // The label row sits above the first player row; nothing else is drawn in that band.
+        assertThat(drawnIn(image, panelLeft, panelLeft + 200, 96, 118, panel)).isFalse();
+        assertThat(drawnIn(image, panelRight - 200, panelRight, 96, 118, panel)).isTrue();
+    }
+
+    private static boolean drawnIn(BufferedImage image, int x0, int x1, int y0, int y1, int background) {
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                if (image.getRGB(x, y) != background) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Test
     void survivesAProjectionWithNoRows() {
         assertThatCode(() -> renderer.render(shared("Empty", "alex", List.of()))).doesNotThrowAnyException();
     }
