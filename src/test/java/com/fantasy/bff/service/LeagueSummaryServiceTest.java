@@ -49,6 +49,7 @@ class LeagueSummaryServiceTest {
     private static final String LEAGUE = "465.l.12345";
 
     @Mock private YahooLeagueDraftService draftService;
+    @Mock private YahooLeagueRosterService rosterService;
     @Mock private YahooLeagueService leagueService;
     @Mock private ProjectionSeedService seedService;
     @Mock private PlayerPoolRows poolRows;
@@ -72,7 +73,7 @@ class LeagueSummaryServiceTest {
     @BeforeEach
     void setUp() {
         service = new LeagueSummaryService(
-                draftService, leagueService, seedService, poolRows, playerService, aiProjection,
+                draftService, rosterService, leagueService, seedService, poolRows, playerService, aiProjection,
                 entitlementService, new LeagueSummaryCalculator(), 20262027, "v1.2.3");
 
         when(aiProjection.available()).thenReturn(true);
@@ -227,6 +228,105 @@ class LeagueSummaryServiceTest {
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
 
         assertThat(result.summary().teams()).hasSize(2);
+    }
+
+    /**
+     * The draft said t1 took Forward One and t2 the other two. Since then t2 traded Forward Three to
+     * t1, so the table must follow the rosters, not the picks.
+     */
+    @Test
+    @DisplayName("a traded player counts for the team that holds him now")
+    void tradedPlayerCountsForHisNewTeam() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1, 3), "t2", List.of(2)));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(55, within(1e-9));
+        assertThat(result.summary().teams().get(0).roster()).extracting(row -> row.name())
+                .containsExactly("Forward One", "Forward Three");
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(30, within(1e-9));
+        // The draft's own count still describes the draft.
+        assertThat(result.picks()).isEqualTo(3);
+        assertThat(result.status()).isEqualTo(LeagueDraftStatus.FINISHED);
+    }
+
+    @Test
+    @DisplayName("a dropped player counts for nobody")
+    void droppedPlayerCountsForNobody() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2)));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(40, within(1e-9));
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(30, within(1e-9));
+        assertThat(result.summary().teams()).allSatisfy(team ->
+                assertThat(team.roster()).extracting(row -> row.name()).doesNotContain("Forward Three"));
+    }
+
+    @Test
+    @DisplayName("a player picked up after the draft counts for the team that picked him up")
+    void pickupCounts() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
+                LeagueDraftStatus.FINISHED,
+                false,
+                List.of(new LeagueDraftTeam("t1", "Mine", true), new LeagueDraftTeam("t2", "Theirs", false)),
+                true,
+                List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "t2", 2))));
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2, 3)));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t2", "t1");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
+        assertThat(result.picks()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("a roster for a team the league does not list is dropped, not credited to anyone")
+    void rosterOfAnUnknownTeamIsDropped() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "ghost", List.of(2, 3)));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
+        assertThat(result.summary().teams().get(1).total()).isZero();
+    }
+
+    @Test
+    @DisplayName("a finished draft whose rosters Yahoo lists all empty is totalled from its picks")
+    void emptyRostersFallBackToPicks() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(), "t2", List.of()));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(40, within(1e-9));
+    }
+
+    /** A live draft's table follows the picks as they are made; its rosters are not read at all. */
+    @Test
+    @DisplayName("a draft under way is totalled from its picks without reading the rosters")
+    void liveDraftFollowsThePicks() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
+                LeagueDraftStatus.IN_PROGRESS,
+                false,
+                List.of(new LeagueDraftTeam("t1", "Mine", true), new LeagueDraftTeam("t2", "Theirs", false)),
+                true,
+                List.of(new LeagueDraftPick(1, 1, "t1", 1))));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+
+        assertThat(result.summary().teams().get(0).teamId()).isEqualTo("t1");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(40, within(1e-9));
+        verify(rosterService, never()).rosters(anyString(), anyString());
     }
 
     @Test

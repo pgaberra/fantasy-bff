@@ -8,8 +8,6 @@ servers:
 security:
 - bearerAuth: []
 tags:
-- name: League summaries
-  description: What a league's draft came to
 - name: Shared projections
   description: "Public, read-only projections (no sign-in required)"
 - name: Streamer planner
@@ -33,6 +31,8 @@ tags:
   description: The signed-in account's own profile
 - name: Projections
   description: The authenticated user's saved player projections
+- name: League summaries
+  description: Where a league's teams stand
 - name: Versions
   description: Deployed version and reachability of every service
 - name: Feedback
@@ -1930,13 +1930,14 @@ paths:
     get:
       tags:
       - League summaries
-      summary: Total a Yahoo league's drafted teams against a projection
-      description: "Reads the league's draft and its scoring settings from Yahoo and\
-        \ totals every team's roster. The teams, their totals and where each one places\
-        \ are returned to any signed-in manager; the roster rows and lineups behind\
-        \ those totals need premium, and are absent without it. 404 where this environment\
-        \ does not offer reading a league's draft, or where the AI projection is off\
-        \ and the model was asked for."
+      summary: Total a Yahoo league's teams against a projection
+      description: "Reads the league's rosters, draft and scoring settings from Yahoo\
+        \ and totals every team's current roster, or its picks until the draft is\
+        \ over. The teams, their totals and where each one places are returned to\
+        \ any signed-in manager; the roster rows and lineups behind those totals need\
+        \ premium, and are absent without it. 404 where this environment does not\
+        \ offer reading a league's draft, or where the AI projection is off and the\
+        \ model was asked for."
       operationId: yahooLeague
       parameters:
       - name: leagueKey
@@ -1948,7 +1949,7 @@ paths:
           minLength: 0
       - name: source
         in: query
-        description: Which projection to score the picks against; the model by default
+        description: Which projection to score the players against; the model by default
         required: false
         schema:
           type: string
@@ -4576,11 +4577,11 @@ components:
       - value
     LeagueSummaryResponse:
       type: object
-      description: "A league's drafted teams, totalled against a projection"
+      description: "A league's teams, totalled against a projection"
       properties:
         source:
           type: string
-          description: The projection the picks were scored against
+          description: The projection the players were scored against
           enum:
           - model
           - last_season
@@ -4686,7 +4687,8 @@ components:
             to the total.
         roster:
           type: array
-          description: "The drafted players, best first. Premium only; absent otherwise."
+          description: "The team's players, best first: its current roster once the\
+            \ draft is over, its picks until then. Premium only; absent otherwise."
           items:
             $ref: "#/components/schemas/LeagueSummaryRosterRow"
         positionPlayers:

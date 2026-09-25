@@ -298,6 +298,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDto"
+  /api/v1/yahoo/leagues/{leagueKey}/rosters:
+    get:
+      tags:
+      - Yahoo Leagues
+      summary: List a league's teams with the players each holds now
+      description: "Each team's current roster, after trades, drops and pickups, bench\
+        \ and injured reserve included. Player ids are the ids the draft's picks and\
+        \ the player read model use."
+      operationId: rosters
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 0
+      responses:
+        "200":
+          description: Rosters returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueRostersResponse"
+        "400":
+          description: The league key or user id is blank or too long
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "404":
+          description: User has not connected Yahoo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "403":
+          description: Yahoo refused the request; the message carries Yahoo's own
+            wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/free-agents:
     get:
       tags:
@@ -970,6 +1020,62 @@ components:
       - displayOnly
       - name
       - statId
+    LeagueRosterPlayer:
+      type: object
+      properties:
+        playerKey:
+          type: string
+          example: 465.p.6743
+        playerId:
+          type: integer
+          format: int32
+          description: "The player id inside the player key, the id the player read\
+            \ model and the draft's picks use."
+          example: 6743
+        selectedPosition:
+          type: string
+          description: "The slot the manager has him in today (C, LW, D, G, Util,\
+            \ BN, IR, IR+, NA, …); absent when Yahoo does not say."
+          example: BN
+      required:
+      - playerId
+      - playerKey
+    LeagueRosterTeam:
+      type: object
+      properties:
+        teamKey:
+          type: string
+          example: 465.l.12345.t.3
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team.
+        players:
+          type: array
+          description: "The team's current roster in Yahoo's order, bench and injured\
+            \ reserve included; empty before the draft."
+          items:
+            $ref: "#/components/schemas/LeagueRosterPlayer"
+      required:
+      - mine
+      - name
+      - players
+      - teamKey
+    LeagueRostersResponse:
+      type: object
+      properties:
+        leagueKey:
+          type: string
+        teams:
+          type: array
+          description: "The league's teams in Yahoo's team order, each with its current\
+            \ roster."
+          items:
+            $ref: "#/components/schemas/LeagueRosterTeam"
+      required:
+      - leagueKey
+      - teams
     YahooAvailablePlayerResponse:
       type: object
       description: "A player no team in the league owns: a free agent, or one on waivers"

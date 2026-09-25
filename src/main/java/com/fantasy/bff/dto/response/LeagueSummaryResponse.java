@@ -6,17 +6,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * What a league's draft came to: the teams, best first, with each one's totals.
+ * Where a league stands: the teams, best first, with each one's totals.
  *
  * <p>The per-player halves of a team — its roster rows and who fills each lineup slot — are
  * filled in only for an account with premium. That is not a decision the browser could carry
  * out: the totals are computed here precisely so the lines behind them need never be sent.
  */
-@Schema(description = "A league's drafted teams, totalled against a projection")
+@Schema(description = "A league's teams, totalled against a projection")
 public record LeagueSummaryResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "The projection the picks were scored against")
+                description = "The projection the players were scored against")
         SummarySource source,
 
         @Schema(description = "The model version behind the numbers; absent for last season's stats")
@@ -65,13 +65,14 @@ public record LeagueSummaryResponse(
                     description = "The cell per category key and per lineup slot. Each set sums to "
                             + "the total.")
             Map<String, Double> values,
-            @Schema(description = "The drafted players, best first. Premium only; absent otherwise.")
+            @Schema(description = "The team's players, best first: its current roster once the draft "
+                    + "is over, its picks until then. Premium only; absent otherwise.")
             List<RosterRow> roster,
             @Schema(description = "Who fills each lineup slot. Premium only; absent otherwise.")
             Map<String, List<Contributor>> positionPlayers) {
     }
 
-    /** One drafted player, as a row under an expanded team. */
+    /** One of a team's players, as a row under an expanded team. */
     @Schema(name = "LeagueSummaryRosterRow")
     public record RosterRow(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int playerId,

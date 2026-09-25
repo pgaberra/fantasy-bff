@@ -3,6 +3,7 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.LeagueDraftPick;
 import com.fantasy.bff.dto.response.LeagueDraftResponse;
+import com.fantasy.bff.dto.response.LeagueDraftStatus;
 import com.fantasy.bff.dto.response.LeagueDraftTeam;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.dto.response.PlayerProjection;
@@ -27,15 +28,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * What a league's draft came to: every team's roster totalled against a projection.
+ * Where a league stands: every team's current roster totalled against a projection.
  *
- * <p>This is the cold path — a manager who drafted in Yahoo and has never built a board here.
- * Three things are deliberately <b>not</b> taken from the caller: the picks, the teams and the
+ * <p>This is the cold path — a manager who plays in Yahoo and has never built a board here.
+ * Three things are deliberately <b>not</b> taken from the caller: the rosters, the teams and the
  * scoring settings all come from the league itself. A summary computed over rosters the caller
  * chose would be a per-player readout of the projection dressed as an aggregate: ask for a league
- * of one-player teams and every "team total" is one player's value. Reading a real league's draft
- * is the thing being offered, and it is also what keeps the offer from being a way around what
- * the model's lines cost.
+ * of one-player teams and every "team total" is one player's value. Reading a real league is the
+ * thing being offered, and it is also what keeps the offer from being a way around what the
+ * model's lines cost.
+ *
+ * <p>A team is the players Yahoo has on its roster today, so a trade, a drop or a pickup since the
+ * draft moves the totals. Until the draft is over, and in a league whose rosters Yahoo lists all
+ * empty, a team is its picks instead: that is what a live draft's table follows, pick by pick.
  */
 @Service
 public class LeagueSummaryService {
@@ -47,6 +52,7 @@ public class LeagueSummaryService {
     private static final int DEFAULT_MIN_GOALIE_GAMES = 25;
 
     private final YahooLeagueDraftService draftService;
+    private final YahooLeagueRosterService rosterService;
     private final YahooLeagueService leagueService;
     private final ProjectionSeedService seedService;
     private final PlayerPoolRows poolRows;
@@ -59,6 +65,7 @@ public class LeagueSummaryService {
 
     public LeagueSummaryService(
             YahooLeagueDraftService draftService,
+            YahooLeagueRosterService rosterService,
             YahooLeagueService leagueService,
             ProjectionSeedService seedService,
             PlayerPoolRows poolRows,
@@ -69,6 +76,7 @@ public class LeagueSummaryService {
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
         this.draftService = draftService;
+        this.rosterService = rosterService;
         this.leagueService = leagueService;
         this.seedService = seedService;
         this.poolRows = poolRows;
@@ -81,11 +89,11 @@ public class LeagueSummaryService {
     }
 
     /**
-     * A league's draft, totalled.
+     * A league's teams, totalled.
      *
      * @param userId whose Yahoo account the league is read with
      * @param leagueKey the league, which the user must have access to
-     * @param source which projection the picks are scored against
+     * @param source which projection the players are scored against
      * @return the summary, with the per-player halves in it only for an account that may see them
      */
     public Result summarise(String userId, String leagueKey, SummarySource source) {
@@ -96,7 +104,7 @@ public class LeagueSummaryService {
         LeagueProjectionSettingsResponse settings = leagueService.projectionSettings(userId, leagueKey);
 
         List<ScoredPlayer> pool = pool(source);
-        List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft);
+        List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft, currentRosters(userId, leagueKey, draft));
         LeagueScoring league = scoring(settings, teams.size());
 
         LeagueSummary summary = calculator.summarise(pool, teams, league);
@@ -119,8 +127,8 @@ public class LeagueSummaryService {
      * @param premium whether the per-player halves are filled in
      * @param scoringType how the league scores, which is what its totals are in
      * @param status where the league's draft has got to
-     * @param picks how many picks it has made, so a league yet to draft can say so rather than
-     *     showing every team at nothing
+     * @param picks how many picks its draft has made, so a league yet to draft can say so rather
+     *     than showing every team at nothing
      */
     public record Result(
             LeagueSummary summary,
@@ -128,11 +136,11 @@ public class LeagueSummaryService {
             String modelVersion,
             boolean premium,
             ScoringBasis scoringType,
-            com.fantasy.bff.dto.response.LeagueDraftStatus status,
+            LeagueDraftStatus status,
             int picks) {
     }
 
-    /** The rows the picks are scored against, for the whole pool rather than the drafted players. */
+    /** The rows the teams are scored against, for the whole pool rather than the rostered players. */
     private List<ScoredPlayer> pool(SummarySource source) {
         Map<Integer, Identity> identities = identities();
         List<PlayerProjection> rows = source == SummarySource.MODEL ? modelRows() : lastSeasonRows();
@@ -177,18 +185,42 @@ public class LeagueSummaryService {
     }
 
     /**
-     * The teams with the players they took, in pick order. A pick whose team the league does not
-     * list is dropped rather than credited to anyone.
+     * Each team's players today by Yahoo's team key, or null where the draft's picks are what the
+     * teams hold: before the draft is over, and in a league whose rosters Yahoo lists all empty.
      */
-    private List<LeagueSummaryCalculator.TeamPicks> teams(LeagueDraftResponse draft) {
-        Map<String, List<Integer>> picksByTeam = new LinkedHashMap<>();
-        for (LeagueDraftTeam team : draft.teams()) {
-            picksByTeam.put(team.id(), new ArrayList<>());
+    private Map<String, List<Integer>> currentRosters(String userId, String leagueKey, LeagueDraftResponse draft) {
+        if (draft.status() == LeagueDraftStatus.PRE_DRAFT || draft.status() == LeagueDraftStatus.IN_PROGRESS) {
+            return null;
         }
-        for (LeagueDraftPick pick : draft.picks()) {
-            List<Integer> picks = picksByTeam.get(pick.teamId());
-            if (picks != null) {
-                picks.add(pick.playerId());
+        Map<String, List<Integer>> rosters = rosterService.rosters(userId, leagueKey);
+        boolean anyRostered = rosters.values().stream().anyMatch(players -> !players.isEmpty());
+        return anyRostered ? rosters : null;
+    }
+
+    /**
+     * The league's teams with their players: the roster each holds today where there is one,
+     * otherwise the players it drafted, in pick order. A player on a team the league does not list
+     * is dropped rather than credited to anyone.
+     */
+    private List<LeagueSummaryCalculator.TeamPicks> teams(
+            LeagueDraftResponse draft, Map<String, List<Integer>> rosters) {
+        Map<String, List<Integer>> playersByTeam = new LinkedHashMap<>();
+        for (LeagueDraftTeam team : draft.teams()) {
+            playersByTeam.put(team.id(), new ArrayList<>());
+        }
+        if (rosters != null) {
+            rosters.forEach((teamId, players) -> {
+                List<Integer> held = playersByTeam.get(teamId);
+                if (held != null) {
+                    held.addAll(players);
+                }
+            });
+        } else {
+            for (LeagueDraftPick pick : draft.picks()) {
+                List<Integer> picks = playersByTeam.get(pick.teamId());
+                if (picks != null) {
+                    picks.add(pick.playerId());
+                }
             }
         }
         return draft.teams().stream()
@@ -196,7 +228,7 @@ public class LeagueSummaryService {
                         team.id(),
                         team.name(),
                         team.mine(),
-                        List.copyOf(picksByTeam.get(team.id()))))
+                        List.copyOf(playersByTeam.get(team.id()))))
                 .toList();
     }
 

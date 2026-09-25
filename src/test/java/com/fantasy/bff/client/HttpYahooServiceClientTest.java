@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -59,6 +60,36 @@ class HttpYahooServiceClientTest {
         assertThatThrownBy(() -> client.completeLink("user-1", "link-code"))
                 .isInstanceOfSatisfying(RestClientResponseException.class,
                         e -> assertThat(e.getStatusCode().value()).isEqualTo(409));
+    }
+
+    @Test
+    void rosters_readsEachTeamsCurrentPlayersForTheUser() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/yahoo/leagues/465.l.1/rosters"))
+                .withQueryParam("appUserId", equalTo("user-1"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"leagueKey":"465.l.1","teams":[{"teamKey":"465.l.1.t.1","name":"Alpha","mine":true,
+                                 "players":[{"playerKey":"465.p.6743","playerId":6743,"selectedPosition":"IR+"}]}]}""")));
+
+        var rosters = client.rosters("user-1", "465.l.1");
+
+        assertThat(rosters.getTeams()).hasSize(1);
+        assertThat(rosters.getTeams().getFirst().getTeamKey()).isEqualTo("465.l.1.t.1");
+        assertThat(rosters.getTeams().getFirst().getPlayers().getFirst().getPlayerId()).isEqualTo(6743);
+        assertThat(rosters.getTeams().getFirst().getPlayers().getFirst().getSelectedPosition()).isEqualTo("IR+");
+    }
+
+    @Test
+    void rosters_whenYahooRefuses_isARefusal() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/yahoo/leagues/465.l.1/rosters")).willReturn(aResponse()
+                .withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"status\":403,\"message\":\"Yahoo refused the request: not yours.\"}")));
+
+        assertThatThrownBy(() -> client.rosters("user-1", "465.l.1"))
+                .isInstanceOf(YahooAccessDeniedException.class)
+                .hasMessage("Yahoo refused the request: not yours.");
     }
 
     /** yahoo-service's body, as it answered while Yahoo withheld the app's access. */
