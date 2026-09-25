@@ -109,6 +109,16 @@ class ShareCardRendererTest {
     }
 
     @Test
+    void subtitleNamesTheAuthorAndScoringTypeOnly() {
+        SharedProjectionResponse points = shared("My league", "pgaberra", fivePlayers());
+        SharedProjectionResponse category = shared("My league", "pgaberra", fivePlayers());
+        category.getData().getProjectionSettings().scoringType(ProjectionSettings.ScoringTypeEnum.CATEGORY);
+
+        assertThat(renderer.subtitle(points)).isEqualTo("by pgaberra · Points league");
+        assertThat(renderer.subtitle(category)).isEqualTo("by pgaberra · Category league");
+    }
+
+    @Test
     void survivesAProjectionWithNoRows() {
         assertThatCode(() -> renderer.render(shared("Empty", "alex", List.of()))).doesNotThrowAnyException();
     }
