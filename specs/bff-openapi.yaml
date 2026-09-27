@@ -3719,6 +3719,12 @@ components:
             \ at index n - 1."
           items:
             $ref: "#/components/schemas/LeagueDraftPick"
+        totalPicks:
+          type: integer
+          format: int32
+          description: "How many picks the whole draft holds: the last slot the league\
+            \ lists for it, made or still to come. Absent when the league lists none,\
+            \ and always for ESPN."
       required:
       - auction
       - orderKnown

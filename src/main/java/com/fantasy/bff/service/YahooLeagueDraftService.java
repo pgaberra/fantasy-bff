@@ -39,7 +39,19 @@ public class YahooLeagueDraftService {
                 Boolean.TRUE.equals(draft.getAuction()),
                 teams,
                 Boolean.TRUE.equals(draft.getOrderKnown()),
-                madePicks(draft.getPicks()));
+                madePicks(draft.getPicks()),
+                totalPicks(draft.getPicks()));
+    }
+
+    /**
+     * Yahoo lists every slot of a draft that has an order, the ones still to be made without a
+     * player, so the last listed pick number is the draft's length. Null when it lists none.
+     */
+    private static Integer totalPicks(List<com.fantasy.bff.generated.yahoo.model.LeagueDraftPick> picks) {
+        return picks.stream()
+                .map(com.fantasy.bff.generated.yahoo.model.LeagueDraftPick::getPick)
+                .max(Integer::compare)
+                .orElse(null);
     }
 
     /**

@@ -58,6 +58,37 @@ class YahooLeagueDraftServiceTest {
         assertThat(draft.picks()).extracting("overall").containsExactly(1, 2);
         assertThat(draft.picks()).extracting("playerId").containsExactly(6743, 7109);
         assertThat(draft.picks()).extracting("teamId").containsExactly("465.l.9.t.2", "465.l.9.t.1");
+        assertThat(draft.totalPicks()).isEqualTo(4);
+    }
+
+    /**
+     * Yahoo reports the draft over well after its last pick, so the board ends it on the draft's
+     * length: every slot Yahoo lists, including the ones still to be made.
+     */
+    @Test
+    void countsTheDraftsLengthFromEverySlotYahooLists() {
+        when(availability.available()).thenReturn(true);
+        when(client.draft(USER_ID, LEAGUE_KEY)).thenReturn(
+                new com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse()
+                        .leagueKey(LEAGUE_KEY)
+                        .status(com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse.StatusEnum.IN_PROGRESS)
+                        .auction(false)
+                        .teams(List.of(
+                                new LeagueDraftTeam().teamKey("465.l.9.t.1").name("Alpha").mine(true),
+                                new LeagueDraftTeam().teamKey("465.l.9.t.2").name("Bravo").mine(false)))
+                        .orderKnown(true)
+                        .picks(List.of(
+                                pick(1, 1, "465.l.9.t.1", 6743),
+                                pick(2, 1, "465.l.9.t.2", null),
+                                pick(3, 2, "465.l.9.t.2", null),
+                                pick(4, 2, "465.l.9.t.1", null),
+                                pick(5, 3, "465.l.9.t.1", null),
+                                pick(6, 3, "465.l.9.t.2", null))));
+
+        LeagueDraftResponse draft = service.draft(USER_ID, LEAGUE_KEY);
+
+        assertThat(draft.picks()).hasSize(1);
+        assertThat(draft.totalPicks()).isEqualTo(6);
     }
 
     /**
@@ -100,6 +131,7 @@ class YahooLeagueDraftServiceTest {
         assertThat(draft.status()).isEqualTo(LeagueDraftStatus.UNKNOWN);
         assertThat(draft.auction()).isTrue();
         assertThat(draft.picks()).isEmpty();
+        assertThat(draft.totalPicks()).isNull();
     }
 
     @Test

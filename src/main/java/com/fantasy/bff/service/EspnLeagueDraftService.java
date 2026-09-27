@@ -48,7 +48,8 @@ public class EspnLeagueDraftService {
                 Boolean.TRUE.equals(draft.getAuction()),
                 teams,
                 Boolean.TRUE.equals(draft.getOrderKnown()),
-                madePicks(draft.getLeagueId(), draft.getPicks()));
+                madePicks(draft.getLeagueId(), draft.getPicks()),
+                null);
     }
 
     /**

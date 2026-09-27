@@ -98,7 +98,7 @@ class LeagueSummaryServiceTest {
                 List.of(
                         new LeagueDraftPick(1, 1, "t1", 1),
                         new LeagueDraftPick(2, 1, "t2", 2),
-                        new LeagueDraftPick(3, 2, "t2", 3))));
+                        new LeagueDraftPick(3, 2, "t2", 3)), null));
         when(leagueService.projectionSettings(USER, LEAGUE)).thenReturn(settings(null));
     }
 
@@ -207,7 +207,7 @@ class LeagueSummaryServiceTest {
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true)),
                 true,
-                List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "ghost", 2))));
+                List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "ghost", 2)), null));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
 
@@ -276,7 +276,7 @@ class LeagueSummaryServiceTest {
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true), new LeagueDraftTeam("t2", "Theirs", false)),
                 true,
-                List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "t2", 2))));
+                List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "t2", 2)), null));
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2, 3)));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
@@ -320,7 +320,7 @@ class LeagueSummaryServiceTest {
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true), new LeagueDraftTeam("t2", "Theirs", false)),
                 true,
-                List.of(new LeagueDraftPick(1, 1, "t1", 1))));
+                List.of(new LeagueDraftPick(1, 1, "t1", 1)), null));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
 
@@ -338,7 +338,7 @@ class LeagueSummaryServiceTest {
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true)),
                 false,
-                List.of()));
+                List.of(), null));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
 
