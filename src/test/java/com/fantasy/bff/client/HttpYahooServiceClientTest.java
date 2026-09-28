@@ -109,11 +109,11 @@ class HttpYahooServiceClientTest {
 
     @Test
     void aForbiddenWithoutAMessage_isStillARefusal() {
-        server.stubFor(get(urlPathEqualTo("/api/v1/yahoo/leagues/465.l.1/teams")).willReturn(aResponse()
+        server.stubFor(get(urlPathEqualTo("/api/v1/yahoo/leagues/465.l.1/settings")).willReturn(aResponse()
                 .withStatus(403)
                 .withBody("<html>forbidden</html>")));
 
-        assertThatThrownBy(() -> client.teams("user-1", "465.l.1"))
+        assertThatThrownBy(() -> client.settings("user-1", "465.l.1"))
                 .isInstanceOf(YahooAccessDeniedException.class)
                 .hasMessage("Yahoo refused the request");
     }

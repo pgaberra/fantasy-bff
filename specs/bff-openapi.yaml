@@ -1202,38 +1202,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDto"
-  /api/v1/yahoo/leagues/{leagueKey}/teams:
-    get:
-      tags:
-      - Yahoo
-      summary: List a league's teams (names + which is the user's own)
-      operationId: teams
-      parameters:
-      - name: leagueKey
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Teams returned
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
-        "404":
-          description: User has not connected Yahoo
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
-        "424":
-          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
-            carries Yahoo's own wording
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/projection-settings:
     get:
       tags:
@@ -1999,39 +1967,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeaturesResponse"
-  /api/v1/espn/leagues/{leagueId}/teams:
-    get:
-      tags:
-      - ESPN
-      summary: List an ESPN league's teams (names + which is the user's own)
-      operationId: teams_1
-      parameters:
-      - name: leagueId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Teams returned
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EspnLeagueTeamsResponse"
-        "400":
-          description: League is private (cookies missing/invalid) or the league id
-            is malformed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EspnLeagueTeamsResponse"
-        "404":
-          description: No such ESPN league for that id in the current or previous
-            season
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EspnLeagueTeamsResponse"
   /api/v1/espn/leagues/{leagueId}/projection-settings:
     get:
       tags:
@@ -3593,28 +3528,6 @@ components:
             $ref: "#/components/schemas/LeagueSummary"
       required:
       - leagues
-    LeagueTeam:
-      type: object
-      properties:
-        name:
-          type: string
-        mine:
-          type: boolean
-      required:
-      - mine
-      - name
-    LeagueTeamsResponse:
-      type: object
-      properties:
-        teams:
-          type: array
-          items:
-            $ref: "#/components/schemas/LeagueTeam"
-        draftPosition:
-          type: integer
-          format: int32
-      required:
-      - teams
     LeagueProjectionSettingsResponse:
       type: object
       properties:
@@ -4742,33 +4655,6 @@ components:
       - espnLeagueDraftSync
       - leagueDraftSync
       - streamerPlanner
-    EspnLeagueTeam:
-      type: object
-      properties:
-        name:
-          type: string
-        mine:
-          type: boolean
-          description: True for the authenticated user's own team (matched via their
-            SWID; always false for public leagues read without cookies).
-      required:
-      - mine
-      - name
-    EspnLeagueTeamsResponse:
-      type: object
-      properties:
-        teams:
-          type: array
-          items:
-            $ref: "#/components/schemas/EspnLeagueTeam"
-        draftPosition:
-          type: integer
-          format: int32
-          description: "The signed-in manager's own seat in the draft order, counting\
-            \ from 1, or null when ESPN does not name it. Null is meaningful: ask\
-            \ the user rather than read a seat off the list order."
-      required:
-      - teams
     CredentialStatusResponse:
       type: object
       properties:

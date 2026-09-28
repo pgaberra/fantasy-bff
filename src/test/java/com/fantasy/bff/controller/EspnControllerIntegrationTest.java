@@ -4,8 +4,6 @@ import com.fantasy.bff.BaseIntegrationTest;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
-import com.fantasy.bff.generated.espn.model.LeagueTeam;
-import com.fantasy.bff.generated.espn.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.espn.model.RosterSlot;
 import com.fantasy.bff.generated.espn.model.StatCategory;
 import com.fantasy.bff.security.JwtTokenValidator;
@@ -109,34 +107,5 @@ class EspnControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.leagueSize").value(14))
                 .andExpect(jsonPath("$.activeScoringColumns[0]").value("goals"))
                 .andExpect(jsonPath("$.rosterSlots.c").value(2));
-    }
-
-    @Test
-    void teams_returnsMappedTeamsWithMineFlag() throws Exception {
-        when(espnServiceClient.teams(USER_ID, "123")).thenReturn(
-                new LeagueTeamsResponse().teams(List.of(
-                        new LeagueTeam().name("Alpha").mine(false),
-                        new LeagueTeam().name("Beta Squad").mine(true))).draftPosition(2));
-
-        mockMvc.perform(get("/api/v1/espn/leagues/123/teams")
-                        .header("Authorization", "Bearer " + token()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.teams[0].name").value("Alpha"))
-                .andExpect(jsonPath("$.teams[1].name").value("Beta Squad"))
-                .andExpect(jsonPath("$.teams[1].mine").value(true))
-                .andExpect(jsonPath("$.draftPosition").value(2));
-    }
-
-    @Test
-    void teams_leavesTheDraftPositionOutWhenEspnNamesNoSeat() throws Exception {
-        when(espnServiceClient.teams(USER_ID, "123")).thenReturn(
-                new LeagueTeamsResponse().teams(List.of(
-                        new LeagueTeam().name("Alpha").mine(false),
-                        new LeagueTeam().name("Beta Squad").mine(true))));
-
-        mockMvc.perform(get("/api/v1/espn/leagues/123/teams")
-                        .header("Authorization", "Bearer " + token()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.draftPosition").doesNotExist());
     }
 }

@@ -2,7 +2,6 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.dto.request.EspnCredentialsRequest;
-import com.fantasy.bff.dto.response.EspnLeagueTeamsResponse;
 import com.fantasy.bff.dto.response.ErrorDto;
 import com.fantasy.bff.dto.response.LeagueDraftResponse;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
@@ -91,19 +90,6 @@ public class EspnController {
     public LeagueProjectionSettingsResponse projectionSettings(@AuthenticationPrincipal String userId,
                                                                @PathVariable String leagueId) {
         return espnLeagueService.projectionSettings(userId, leagueId);
-    }
-
-    @Operation(summary = "List an ESPN league's teams (names + which is the user's own)")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Teams returned"),
-            @ApiResponse(responseCode = "400", description = "League is private (cookies missing/invalid) "
-                    + "or the league id is malformed"),
-            @ApiResponse(responseCode = "404", description = "No such ESPN league for that id in the current or previous season")
-    })
-    @GetMapping("/leagues/{leagueId}/teams")
-    public EspnLeagueTeamsResponse teams(@AuthenticationPrincipal String userId,
-                                         @PathVariable String leagueId) {
-        return espnLeagueService.teams(userId, leagueId);
     }
 
     @Operation(summary = "Get an ESPN league's draft: its status, teams in draft order and the picks made so far",
