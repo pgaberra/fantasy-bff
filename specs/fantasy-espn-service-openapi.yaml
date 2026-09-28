@@ -176,49 +176,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
-  /api/v1/espn/leagues/{leagueId}/teams:
-    get:
-      tags:
-      - ESPN Leagues
-      summary: List a league's teams (names + which is the user's own)
-      operationId: teams
-      parameters:
-      - name: leagueId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: appUserId
-        in: query
-        required: true
-        schema:
-          type: string
-      - name: season
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-      responses:
-        "200":
-          description: Teams returned
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
-        "400":
-          description: League is private (cookies missing/invalid) or the league id/season
-            is malformed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
-        "404":
-          description: No such ESPN league for the id and season
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
   /api/v1/espn/leagues/{leagueId}/settings:
     get:
       tags:
@@ -640,35 +597,6 @@ components:
       - id
       - lastName
       - position
-    LeagueTeam:
-      type: object
-      properties:
-        name:
-          type: string
-        mine:
-          type: boolean
-          description: True for the authenticated user's own team (matched via their
-            SWID; always false for public leagues read without cookies).
-      required:
-      - mine
-      - name
-    LeagueTeamsResponse:
-      type: object
-      properties:
-        teams:
-          type: array
-          items:
-            $ref: "#/components/schemas/LeagueTeam"
-        draftPosition:
-          type: integer
-          format: int32
-          description: "The signed-in manager's own seat in the draft order, 1-based,\
-            \ or null when we do not know it: ESPN gave no pick order, or no team\
-            \ could be matched to the user. Null is meaningful — a caller must ask\
-            \ the user rather than guess from the position of their team in the list."
-          example: 12
-      required:
-      - teams
     LeagueSettingsResponse:
       type: object
       properties:
