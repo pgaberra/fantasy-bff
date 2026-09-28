@@ -1904,10 +1904,13 @@ paths:
         \ over. Only a team's best players by projected value count, as many as the\
         \ league's roster spots less injured reserve, whatever slot each holds. The\
         \ teams, their totals and where each one places are returned to any signed-in\
-        \ manager; the roster rows and lineups behind those totals need premium, and\
-        \ are absent without it. 404 where this environment does not offer reading\
-        \ a league's draft, or where the AI projection is off and the model was asked\
-        \ for."
+        \ manager; the roster rows and lineups behind those totals need premium against\
+        \ the model or last season, and are absent without it. Against one of the\
+        \ user's own boards, or one they follow (`projectionId`), they are always\
+        \ filled in: those are lines the user can already read row by row. 404 where\
+        \ this environment does not offer reading a league's draft, where the AI projection\
+        \ is off and the model was asked for, or where the board is not the user's\
+        \ to read."
       operationId: yahooLeague
       parameters:
       - name: leagueKey
@@ -1925,6 +1928,14 @@ paths:
           type: string
           maxLength: 32
           minLength: 0
+      - name: projectionId
+        in: query
+        description: "The board to score the players against, one of the user's own\
+          \ or one they follow. Implies `source=projection`, which needs it."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "The league's teams, totalled"
@@ -1933,7 +1944,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueSummaryResponse"
         "400":
-          description: Unknown source
+          description: "Unknown source, or a source and a board that do not go together"
           content:
             application/json:
               schema:
@@ -4506,14 +4517,20 @@ components:
           enum:
           - model
           - last_season
+          - projection
         modelVersion:
           type: string
           description: The model version behind the numbers; absent for last season's
             stats
+        projectionId:
+          type: string
+          description: "The board the players were scored against; present only for\
+            \ `source: projection`"
         premium:
           type: boolean
-          description: "Whether the per-player halves are filled in, which premium\
-            \ pays for"
+          description: "Whether the per-player halves are filled in: premium pays\
+            \ for them against the model and last season, and a board of the user's\
+            \ own or one they follow always has them"
         scoringType:
           type: string
           description: "How the league scores, which decides what the totals are:\
@@ -4533,6 +4550,12 @@ components:
           type: integer
           format: int32
           description: How many picks the league has made; zero before it drafts
+        unprojectedPlayers:
+          type: integer
+          format: int32
+          description: "How many of the players the teams hold have no line in the\
+            \ projection and so count for nothing — a board that leaves players out,\
+            \ most often a spreadsheet import"
         categoryKeys:
           type: array
           description: "The stats the league counts, in its own order. The labels\
@@ -4558,6 +4581,7 @@ components:
       - source
       - status
       - teams
+      - unprojectedPlayers
     LeagueSummaryRosterRow:
       type: object
       properties:
