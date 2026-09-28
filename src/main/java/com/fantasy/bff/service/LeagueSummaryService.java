@@ -1,5 +1,10 @@
 package com.fantasy.bff.service;
 
+import com.fantasy.bff.dto.request.ProjectionKind;
+import com.fantasy.bff.dto.response.DraftPick;
+import com.fantasy.bff.dto.response.DraftSettings;
+import com.fantasy.bff.dto.response.DraftState;
+import com.fantasy.bff.dto.response.DraftTeam;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.LeagueDraftPick;
 import com.fantasy.bff.dto.response.LeagueDraftResponse;
@@ -9,6 +14,7 @@ import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.dto.response.PlayerProjection;
 import com.fantasy.bff.dto.response.PositionOverride;
 import com.fantasy.bff.dto.response.ProjectionResponse;
+import com.fantasy.bff.dto.response.ProjectionSettings;
 import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -44,6 +50,12 @@ import org.springframework.stereotype.Service;
  * <p>A team is the players Yahoo has on its roster today, so a trade, a drop or a pickup since the
  * draft moves the totals. Until the draft is over, and in a league whose rosters Yahoo lists all
  * empty, a team is its picks instead: that is what a live draft's table follows, pick by pick.
+ *
+ * <p>A draft made here is the other thing it totals: a mock draft, or one played against an ESPN
+ * league, whose picks exist nowhere else. There the teams, the picks and the scoring are the
+ * draft's own, which the user chose, unlike a league's. The totals are still everyone's and the
+ * players behind them still premium's (Alexander's call, 2026-09-28): the same rule whichever
+ * kind of league is being ranked.
  */
 @Service
 public class LeagueSummaryService {
@@ -53,6 +65,12 @@ public class LeagueSummaryService {
      * not state it — it is the app's own default, the same number a board here starts with.
      */
     private static final int DEFAULT_MIN_GOALIE_GAMES = 25;
+
+    /**
+     * What a team starts on a draft that names no roster: the web's default, which is what such a
+     * board was drafted with.
+     */
+    private static final RosterSlots DEFAULT_ROSTER_SLOTS = new RosterSlots(2, 2, 2, 4, 0, 4, 2);
 
     private final YahooLeagueDraftService draftService;
     private final YahooLeagueRosterService rosterService;
@@ -132,6 +150,57 @@ public class LeagueSummaryService {
                 draft.status(),
                 draft.picks().size(),
                 unprojected(pool, teams));
+    }
+
+    /**
+     * A draft made here, its teams totalled from their picks.
+     *
+     * @param userId whose draft it is, which is also whose account decides the premium half
+     * @param draftId the draft, one of the user's own
+     * @param source which projection the players are scored against
+     * @param projectionId the board, where the source is {@link SummarySource#PROJECTION}
+     * @return the summary, with the per-player halves in it only for an account that may see them
+     * @throws NoSuchElementException where the id is not a draft, or the model was asked for and is
+     *     off
+     */
+    public Result summariseDraft(String userId, UUID draftId, SummarySource source, UUID projectionId) {
+        if (source == SummarySource.MODEL && !aiProjection.available()) {
+            throw new NoSuchElementException("The AI projection is not enabled");
+        }
+        UUID user = UUID.fromString(userId);
+        ProjectionResponse stored = projectionService.get(user, draftId);
+        DraftState draft = stored.data() == null ? null : stored.data().draft();
+        if (stored.kind() != ProjectionKind.DRAFT || draft == null) {
+            throw new NoSuchElementException("Not a draft");
+        }
+        ProjectionResponse board = source == SummarySource.PROJECTION
+                ? projectionService.get(user, projectionId)
+                : null;
+
+        List<ScoredPlayer> pool = pool(source, board);
+        List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft);
+        LeagueScoring league = scoring(draft.settings(), stored.data().settings(), teams.size());
+
+        LeagueSummary summary = calculator.summarise(pool, teams, league);
+        boolean premium = board != null || entitlementService.hasPremiumAccess(userId);
+        int picks = draft.picks() == null ? 0 : draft.picks().size();
+        return new Result(
+                premium ? summary : summary.aggregatesOnly(),
+                source,
+                source == SummarySource.MODEL ? defaultModelVersion : null,
+                board == null ? null : board.id(),
+                premium,
+                league.points() ? ScoringBasis.POINTS : ScoringBasis.CATEGORY,
+                draftStatus(draft, picks),
+                picks,
+                unprojected(pool, teams));
+    }
+
+    private static LeagueDraftStatus draftStatus(DraftState draft, int picks) {
+        if (draft.finishedAt() != null) {
+            return LeagueDraftStatus.FINISHED;
+        }
+        return picks == 0 ? LeagueDraftStatus.PRE_DRAFT : LeagueDraftStatus.IN_PROGRESS;
     }
 
     /**
@@ -289,6 +358,66 @@ public class LeagueSummaryService {
                         team.mine(),
                         List.copyOf(playersByTeam.get(team.id()))))
                 .toList();
+    }
+
+    /**
+     * A draft's teams in its draft order, each holding the players it picked. A pick for a team the
+     * draft does not list is dropped rather than credited to anyone.
+     */
+    private static List<LeagueSummaryCalculator.TeamPicks> teams(DraftState draft) {
+        List<DraftTeam> listed = draft.teams() == null ? List.of() : draft.teams();
+        Map<String, DraftTeam> byId = new LinkedHashMap<>();
+        for (DraftTeam team : listed) {
+            byId.put(team.id(), team);
+        }
+        Map<String, DraftTeam> ordered = new LinkedHashMap<>();
+        for (String teamId : draft.order() == null ? List.<String>of() : draft.order()) {
+            DraftTeam team = byId.get(teamId);
+            if (team != null) {
+                ordered.putIfAbsent(teamId, team);
+            }
+        }
+        byId.forEach(ordered::putIfAbsent);
+
+        Map<String, List<Integer>> playersByTeam = new LinkedHashMap<>();
+        ordered.keySet().forEach(teamId -> playersByTeam.put(teamId, new ArrayList<>()));
+        for (DraftPick pick : draft.picks() == null ? List.<DraftPick>of() : draft.picks()) {
+            List<Integer> picked = playersByTeam.get(pick.teamId());
+            if (picked != null) {
+                picked.add(pick.playerId());
+            }
+        }
+        return ordered.values().stream()
+                .map(team -> new LeagueSummaryCalculator.TeamPicks(
+                        team.id(), team.name(), team.mine(), List.copyOf(playersByTeam.get(team.id()))))
+                .toList();
+    }
+
+    /**
+     * How a draft scores: the league it was set up with, or, on a draft saved before drafts held a
+     * league, its projection's, the same fallback the board ranks by. Its size is its team count
+     * where the league does not say, as a Yahoo league's is.
+     */
+    private static LeagueScoring scoring(DraftSettings league, ProjectionSettings fallback, int teamCount) {
+        int teams = Math.max(2, teamCount);
+        if (league != null) {
+            return LeagueScoring.of(
+                    league.scoringType() != ProjectionSettings.ScoringType.CATEGORY,
+                    league.statWeights(),
+                    league.activeScoringColumns(),
+                    league.rosterSlots() == null ? DEFAULT_ROSTER_SLOTS : league.rosterSlots(),
+                    league.leagueSize() == null ? teams : league.leagueSize(),
+                    league.minGoalieGames() == null ? DEFAULT_MIN_GOALIE_GAMES : league.minGoalieGames(),
+                    null);
+        }
+        return LeagueScoring.of(
+                fallback.scoringType() != ProjectionSettings.ScoringType.CATEGORY,
+                fallback.statWeights(),
+                fallback.activeScoringColumns(),
+                fallback.rosterSlots() == null ? DEFAULT_ROSTER_SLOTS : fallback.rosterSlots(),
+                fallback.leagueSize() == null ? teams : fallback.leagueSize(),
+                fallback.minGoalieGames() == null ? DEFAULT_MIN_GOALIE_GAMES : fallback.minGoalieGames(),
+                null);
     }
 
     /**

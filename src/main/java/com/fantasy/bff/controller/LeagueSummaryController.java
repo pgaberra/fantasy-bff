@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
  * user's own league — the rosters, the teams and the scoring settings all come from Yahoo, none
  * of them from the caller — so no request can shape the rosters into a per-player readout of
  * the model's lines.
+ *
+ * <p>A draft made here is ranked the same way, from its own teams and picks: a mock draft, or one
+ * played against a league this page cannot read, has nowhere else for them to come from.
  */
 @Tag(name = "League summaries", description = "Where a league's teams stand")
 @RestController
@@ -73,8 +76,44 @@ public class LeagueSummaryController {
             @Parameter(description = "The board to score the players against, one of the user's own "
                     + "or one they follow. Implies `source=projection`, which needs it.")
             @RequestParam(required = false) UUID projectionId) {
-        LeagueSummaryService.Result result =
-                service.summarise(userId, leagueKey, SummarySource.from(source, projectionId), projectionId);
+        return response(
+                service.summarise(userId, leagueKey, SummarySource.from(source, projectionId), projectionId));
+    }
+
+    @Operation(
+            summary = "Total a draft's teams against a projection",
+            description = "Reads one of the user's own drafts and totals every team's picks, the way a "
+                    + "Yahoo league's are totalled: only a team's best players by projected value count, "
+                    + "as many as the draft's roster spots less injured reserve. The teams and the "
+                    + "scoring are the draft's own. The teams, their totals and where each one places "
+                    + "are returned to any signed-in manager; the roster rows and lineups behind them "
+                    + "need premium against the model or last season, and are always filled in against "
+                    + "one of the user's own boards or one they follow (`projectionId`). 404 where the "
+                    + "id is not one of the user's drafts, where the AI projection is off and the model "
+                    + "was asked for, or where the board is not the user's to read.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The draft's teams, totalled"),
+            @ApiResponse(responseCode = "400",
+                    description = "Unknown source, or a source and a board that do not go together",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "404",
+                    description = "Not the user's draft, the AI projection is off, or the board is not theirs",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
+    @GetMapping("/drafts/{draftId}")
+    public LeagueSummaryResponse draft(
+            @AuthenticationPrincipal String userId,
+            @PathVariable UUID draftId,
+            @Parameter(description = "Which projection to score the players against; the model by default")
+            @RequestParam(required = false) @Size(max = 32) String source,
+            @Parameter(description = "The board to score the players against, one of the user's own "
+                    + "or one they follow. Implies `source=projection`, which needs it.")
+            @RequestParam(required = false) UUID projectionId) {
+        return response(
+                service.summariseDraft(userId, draftId, SummarySource.from(source, projectionId), projectionId));
+    }
+
+    private static LeagueSummaryResponse response(LeagueSummaryService.Result result) {
         return LeagueSummaryResponse.from(
                 result.summary(),
                 result.source(),
