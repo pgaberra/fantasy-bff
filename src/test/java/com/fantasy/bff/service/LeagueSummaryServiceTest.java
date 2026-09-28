@@ -10,6 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.dto.request.ProjectionKind;
+import com.fantasy.bff.dto.response.DraftPick;
+import com.fantasy.bff.dto.response.DraftSettings;
+import com.fantasy.bff.dto.response.DraftState;
+import com.fantasy.bff.dto.response.DraftTeam;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.LeagueDraftPick;
 import com.fantasy.bff.dto.response.LeagueDraftResponse;
@@ -19,6 +23,7 @@ import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.dto.response.PositionOverride;
 import com.fantasy.bff.dto.response.ProjectionData;
 import com.fantasy.bff.dto.response.ProjectionResponse;
+import com.fantasy.bff.dto.response.ProjectionSettings;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -27,6 +32,7 @@ import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.db.model.RosterSlots;
 import com.fantasy.bff.service.scoring.LeagueSummaryCalculator;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -478,5 +484,118 @@ class LeagueSummaryServiceTest {
         assertThat(theirs.positionPlayers().get("C")).extracting(player -> player.name())
                 .containsExactly("Forward Two");
         assertThat(theirs.positionPlayers().getOrDefault("LW", List.of())).isEmpty();
+    }
+
+    // ---- A draft made here: its own teams, picks and league. ----
+
+    private static final UUID DRAFT = UUID.fromString("00000000-0000-0000-0000-0000000000d0");
+
+    private static DraftSettings draftLeague() {
+        return new DraftSettings(
+                ProjectionSettings.ScoringType.POINTS,
+                Map.of("goals", 1.0),
+                List.of("goals"),
+                List.of("gp"),
+                null,
+                new com.fantasy.bff.dto.response.RosterSlots(1, 1, 1, 0, 0, 1, 0),
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private static DraftState draftState(DraftSettings league, OffsetDateTime finishedAt, List<DraftPick> picks) {
+        return new DraftState(
+                List.of(new DraftTeam("a", "Alpha", false), new DraftTeam("b", "Bravo", true)),
+                List.of("b", "a"),
+                picks,
+                finishedAt,
+                league,
+                null);
+    }
+
+    private static ProjectionResponse draftRow(ProjectionSettings settings, DraftState draft) {
+        return new ProjectionResponse(
+                DRAFT.toString(), "Mock #1", ProjectionKind.DRAFT, "20262027",
+                new ProjectionData(settings, List.of(), draft, null),
+                null, null, null, null, false);
+    }
+
+    private static final List<DraftPick> MOCK_PICKS = List.of(
+            new DraftPick(1, "b"), new DraftPick(2, "a"), new DraftPick(3, "a"));
+
+    @Test
+    @DisplayName("a draft made here is totalled from its own teams and picks")
+    void totalsADraftFromItsOwnPicks() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        when(projectionService.get(UUID.fromString(USER), DRAFT)).thenReturn(
+                draftRow(null, draftState(draftLeague(), OffsetDateTime.parse("2026-09-28T10:00:00Z"), MOCK_PICKS)));
+
+        LeagueSummaryService.Result result = service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null);
+
+        assertThat(result.status()).isEqualTo(LeagueDraftStatus.FINISHED);
+        assertThat(result.picks()).isEqualTo(3);
+        assertThat(result.scoringType()).isEqualTo(ScoringBasis.POINTS);
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("a", "b");
+        assertThat(result.summary().teams().get(0).name()).isEqualTo("Alpha");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
+        assertThat(result.summary().teams().get(1).mine()).isTrue();
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(40, within(1e-9));
+        verify(draftService, never()).draft(anyString(), anyString());
+    }
+
+    /** The same rule as a league's, whichever kind of league it is (Alexander's call, 2026-09-28). */
+    @Test
+    @DisplayName("a draft's totals reach an account without premium, the players behind them do not")
+    void aDraftGivesAFreeAccountTheTotalsOnly() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(projectionService.get(UUID.fromString(USER), DRAFT)).thenReturn(
+                draftRow(null, draftState(draftLeague(), null, MOCK_PICKS)));
+
+        LeagueSummaryService.Result result = service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null);
+
+        assertThat(result.premium()).isFalse();
+        assertThat(result.status()).isEqualTo(LeagueDraftStatus.IN_PROGRESS);
+        assertThat(result.summary().teams()).allSatisfy(team -> {
+            assertThat(team.total()).isNotNull();
+            assertThat(team.roster()).as("no roster rows").isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("a board is not a draft, and has no teams to total")
+    void aBoardIsNotADraft() {
+        when(projectionService.get(UUID.fromString(USER), DRAFT)).thenReturn(new ProjectionResponse(
+                DRAFT.toString(), "My board", ProjectionKind.PROJECTION, "20262027",
+                new ProjectionData(null, List.of(), null, null), null, null, null, null, false));
+
+        assertThatThrownBy(() -> service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
+    /** A draft saved before drafts held a league is ranked by its projection's, as the board ranks it. */
+    @Test
+    @DisplayName("a draft with no league of its own scores by its projection's settings")
+    void anOldDraftScoresByItsProjection() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        ProjectionSettings settings = new ProjectionSettings(
+                ProjectionSettings.ScoringType.POINTS, Map.of("goals", 2.0), List.of("goals"), List.of("gp"),
+                null, null, true, null, null, null, null, null, null, null, null, null, null);
+        when(projectionService.get(UUID.fromString(USER), DRAFT)).thenReturn(
+                draftRow(settings, draftState(null, null, MOCK_PICKS)));
+
+        LeagueSummaryService.Result result = service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null);
+
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(90, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("the model cannot be asked for a draft where the AI projection is switched off")
+    void draftModelOffIsNotFound() {
+        when(aiProjection.available()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null))
+                .isInstanceOf(NoSuchElementException.class);
+        verify(projectionService, never()).get(UUID.fromString(USER), DRAFT);
     }
 }
