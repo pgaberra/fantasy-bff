@@ -224,43 +224,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDto"
-  /api/v1/yahoo/leagues/{leagueKey}/teams:
-    get:
-      tags:
-      - Yahoo Leagues
-      summary: List a league's teams (names + which is the user's own)
-      operationId: teams
-      parameters:
-      - name: leagueKey
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: appUserId
-        in: query
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Teams returned
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
-        "404":
-          description: User has not connected Yahoo
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeagueTeamsResponse"
-        "403":
-          description: Yahoo refused the request; the message carries Yahoo's own
-            wording
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDto"
   /api/v1/yahoo/leagues/{leagueKey}/settings:
     get:
       tags:
@@ -934,33 +897,6 @@ components:
             $ref: "#/components/schemas/LeagueSummary"
       required:
       - leagues
-    LeagueTeam:
-      type: object
-      properties:
-        name:
-          type: string
-        mine:
-          type: boolean
-          description: True for the authenticated user's own team.
-      required:
-      - mine
-      - name
-    LeagueTeamsResponse:
-      type: object
-      properties:
-        teams:
-          type: array
-          items:
-            $ref: "#/components/schemas/LeagueTeam"
-        draftPosition:
-          type: integer
-          format: int32
-          description: "The signed-in manager's own seat in the draft order, counting\
-            \ from 1. Null when Yahoo names it nowhere, which is not the same as the\
-            \ first seat: the teams then carry Yahoo's own order, which says nothing\
-            \ about who picks when."
-      required:
-      - teams
     LeagueSettingsResponse:
       type: object
       properties:
