@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Size;
+import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,12 +47,16 @@ public class LeagueSummaryController {
                     + "players by projected value count, as many as the league's roster spots less "
                     + "injured reserve, whatever slot each holds. The teams, their totals and where each one places are "
                     + "returned to any signed-in manager; the roster rows and lineups behind those "
-                    + "totals need premium, and are absent without it. 404 where this environment "
-                    + "does not offer reading a league's draft, or where the AI projection is off "
-                    + "and the model was asked for.")
+                    + "totals need premium against the model or last season, and are absent "
+                    + "without it. Against one of the user's own boards, or one they follow "
+                    + "(`projectionId`), they are always filled in: those are lines the user can "
+                    + "already read row by row. 404 where this environment does not offer reading "
+                    + "a league's draft, where the AI projection is off and the model was asked "
+                    + "for, or where the board is not the user's to read.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The league's teams, totalled"),
-            @ApiResponse(responseCode = "400", description = "Unknown source",
+            @ApiResponse(responseCode = "400",
+                    description = "Unknown source, or a source and a board that do not go together",
                     content = @Content(schema = @Schema(implementation = ErrorDto.class))),
             @ApiResponse(responseCode = "404",
                     description = "Not offered here, the AI projection is off, or the user has not connected Yahoo",
@@ -64,16 +69,21 @@ public class LeagueSummaryController {
             @AuthenticationPrincipal String userId,
             @PathVariable @Size(max = 64) String leagueKey,
             @Parameter(description = "Which projection to score the players against; the model by default")
-            @RequestParam(required = false) @Size(max = 32) String source) {
+            @RequestParam(required = false) @Size(max = 32) String source,
+            @Parameter(description = "The board to score the players against, one of the user's own "
+                    + "or one they follow. Implies `source=projection`, which needs it.")
+            @RequestParam(required = false) UUID projectionId) {
         LeagueSummaryService.Result result =
-                service.summarise(userId, leagueKey, SummarySource.from(source));
+                service.summarise(userId, leagueKey, SummarySource.from(source, projectionId), projectionId);
         return LeagueSummaryResponse.from(
                 result.summary(),
                 result.source(),
                 result.modelVersion(),
+                result.projectionId(),
                 result.premium(),
                 result.scoringType(),
                 result.status(),
-                result.picks());
+                result.picks(),
+                result.unprojectedPlayers());
     }
 }

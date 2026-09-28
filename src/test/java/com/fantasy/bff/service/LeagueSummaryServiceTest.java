@@ -9,12 +9,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fantasy.bff.dto.request.ProjectionKind;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.LeagueDraftPick;
 import com.fantasy.bff.dto.response.LeagueDraftResponse;
 import com.fantasy.bff.dto.response.LeagueDraftStatus;
 import com.fantasy.bff.dto.response.LeagueDraftTeam;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
+import com.fantasy.bff.dto.response.PositionOverride;
+import com.fantasy.bff.dto.response.ProjectionData;
+import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -27,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,13 +50,15 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class LeagueSummaryServiceTest {
 
-    private static final String USER = "user-1";
+    private static final String USER = "00000000-0000-0000-0000-000000000001";
+    private static final UUID BOARD = UUID.fromString("00000000-0000-0000-0000-0000000000b0");
     private static final String LEAGUE = "465.l.12345";
 
     @Mock private YahooLeagueDraftService draftService;
     @Mock private YahooLeagueRosterService rosterService;
     @Mock private YahooLeagueService leagueService;
     @Mock private ProjectionSeedService seedService;
+    @Mock private ProjectionService projectionService;
     @Mock private PlayerPoolRows poolRows;
     @Mock private PlayerService playerService;
     @Mock private AiProjectionAvailability aiProjection;
@@ -73,7 +80,7 @@ class LeagueSummaryServiceTest {
     @BeforeEach
     void setUp() {
         service = new LeagueSummaryService(
-                draftService, rosterService, leagueService, seedService, poolRows, playerService, aiProjection,
+                draftService, rosterService, leagueService, seedService, projectionService, poolRows, playerService, aiProjection,
                 entitlementService, new LeagueSummaryCalculator(), 20262027, "v1.2.3");
 
         when(aiProjection.available()).thenReturn(true);
@@ -122,7 +129,7 @@ class LeagueSummaryServiceTest {
     void saysHowTheLeagueScores() {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.scoringType()).isEqualTo(ScoringBasis.POINTS);
     }
@@ -132,7 +139,7 @@ class LeagueSummaryServiceTest {
     void totalsTheLeague() {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.picks()).isEqualTo(3);
         assertThat(result.status()).isEqualTo(LeagueDraftStatus.FINISHED);
@@ -150,7 +157,7 @@ class LeagueSummaryServiceTest {
     void freeAccountGetsAggregatesOnly() {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.premium()).isFalse();
         assertThat(result.summary().teams()).allSatisfy(team -> {
@@ -166,7 +173,7 @@ class LeagueSummaryServiceTest {
     void premiumGetsThePlayers() {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.premium()).isTrue();
         assertThat(result.summary().teams()).allSatisfy(team -> {
@@ -183,7 +190,7 @@ class LeagueSummaryServiceTest {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(poolRows.read()).thenThrow(new IllegalStateException("read"));
 
-        assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON))
+        assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON, null))
                 .isInstanceOf(IllegalStateException.class);
         verify(seedService, never()).seed(anyInt(), anyString());
     }
@@ -193,7 +200,7 @@ class LeagueSummaryServiceTest {
     void modelOffIsNotFound() {
         when(aiProjection.available()).thenReturn(false);
 
-        assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.MODEL))
+        assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.MODEL, null))
                 .isInstanceOf(NoSuchElementException.class);
         verify(draftService, never()).draft(anyString(), anyString());
     }
@@ -209,7 +216,7 @@ class LeagueSummaryServiceTest {
                 true,
                 List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "ghost", 2)), null));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams()).hasSize(1);
         assertThat(result.summary().teams().get(0).total()).isCloseTo(40, within(1e-9));
@@ -225,7 +232,7 @@ class LeagueSummaryServiceTest {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(leagueService.projectionSettings(USER, LEAGUE)).thenReturn(settings(null));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams()).hasSize(2);
     }
@@ -240,7 +247,7 @@ class LeagueSummaryServiceTest {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1, 3), "t2", List.of(2)));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
         assertThat(result.summary().teams().get(0).total()).isCloseTo(55, within(1e-9));
@@ -258,7 +265,7 @@ class LeagueSummaryServiceTest {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2)));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
         assertThat(result.summary().teams().get(0).total()).isCloseTo(40, within(1e-9));
@@ -279,7 +286,7 @@ class LeagueSummaryServiceTest {
                 List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "t2", 2)), null));
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2, 3)));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t2", "t1");
         assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
@@ -292,7 +299,7 @@ class LeagueSummaryServiceTest {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "ghost", List.of(2, 3)));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
         assertThat(result.summary().teams().get(1).total()).isZero();
@@ -304,7 +311,7 @@ class LeagueSummaryServiceTest {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(), "t2", List.of()));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
         assertThat(result.summary().teams().get(1).total()).isCloseTo(40, within(1e-9));
@@ -322,7 +329,7 @@ class LeagueSummaryServiceTest {
                 true,
                 List.of(new LeagueDraftPick(1, 1, "t1", 1)), null));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.summary().teams().get(0).teamId()).isEqualTo("t1");
         assertThat(result.summary().teams().get(0).total()).isCloseTo(40, within(1e-9));
@@ -340,10 +347,136 @@ class LeagueSummaryServiceTest {
                 false,
                 List.of(), null));
 
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL);
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.picks()).isZero();
         assertThat(result.status()).isEqualTo(LeagueDraftStatus.PRE_DRAFT);
         assertThat(result.summary().teams().get(0).total()).isZero();
+    }
+
+    private static ProjectionResponse board(
+            List<com.fantasy.bff.dto.response.PlayerProjection> players, List<PositionOverride> overrides) {
+        return new ProjectionResponse(
+                BOARD.toString(), "My board", ProjectionKind.PROJECTION, "20262027",
+                new ProjectionData(null, players, null, overrides),
+                null, null, null, null, false);
+    }
+
+    private static com.fantasy.bff.dto.response.PlayerProjection boardRow(int playerId, double goals) {
+        return new com.fantasy.bff.dto.response.PlayerProjection(
+                playerId,
+                com.fantasy.bff.dto.response.PlayerProjection.Type.SKATER,
+                new com.fantasy.bff.dto.response.PlayerStats(Map.of("gp", 82.0), Map.of("goals", goals)));
+    }
+
+    /** The whole of the feature: the same league, ranked by the user's own numbers. */
+    @Test
+    @DisplayName("a board of the user's own ranks the league by its numbers, not the model's")
+    void boardRanksByItsOwnNumbers() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
+                List.of(boardRow(1, 60), boardRow(2, 10), boardRow(3, 5)), null));
+
+        LeagueSummaryService.Result result =
+                service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD);
+
+        assertThat(result.source()).isEqualTo(SummarySource.PROJECTION);
+        assertThat(result.projectionId()).isEqualTo(BOARD.toString());
+        assertThat(result.modelVersion()).isNull();
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(60, within(1e-9));
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(15, within(1e-9));
+        verify(seedService, never()).seed(anyInt(), anyString());
+    }
+
+    /**
+     * Premium pays for the model's lines. A board's lines are ones the user can already read row by
+     * row, so there is nothing behind its totals to hold back.
+     */
+    @Test
+    @DisplayName("a board's players are shown without premium")
+    void boardShowsItsPlayersWithoutPremium() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
+                List.of(boardRow(1, 60), boardRow(2, 10), boardRow(3, 5)), null));
+
+        LeagueSummaryService.Result result =
+                service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD);
+
+        assertThat(result.premium()).isTrue();
+        assertThat(result.summary().teams()).allSatisfy(team -> assertThat(team.roster()).isNotNull());
+    }
+
+    @Test
+    @DisplayName("a board that is not the user's to read is refused before Yahoo is asked")
+    void unreadableBoardIsRefusedFirst() {
+        when(projectionService.get(UUID.fromString(USER), BOARD))
+                .thenThrow(new NoSuchElementException("no such projection"));
+
+        assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD))
+                .isInstanceOf(NoSuchElementException.class);
+        verify(draftService, never()).draft(anyString(), anyString());
+    }
+
+    /** The board works whether or not this environment serves the model. */
+    @Test
+    @DisplayName("a board can be ranked by where the AI projection is switched off")
+    void boardWorksWithTheModelOff() {
+        when(aiProjection.available()).thenReturn(false);
+        when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
+                List.of(boardRow(1, 60), boardRow(2, 10), boardRow(3, 5)), null));
+
+        LeagueSummaryService.Result result =
+                service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD);
+
+        assertThat(result.summary().teams()).hasSize(2);
+    }
+
+    /** A spreadsheet import with a player missing: he counts for nothing, and the page is told. */
+    @Test
+    @DisplayName("counts the teams' players the board has no line for")
+    void countsUnprojectedPlayers() {
+        when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
+                List.of(boardRow(1, 60), boardRow(2, 10)), null));
+
+        LeagueSummaryService.Result result =
+                service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD);
+
+        assertThat(result.unprojectedPlayers()).isEqualTo(1);
+        assertThat(result.summary().teams()).extracting(team -> team.teamId()).containsExactly("t1", "t2");
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(10, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("the model's pool leaves nobody the teams hold unprojected")
+    void modelHasNoUnprojectedPlayers() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
+
+        assertThat(result.unprojectedPlayers()).isZero();
+        assertThat(result.projectionId()).isNull();
+    }
+
+    /**
+     * Forward Two is a LW in the pool, and the league has one LW slot and one C slot. His owner
+     * moved him to C on the board, so the lineup must seat him there — where Forward One is not
+     * on his team to compete for it.
+     */
+    @Test
+    @DisplayName("a board's hand-set positions decide where its players are seated")
+    void boardPositionOverridesApply() {
+        when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
+                List.of(boardRow(1, 60), boardRow(2, 10), boardRow(3, 5)),
+                List.of(new PositionOverride(2, List.of(SkaterPosition.C)))));
+
+        LeagueSummaryService.Result result =
+                service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD);
+
+        var theirs = result.summary().teams().stream()
+                .filter(team -> team.teamId().equals("t2")).findFirst().orElseThrow();
+        assertThat(theirs.positionPlayers().get("C")).extracting(player -> player.name())
+                .containsExactly("Forward Two");
+        assertThat(theirs.positionPlayers().getOrDefault("LW", List.of())).isEmpty();
     }
 }

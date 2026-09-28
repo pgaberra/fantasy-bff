@@ -7,6 +7,8 @@ import com.fantasy.bff.dto.response.LeagueDraftStatus;
 import com.fantasy.bff.dto.response.LeagueDraftTeam;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.dto.response.PlayerProjection;
+import com.fantasy.bff.dto.response.PositionOverride;
+import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -55,6 +58,7 @@ public class LeagueSummaryService {
     private final YahooLeagueRosterService rosterService;
     private final YahooLeagueService leagueService;
     private final ProjectionSeedService seedService;
+    private final ProjectionService projectionService;
     private final PlayerPoolRows poolRows;
     private final PlayerService playerService;
     private final AiProjectionAvailability aiProjection;
@@ -68,6 +72,7 @@ public class LeagueSummaryService {
             YahooLeagueRosterService rosterService,
             YahooLeagueService leagueService,
             ProjectionSeedService seedService,
+            ProjectionService projectionService,
             PlayerPoolRows poolRows,
             PlayerService playerService,
             AiProjectionAvailability aiProjection,
@@ -79,6 +84,7 @@ public class LeagueSummaryService {
         this.rosterService = rosterService;
         this.leagueService = leagueService;
         this.seedService = seedService;
+        this.projectionService = projectionService;
         this.poolRows = poolRows;
         this.playerService = playerService;
         this.aiProjection = aiProjection;
@@ -94,56 +100,89 @@ public class LeagueSummaryService {
      * @param userId whose Yahoo account the league is read with
      * @param leagueKey the league, which the user must have access to
      * @param source which projection the players are scored against
+     * @param projectionId the board, where the source is {@link SummarySource#PROJECTION}
      * @return the summary, with the per-player halves in it only for an account that may see them
      */
-    public Result summarise(String userId, String leagueKey, SummarySource source) {
+    public Result summarise(String userId, String leagueKey, SummarySource source, UUID projectionId) {
         if (source == SummarySource.MODEL && !aiProjection.available()) {
             throw new NoSuchElementException("The AI projection is not enabled");
         }
+        // The board is read first: one the user may not read is a 404 before Yahoo is asked anything.
+        ProjectionResponse board = source == SummarySource.PROJECTION
+                ? projectionService.get(UUID.fromString(userId), projectionId)
+                : null;
         LeagueDraftResponse draft = draftService.draft(userId, leagueKey);
         LeagueProjectionSettingsResponse settings = leagueService.projectionSettings(userId, leagueKey);
 
-        List<ScoredPlayer> pool = pool(source);
+        List<ScoredPlayer> pool = pool(source, board);
         List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft, currentRosters(userId, leagueKey, draft));
         LeagueScoring league = scoring(settings, teams.size());
 
         LeagueSummary summary = calculator.summarise(pool, teams, league);
-        // The totals are everyone's; the lines they were reached from are what premium pays for.
-        boolean premium = entitlementService.hasPremiumAccess(userId);
+        // The totals are everyone's. The lines behind the model's and last season's are what
+        // premium pays for; a board's are the user's own, or ones they already follow row by row.
+        boolean premium = board != null || entitlementService.hasPremiumAccess(userId);
         return new Result(
                 premium ? summary : summary.aggregatesOnly(),
                 source,
                 source == SummarySource.MODEL ? defaultModelVersion : null,
+                board == null ? null : board.id(),
                 premium,
                 settings.scoringType(),
                 draft.status(),
-                draft.picks().size());
+                draft.picks().size(),
+                unprojected(pool, teams));
     }
 
     /**
      * @param summary the teams and their totals
      * @param source which projection they were scored against
      * @param modelVersion the model's version where it was the model, null otherwise
+     * @param projectionId the board's id where it was a board, null otherwise
      * @param premium whether the per-player halves are filled in
      * @param scoringType how the league scores, which is what its totals are in
      * @param status where the league's draft has got to
      * @param picks how many picks its draft has made, so a league yet to draft can say so rather
      *     than showing every team at nothing
+     * @param unprojectedPlayers how many of the teams' players have no line to be scored by
      */
     public record Result(
             LeagueSummary summary,
             SummarySource source,
             String modelVersion,
+            String projectionId,
             boolean premium,
             ScoringBasis scoringType,
             LeagueDraftStatus status,
-            int picks) {
+            int picks,
+            int unprojectedPlayers) {
+    }
+
+    /**
+     * The teams' players that the pool has no line for. They count for nothing, which is right for
+     * the model's pool, but on a board that left players out it is the board speaking, and the
+     * page has to say so.
+     */
+    private static int unprojected(List<ScoredPlayer> pool, List<LeagueSummaryCalculator.TeamPicks> teams) {
+        Set<Integer> projected = pool.stream().map(ScoredPlayer::playerId).collect(Collectors.toSet());
+        return (int) teams.stream()
+                .flatMap(team -> team.playerIds().stream())
+                .filter(playerId -> !projected.contains(playerId))
+                .distinct()
+                .count();
     }
 
     /** The rows the teams are scored against, for the whole pool rather than the rostered players. */
-    private List<ScoredPlayer> pool(SummarySource source) {
+    private List<ScoredPlayer> pool(SummarySource source, ProjectionResponse board) {
         Map<Integer, Identity> identities = identities();
-        List<PlayerProjection> rows = source == SummarySource.MODEL ? modelRows() : lastSeasonRows();
+        List<PlayerProjection> rows = switch (source) {
+            case MODEL -> modelRows();
+            case LAST_SEASON -> lastSeasonRows();
+            case PROJECTION -> {
+                overridePositions(identities, board.data().positionOverrides());
+                yield board.data().players();
+            }
+        };
         List<ScoredPlayer> pool = new ArrayList<>(rows.size());
         for (PlayerProjection row : rows) {
             Identity identity = identities.get(row.playerId());
@@ -168,6 +207,26 @@ public class LeagueSummaryService {
     }
 
     private record Identity(String name, Set<String> positions) {
+    }
+
+    /**
+     * The positions the board's owner set by hand, over the ones the pool reports: the lineup a
+     * team fills should be the one the board itself would fill.
+     */
+    private static void overridePositions(Map<Integer, Identity> identities, List<PositionOverride> overrides) {
+        if (overrides == null) {
+            return;
+        }
+        for (PositionOverride override : overrides) {
+            Identity identity = identities.get(override.playerId());
+            if (identity == null || identity.positions().contains("G")) {
+                continue;
+            }
+            Set<String> positions = override.positions().stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            identities.put(override.playerId(), new Identity(identity.name(), positions));
+        }
     }
 
     private Map<Integer, Identity> identities() {

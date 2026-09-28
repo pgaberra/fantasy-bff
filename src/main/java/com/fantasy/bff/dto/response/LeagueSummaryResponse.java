@@ -22,8 +22,14 @@ public record LeagueSummaryResponse(
         @Schema(description = "The model version behind the numbers; absent for last season's stats")
         String modelVersion,
 
+        @Schema(description = "The board the players were scored against; present only for "
+                + "`source: projection`")
+        String projectionId,
+
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Whether the per-player halves are filled in, which premium pays for")
+                description = "Whether the per-player halves are filled in: premium pays for them "
+                        + "against the model and last season, and a board of the user's own or one "
+                        + "they follow always has them")
         boolean premium,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
@@ -38,6 +44,12 @@ public record LeagueSummaryResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "How many picks the league has made; zero before it drafts")
         int picks,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "How many of the players the teams hold have no line in the projection "
+                        + "and so count for nothing — a board that leaves players out, most often "
+                        + "a spreadsheet import")
+        int unprojectedPlayers,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "The stats the league counts, in its own order. The labels are the "
@@ -96,17 +108,21 @@ public record LeagueSummaryResponse(
             LeagueSummary summary,
             SummarySource source,
             String modelVersion,
+            String projectionId,
             boolean premium,
             ScoringBasis scoringType,
             LeagueDraftStatus status,
-            int picks) {
+            int picks,
+            int unprojectedPlayers) {
         return new LeagueSummaryResponse(
                 source,
                 modelVersion,
+                projectionId,
                 premium,
                 scoringType,
                 status,
                 picks,
+                unprojectedPlayers,
                 summary.categoryKeys(),
                 summary.positionKeys(),
                 summary.teams().stream().map(LeagueSummaryResponse::team).toList());
