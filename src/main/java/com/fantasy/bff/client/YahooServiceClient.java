@@ -5,7 +5,6 @@ import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
-import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
 
@@ -27,8 +26,6 @@ public interface YahooServiceClient {
     LeaguesResponse leagues(String appUserId);
 
     LeagueSettingsResponse settings(String appUserId, String leagueKey);
-
-    LeagueTeamsResponse teams(String appUserId, String leagueKey);
 
     LeagueDraftResponse draft(String appUserId, String leagueKey);
 

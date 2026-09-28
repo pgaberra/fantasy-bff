@@ -7,7 +7,6 @@ import com.fantasy.bff.dto.response.LeagueDraftResponse;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.AuthorizeUrlResponse;
 import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
-import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.service.YahooLeagueDraftService;
 import com.fantasy.bff.service.YahooLeagueService;
@@ -111,19 +110,6 @@ public class YahooController {
     public LeagueProjectionSettingsResponse projectionSettings(@AuthenticationPrincipal String userId,
                                                                @PathVariable String leagueKey) {
         return yahooLeagueService.projectionSettings(userId, leagueKey);
-    }
-
-    @Operation(summary = "List a league's teams (names + which is the user's own)")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Teams returned"),
-            @ApiResponse(responseCode = "404", description = "User has not connected Yahoo"),
-            @ApiResponse(responseCode = "424", description = REFUSED,
-                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
-    })
-    @GetMapping("/leagues/{leagueKey}/teams")
-    public LeagueTeamsResponse teams(@AuthenticationPrincipal String userId,
-                                     @PathVariable String leagueKey) {
-        return yahooServiceClient.teams(userId, leagueKey);
     }
 
     @Operation(summary = "Get a league's draft: its status, teams in draft order and the picks made so far",

@@ -7,7 +7,6 @@ import com.fantasy.bff.generated.yahoo.model.ConnectionResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueDraftResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
-import com.fantasy.bff.generated.yahoo.model.LeagueTeamsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
 import org.springframework.core.ParameterizedTypeReference;
@@ -95,17 +94,6 @@ public class HttpYahooServiceClient implements YahooServiceClient {
                 .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
                         HttpYahooServiceClient::throwRefusal)
                 .body(LeagueSettingsResponse.class);
-    }
-
-    @Override
-    public LeagueTeamsResponse teams(String appUserId, String leagueKey) {
-        return restClient.get()
-                .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/teams")
-                        .queryParam("appUserId", appUserId).build(leagueKey))
-                .retrieve()
-                .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
-                        HttpYahooServiceClient::throwRefusal)
-                .body(LeagueTeamsResponse.class);
     }
 
     @Override
