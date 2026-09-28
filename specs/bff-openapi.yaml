@@ -1978,7 +1978,7 @@ paths:
         \ (`projectionId`). 404 where the id is not one of the user's drafts, where\
         \ the AI projection is off and the model was asked for, or where the board\
         \ is not the user's to read."
-      operationId: draft_1
+      operationId: draftSummary
       parameters:
       - name: draftId
         in: path
@@ -2084,7 +2084,7 @@ paths:
         \ own ids; a player the pool has no counterpart for is the negative of his\
         \ ESPN id, so the pick keeps its place. Read for the current season only.\
         \ 404 where this environment does not offer following an ESPN draft."
-      operationId: draft_2
+      operationId: draft_1
       parameters:
       - name: leagueId
         in: path

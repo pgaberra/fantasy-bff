@@ -101,7 +101,7 @@ public class LeagueSummaryController {
                     content = @Content(schema = @Schema(implementation = ErrorDto.class)))
     })
     @GetMapping("/drafts/{draftId}")
-    public LeagueSummaryResponse draft(
+    public LeagueSummaryResponse draftSummary(
             @AuthenticationPrincipal String userId,
             @PathVariable UUID draftId,
             @Parameter(description = "Which projection to score the players against; the model by default")
