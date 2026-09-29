@@ -60,6 +60,42 @@ class EspnLeagueSettingsMapperTest {
         assertThat(mapped.rosterSlots().d()).isZero();
     }
 
+    /**
+     * The skater half of a real ESPN H2H points league: ESPN lists +/-, P, PPG, PPA and FW
+     * among its scoringItems at 0 points. They score nothing, so they are not league stats —
+     * showing them as zero-weight columns read as if the league counted them.
+     */
+    @Test
+    void dropsStatsAPointsLeagueListsAtZeroPoints() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_POINTS", null,
+                        List.of(cat(15, "+/-", 0), cat(16, "P", 0), cat(18, "PPG", 0), cat(19, "PPA", 0),
+                                cat(23, "FOW", 0), cat(13, "G", 2), cat(14, "A", 1), cat(38, "PPP", 0.5),
+                                cat(4, "GA", -2), cat(2, "L", 0), cat(99, "MYSTERY", 0)),
+                        List.of()));
+
+        assertThat(mapped.activeScoringColumns()).containsExactly("goals", "assists", "ppp", "ga");
+        assertThat(mapped.statWeights()).containsEntry("goals", 2.0).containsEntry("ga", -2.0)
+                .containsEntry("plusMinus", 0.0).containsEntry("points", 0.0);
+        assertThat(mapped.unsupportedStats()).isEmpty();
+    }
+
+    @Test
+    void keepsZeroPointStatsInACategoryLeague() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_CATEGORY", null, List.of(cat(13, "G", 0), cat(15, "+/-", 0)), List.of()));
+
+        assertThat(mapped.activeScoringColumns()).containsExactly("goals", "plusMinus");
+    }
+
+    @Test
+    void keepsAZeroPointUtilityStatAsAUtilityColumn() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_POINTS", null, List.of(cat(27, "ATOI", 0), cat(13, "G", 2)), List.of()));
+
+        assertThat(mapped.activeUtilityColumns()).containsExactly("gp", "toiPerGame");
+    }
+
     @Test
     void mapsHeadToHeadCategoriesLeagueWithNullWeights() {
         LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
@@ -100,6 +136,10 @@ class EspnLeagueSettingsMapperTest {
         LeagueProjectionSettingsResponse withoutWeights = mapper.toProjectionSettings(
                 league("MYSTERY", null, List.of(cat(13, "G")), List.of()));
         assertThat(withoutWeights.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
+
+        LeagueProjectionSettingsResponse zeroWeights = mapper.toProjectionSettings(
+                league("MYSTERY", null, List.of(cat(13, "G", 0)), List.of()));
+        assertThat(zeroWeights.scoringType()).isEqualTo(ScoringBasis.CATEGORY);
     }
 
     @Test
