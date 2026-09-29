@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -51,8 +52,11 @@ import org.springframework.stereotype.Service;
  * draft moves the totals. Until the draft is over, and in a league whose rosters Yahoo lists all
  * empty, a team is its picks instead: that is what a live draft's table follows, pick by pick.
  *
- * <p>A draft made here is the other thing it totals: a mock draft, or one played against an ESPN
- * league, whose picks exist nowhere else. There the teams, the picks and the scoring are the
+ * <p>An ESPN league is totalled the same way, from what its teams hold on ESPN today; a drafted
+ * player is on his ESPN roster at once, so a draft in progress is its picks so far there too.
+ *
+ * <p>A draft made here is the other thing it totals: a mock draft, or one played against a
+ * league it cannot read, whose picks exist nowhere else. There the teams, the picks and the scoring are the
  * draft's own, which the user chose, unlike a league's. The totals are still everyone's and the
  * players behind them still premium's (Alexander's call, 2026-09-28): the same rule whichever
  * kind of league is being ranked.
@@ -75,6 +79,8 @@ public class LeagueSummaryService {
     private final YahooLeagueDraftService draftService;
     private final YahooLeagueRosterService rosterService;
     private final YahooLeagueService leagueService;
+    private final EspnLeagueRosterService espnRosterService;
+    private final EspnLeagueService espnLeagueService;
     private final ProjectionSeedService seedService;
     private final ProjectionService projectionService;
     private final PlayerPoolRows poolRows;
@@ -89,6 +95,8 @@ public class LeagueSummaryService {
             YahooLeagueDraftService draftService,
             YahooLeagueRosterService rosterService,
             YahooLeagueService leagueService,
+            EspnLeagueRosterService espnRosterService,
+            EspnLeagueService espnLeagueService,
             ProjectionSeedService seedService,
             ProjectionService projectionService,
             PlayerPoolRows poolRows,
@@ -101,6 +109,8 @@ public class LeagueSummaryService {
         this.draftService = draftService;
         this.rosterService = rosterService;
         this.leagueService = leagueService;
+        this.espnRosterService = espnRosterService;
+        this.espnLeagueService = espnLeagueService;
         this.seedService = seedService;
         this.projectionService = projectionService;
         this.poolRows = poolRows;
@@ -122,19 +132,67 @@ public class LeagueSummaryService {
      * @return the summary, with the per-player halves in it only for an account that may see them
      */
     public Result summarise(String userId, String leagueKey, SummarySource source, UUID projectionId) {
+        return summariseLeague(userId, source, projectionId, () -> {
+            LeagueDraftResponse draft = draftService.draft(userId, leagueKey);
+            LeagueProjectionSettingsResponse settings = leagueService.projectionSettings(userId, leagueKey);
+            return new League(
+                    teams(draft, currentRosters(userId, leagueKey, draft)),
+                    settings,
+                    draft.status(),
+                    draft.picks().size());
+        });
+    }
+
+    /**
+     * An ESPN league's teams, totalled from what each holds on ESPN today.
+     *
+     * @param userId whose stored ESPN cookies the league is read with, where it is private
+     * @param leagueId ESPN's id for the league
+     * @param source which projection the players are scored against
+     * @param projectionId the board, where the source is {@link SummarySource#PROJECTION}
+     * @return the summary, with the per-player halves in it only for an account that may see them
+     */
+    public Result summariseEspn(String userId, String leagueId, SummarySource source, UUID projectionId) {
+        return summariseLeague(userId, source, projectionId, () -> {
+            EspnLeagueRosterService.Rosters rosters = espnRosterService.rosters(userId, leagueId);
+            LeagueProjectionSettingsResponse settings = espnLeagueService.projectionSettings(userId, leagueId);
+            List<LeagueSummaryCalculator.TeamPicks> teams = rosters.teams().stream()
+                    .map(team -> new LeagueSummaryCalculator.TeamPicks(
+                            team.id(), team.name(), team.mine(), rosters.players().get(team.id())))
+                    .toList();
+            int rostered = teams.stream().mapToInt(team -> team.playerIds().size()).sum();
+            return new League(teams, settings, rosters.status(), rostered);
+        });
+    }
+
+    /**
+     * What a platform's league brings to its totals.
+     *
+     * @param picks how many players its teams hold between them, which is nothing before the draft
+     */
+    private record League(
+            List<LeagueSummaryCalculator.TeamPicks> teams,
+            LeagueProjectionSettingsResponse settings,
+            LeagueDraftStatus status,
+            int picks) {
+    }
+
+    private Result summariseLeague(
+            String userId, SummarySource source, UUID projectionId, Supplier<League> read) {
         if (source == SummarySource.MODEL && !aiProjection.available()) {
             throw new NoSuchElementException("The AI projection is not enabled");
         }
-        // The board is read first: one the user may not read is a 404 before Yahoo is asked anything.
+        // The board is read first: one the user may not read is a 404 before the platform is asked
+        // anything.
         ProjectionResponse board = source == SummarySource.PROJECTION
                 ? projectionService.get(UUID.fromString(userId), projectionId)
                 : null;
-        LeagueDraftResponse draft = draftService.draft(userId, leagueKey);
-        LeagueProjectionSettingsResponse settings = leagueService.projectionSettings(userId, leagueKey);
+        League platformLeague = read.get();
+        LeagueProjectionSettingsResponse settings = platformLeague.settings();
 
         ProjectionSeedService.Seed restOfSeason = restOfSeason(source);
         List<ScoredPlayer> pool = pool(source, board, restOfSeason);
-        List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft, currentRosters(userId, leagueKey, draft));
+        List<LeagueSummaryCalculator.TeamPicks> teams = platformLeague.teams();
         LeagueScoring league = scoring(settings, teams.size());
 
         LeagueSummary summary = calculator.summarise(pool, teams, league);
@@ -148,8 +206,8 @@ public class LeagueSummaryService {
                 board == null ? null : board.id(),
                 premium,
                 settings.scoringType(),
-                draft.status(),
-                draft.picks().size(),
+                platformLeague.status(),
+                platformLeague.picks(),
                 unprojected(pool, teams),
                 restOfSeason != null);
     }

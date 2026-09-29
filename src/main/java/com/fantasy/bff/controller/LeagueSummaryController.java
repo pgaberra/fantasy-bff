@@ -25,8 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>The summary is computed in full and then cut to what the account may see: the teams and
  * their totals for everyone, the players behind them only with premium. It is a read of the
- * user's own league — the rosters, the teams and the scoring settings all come from Yahoo, none
- * of them from the caller — so no request can shape the rosters into a per-player readout of
+ * user's own league — the rosters, the teams and the scoring settings all come from Yahoo or ESPN,
+ * none of them from the caller — so no request can shape the rosters into a per-player readout of
  * the model's lines.
  *
  * <p>A draft made here is ranked the same way, from its own teams and picks: a mock draft, or one
@@ -78,6 +78,40 @@ public class LeagueSummaryController {
             @RequestParam(required = false) UUID projectionId) {
         return response(
                 service.summarise(userId, leagueKey, SummarySource.from(source, projectionId), projectionId));
+    }
+
+    @Operation(
+            summary = "Total an ESPN league's teams against a projection",
+            description = "Reads the league's rosters and scoring settings from ESPN, with the user's stored "
+                    + "cookies where the league is private, and totals every team's current roster the way a "
+                    + "Yahoo league's is totalled; while the draft runs a roster is the team's picks so far. "
+                    + "The same premium rule as a Yahoo league: the teams, their totals and where each one "
+                    + "places for any signed-in manager, the roster rows and lineups behind them with premium "
+                    + "against the model or last season, and always against one of the user's own boards or "
+                    + "one they follow (`projectionId`). ESPN's refusal of a private league without valid "
+                    + "cookies is a 400, and a league ESPN does not have this season a 404.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The league's teams, totalled"),
+            @ApiResponse(responseCode = "400",
+                    description = "Unknown source, a source and a board that do not go together, a malformed "
+                            + "league id, or a private league ESPN refused",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "404",
+                    description = "No such ESPN league this season, the AI projection is off, or the board is "
+                            + "not the user's",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
+    @GetMapping("/espn/{leagueId}")
+    public LeagueSummaryResponse espnLeague(
+            @AuthenticationPrincipal String userId,
+            @PathVariable @Size(max = 20) String leagueId,
+            @Parameter(description = "Which projection to score the players against; the model by default")
+            @RequestParam(required = false) @Size(max = 32) String source,
+            @Parameter(description = "The board to score the players against, one of the user's own "
+                    + "or one they follow. Implies `source=projection`, which needs it.")
+            @RequestParam(required = false) UUID projectionId) {
+        return response(
+                service.summariseEspn(userId, leagueId, SummarySource.from(source, projectionId), projectionId));
     }
 
     @Operation(

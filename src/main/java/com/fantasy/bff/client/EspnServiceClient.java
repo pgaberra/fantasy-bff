@@ -3,6 +3,7 @@ package com.fantasy.bff.client;
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
 import com.fantasy.bff.generated.espn.model.LeagueDraftResponse;
+import com.fantasy.bff.generated.espn.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
@@ -22,6 +23,9 @@ public interface EspnServiceClient {
 
     /** A league's draft for the current season: status, teams in draft order, picks made by ESPN id. */
     LeagueDraftResponse draft(String appUserId, String leagueId);
+
+    /** A league's teams for the current season, each with the ESPN ids of the players it holds today. */
+    LeagueRostersResponse rosters(String appUserId, String leagueId);
 
     /** Cached ESPN season stat lines for the stats Yahoo does not report. Not user-specific. */
     PlayerStatsResponse playerStats();
