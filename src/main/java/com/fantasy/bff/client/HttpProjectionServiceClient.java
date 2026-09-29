@@ -4,6 +4,8 @@ import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
@@ -16,6 +18,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
@@ -36,6 +39,12 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
             new ParameterizedTypeReference<>() {};
 
     private static final ParameterizedTypeReference<List<GoalieProjectionResponse>> GOALIE_LIST =
+            new ParameterizedTypeReference<>() {};
+
+    private static final ParameterizedTypeReference<List<RestOfSeasonSkaterResponse>> REST_SKATER_LIST =
+            new ParameterizedTypeReference<>() {};
+
+    private static final ParameterizedTypeReference<List<RestOfSeasonGoalieResponse>> REST_GOALIE_LIST =
             new ParameterizedTypeReference<>() {};
 
     private static final ParameterizedTypeReference<List<PlayerResponse>> PLAYER_LIST =
@@ -67,6 +76,32 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                 .uri(b -> version(b.path("/api/v1/projections/goalies").queryParam("season", season), modelVersion))
                 .retrieve()
                 .body(GOALIE_LIST);
+    }
+
+    @Override
+    public List<RestOfSeasonSkaterResponse> restOfSeasonSkaters(int season) {
+        return restOfSeason("/api/v1/rest-of-season/skaters", season, REST_SKATER_LIST);
+    }
+
+    @Override
+    public List<RestOfSeasonGoalieResponse> restOfSeasonGoalies(int season) {
+        return restOfSeason("/api/v1/rest-of-season/goalies", season, REST_GOALIE_LIST);
+    }
+
+    /**
+     * A 404 is projection-service saying the season is not under way, which is an answer rather
+     * than a fault: there is no rest of it to project yet, and the caller reads the season line.
+     */
+    private <T> List<T> restOfSeason(String path, int season, ParameterizedTypeReference<List<T>> type) {
+        try {
+            List<T> rows = restClient.get()
+                    .uri(b -> b.path(path).queryParam("season", season).build())
+                    .retrieve()
+                    .body(type);
+            return rows == null ? List.of() : rows;
+        } catch (HttpClientErrorException.NotFound notUnderWay) {
+            return List.of();
+        }
     }
 
     /**

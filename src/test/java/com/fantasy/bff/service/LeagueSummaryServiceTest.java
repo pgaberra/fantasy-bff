@@ -36,6 +36,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -199,6 +200,52 @@ class LeagueSummaryServiceTest {
         assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON, null))
                 .isInstanceOf(IllegalStateException.class);
         verify(seedService, never()).seed(anyInt(), anyString());
+    }
+
+    /** A team is ranked on what it holds today, so the model is asked about the games left. */
+    @Test
+    @DisplayName("once the season is under way the model ranks by its rest of the season")
+    void theModelRanksByTheRestOfTheSeason() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        when(seedService.restOfSeason(20262027)).thenReturn(Optional.of(new ProjectionSeedService.Seed(
+                List.of(
+                        row(1, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 20.0)),
+                        row(2, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 15.0)),
+                        row(3, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 4.0))),
+                "v1.2.4", 3, 0, 0, 0, 0)));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
+
+        assertThat(result.restOfSeason()).isTrue();
+        assertThat(result.summary().teams().get(0).teamId()).isEqualTo("t1");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(20, within(1e-9));
+        assertThat(result.summary().teams().get(1).total()).isCloseTo(19, within(1e-9));
+        verify(seedService, never()).seed(anyInt(), anyString());
+    }
+
+    /** Before the first game there is no rest of the season, and the season line is the answer. */
+    @Test
+    @DisplayName("before the season the model ranks by its season line")
+    void beforeTheSeasonTheModelRanksByTheSeason() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        when(seedService.restOfSeason(anyInt())).thenReturn(Optional.empty());
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
+
+        assertThat(result.restOfSeason()).isFalse();
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
+    }
+
+    /** A board is a whole season, and is ranked as one at any point in it (Alexander's call). */
+    @Test
+    @DisplayName("last season's stats are not asked about the rest of the season")
+    void lastSeasonIgnoresTheRestOfTheSeason() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        when(poolRows.read()).thenThrow(new IllegalStateException("read"));
+
+        assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON, null))
+                .isInstanceOf(IllegalStateException.class);
+        verify(seedService, never()).restOfSeason(anyInt());
     }
 
     @Test

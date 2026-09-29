@@ -4,6 +4,8 @@ import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
@@ -18,6 +20,16 @@ public interface ProjectionServiceClient {
     List<SkaterProjectionResponse> skaterProjections(int season, String modelVersion);
 
     List<GoalieProjectionResponse> goalieProjections(int season, String modelVersion);
+
+    /**
+     * Each skater's expected line over the games his club has left in {@code season}. Empty, not
+     * an error, while the season has no game played and still to play: projection-service has
+     * nothing to say about the rest of a season that has not started or is over.
+     */
+    List<RestOfSeasonSkaterResponse> restOfSeasonSkaters(int season);
+
+    /** The goalies' half of {@link #restOfSeasonSkaters}, empty on the same terms. */
+    List<RestOfSeasonGoalieResponse> restOfSeasonGoalies(int season);
 
     /**
      * Player identity — name, team, sweater number — for every player the NHL still lists as
