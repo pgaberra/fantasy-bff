@@ -25,7 +25,8 @@ import java.util.Set;
  * <p>ESPN's scoringType bundles the matchup format and the scoring basis (e.g. H2H_POINTS,
  * H2H_CATEGORY, ROTO). Only the basis affects player valuation, so it collapses to points vs
  * category: a "POINT" type is points, a "CATEGOR"/"ROTO" type is category. Unrecognised codes
- * fall back to per-stat point-value presence (points leagues carry weights, category ones don't).
+ * fall back to per-stat point-value presence (points leagues carry non-zero weights, category
+ * ones don't).
  */
 @Component
 public class EspnLeagueSettingsMapper {
@@ -81,6 +82,10 @@ public class EspnLeagueSettingsMapper {
 
         for (StatCategory category : settings.getStatCategories()) {
             StatKey statKey = STAT_ID_TO_KEY.get(category.getStatId());
+            if (scoringType == ScoringBasis.POINTS && scoresNothing(category)
+                    && (statKey == null || !statKey.isUtility())) {
+                continue;
+            }
             if (statKey == null) {
                 unsupportedStats.add(category.getName());
                 continue;
@@ -131,8 +136,18 @@ public class EspnLeagueSettingsMapper {
             return ScoringBasis.CATEGORY;
         }
         boolean hasWeights = settings.getStatCategories().stream()
-                .anyMatch(category -> category.getPointValue() != null);
+                .anyMatch(category -> category.getPointValue() != null && !scoresNothing(category));
         return hasWeights ? ScoringBasis.POINTS : ScoringBasis.CATEGORY;
+    }
+
+    /**
+     * ESPN lists display-only stats among a points league's scoringItems at 0 points (a real
+     * H2H points league listed +/-, P, PPG, PPA, SHG, SHA, FW, L and SA that way). They score
+     * nothing, so they are not league stats: no column, no weight, no unsupported warning.
+     */
+    private static boolean scoresNothing(StatCategory category) {
+        Double points = category.getPointValue();
+        return points != null && points == 0.0;
     }
 
     private record RosterMapping(RosterSlots rosterSlots, List<String> unsupported) {
