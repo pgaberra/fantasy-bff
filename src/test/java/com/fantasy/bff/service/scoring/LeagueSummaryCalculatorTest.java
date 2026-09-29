@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
  */
 class LeagueSummaryCalculatorTest {
 
-    private static final RosterSlots ONE_EACH = new RosterSlots(1, 1, 1, 1, 0, 0, 1);
+    private static final RosterSlots ONE_EACH = new RosterSlots(1, 1, 1, 0, 0, 1, 0, 0, 1);
 
     private final LeagueSummaryCalculator calculator = new LeagueSummaryCalculator();
 
@@ -92,7 +92,7 @@ class LeagueSummaryCalculatorTest {
         List<ScoredPlayer> pool = List.of(
                 skater(1, "Both", Set.of("C", "LW"), 50),
                 skater(2, "Centre only", Set.of("C"), 40));
-        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0);
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0, 0, 0);
         LeagueSummary summary = calculator.summarise(
                 pool,
                 List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2))),
@@ -105,13 +105,100 @@ class LeagueSummaryCalculatorTest {
                 .containsExactly("Centre only");
     }
 
+    private static LeagueSummary.Team oneTeam(List<ScoredPlayer> pool, RosterSlots slots) {
+        List<Integer> ids = pool.stream().map(ScoredPlayer::playerId).toList();
+        return calculator().summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, ids)),
+                pointsLeague(slots)).teams().get(0);
+    }
+
+    private static LeagueSummaryCalculator calculator() {
+        return new LeagueSummaryCalculator();
+    }
+
+    private static List<String> names(LeagueSummary.Team team, String column) {
+        return team.positionPlayers().getOrDefault(column, List.of()).stream()
+                .map(LeagueSummary.Contributor::name)
+                .toList();
+    }
+
+    /**
+     * A forwards-only league (nine F, five D, one Util): the F slots take forwards and nobody else,
+     * so the second defenceman starts in Util rather than in a forward's slot.
+     */
+    @Test
+    @DisplayName("a forward flex slot takes forwards only, and a defenceman starts in Util")
+    void forwardFlexTakesForwardsOnly() {
+        List<ScoredPlayer> pool = List.of(
+                skater(1, "Top D", Set.of("D"), 50),
+                skater(2, "Second D", Set.of("D"), 40),
+                skater(3, "Centre", Set.of("C"), 30),
+                skater(4, "Winger", Set.of("LW"), 20));
+        RosterSlots slots = new RosterSlots(0, 0, 0, 0, 2, 1, 1, 0, 0);
+
+        LeagueSummary summary = calculator.summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3, 4))),
+                pointsLeague(slots));
+
+        LeagueSummary.Team team = summary.teams().get(0);
+        assertThat(summary.positionKeys()).containsExactly("F", "D", "UTIL");
+        assertThat(names(team, "F")).containsExactly("Centre", "Winger");
+        assertThat(names(team, "D")).containsExactly("Top D");
+        assertThat(names(team, "UTIL")).containsExactly("Second D");
+    }
+
+    @Test
+    @DisplayName("a winger takes the wing flex before the forward flex, and a centre cannot")
+    void wingBeforeForward() {
+        LeagueSummary.Team team = oneTeam(List.of(
+                        skater(1, "Top centre", Set.of("C"), 50),
+                        skater(2, "Winger", Set.of("LW"), 40),
+                        skater(3, "Second centre", Set.of("C"), 30)),
+                new RosterSlots(1, 0, 0, 1, 1, 0, 0, 0, 0));
+
+        assertThat(names(team, "C")).containsExactly("Top centre");
+        assertThat(names(team, "W")).containsExactly("Winger");
+        assertThat(names(team, "F")).containsExactly("Second centre");
+    }
+
+    /**
+     * The wing flex is part of the matching, so a centre-winger moves to it to let a pure centre
+     * start, where filling the flex from the leftovers would bench the centre.
+     */
+    @Test
+    @DisplayName("a centre-winger moves to the wing flex so a pure centre can start")
+    void dualPositionPlayerMovesToTheWingFlex() {
+        LeagueSummary.Team team = oneTeam(List.of(
+                        skater(1, "Both", Set.of("C", "LW"), 50),
+                        skater(2, "Centre only", Set.of("C"), 40)),
+                new RosterSlots(1, 0, 0, 1, 0, 0, 0, 0, 0));
+
+        assertThat(names(team, "C")).containsExactly("Centre only");
+        assertThat(names(team, "W")).containsExactly("Both");
+        assertThat(names(team, "BN")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the better of two wingers holds the named slot and the other the flex")
+    void betterPlayerHoldsTheNamedSlot() {
+        LeagueSummary.Team team = oneTeam(List.of(
+                        skater(1, "Better", Set.of("LW"), 50),
+                        skater(2, "Worse", Set.of("LW"), 40)),
+                new RosterSlots(0, 1, 0, 1, 0, 0, 0, 0, 0));
+
+        assertThat(names(team, "LW")).containsExactly("Better");
+        assertThat(names(team, "W")).containsExactly("Worse");
+    }
+
     @Test
     @DisplayName("a player with nowhere to start falls to the bench, which then has a column")
     void benchAppearsForTheUnplaced() {
         List<ScoredPlayer> pool = List.of(
                 skater(1, "Starter", Set.of("C"), 50),
                 skater(2, "Spare", Set.of("C"), 40));
-        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0);
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0, 0, 0);
         LeagueSummary summary = calculator.summarise(
                 pool,
                 List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2))),
@@ -204,7 +291,7 @@ class LeagueSummaryCalculatorTest {
                 skater(2, "Winger", Set.of("LW"), 30),
                 skater(3, "Depth centre", Set.of("C"), 25),
                 skater(4, "Pickup", Set.of("C"), 20));
-        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 1, 0);
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0, 1, 0);
         LeagueSummary summary = calculator.summarise(
                 pool,
                 List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3, 4))),
@@ -233,7 +320,7 @@ class LeagueSummaryCalculatorTest {
                 skater(3, "Winger", Set.of("LW"), 10),
                 skater(4, "Fourth", Set.of("C"), 5),
                 skater(5, "Fifth", Set.of("RW"), 4));
-        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0);
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0, 0, 0);
         LeagueSummary summary = calculator.summarise(
                 pool,
                 List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(5, 4, 3, 2, 1))),
@@ -256,7 +343,7 @@ class LeagueSummaryCalculatorTest {
                 skater(1, "Centre", Set.of("C"), 40),
                 skater(2, "Winger", Set.of("LW"), 30),
                 skater(3, "Spare", Set.of("C"), 5));
-        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 2, 0);
+        RosterSlots slots = new RosterSlots(1, 1, 0, 0, 0, 0, 0, 2, 0);
         LeagueSummary summary = calculator.summarise(
                 pool,
                 List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3))),

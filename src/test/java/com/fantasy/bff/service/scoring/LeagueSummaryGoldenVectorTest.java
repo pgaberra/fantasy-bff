@@ -185,6 +185,8 @@ class LeagueSummaryGoldenVectorTest {
                         slots.get("c").asInt(),
                         slots.get("lw").asInt(),
                         slots.get("rw").asInt(),
+                        slots.path("w").asInt(),
+                        slots.path("f").asInt(),
                         slots.get("d").asInt(),
                         slots.get("util").asInt(),
                         slots.get("bn").asInt(),

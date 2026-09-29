@@ -1887,6 +1887,20 @@ components:
           format: int32
           maximum: 50
           minimum: 0
+        w:
+          type: integer
+          format: int32
+          description: "Wing flex slots (LW or RW). Absent reads as 0: boards saved\
+            \ before the slot existed have none."
+          maximum: 50
+          minimum: 0
+        f:
+          type: integer
+          format: int32
+          description: "Forward flex slots (C, LW or RW). Absent reads as 0: boards\
+            \ saved before the slot existed have none."
+          maximum: 50
+          minimum: 0
         d:
           type: integer
           format: int32

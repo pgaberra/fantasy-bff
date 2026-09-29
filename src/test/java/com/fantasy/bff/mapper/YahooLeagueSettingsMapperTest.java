@@ -1,6 +1,7 @@
 package com.fantasy.bff.mapper;
 
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
+import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.RosterSlot;
@@ -55,10 +56,10 @@ class YahooLeagueSettingsMapperTest {
         assertThat(mapped.statWeights()).containsEntry("goals", 3.0).containsEntry("assists", 2.0)
                 .containsEntry("sv", 0.2).containsEntry("hits", 0.0);
         assertThat(mapped.leagueSize()).isEqualTo(12);
-        assertThat(mapped.rosterSlots().getC()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getG()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getBn()).isEqualTo(4);
-        assertThat(mapped.rosterSlots().getD()).isZero();
+        assertThat(mapped.rosterSlots().c()).isEqualTo(2);
+        assertThat(mapped.rosterSlots().g()).isEqualTo(2);
+        assertThat(mapped.rosterSlots().bn()).isEqualTo(4);
+        assertThat(mapped.rosterSlots().d()).isZero();
     }
 
     @Test
@@ -125,21 +126,37 @@ class YahooLeagueSettingsMapperTest {
     }
 
     @Test
-    void mapsRosterSlotsIgnoresIrAndApproximatesWingToUtil() {
+    void mapsRosterSlotsIgnoresIrAndKeepsTheWingFlexSlot() {
         LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("head", List.of(),
                         List.of(slot("C", 2), slot("LW", 2), slot("RW", 2), slot("D", 4),
                                 slot("Util", 1), slot("G", 2), slot("BN", 4), slot("IR", 2), slot("W", 1))),
                 null);
 
-        assertThat(mapped.rosterSlots().getC()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getLw()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getRw()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getD()).isEqualTo(4);
-        assertThat(mapped.rosterSlots().getUtil()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getBn()).isEqualTo(4);
-        assertThat(mapped.rosterSlots().getG()).isEqualTo(2);
-        assertThat(mapped.unsupportedRosterCodes()).contains("IR", "W");
+        assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(2, 2, 2, 1, 0, 4, 1, 4, 2));
+        assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR");
+    }
+
+    @Test
+    void mapsTheWingAndForwardFlexSlotsToTheirOwnSlots() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("headpoint", List.of(),
+                        List.of(slot("C", 1), slot("W", 2), slot("F", 2), slot("D", 4), slot("Util", 1),
+                                slot("G", 2), slot("BN", 4), slot("IR+", 1), slot("NA", 1))),
+                12);
+
+        assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(1, 0, 0, 2, 2, 4, 1, 4, 2));
+        assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR+", "NA");
+    }
+
+    /** A code the mapper does not know still counts as a skater flex, and is reported. */
+    @Test
+    void countsAnUnknownRosterCodeAsUtilAndReportsIt() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("head", List.of(), List.of(slot("C", 2), slot("XX", 1))), null);
+
+        assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(2, 0, 0, 0, 0, 0, 1, 0, 0));
+        assertThat(mapped.unsupportedRosterCodes()).containsExactly("XX");
     }
 
     @Test

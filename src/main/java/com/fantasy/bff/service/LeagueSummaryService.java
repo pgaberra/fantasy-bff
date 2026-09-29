@@ -70,7 +70,7 @@ public class LeagueSummaryService {
      * What a team starts on a draft that names no roster: the web's default, which is what such a
      * board was drafted with.
      */
-    private static final RosterSlots DEFAULT_ROSTER_SLOTS = new RosterSlots(2, 2, 2, 4, 0, 4, 2);
+    private static final RosterSlots DEFAULT_ROSTER_SLOTS = new RosterSlots(2, 2, 2, 0, 0, 4, 0, 4, 2);
 
     private final YahooLeagueDraftService draftService;
     private final YahooLeagueRosterService rosterService;
@@ -451,7 +451,7 @@ public class LeagueSummaryService {
                 settings.scoringType() == ScoringBasis.POINTS,
                 settings.statWeights(),
                 settings.activeScoringColumns(),
-                RosterSlots.from(settings.rosterSlots()),
+                settings.rosterSlots(),
                 leagueSize == null || leagueSize < 2 ? Math.max(2, teamCount) : leagueSize,
                 DEFAULT_MIN_GOALIE_GAMES,
                 null);

@@ -157,6 +157,64 @@ class ProjectionControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.name").value("My league"));
     }
 
+    private static String bodyWithRosterSlots(String rosterSlots) {
+        return VALID_BODY.replace("\"useDefaultDecimals\": true",
+                "\"useDefaultDecimals\": true, \"rosterSlots\": " + rosterSlots);
+    }
+
+    private com.fantasy.bff.generated.db.model.RosterSlots savedRosterSlots(String rosterSlots) throws Exception {
+        when(databaseServiceClient.updateProjection(eq(USER_ID), eq(PROJECTION_ID), any())).thenReturn(
+                new ProjectionResponse().season(ProjectionResponse.SeasonEnum._20262027)
+                        .id(PROJECTION_ID.toString()).name("My league")
+                        .data(new com.fantasy.bff.generated.db.model.ProjectionData()
+                                .projectionSettings(new com.fantasy.bff.generated.db.model.ProjectionSettings()
+                                        .scoringType(com.fantasy.bff.generated.db.model.ProjectionSettings.ScoringTypeEnum.POINTS))
+                                .players(List.of())));
+
+        mockMvc.perform(put("/api/v1/projections/{id}", PROJECTION_ID)
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithRosterSlots(rosterSlots)))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<com.fantasy.bff.generated.db.model.UpdateProjectionRequest> sent =
+                ArgumentCaptor.forClass(com.fantasy.bff.generated.db.model.UpdateProjectionRequest.class);
+        verify(databaseServiceClient).updateProjection(eq(USER_ID), eq(PROJECTION_ID), sent.capture());
+        return sent.getValue().getData().getProjectionSettings().getRosterSlots();
+    }
+
+    /** A client that predates the forward and wing flex slots sends none, which reads as none. */
+    @Test
+    void update_withRosterSlotsLackingTheFlexSlots_savesThemAsNone() throws Exception {
+        var saved = savedRosterSlots(
+                "{ \"c\": 2, \"lw\": 2, \"rw\": 2, \"d\": 4, \"util\": 1, \"bn\": 4, \"g\": 2 }");
+
+        assertThat(saved.getW()).isZero();
+        assertThat(saved.getF()).isZero();
+        assertThat(saved.getUtil()).isEqualTo(1);
+    }
+
+    @Test
+    void update_withTheFlexSlots_savesThem() throws Exception {
+        var saved = savedRosterSlots("{ \"c\": 0, \"lw\": 0, \"rw\": 0, \"w\": 2, \"f\": 9,"
+                + " \"d\": 5, \"util\": 1, \"bn\": 5, \"g\": 2 }");
+
+        assertThat(saved.getW()).isEqualTo(2);
+        assertThat(saved.getF()).isEqualTo(9);
+    }
+
+    @Test
+    void create_withAFlexSlotCountPastTheCap_returns400AndNeverReachesDownstream() throws Exception {
+        mockMvc.perform(post("/api/v1/projections")
+                        .header("Authorization", "Bearer " + token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithRosterSlots("{ \"c\": 2, \"lw\": 2, \"rw\": 2, \"f\": 51,"
+                                + " \"d\": 4, \"util\": 1, \"bn\": 4, \"g\": 2 }")))
+                .andExpect(status().isBadRequest());
+
+        verify(databaseServiceClient, never()).createProjection(any(), any());
+    }
+
     /**
      * The cap comes from the pinned spec rather than from an annotation written here — the
      * generator emits {@code @Size} for {@code maxItems} — so it is worth a test that this

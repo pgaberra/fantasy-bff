@@ -79,9 +79,7 @@ public record LeagueScoring(
      * players who are actually drafted is what a category league pays for.
      */
     public int skaterPoolSize() {
-        RosterSlots slots = rosterSlots;
-        return leagueSize
-                * (slots.c() + slots.lw() + slots.rw() + slots.d() + slots.util() + slots.bn());
+        return leagueSize * rosterSlots.skaterSlots();
     }
 
     /** How many goalies the league drafts. */
@@ -97,8 +95,7 @@ public record LeagueScoring(
      * add up to exactly this.
      */
     public int countedPlayers() {
-        RosterSlots slots = rosterSlots;
-        int spots = slots.c() + slots.lw() + slots.rw() + slots.d() + slots.util() + slots.bn() + slots.g();
+        int spots = rosterSlots.skaterSlots() + rosterSlots.g();
         return spots > 0 ? spots : DEFAULT_COUNTED_PLAYERS;
     }
 }

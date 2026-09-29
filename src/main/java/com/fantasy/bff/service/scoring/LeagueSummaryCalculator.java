@@ -25,11 +25,16 @@ public class LeagueSummaryCalculator {
 
     private static final String BENCH = "BN";
 
-    /** The lineup's named slots, in the order a manager reads them, then the flex. */
+    /**
+     * The lineup's slots in the order a manager reads them: the forwards, the forward flex slots
+     * narrowest first, the defence, Util, the goalies.
+     */
     private static final List<Slot> STARTING_SLOTS = List.of(
             new Slot("lw", "LW"),
             new Slot("c", "C"),
             new Slot("rw", "RW"),
+            new Slot("w", "W"),
+            new Slot("f", "F"),
             new Slot("d", "D"),
             new Slot("util", "UTIL"),
             new Slot("g", "G"));
@@ -41,6 +46,8 @@ public class LeagueSummaryCalculator {
                 case "c" -> slots.c();
                 case "lw" -> slots.lw();
                 case "rw" -> slots.rw();
+                case "w" -> slots.w();
+                case "f" -> slots.f();
                 case "d" -> slots.d();
                 case "util" -> slots.util();
                 case "g" -> slots.g();
@@ -53,11 +60,20 @@ public class LeagueSummaryCalculator {
                 case "c" -> !player.goalie() && player.positions().contains("C");
                 case "lw" -> !player.goalie() && player.positions().contains("LW");
                 case "rw" -> !player.goalie() && player.positions().contains("RW");
+                case "w" -> !player.goalie()
+                        && (player.positions().contains("LW") || player.positions().contains("RW"));
+                case "f" -> !player.goalie()
+                        && (player.positions().contains("C") || player.positions().contains("LW")
+                                || player.positions().contains("RW"));
                 case "d" -> !player.goalie() && player.positions().contains("D");
                 case "util" -> !player.goalie();
                 case "g" -> player.goalie();
                 default -> false;
             };
+        }
+
+        boolean flex() {
+            return "w".equals(key) || "f".equals(key);
         }
     }
 
@@ -216,12 +232,14 @@ public class LeagueSummaryCalculator {
      * Places a team's drafted players into its lineup so each counts once and the weakest end up
      * on the bench.
      *
-     * <p>Two phases. Players are matched best-first to the named slots (C/LW/RW/D/G) as a maximum
-     * matching with augmenting reassignment — so a dual-position player yields a named slot to a
-     * single-position player when that lets more of the roster start. Whoever is left fills the
-     * Util flex best-first (skaters only); the rest fall to the bench. Filling Util from the
-     * leftovers keeps the strongest players in their named slots and leaves the marginal starter
-     * in Util, which is how a manager reads a lineup.
+     * <p>Two phases. Players are matched best-first to the named slots (C/LW/RW/D/G) and the
+     * forward flex slots (W, then F) as a maximum matching with augmenting reassignment — so a
+     * dual-position player yields a named slot to a single-position player when that lets more of
+     * the roster start, and a wing takes W before F. A forward flex slot holding a better player
+     * than a named slot he could fill swaps the two, so the flex keeps the marginal starter.
+     * Whoever is left fills the Util flex best-first (skaters only); the rest fall to the bench.
+     * Filling Util from the leftovers keeps the strongest players in their named slots and leaves
+     * the marginal starter in Util, which is how a manager reads a lineup.
      */
     private Lineup assign(List<Placed> players, RosterSlots slots) {
         List<Slot> namedSlots = new ArrayList<>();
@@ -244,6 +262,7 @@ public class LeagueSummaryCalculator {
         for (int index = 0; index < ordered.size(); index++) {
             tryAssign(index, new boolean[namedSlots.size()], namedSlots, ordered, slotToPlayer, playerToSlot);
         }
+        promoteOutOfFlex(namedSlots, ordered, slotToPlayer, playerToSlot);
 
         Map<String, List<Placed>> byColumn = new LinkedHashMap<>();
         List<Placed> leftover = new ArrayList<>();
@@ -271,6 +290,36 @@ public class LeagueSummaryCalculator {
             byColumn.put("UTIL", util);
         }
         return new Lineup(byColumn, bench);
+    }
+
+    private void promoteOutOfFlex(
+            List<Slot> namedSlots, List<Placed> ordered, Integer[] slotToPlayer, Integer[] playerToSlot) {
+        boolean swapped = true;
+        while (swapped) {
+            swapped = false;
+            for (int flexSlot = 0; flexSlot < namedSlots.size(); flexSlot++) {
+                Integer flexPlayer = slotToPlayer[flexSlot];
+                if (!namedSlots.get(flexSlot).flex() || flexPlayer == null) {
+                    continue;
+                }
+                for (int namedSlot = 0; namedSlot < namedSlots.size(); namedSlot++) {
+                    Integer namedPlayer = slotToPlayer[namedSlot];
+                    if (namedSlots.get(namedSlot).flex()
+                            || namedPlayer == null
+                            || namedPlayer < flexPlayer
+                            || !namedSlots.get(namedSlot).eligible(ordered.get(flexPlayer))
+                            || !namedSlots.get(flexSlot).eligible(ordered.get(namedPlayer))) {
+                        continue;
+                    }
+                    slotToPlayer[namedSlot] = flexPlayer;
+                    slotToPlayer[flexSlot] = namedPlayer;
+                    playerToSlot[flexPlayer] = namedSlot;
+                    playerToSlot[namedPlayer] = flexSlot;
+                    swapped = true;
+                    break;
+                }
+            }
+        }
     }
 
     private boolean tryAssign(

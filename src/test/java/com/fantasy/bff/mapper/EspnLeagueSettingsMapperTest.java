@@ -1,6 +1,7 @@
 package com.fantasy.bff.mapper;
 
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
+import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.RosterSlot;
@@ -53,10 +54,10 @@ class EspnLeagueSettingsMapperTest {
         // Carried through so a projection synced from ESPN can name the league it came from —
         // the client only ever had the id it typed.
         assertThat(mapped.leagueName()).isEqualTo("Test League");
-        assertThat(mapped.rosterSlots().getC()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getG()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getBn()).isEqualTo(4);
-        assertThat(mapped.rosterSlots().getD()).isZero();
+        assertThat(mapped.rosterSlots().c()).isEqualTo(2);
+        assertThat(mapped.rosterSlots().g()).isEqualTo(2);
+        assertThat(mapped.rosterSlots().bn()).isEqualTo(4);
+        assertThat(mapped.rosterSlots().d()).isZero();
     }
 
     @Test
@@ -158,20 +159,30 @@ class EspnLeagueSettingsMapperTest {
     }
 
     @Test
-    void mapsRosterSlotsIgnoresIrAndApproximatesForwardToUtil() {
+    void mapsRosterSlotsIgnoresIrAndKeepsTheForwardFlexSlot() {
         LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
                 league("H2H_CATEGORY", null, List.of(),
                         List.of(slot("C", 2), slot("LW", 2), slot("RW", 2), slot("D", 4),
                                 slot("Util", 1), slot("G", 2), slot("BN", 4), slot("IR", 2), slot("F", 1))));
 
-        assertThat(mapped.rosterSlots().getC()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getLw()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getRw()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getD()).isEqualTo(4);
-        assertThat(mapped.rosterSlots().getUtil()).isEqualTo(2);
-        assertThat(mapped.rosterSlots().getBn()).isEqualTo(4);
-        assertThat(mapped.rosterSlots().getG()).isEqualTo(2);
-        assertThat(mapped.unsupportedRosterCodes()).contains("IR", "F");
+        assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(2, 2, 2, 0, 1, 4, 1, 4, 2));
+        assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR");
+    }
+
+    /**
+     * An ESPN league of nine forwards and no centre or wing slots at all: espn-service reads
+     * lineupSlotCounts {3: 9, 4: 5, 5: 2, 6: 1, 7: 5, 8: 1} as F 9, D 5, G 2, Util 1, BN 5, IR 1.
+     * Before F was a slot of its own this board read Util 10, and Util takes a defenceman.
+     */
+    @Test
+    void mapsAForwardsOnlyLeagueToForwardSlotsNotUtil() {
+        LeagueProjectionSettingsResponse mapped = mapper.toProjectionSettings(
+                league("H2H_POINTS", null, List.of(),
+                        List.of(slot("F", 9), slot("D", 5), slot("G", 2), slot("Util", 1),
+                                slot("BN", 5), slot("IR", 1))));
+
+        assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(0, 0, 0, 0, 9, 5, 1, 5, 2));
+        assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR");
     }
 
     @Test
