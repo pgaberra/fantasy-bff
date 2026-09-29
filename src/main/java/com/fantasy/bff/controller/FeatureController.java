@@ -41,7 +41,7 @@ public class FeatureController {
     @ApiResponse(responseCode = "200", description = "Features retrieved successfully")
     public FeaturesResponse getFeatures() {
         return new FeaturesResponse(
-                aiProjection.available(), leagueDraftSync.available(), leagueDraftSync.espnAvailable(),
+                aiProjection.available(), leagueDraftSync.available(),
                 streamerPlanner.available());
     }
 }

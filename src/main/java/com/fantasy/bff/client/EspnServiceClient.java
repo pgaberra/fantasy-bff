@@ -2,7 +2,6 @@ package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
-import com.fantasy.bff.generated.espn.model.LeagueDraftResponse;
 import com.fantasy.bff.generated.espn.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
@@ -20,9 +19,6 @@ public interface EspnServiceClient {
     void deleteCredentials(String appUserId);
 
     LeagueSettingsResponse settings(String appUserId, String leagueId);
-
-    /** A league's draft for the current season: status, teams in draft order, picks made by ESPN id. */
-    LeagueDraftResponse draft(String appUserId, String leagueId);
 
     /** A league's teams for the current season, each with the ESPN ids of the players it holds today. */
     LeagueRostersResponse rosters(String appUserId, String leagueId);

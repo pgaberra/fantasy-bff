@@ -23,6 +23,6 @@ public record LeagueDraftResponse(
                 description = "The picks made so far, in order and without gaps: pick n is at index n - 1.")
         List<LeagueDraftPick> picks,
         @Schema(description = "How many picks the whole draft holds: the last slot the league lists for it, "
-                + "made or still to come. Absent when the league lists none, and always for ESPN.")
+                + "made or still to come. Absent when the league lists none.")
         Integer totalPicks
 ) {}

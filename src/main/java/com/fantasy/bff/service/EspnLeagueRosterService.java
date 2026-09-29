@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
  * power rankings.
  *
  * <p>A drafted player is on his ESPN roster at once, so the rosters are also a draft's picks so
- * far, and no second read of the draft is needed — which also keeps the rankings free of the
- * switch that lets a draft room follow an ESPN draft.
+ * far, and no read of the draft is needed — which is as well, since ESPN's league API lists a
+ * draft's picks only once the draft is over.
  */
 @Service
 public class EspnLeagueRosterService {
@@ -32,10 +32,10 @@ public class EspnLeagueRosterService {
 
     /**
      * @param status where the league's draft has got to
-     * @param teams the league's teams, ids as {@link EspnLeagueDraftService#teamId} writes them
+     * @param teams the league's teams, ids as {@link #teamId} writes them
      * @param players each team's players by team id; a player the pool has no counterpart for is
-     *     kept under the negative of his ESPN id, as a draft's pick is, so he counts as unprojected
-     *     rather than vanishing
+     *     kept under the negative of his ESPN id (no pool id is negative, so he cannot be taken for
+     *     somebody else), so he counts as unprojected rather than vanishing
      */
     public record Rosters(LeagueDraftStatus status, List<LeagueDraftTeam> teams, Map<String, List<Integer>> players) {
     }
@@ -51,13 +51,21 @@ public class EspnLeagueRosterService {
         List<LeagueDraftTeam> teams = new ArrayList<>();
         Map<String, List<Integer>> players = new LinkedHashMap<>();
         for (LeagueRosterTeam team : response.getTeams()) {
-            String teamId = EspnLeagueDraftService.teamId(response.getLeagueId(), team.getTeamId());
+            String teamId = teamId(response.getLeagueId(), team.getTeamId());
             teams.add(new LeagueDraftTeam(teamId, team.getName(), Boolean.TRUE.equals(team.getMine())));
             players.put(teamId, team.getPlayerIds().stream()
                     .map(espnId -> poolIds.getOrDefault(espnId, -Math.toIntExact(espnId)))
                     .toList());
         }
         return new Rosters(status(response.getStatus()), teams, players);
+    }
+
+    /**
+     * ESPN numbers a team only within its league, so the league goes into the id the rankings key a
+     * team by: a bare "3" could be any league's third team.
+     */
+    static String teamId(String leagueId, int espnTeamId) {
+        return "espn.l." + leagueId + ".t." + espnTeamId;
     }
 
     private static LeagueDraftStatus status(
