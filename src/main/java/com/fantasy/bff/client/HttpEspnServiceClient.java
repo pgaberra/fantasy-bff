@@ -2,7 +2,6 @@ package com.fantasy.bff.client;
 
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
-import com.fantasy.bff.generated.espn.model.LeagueDraftResponse;
 import com.fantasy.bff.generated.espn.model.LeagueRostersResponse;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
@@ -82,15 +81,6 @@ public class HttpEspnServiceClient implements EspnServiceClient {
                         .queryParam("appUserId", appUserId).build(leagueId))
                 .retrieve()
                 .body(LeagueSettingsResponse.class);
-    }
-
-    @Override
-    public LeagueDraftResponse draft(String appUserId, String leagueId) {
-        return restClient.get()
-                .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/draft")
-                        .queryParam("appUserId", appUserId).build(leagueId))
-                .retrieve()
-                .body(LeagueDraftResponse.class);
     }
 
     @Override

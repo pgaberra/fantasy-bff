@@ -241,15 +241,16 @@ are not committed; every build regenerates them.
     (`DRAFT_LEAGUE_SYNC_ENABLED`, off by default) *and* a pool on Yahoo ids, because the picks
     name players by Yahoo's. Without it the endpoint 404s, and `GET /api/v1/features` reports it
     as `leagueDraftSync`. Not premium.
-    `GET /espn/leagues/{id}/draft` is the same answer for an ESPN league, behind its **own**
-    switch, `league-draft-sync.espn-enabled` (`ESPN_DRAFT_LEAGUE_SYNC_ENABLED`, off by default;
-    `espnLeagueDraftSync` on `/features`), so it can stay dark where Yahoo's is on. Team ids are
-    `espn.l.{leagueId}.t.{teamId}`. ESPN's picks name ESPN ids, which `EspnPoolIdCrosswalk` puts
-    into the pool's numbering: identity over an ESPN pool; over a Yahoo pool the **whole** ESPN
-    pool matched against the whole served pool by `PlayerIdResolver` (a draft's subset would
-    blind its namesake guards), held for `espn-crosswalk-ttl-ms` (30 min). A drafted player with
-    no counterpart keeps his pick as the **negative** of his ESPN id — dropping it would hand
-    every later pick to the wrong team, and no pool id is negative.
+    An ESPN league's draft is **not** followed: ESPN's league API lists a draft's picks only once
+    the draft is over (seen on a real draft 2026-09-29), so the ESPN draft endpoint and its
+    `ESPN_DRAFT_LEAGUE_SYNC_ENABLED` switch were removed (2026-09-30). What survives of it is
+    Team Power Rankings' read of an ESPN league (`EspnLeagueRosterService`, from espn-service's
+    `/rosters`): team ids `espn.l.{leagueId}.t.{teamId}`, and ESPN ids put into the pool's
+    numbering by `EspnPoolIdCrosswalk` — identity over an ESPN pool; over a Yahoo pool the
+    **whole** ESPN pool matched against the whole served pool by `PlayerIdResolver` (a league's
+    subset would blind its namesake guards), held for `league-draft-sync.espn-crosswalk-ttl-ms`
+    (30 min). A rostered player with no counterpart is kept as the **negative** of his ESPN id,
+    which no pool id is, so he counts as unprojected.
   - `StreamerPlannerController` — also `GET /free-agents?platform=&leagueId=&start=&end=`: the
     players a league has available, each with the **model's line over that stretch**
     (projection-service's `/projections/range`). The two sides are joined on **identity**, through

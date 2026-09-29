@@ -2,20 +2,14 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.dto.request.EspnCredentialsRequest;
-import com.fantasy.bff.dto.response.ErrorDto;
-import com.fantasy.bff.dto.response.LeagueDraftResponse;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.generated.espn.model.CredentialStatusResponse;
-import com.fantasy.bff.service.EspnLeagueDraftService;
 import com.fantasy.bff.service.EspnLeagueService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,13 +35,10 @@ public class EspnController {
 
     private final EspnServiceClient espnServiceClient;
     private final EspnLeagueService espnLeagueService;
-    private final EspnLeagueDraftService espnLeagueDraftService;
 
-    public EspnController(EspnServiceClient espnServiceClient, EspnLeagueService espnLeagueService,
-                          EspnLeagueDraftService espnLeagueDraftService) {
+    public EspnController(EspnServiceClient espnServiceClient, EspnLeagueService espnLeagueService) {
         this.espnServiceClient = espnServiceClient;
         this.espnLeagueService = espnLeagueService;
-        this.espnLeagueDraftService = espnLeagueDraftService;
     }
 
     @Operation(summary = "Whether the user has stored ESPN cookies (for private leagues)")
@@ -90,25 +81,5 @@ public class EspnController {
     public LeagueProjectionSettingsResponse projectionSettings(@AuthenticationPrincipal String userId,
                                                                @PathVariable String leagueId) {
         return espnLeagueService.projectionSettings(userId, leagueId);
-    }
-
-    @Operation(summary = "Get an ESPN league's draft: its status, teams in draft order and the picks made so far",
-            description = "Polled by the draft room while it follows the league's live draft, in the same "
-                    + "shape as a Yahoo league's. Picks name players by the pool's own ids; a player the "
-                    + "pool has no counterpart for is the negative of his ESPN id, so the pick keeps its "
-                    + "place. Read for the current season only. 404 where this environment does not offer "
-                    + "following an ESPN draft.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Draft returned"),
-            @ApiResponse(responseCode = "400", description = "League is private (cookies missing/invalid) "
-                    + "or the league id is malformed",
-                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
-            @ApiResponse(responseCode = "404", description = "Not offered here, or no such ESPN league this season",
-                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
-    })
-    @GetMapping("/leagues/{leagueId}/draft")
-    public LeagueDraftResponse draft(@AuthenticationPrincipal String userId,
-                                     @PathVariable @Size(max = 20) String leagueId) {
-        return espnLeagueDraftService.draft(userId, leagueId);
     }
 }
