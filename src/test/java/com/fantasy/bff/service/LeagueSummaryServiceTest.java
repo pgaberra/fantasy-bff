@@ -64,6 +64,8 @@ class LeagueSummaryServiceTest {
     @Mock private YahooLeagueDraftService draftService;
     @Mock private YahooLeagueRosterService rosterService;
     @Mock private YahooLeagueService leagueService;
+    @Mock private EspnLeagueRosterService espnRosterService;
+    @Mock private EspnLeagueService espnLeagueService;
     @Mock private ProjectionSeedService seedService;
     @Mock private ProjectionService projectionService;
     @Mock private PlayerPoolRows poolRows;
@@ -87,7 +89,8 @@ class LeagueSummaryServiceTest {
     @BeforeEach
     void setUp() {
         service = new LeagueSummaryService(
-                draftService, rosterService, leagueService, seedService, projectionService, poolRows, playerService, aiProjection,
+                draftService, rosterService, leagueService, espnRosterService, espnLeagueService,
+                seedService, projectionService, poolRows, playerService, aiProjection,
                 entitlementService, new LeagueSummaryCalculator(), 20262027, "v1.2.3");
 
         when(aiProjection.available()).thenReturn(true);
@@ -644,5 +647,79 @@ class LeagueSummaryServiceTest {
         assertThatThrownBy(() -> service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null))
                 .isInstanceOf(NoSuchElementException.class);
         verify(projectionService, never()).get(UUID.fromString(USER), DRAFT);
+    }
+    private static final String ESPN_LEAGUE = "123";
+
+    private void espnLeague(LeagueDraftStatus status, Map<String, List<Integer>> players) {
+        when(espnRosterService.rosters(USER, ESPN_LEAGUE)).thenReturn(new EspnLeagueRosterService.Rosters(
+                status,
+                List.of(
+                        new LeagueDraftTeam("espn.l.123.t.1", "Mine", true),
+                        new LeagueDraftTeam("espn.l.123.t.2", "Theirs", false)),
+                players));
+        when(espnLeagueService.projectionSettings(USER, ESPN_LEAGUE)).thenReturn(settings(null));
+    }
+
+    @Test
+    @DisplayName("totals an ESPN league's teams from what each holds on ESPN today")
+    void totalsAnEspnLeague() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        espnLeague(LeagueDraftStatus.FINISHED, Map.of(
+                "espn.l.123.t.1", List.of(1),
+                "espn.l.123.t.2", List.of(2, 3)));
+
+        LeagueSummaryService.Result result = service.summariseEspn(USER, ESPN_LEAGUE, SummarySource.MODEL, null);
+
+        assertThat(result.picks()).isEqualTo(3);
+        assertThat(result.status()).isEqualTo(LeagueDraftStatus.FINISHED);
+        assertThat(result.scoringType()).isEqualTo(ScoringBasis.POINTS);
+        assertThat(result.summary().teams()).extracting(team -> team.teamId())
+                .containsExactly("espn.l.123.t.2", "espn.l.123.t.1");
+        assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
+        verify(draftService, never()).draft(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("an ESPN league follows the same premium rule as a Yahoo one")
+    void espnFreeAccountGetsAggregatesOnly() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+        espnLeague(LeagueDraftStatus.FINISHED, Map.of(
+                "espn.l.123.t.1", List.of(1),
+                "espn.l.123.t.2", List.of(2, 3)));
+
+        LeagueSummaryService.Result result = service.summariseEspn(USER, ESPN_LEAGUE, SummarySource.MODEL, null);
+
+        assertThat(result.premium()).isFalse();
+        assertThat(result.summary().teams()).allSatisfy(team -> assertThat(team.roster()).isNull());
+    }
+
+    @Test
+    @DisplayName("an ESPN league yet to draft has no picks, and a player the pool lacks counts as unprojected")
+    void espnLeagueCountsWhatItHolds() {
+        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
+        espnLeague(LeagueDraftStatus.PRE_DRAFT, Map.of(
+                "espn.l.123.t.1", List.of(),
+                "espn.l.123.t.2", List.of()));
+
+        assertThat(service.summariseEspn(USER, ESPN_LEAGUE, SummarySource.MODEL, null).picks()).isZero();
+
+        espnLeague(LeagueDraftStatus.IN_PROGRESS, Map.of(
+                "espn.l.123.t.1", List.of(1, -4002),
+                "espn.l.123.t.2", List.of()));
+
+        LeagueSummaryService.Result drafting =
+                service.summariseEspn(USER, ESPN_LEAGUE, SummarySource.MODEL, null);
+        assertThat(drafting.picks()).isEqualTo(2);
+        assertThat(drafting.unprojectedPlayers()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a board the user may not read stops an ESPN league before ESPN is asked")
+    void espnBoardIsReadFirst() {
+        when(projectionService.get(UUID.fromString(USER), BOARD)).thenThrow(new NoSuchElementException("board"));
+
+        assertThatThrownBy(() -> service.summariseEspn(USER, ESPN_LEAGUE, SummarySource.PROJECTION, BOARD))
+                .isInstanceOf(NoSuchElementException.class);
+        verify(espnRosterService, never()).rosters(anyString(), anyString());
     }
 }

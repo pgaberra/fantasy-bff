@@ -219,6 +219,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueSettingsResponse"
+  /api/v1/espn/leagues/{leagueId}/rosters:
+    get:
+      tags:
+      - ESPN Leagues
+      summary: Get a league's teams and the players on each roster today
+      description: "Read for the configured season only, never the one before: a league\
+        \ is ranked on what its teams hold now. Players are named by ESPN's own ids."
+      operationId: rosters
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 20
+          minLength: 0
+      - name: appUserId
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 0
+      responses:
+        "200":
+          description: Rosters returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueRostersResponse"
+        "400":
+          description: League is private (cookies missing/invalid) or the league id
+            is malformed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueRostersResponse"
+        "404":
+          description: No such ESPN league this season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueRostersResponse"
   /api/v1/espn/leagues/{leagueId}/free-agents:
     get:
       tags:
@@ -648,6 +691,66 @@ components:
       required:
       - name
       - statId
+    LeagueRosterTeam:
+      type: object
+      properties:
+        teamId:
+          type: integer
+          format: int32
+          description: "ESPN's id for the team, unique within the league."
+          example: 3
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: True for the authenticated user's own team (matched via their
+            SWID; always false for a league read without cookies).
+        playerIds:
+          type: array
+          description: "ESPN's ids for the players on the team's roster, bench and\
+            \ injured reserve included. Empty before the team has drafted anyone."
+          items:
+            type: integer
+            format: int64
+      required:
+      - mine
+      - name
+      - playerIds
+      - teamId
+    LeagueRostersResponse:
+      type: object
+      properties:
+        leagueId:
+          type: string
+        season:
+          type: integer
+          format: int32
+          description: "The season read, as ESPN's season id (the year the season\
+            \ ends in)."
+          example: 2027
+        leagueName:
+          type: string
+          description: "ESPN's name for the league, or null where ESPN gave none."
+        status:
+          type: string
+          description: "Where the league's draft has got to. A player drafted is on\
+            \ his team's roster at once, so a draft in progress shows its picks so\
+            \ far."
+          enum:
+          - PRE_DRAFT
+          - IN_PROGRESS
+          - FINISHED
+          - UNKNOWN
+        teams:
+          type: array
+          description: The league's teams in ESPN's team order.
+          items:
+            $ref: "#/components/schemas/LeagueRosterTeam"
+      required:
+      - leagueId
+      - season
+      - status
+      - teams
     AvailablePlayer:
       type: object
       description: "A player no team in the league owns: a free agent, or one on waivers"
