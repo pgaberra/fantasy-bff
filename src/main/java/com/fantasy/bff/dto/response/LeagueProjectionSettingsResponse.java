@@ -1,6 +1,5 @@
 package com.fantasy.bff.dto.response;
 
-import com.fantasy.bff.generated.db.model.RosterSlots;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;

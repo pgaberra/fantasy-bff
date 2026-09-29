@@ -2,7 +2,7 @@ package com.fantasy.bff.mapper;
 
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.dto.response.ScoringBasis;
-import com.fantasy.bff.generated.db.model.RosterSlots;
+import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.generated.espn.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.espn.model.RosterSlot;
 import com.fantasy.bff.generated.espn.model.StatCategory;
@@ -58,17 +58,17 @@ public class EspnLeagueSettingsMapper {
             Map.entry(12, StatKey.WIN_PCT)
     );
 
-    /** ESPN roster slot code -> projection roster slot. F is a flex slot we approximate as util. */
+    /** ESPN roster slot code -> projection roster slot. F is the forward flex (C, LW or RW). */
     private static final Map<String, Slot> POSITION_TO_SLOT = Map.of(
-            "C", Slot.C, "LW", Slot.LW, "RW", Slot.RW, "D", Slot.D, "G", Slot.G,
-            "BN", Slot.BN, "UTIL", Slot.UTIL, "F", Slot.UTIL
+            "C", Slot.C, "LW", Slot.LW, "RW", Slot.RW, "F", Slot.F, "D", Slot.D, "G", Slot.G,
+            "BN", Slot.BN, "UTIL", Slot.UTIL
     );
 
     /** Non-active ESPN slots that don't belong in a draft roster. */
     private static final Set<String> IGNORED_POSITION_CODES = Set.of("IR");
 
     private enum Slot {
-        C, LW, RW, D, UTIL, BN, G
+        C, LW, RW, F, D, UTIL, BN, G
     }
 
     public LeagueProjectionSettingsResponse toProjectionSettings(LeagueSettingsResponse settings) {
@@ -159,13 +159,10 @@ public class EspnLeagueSettingsMapper {
                 continue;
             }
             counts.merge(slot, count, Integer::sum);
-            if (code.equals("F")) {
-                unsupported.add(raw);
-            }
         }
-        RosterSlots slots = new RosterSlots()
-                .c(counts.get(Slot.C)).lw(counts.get(Slot.LW)).rw(counts.get(Slot.RW))
-                .d(counts.get(Slot.D)).util(counts.get(Slot.UTIL)).bn(counts.get(Slot.BN)).g(counts.get(Slot.G));
+        RosterSlots slots = new RosterSlots(
+                counts.get(Slot.C), counts.get(Slot.LW), counts.get(Slot.RW), 0, counts.get(Slot.F),
+                counts.get(Slot.D), counts.get(Slot.UTIL), counts.get(Slot.BN), counts.get(Slot.G));
         return new RosterMapping(slots, unsupported);
     }
 

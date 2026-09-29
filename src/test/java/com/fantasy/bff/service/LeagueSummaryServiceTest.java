@@ -24,13 +24,13 @@ import com.fantasy.bff.dto.response.PositionOverride;
 import com.fantasy.bff.dto.response.ProjectionData;
 import com.fantasy.bff.dto.response.ProjectionResponse;
 import com.fantasy.bff.dto.response.ProjectionSettings;
+import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.dto.response.ScoringBasis;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.dto.response.SummarySource;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
-import com.fantasy.bff.generated.db.model.RosterSlots;
 import com.fantasy.bff.service.scoring.LeagueSummaryCalculator;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -123,7 +123,7 @@ class LeagueSummaryServiceTest {
                 List.of("gp"),
                 Map.of("goals", 1.0),
                 "Beer League",
-                new RosterSlots().c(1).lw(1).rw(1).d(0).util(0).bn(1).g(0),
+                new RosterSlots(1, 1, 1, 0, 0, 0, 0, 1, 0),
                 leagueSize,
                 List.of(),
                 List.of());
@@ -544,7 +544,7 @@ class LeagueSummaryServiceTest {
                 List.of("goals"),
                 List.of("gp"),
                 null,
-                new com.fantasy.bff.dto.response.RosterSlots(1, 1, 1, 0, 0, 1, 0),
+                new RosterSlots(1, 1, 1, 0, 0, 0, 0, 1, 0),
                 null,
                 null,
                 null,

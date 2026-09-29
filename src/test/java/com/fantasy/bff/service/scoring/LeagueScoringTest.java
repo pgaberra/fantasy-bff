@@ -37,8 +37,7 @@ class LeagueScoringTest {
                         slot("C", 2), slot("LW", 2), slot("RW", 2), slot("D", 4), slot("G", 2),
                         slot("BN", 4), slot("IR", 1), slot("IR+", 2), slot("NA", 1)));
 
-        RosterSlots slots = RosterSlots.from(
-                new YahooLeagueSettingsMapper().toProjectionSettings(settings, 12).rosterSlots());
+        RosterSlots slots = new YahooLeagueSettingsMapper().toProjectionSettings(settings, 12).rosterSlots();
 
         assertThat(league(slots).countedPlayers()).isEqualTo(16);
     }
@@ -46,12 +45,22 @@ class LeagueScoringTest {
     @Test
     @DisplayName("every lineup and bench spot counts, the flex included")
     void countsEverySpot() {
-        assertThat(league(new RosterSlots(2, 2, 2, 4, 2, 5, 2)).countedPlayers()).isEqualTo(19);
+        assertThat(league(new RosterSlots(2, 2, 2, 0, 0, 4, 2, 5, 2)).countedPlayers()).isEqualTo(19);
+    }
+
+    @Test
+    @DisplayName("the forward and wing flex slots count, and size the skater pool")
+    void countsTheForwardFlexSlots() {
+        LeagueScoring forwardsOnly = league(new RosterSlots(0, 0, 0, 0, 9, 5, 1, 5, 2));
+
+        assertThat(forwardsOnly.countedPlayers()).isEqualTo(22);
+        assertThat(forwardsOnly.skaterPoolSize()).isEqualTo(12 * 20);
+        assertThat(league(new RosterSlots(2, 2, 2, 2, 0, 4, 0, 4, 2)).skaterPoolSize()).isEqualTo(12 * 16);
     }
 
     @Test
     @DisplayName("a league whose slots add up to nothing counts sixteen")
     void fallsBackToSixteen() {
-        assertThat(league(new RosterSlots(0, 0, 0, 0, 0, 0, 0)).countedPlayers()).isEqualTo(16);
+        assertThat(league(new RosterSlots(0, 0, 0, 0, 0, 0, 0, 0, 0)).countedPlayers()).isEqualTo(16);
     }
 }

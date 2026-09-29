@@ -2676,6 +2676,19 @@ components:
           format: int32
           maximum: 50
           minimum: 0
+        w:
+          type: integer
+          format: int32
+          description: "Wing flex slots, filled by a LW or a RW. Read as 0 when absent."
+          maximum: 50
+          minimum: 0
+        f:
+          type: integer
+          format: int32
+          description: "Forward flex slots, filled by a C, a LW or a RW. Read as 0\
+            \ when absent."
+          maximum: 50
+          minimum: 0
         d:
           type: integer
           format: int32
@@ -2700,10 +2713,12 @@ components:
       - bn
       - c
       - d
+      - f
       - g
       - lw
       - rw
       - util
+      - w
     ScaleConfig:
       type: object
       properties:

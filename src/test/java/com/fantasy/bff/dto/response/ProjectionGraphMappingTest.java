@@ -48,7 +48,7 @@ class ProjectionGraphMappingTest {
                 .decimalSettings(Map.of("goals", 1))
                 .useDefaultDecimals(true)
                 .leagueSize(12)
-                .rosterSlots(new RosterSlots().c(2).lw(2).rw(2).d(4).util(1).bn(4).g(2))
+                .rosterSlots(new RosterSlots().c(2).lw(2).rw(2).w(1).f(3).d(4).util(1).bn(4).g(2))
                 .minGoalieGames(30)
                 .yahooSync(new YahooSync()
                         .leagueName("The League").leagueKey("465.l.78677").syncedAt(SYNCED_AT))
@@ -91,7 +91,7 @@ class ProjectionGraphMappingTest {
                         .activeScoringColumns(List.of("goals", "hits"))
                         .activeUtilityColumns(List.of("gp"))
                         .leagueSize(10)
-                        .rosterSlots(new RosterSlots().c(2).lw(2).rw(2).d(4).util(1).bn(4).g(2))
+                        .rosterSlots(new RosterSlots().c(2).lw(2).rw(2).w(1).f(3).d(4).util(1).bn(4).g(2))
                         .minGoalieGames(84)
                         .espnSync(new EspnSync()
                                 .leagueName("Other League").leagueId("12345").syncedAt(SYNCED_AT))
@@ -105,6 +105,17 @@ class ProjectionGraphMappingTest {
 
         assertThat(com.fantasy.bff.dto.response.ProjectionSettings.from(original).toDownstream())
                 .isEqualTo(original);
+    }
+
+    /** A board saved before the forward and wing flex slots existed comes back from db-service without them. */
+    @Test
+    void readsRosterSlotsWithoutTheFlexSlotsAsNone() {
+        var mapped = com.fantasy.bff.dto.response.RosterSlots.from(
+                new RosterSlots().c(2).lw(2).rw(2).d(4).util(1).bn(4).g(2));
+
+        assertThat(mapped).isEqualTo(new com.fantasy.bff.dto.response.RosterSlots(2, 2, 2, 0, 0, 4, 1, 4, 2));
+        assertThat(mapped.toDownstream().getW()).isZero();
+        assertThat(mapped.toDownstream().getF()).isZero();
     }
 
     @Test

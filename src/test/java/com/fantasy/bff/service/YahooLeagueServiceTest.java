@@ -3,7 +3,7 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.LeagueProjectionSettingsResponse;
 import com.fantasy.bff.dto.response.ScoringBasis;
-import com.fantasy.bff.generated.db.model.RosterSlots;
+import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueSummary;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
@@ -36,7 +36,7 @@ class YahooLeagueServiceTest {
 
     private final LeagueProjectionSettingsResponse mapped = new LeagueProjectionSettingsResponse(
             ScoringBasis.POINTS, List.of("goals"), List.of("gp"), Map.of("goals", 4.5), null,
-            new RosterSlots().c(2).lw(2).rw(2).d(4).util(2).bn(4).g(2), 14, List.of(), List.of());
+            new RosterSlots(2, 2, 2, 0, 0, 4, 2, 4, 2), 14, List.of(), List.of());
 
     @Test
     void resolvesNumTeamsFromTheLeagueListAndDelegatesToTheMapper() {
