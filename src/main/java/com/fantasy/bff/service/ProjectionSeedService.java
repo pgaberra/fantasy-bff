@@ -8,6 +8,8 @@ import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
@@ -20,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -87,6 +90,89 @@ public class ProjectionSeedService {
     }
 
     /**
+     * What the cache holds the rest of the season under. A model version is never called this, so
+     * it cannot be taken for one.
+     */
+    static final String REST_OF_SEASON = "rest-of-season";
+
+    /**
+     * The model's lines over the games each club has left, mapped and zeroed exactly as the season
+     * line is, or empty while the season has none: before its first game and after its last.
+     *
+     * <p>It is the model's own answer for a season under way, counted from the day of the last
+     * nightly run, with the injuries and the lines it knew of then. Nothing here derives it from
+     * the season line.
+     */
+    public Optional<Seed> restOfSeason(int season) {
+        Optional<Seed> cached = cache.get(season, REST_OF_SEASON);
+        if (cached.isPresent()) {
+            return cached;
+        }
+        List<SkaterProjectionResponse> skaters = projectionServiceClient.restOfSeasonSkaters(season).stream()
+                .map(ProjectionSeedService::seasonShape)
+                .toList();
+        List<GoalieProjectionResponse> goalies = projectionServiceClient.restOfSeasonGoalies(season).stream()
+                .map(ProjectionSeedService::seasonShape)
+                .toList();
+        if (skaters.isEmpty() && goalies.isEmpty()) {
+            return Optional.empty();
+        }
+        Seed built = build(season, null, skaters, goalies, true);
+        cache.put(season, REST_OF_SEASON, built);
+        return Optional.of(built);
+    }
+
+    /** A rest-of-season skater line in the season line's shape, which is what the mapping reads. */
+    private static SkaterProjectionResponse seasonShape(RestOfSeasonSkaterResponse r) {
+        return new SkaterProjectionResponse()
+                .nhlId(r.getNhlId())
+                .targetSeason(r.getTargetSeason())
+                .modelVersion(r.getModelVersion())
+                .gamesPlayed(r.getGamesPlayed())
+                .toiPerGameSeconds(r.getToiPerGameSeconds())
+                .goals(r.getGoals())
+                .assists(r.getAssists())
+                .points(r.getPoints())
+                .plusMinus(r.getPlusMinus())
+                .pim(r.getPim())
+                .ppGoals(r.getPpGoals())
+                .ppAssists(r.getPpAssists())
+                .ppPoints(r.getPpPoints())
+                .shGoals(r.getShGoals())
+                .shAssists(r.getShAssists())
+                .shPoints(r.getShPoints())
+                .gwGoals(r.getGwGoals())
+                .shots(r.getShots())
+                .shootingPct(r.getShootingPct())
+                .faceoffsWon(r.getFaceoffsWon())
+                .faceoffsLost(r.getFaceoffsLost())
+                .hits(r.getHits())
+                .blocks(r.getBlocks())
+                .shifts(r.getShifts())
+                .hatTricks(r.getHatTricks());
+    }
+
+    /** A rest-of-season goalie line in the season line's shape. */
+    private static GoalieProjectionResponse seasonShape(RestOfSeasonGoalieResponse r) {
+        return new GoalieProjectionResponse()
+                .nhlId(r.getNhlId())
+                .targetSeason(r.getTargetSeason())
+                .modelVersion(r.getModelVersion())
+                .gamesPlayed(r.getGamesPlayed())
+                .gamesStarted(r.getGamesStarted())
+                .wins(r.getWins())
+                .losses(r.getLosses())
+                .otLosses(r.getOtLosses())
+                .shutouts(r.getShutouts())
+                .shotsAgainst(r.getShotsAgainst())
+                .saves(r.getSaves())
+                .goalsAgainst(r.getGoalsAgainst())
+                .goalsAgainstAvg(r.getGoalsAgainstAvg())
+                .savePct(r.getSavePct())
+                .toiSeconds(r.getToiSeconds());
+    }
+
+    /**
      * The model's lines, optionally only the top of them.
      *
      * <p>The limits trim the rows returned and nothing else: the counts on the {@link Seed} keep
@@ -134,6 +220,20 @@ public class ProjectionSeedService {
      * line marks a rebuild rather than a read.
      */
     private Seed build(int season, String modelVersion) {
+        return build(
+                season,
+                modelVersion,
+                projectionServiceClient.skaterProjections(season, modelVersion),
+                projectionServiceClient.goalieProjections(season, modelVersion),
+                false);
+    }
+
+    private Seed build(
+            int season,
+            String modelVersion,
+            List<SkaterProjectionResponse> skaterRows,
+            List<GoalieProjectionResponse> goalieRows,
+            boolean restOfSeason) {
         List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers(null);
         Map<Long, PlayerResponse> byNhlId = nhlPlayers.stream()
                 .collect(Collectors.toMap(p -> p.getNhlId().longValue(), Function.identity(), (a, b) -> a));
@@ -152,7 +252,7 @@ public class ProjectionSeedService {
         // back rather than to echo the request.
         String servedVersion = modelVersion;
 
-        for (SkaterProjectionResponse projection : projectionServiceClient.skaterProjections(season, modelVersion)) {
+        for (SkaterProjectionResponse projection : skaterRows) {
             servedVersion = stampedOr(projection.getModelVersion(), servedVersion);
             Integer platformId = mapping.nhlIdToPlatformId().get(projection.getNhlId().longValue());
             if (platformId == null) {
@@ -164,7 +264,7 @@ public class ProjectionSeedService {
         int skaters = seeded.size();
 
         int goalies = 0;
-        for (GoalieProjectionResponse projection : projectionServiceClient.goalieProjections(season, modelVersion)) {
+        for (GoalieProjectionResponse projection : goalieRows) {
             servedVersion = stampedOr(projection.getModelVersion(), servedVersion);
             Integer platformId = mapping.nhlIdToPlatformId().get(projection.getNhlId().longValue());
             if (platformId == null) {
@@ -199,11 +299,12 @@ public class ProjectionSeedService {
                 withoutWorkload,
                 retiredZeroed);
         log.info(
-                "Seeded {} projections for {} ({}): {} skaters, {} goalies; {} unmapped, "
+                "Seeded {} projections for {} (rest of season: {}, {}): {} skaters, {} goalies; {} unmapped, "
                         + "{} goalies without a projected workload, {} retired zeroed. "
                         + "Player pool: {}",
                 seeded.size(),
                 season,
+                restOfSeason,
                 forLog(servedVersion),
                 seed.skatersSeeded(),
                 seed.goaliesSeeded(),

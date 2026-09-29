@@ -123,6 +123,7 @@ public class LeagueSummaryController {
                 result.scoringType(),
                 result.status(),
                 result.picks(),
-                result.unprojectedPlayers());
+                result.unprojectedPlayers(),
+                result.restOfSeason());
     }
 }

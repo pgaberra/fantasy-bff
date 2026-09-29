@@ -52,6 +52,13 @@ public record LeagueSummaryResponse(
         int unprojectedPlayers,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether the model's lines are its rest of the season: each player's "
+                        + "games from the last nightly run to the end, which is what the model is "
+                        + "ranked by once the season is under way. False for a board and last "
+                        + "season's stats, which are whole seasons, and before the first game.")
+        boolean restOfSeason,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "The stats the league counts, in its own order. The labels are the "
                         + "client's to write.")
         List<String> categoryKeys,
@@ -113,7 +120,8 @@ public record LeagueSummaryResponse(
             ScoringBasis scoringType,
             LeagueDraftStatus status,
             int picks,
-            int unprojectedPlayers) {
+            int unprojectedPlayers,
+            boolean restOfSeason) {
         return new LeagueSummaryResponse(
                 source,
                 modelVersion,
@@ -123,6 +131,7 @@ public record LeagueSummaryResponse(
                 status,
                 picks,
                 unprojectedPlayers,
+                restOfSeason,
                 summary.categoryKeys(),
                 summary.positionKeys(),
                 summary.teams().stream().map(LeagueSummaryResponse::team).toList());

@@ -132,7 +132,8 @@ public class LeagueSummaryService {
         LeagueDraftResponse draft = draftService.draft(userId, leagueKey);
         LeagueProjectionSettingsResponse settings = leagueService.projectionSettings(userId, leagueKey);
 
-        List<ScoredPlayer> pool = pool(source, board);
+        ProjectionSeedService.Seed restOfSeason = restOfSeason(source);
+        List<ScoredPlayer> pool = pool(source, board, restOfSeason);
         List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft, currentRosters(userId, leagueKey, draft));
         LeagueScoring league = scoring(settings, teams.size());
 
@@ -149,7 +150,8 @@ public class LeagueSummaryService {
                 settings.scoringType(),
                 draft.status(),
                 draft.picks().size(),
-                unprojected(pool, teams));
+                unprojected(pool, teams),
+                restOfSeason != null);
     }
 
     /**
@@ -177,7 +179,8 @@ public class LeagueSummaryService {
                 ? projectionService.get(user, projectionId)
                 : null;
 
-        List<ScoredPlayer> pool = pool(source, board);
+        ProjectionSeedService.Seed restOfSeason = restOfSeason(source);
+        List<ScoredPlayer> pool = pool(source, board, restOfSeason);
         List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft);
         LeagueScoring league = scoring(draft.settings(), stored.data().settings(), teams.size());
 
@@ -193,7 +196,8 @@ public class LeagueSummaryService {
                 league.points() ? ScoringBasis.POINTS : ScoringBasis.CATEGORY,
                 draftStatus(draft, picks),
                 picks,
-                unprojected(pool, teams));
+                unprojected(pool, teams),
+                restOfSeason != null);
     }
 
     private static LeagueDraftStatus draftStatus(DraftState draft, int picks) {
@@ -214,6 +218,8 @@ public class LeagueSummaryService {
      * @param picks how many picks its draft has made, so a league yet to draft can say so rather
      *     than showing every team at nothing
      * @param unprojectedPlayers how many of the teams' players have no line to be scored by
+     * @param restOfSeason whether the model's lines were its rest of the season rather than the
+     *     whole of it
      */
     public record Result(
             LeagueSummary summary,
@@ -224,7 +230,8 @@ public class LeagueSummaryService {
             ScoringBasis scoringType,
             LeagueDraftStatus status,
             int picks,
-            int unprojectedPlayers) {
+            int unprojectedPlayers,
+            boolean restOfSeason) {
     }
 
     /**
@@ -242,10 +249,24 @@ public class LeagueSummaryService {
     }
 
     /** The rows the teams are scored against, for the whole pool rather than the rostered players. */
-    private List<ScoredPlayer> pool(SummarySource source, ProjectionResponse board) {
+    /**
+     * The model's lines over the games each club has left, once the season is under way: a team
+     * is ranked on what it holds today, so the model is asked what those players will do from
+     * here, not what they would have done from opening night. Null for any other source — a board
+     * and last season's stats are ranked as they are, whole seasons, at any point in the season
+     * (Alexander's call, 2026-09-29) — and while the season has no rest to project.
+     */
+    private ProjectionSeedService.Seed restOfSeason(SummarySource source) {
+        return source == SummarySource.MODEL ? seedService.restOfSeason(defaultSeason).orElse(null) : null;
+    }
+
+    private List<ScoredPlayer> pool(
+            SummarySource source, ProjectionResponse board, ProjectionSeedService.Seed restOfSeason) {
         Map<Integer, Identity> identities = identities();
         List<PlayerProjection> rows = switch (source) {
-            case MODEL -> modelRows();
+            case MODEL -> restOfSeason == null
+                    ? modelRows()
+                    : restOfSeason.players().stream().map(PlayerProjection::from).toList();
             case LAST_SEASON -> lastSeasonRows();
             case PROJECTION -> {
                 overridePositions(identities, board.data().positionOverrides());

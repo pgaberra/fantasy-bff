@@ -15,6 +15,8 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
@@ -135,6 +137,60 @@ class ProjectionSeedServiceTest {
 
     private static GoalieResponse platformGoalie(int id, String name, String team) {
         return new GoalieResponse(id, name, team, null, null, null);
+    }
+
+    /** The rest of the season is the same mapping over the model's other answer. */
+    @Test
+    @DisplayName("seeds the rest of the season under the platform's ids, in the season's vocabulary")
+    void seedsTheRestOfTheSeason() {
+        when(projectionServiceClient.activePlayers(any()))
+                .thenReturn(List.of(
+                        nhlPlayer(8478402, "Connor McDavid", "EDM", 97),
+                        nhlPlayer(8479973, "Stuart Skinner", "EDM", 74)));
+        when(playerPool.getSkaters())
+                .thenReturn(List.of(platformSkater(5000, "Connor McDavid", "EDM")));
+        when(playerPool.getGoalies()).thenReturn(List.of(platformGoalie(6000, "Stuart Skinner", "EDM")));
+        RestOfSeasonSkaterResponse rest = new RestOfSeasonSkaterResponse()
+                .nhlId(8478402)
+                .modelVersion("marcel-v105")
+                .gamesPlayed(BigDecimal.valueOf(41))
+                .gamesRemaining(41)
+                .goals(BigDecimal.valueOf(20))
+                .points(BigDecimal.valueOf(55))
+                .shootingPct(BigDecimal.valueOf(0.15));
+        RestOfSeasonGoalieResponse crease = new RestOfSeasonGoalieResponse()
+                .nhlId(8479973)
+                .gamesPlayed(BigDecimal.valueOf(30))
+                .gamesStarted(BigDecimal.valueOf(29))
+                .wins(BigDecimal.valueOf(16))
+                .savePct(BigDecimal.valueOf(0.905));
+        when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of(rest));
+        when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of(crease));
+
+        ProjectionSeedService.Seed seed = service.restOfSeason(2026).orElseThrow();
+
+        assertThat(seed.modelVersion()).isEqualTo("marcel-v105");
+        assertThat(seed.players()).hasSize(2);
+        var skaterStats = seed.players().stream()
+                .filter(p -> p.getPlayerId() == 5000).findFirst().orElseThrow().getStats();
+        assertThat(skaterStats.getUtility()).containsEntry("gp", 41.0);
+        assertThat(skaterStats.getScoring()).containsEntry("points", 55.0).containsEntry("shPct", 15.0);
+        var goalieStats = seed.players().stream()
+                .filter(p -> p.getPlayerId() == 6000).findFirst().orElseThrow().getStats();
+        assertThat(goalieStats.getScoring()).containsEntry("w", 16.0).containsEntry("gs", 29.0);
+    }
+
+    /** Before the first game and after the last there is no rest of the season to rank by. */
+    @Test
+    @DisplayName("has no rest of the season while the model has none")
+    void noRestOfTheSeasonOutsideIt() {
+        when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of());
+        when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of());
+
+        assertThat(service.restOfSeason(2026)).isEmpty();
+        // Not remembered: the next read, after the nightly run, may well find one.
+        assertThat(service.restOfSeason(2026)).isEmpty();
+        verify(projectionServiceClient, times(2)).restOfSeasonSkaters(2026);
     }
 
     @Test
