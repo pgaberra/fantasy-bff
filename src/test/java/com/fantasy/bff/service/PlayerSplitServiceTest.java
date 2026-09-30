@@ -53,17 +53,25 @@ class PlayerSplitServiceTest {
     }
 
     private void givenPlatformPlayer(int platformId, Set<Integer> defenceEligible) {
+        givenPlatformPlayer(platformId, defenceEligible, "EDM", Map.of(platformId, "EDM"));
+    }
+
+    private void givenPlatformPlayer(
+            int platformId,
+            Set<Integer> defenceEligible,
+            String nhlTeam,
+            Map<Integer, String> currentTeams) {
         PlayerResponse identity = new PlayerResponse();
         identity.setNhlId(NHL_ID);
         identity.setFullName("Connor McDavid");
-        identity.setCurrentTeam("EDM");
+        identity.setCurrentTeam(nhlTeam);
         when(contextProvider.context()).thenReturn(new PlayerSplitContextProvider.Context(
                 new PlayerIdMapping(Map.of((long) NHL_ID, platformId), List.of(), 1, 0, 0),
                 Map.of((long) NHL_ID, identity),
                 defenceEligible,
                 Optional.empty(),
                 List.of(),
-                Map.of()));
+                currentTeams));
     }
 
     private Map<String, Double> skaterStats() {
@@ -161,6 +169,38 @@ class PlayerSplitServiceTest {
 
         assertThat(service.goalieSplits(SEASON, LAST_TWENTY, 100).get(0).stats())
                 .doesNotContainKey("winPct");
+    }
+
+    @Test
+    @DisplayName("labels a skater with the club as the player pool spells it: TB, not the NHL's TBL")
+    void labelsSkatersWithThePoolsTeamSpelling() {
+        givenPlatformPlayer(FORWARD_ID, Set.of(), "TBL", Map.of(FORWARD_ID, "TB"));
+        when(projectionServiceClient.skaterSplits(any(), any(), anyInt()))
+                .thenReturn(List.of(skater()));
+
+        assertThat(service.skaterSplits(SEASON, LAST_TWENTY, 100).get(0).teamAbbrev())
+                .isEqualTo("TB");
+    }
+
+    @Test
+    @DisplayName("labels a goalie with the club as the player pool spells it: LA, not the NHL's LAK")
+    void labelsGoaliesWithThePoolsTeamSpelling() {
+        givenPlatformPlayer(FORWARD_ID, Set.of(), "LAK", Map.of(FORWARD_ID, "LA"));
+        when(projectionServiceClient.goalieSplits(any(), any(), anyInt()))
+                .thenReturn(List.of(goalie(9, 4, 3)));
+
+        assertThat(service.goalieSplits(SEASON, LAST_TWENTY, 100).get(0).teamAbbrev())
+                .isEqualTo("LA");
+    }
+
+    @Test
+    @DisplayName("leaves the team out for a player the model has no club for")
+    void leavesTheTeamOutWithoutOne() {
+        givenPlatformPlayer(FORWARD_ID, Set.of(), null, Map.of());
+        when(projectionServiceClient.skaterSplits(any(), any(), anyInt()))
+                .thenReturn(List.of(skater()));
+
+        assertThat(service.skaterSplits(SEASON, LAST_TWENTY, 100).get(0).teamAbbrev()).isNull();
     }
 
     @Test

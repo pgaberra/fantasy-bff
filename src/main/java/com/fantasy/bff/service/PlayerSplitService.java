@@ -169,7 +169,7 @@ public class PlayerSplitService {
         return new PlayerSplitResponse(
                 playerId,
                 identity == null ? "" : identity.getFullName(),
-                identity == null ? null : identity.getCurrentTeam(),
+                context.currentTeams().get(playerId),
                 type,
                 games == null ? 0 : games,
                 firstGame,
