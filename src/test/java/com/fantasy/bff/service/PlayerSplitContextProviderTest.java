@@ -13,6 +13,7 @@ import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,8 @@ class PlayerSplitContextProviderTest {
     private static final long ALREADY_EXPIRED = 0;
     private static final int MCDAVID_NHL_ID = 8478402;
     private static final int MCDAVID_PLATFORM_ID = 77;
+    private static final int KUCHEROV_NHL_ID = 8476453;
+    private static final int KUCHEROV_PLATFORM_ID = 86;
 
     private static final int SEASON = 2026;
 
@@ -145,6 +148,26 @@ class PlayerSplitContextProviderTest {
 
         when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(nhlMcDavid()));
         assertThat(provider(HALF_AN_HOUR_MS).context().rookies()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("spells each player's club the platform's way, and lists none for a player without one")
+    void spellsCurrentTeamsThePlatformsWay() {
+        PlayerResponse kucherov = new PlayerResponse();
+        kucherov.setNhlId(KUCHEROV_NHL_ID);
+        kucherov.setFullName("Nikita Kucherov");
+        kucherov.setCurrentTeam("TBL");
+        kucherov.setSweaterNumber(86);
+        kucherov.setIsActive(true);
+        PlayerResponse teamless = nhlMcDavid();
+        teamless.setCurrentTeam(null);
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(kucherov, teamless));
+        when(playerPool.getSkaters()).thenReturn(List.of(
+                platformMcDavid(),
+                new SkaterResponse(KUCHEROV_PLATFORM_ID, "Nikita Kucherov", "TB", null, 86, Set.of(), null)));
+
+        assertThat(provider(HALF_AN_HOUR_MS).context().currentTeams())
+                .containsExactly(Map.entry(KUCHEROV_PLATFORM_ID, "TB"));
     }
 
     @Test
