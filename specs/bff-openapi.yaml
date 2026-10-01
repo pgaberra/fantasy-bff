@@ -3995,18 +3995,14 @@ components:
           description: Model version behind them
         players:
           type: array
+          description: The available players the model projects. One it does not is
+            left out rather than shown with zeroes.
           items:
             $ref: "#/components/schemas/FreeAgentResponse"
-        unprojected:
-          type: integer
-          format: int32
-          description: Available players the model has no projection for. Mostly fringe
-            players and call-ups; they are left out rather than shown with zeroes.
       required:
       - end
       - players
       - start
-      - unprojected
     FreeAgentResponse:
       type: object
       description: An available player and the model's line for him over the chosen
