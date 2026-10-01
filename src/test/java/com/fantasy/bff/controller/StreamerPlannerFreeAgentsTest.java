@@ -166,8 +166,8 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[1].type").value("goalie"))
                 .andExpect(jsonPath("$.players[1].availability").value("WAIVERS"))
                 .andExpect(jsonPath("$.players[1].stats.svPct").value(0.908))
-                // The unprojected free agent is counted, not shown with zeroes.
-                .andExpect(jsonPath("$.unprojected").value(1));
+                // The unprojected free agent is left out, neither shown with zeroes nor counted.
+                .andExpect(jsonPath("$.unprojected").doesNotExist());
     }
 
     @Test
@@ -191,8 +191,7 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.players.length()").value(1))
-                .andExpect(jsonPath("$.unprojected").value(3));
+                .andExpect(jsonPath("$.players.length()").value(1));
 
         assertThat(output).contains(
                 "left 3 of 4 available YAHOO players unranked: "
@@ -254,7 +253,6 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.players.length()").value(0))
-                .andExpect(jsonPath("$.unprojected").value(0));
+                .andExpect(jsonPath("$.players.length()").value(0));
     }
 }

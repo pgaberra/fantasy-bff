@@ -143,12 +143,11 @@ public class StreamerPlannerFreeAgentService {
                 end,
                 projections.getSeason(),
                 projections.getModelVersion(),
-                List.copyOf(rows),
-                available.size() - rows.size());
+                List.copyOf(rows));
     }
 
     /**
-     * Names the available players left out of the ranking, and why. The page no longer mentions
+     * Names the available players left out of the ranking, and why. The response no longer counts
      * them: the count lumped three different things together and gave the user nothing to act on.
      * Only one of the three is a fault — a player the model projects whose name did not match —
      * and that one is worth seeing here, since he vanishes from the ranking without a trace.
