@@ -97,6 +97,13 @@ public record LeagueSummaryResponse(
     public record RosterRow(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int playerId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+            @Schema(description = "The NHL club he plays for, as the player pool spells it; absent "
+                    + "where the pool lists none")
+            String team,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The positions he is eligible at, in lineup order; G alone for a "
+                            + "goalie")
+            List<String> positions,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double total,
             @Schema(description = "His raw stat per category key; null where the stat is not his kind")
             Map<String, Double> values,
@@ -151,7 +158,9 @@ public record LeagueSummaryResponse(
     }
 
     private static RosterRow rosterRow(LeagueSummary.RosterRow row) {
-        return new RosterRow(row.playerId(), row.name(), row.total(), row.values(), row.contributions());
+        return new RosterRow(
+                row.playerId(), row.name(), row.team(), row.positions(), row.total(), row.values(),
+                row.contributions());
     }
 
     private static Map<String, List<Contributor>> contributors(

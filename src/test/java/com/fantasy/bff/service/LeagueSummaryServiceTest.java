@@ -192,6 +192,9 @@ class LeagueSummaryServiceTest {
         });
         assertThat(result.summary().teams().get(0).roster()).extracting(row -> row.name())
                 .containsExactly("Forward Two", "Forward Three");
+        // Who he is besides his name: the club and the positions the pool lists him under.
+        assertThat(result.summary().teams().get(0).roster().get(0).team()).isEqualTo("TOR");
+        assertThat(result.summary().teams().get(0).roster().get(0).positions()).containsExactly("LW");
     }
 
     @Test

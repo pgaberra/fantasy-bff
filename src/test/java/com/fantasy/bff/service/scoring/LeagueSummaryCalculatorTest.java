@@ -24,12 +24,12 @@ class LeagueSummaryCalculatorTest {
 
     private static ScoredPlayer skater(int id, String name, Set<String> positions, double goals) {
         return new ScoredPlayer(
-                id, name, false, positions, Map.of("goals", goals, "assists", 0.0), Map.of("gp", 82.0));
+                id, name, "TOR", false, positions, Map.of("goals", goals, "assists", 0.0), Map.of("gp", 82.0));
     }
 
     private static ScoredPlayer goalie(int id, String name, double wins) {
         return new ScoredPlayer(
-                id, name, true, Set.of("G"), Map.of("w", wins), Map.of("gp", 60.0));
+                id, name, null, true, Set.of("G"), Map.of("w", wins), Map.of("gp", 60.0));
     }
 
     private static LeagueScoring pointsLeague(RosterSlots slots) {
@@ -276,6 +276,24 @@ class LeagueSummaryCalculatorTest {
 
         assertThat(summary.teams().get(0).roster()).hasSize(1);
         assertThat(summary.teams().get(0).total()).isCloseTo(40, within(1e-9));
+    }
+
+    /** The pool's positions are a set; a row names them the way a lineup is read. */
+    @Test
+    @DisplayName("a roster row carries the player's club and his positions in lineup order")
+    void rosterRowCarriesClubAndPositions() {
+        LeagueSummary summary = calculator.summarise(
+                List.of(skater(1, "Winger", Set.of("RW", "C", "LW"), 40), goalie(2, "Keeper", 30)),
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2))),
+                pointsLeague(ONE_EACH));
+
+        LeagueSummary.RosterRow winger = summary.teams().get(0).roster().get(0);
+        assertThat(winger.team()).isEqualTo("TOR");
+        assertThat(winger.positions()).containsExactly("C", "LW", "RW");
+
+        LeagueSummary.RosterRow keeper = summary.teams().get(0).roster().get(1);
+        assertThat(keeper.team()).as("a player the pool lists no club for").isNull();
+        assertThat(keeper.positions()).containsExactly("G");
     }
 
     /**

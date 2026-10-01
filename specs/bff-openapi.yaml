@@ -4699,6 +4699,16 @@ components:
           format: int32
         name:
           type: string
+        team:
+          type: string
+          description: "The NHL club he plays for, as the player pool spells it; absent\
+            \ where the pool lists none"
+        positions:
+          type: array
+          description: "The positions he is eligible at, in lineup order; G alone\
+            \ for a goalie"
+          items:
+            type: string
         total:
           type: number
           format: double
@@ -4718,6 +4728,7 @@ components:
       required:
       - name
       - playerId
+      - positions
       - total
     LeagueSummaryTeam:
       type: object
