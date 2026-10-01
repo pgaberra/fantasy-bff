@@ -175,6 +175,14 @@ league-draft-sync:
 streamer-planner:
   enabled: ${STREAMER_PLANNER_ENABLED:false}
 
+# Who's hot narrowed to the players nobody in the user's linked league holds
+# (GET /api/v1/leagues/rostered-players). Off unless this says otherwise, since it is new; off, the
+# endpoint answers 404 and /api/v1/features reports whosHotAvailableFilter false. It also needs a
+# pool on Yahoo ids, because a Yahoo roster names players by Yahoo's. Not a premium feature.
+whos-hot:
+  available-filter:
+    enabled: ${WHOS_HOT_AVAILABLE_FILTER_ENABLED:false}
+
 # Bug reports and feature requests from signed-in users (POST /api/v1/feedback), filed as issues
 # in a PRIVATE GitHub repository: each carries the reporter's email address so the answer can go
 # out by mail. Always served.

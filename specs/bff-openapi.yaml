@@ -23,6 +23,8 @@ tags:
 - name: Projection model
   description: "Model-generated projection lines, and measured totals over a range\
     \ of games. Data © MoneyPuck.com, used under its non-commercial terms."
+- name: Leagues
+  description: What a linked fantasy league holds
 - name: Authentication
   description: Register and login endpoints
 - name: Admin
@@ -1894,6 +1896,45 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
+  /api/v1/leagues/rostered-players:
+    get:
+      tags:
+      - Leagues
+      summary: Every player on a roster in a league
+      description: "Read from the league today, so a drop or a pickup since the draft\
+        \ shows. Ids are the player pool's, so they match the rows of every board."
+      operationId: leagueRosteredPlayers
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: The rostered players' ids
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RosteredPlayersResponse"
+        "404":
+          description: The filter is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RosteredPlayersResponse"
   /api/v1/league-summaries/yahoo/{leagueKey}:
     get:
       tags:
@@ -4654,6 +4695,19 @@ components:
           format: int32
       required:
       - gp
+    RosteredPlayersResponse:
+      type: object
+      properties:
+        playerIds:
+          type: array
+          description: "Every player on a team's roster in the league today, bench\
+            \ and injured reserve included, by the player pool's id. A player the\
+            \ pool has no counterpart for is left out: no row on a board can be him."
+          items:
+            type: integer
+            format: int32
+      required:
+      - playerIds
     LeagueSummaryContributor:
       type: object
       properties:
@@ -4846,10 +4900,16 @@ components:
           type: boolean
           description: "Whether this environment serves the streamer planner. False\
             \ means its endpoints answer 404, so a client should not offer it."
+        whosHotAvailableFilter:
+          type: boolean
+          description: "Whether Who's hot may show only the players a linked league\
+            \ has available. False means the rostered-players endpoint answers 404,\
+            \ so a client should not offer it."
       required:
       - aiProjection
       - leagueDraftSync
       - streamerPlanner
+      - whosHotAvailableFilter
     CredentialStatusResponse:
       type: object
       properties:

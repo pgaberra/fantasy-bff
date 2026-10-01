@@ -16,5 +16,10 @@ public record FeaturesResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves the streamer planner. False means its "
                         + "endpoints answer 404, so a client should not offer it.")
-        boolean streamerPlanner
+        boolean streamerPlanner,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether Who's hot may show only the players a linked league has "
+                        + "available. False means the rostered-players endpoint answers 404, so a "
+                        + "client should not offer it.")
+        boolean whosHotAvailableFilter
 ) {}
