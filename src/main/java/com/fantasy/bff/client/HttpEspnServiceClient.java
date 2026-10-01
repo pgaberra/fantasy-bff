@@ -38,11 +38,13 @@ public class HttpEspnServiceClient implements EspnServiceClient {
     }
 
     @Override
-    public List<AvailablePlayer> leagueFreeAgents(String appUserId, String leagueId, int limit) {
+    public List<AvailablePlayer> leagueFreeAgents(
+            String appUserId, String leagueId, String position, int limit) {
         List<AvailablePlayer> available = restClient.get()
                 .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/free-agents")
                         .queryParam("appUserId", appUserId)
                         .queryParam("limit", limit)
+                        .queryParam("position", position)
                         .build(leagueId))
                 .retrieve()
                 .body(AVAILABLE_PLAYERS);

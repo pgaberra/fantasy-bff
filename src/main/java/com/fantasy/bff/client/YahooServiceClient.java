@@ -32,6 +32,10 @@ public interface YahooServiceClient {
     /** Every team in the league with the players on its roster today. */
     LeagueRostersResponse rosters(String appUserId, String leagueKey);
 
-    /** The players a league has available: free agents and players on waivers together. */
-    List<YahooAvailablePlayerResponse> leagueFreeAgents(String appUserId, String leagueKey, int limit);
+    /**
+     * The players a league has available at one position (C, LW, RW, D or G): free agents and
+     * players on waivers together.
+     */
+    List<YahooAvailablePlayerResponse> leagueFreeAgents(
+            String appUserId, String leagueKey, String position, int limit);
 }

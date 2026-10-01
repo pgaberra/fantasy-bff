@@ -98,11 +98,12 @@ public class HttpYahooServiceClient implements YahooServiceClient {
 
     @Override
     public List<YahooAvailablePlayerResponse> leagueFreeAgents(
-            String appUserId, String leagueKey, int limit) {
+            String appUserId, String leagueKey, String position, int limit) {
         List<YahooAvailablePlayerResponse> available = restClient.get()
                 .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/free-agents")
                         .queryParam("appUserId", appUserId)
                         .queryParam("limit", limit)
+                        .queryParam("position", position)
                         .build(leagueKey))
                 .retrieve()
                 .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
