@@ -6,12 +6,15 @@ import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.FreeAgentListResponse;
 import com.fantasy.bff.dto.response.FreeAgentResponse;
 import com.fantasy.bff.dto.response.PlayerAvailability;
+import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RangeGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RangeSkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
+import com.fantasy.bff.service.mapping.ModelStatMapping;
+import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import java.math.BigDecimal;
@@ -81,7 +84,15 @@ public class StreamerPlannerFreeAgentService {
             List<String> positions,
             boolean goalie,
             Integer sweaterNumber,
-            PlayerAvailability availability) {}
+            PlayerAvailability availability) {
+
+        boolean playsDefence() {
+            return positions != null
+                    && positions.stream()
+                            .anyMatch(position ->
+                                    PlayerFieldMapping.fantasyPosition(position) == SkaterPosition.D);
+        }
+    }
 
     public FreeAgentListResponse freeAgents(
             String userId, PlayerIdSpace platform, String leagueId, LocalDate start, LocalDate end) {
@@ -122,7 +133,7 @@ public class StreamerPlannerFreeAgentService {
             Available player = matched(mapping, byPlayerId, skater.getNhlId());
             if (player != null && !player.goalie()) {
                 rows.add(row(player, "skater", skater.getClubGames(), skater.getExpectedGames(),
-                        skaterStats(skater)));
+                        skaterStats(skater, player.playsDefence())));
             }
         }
         for (RangeGoalieResponse goalie : projections.getGoalies()) {
@@ -278,7 +289,7 @@ public class StreamerPlannerFreeAgentService {
         };
     }
 
-    private static Map<String, Double> skaterStats(RangeSkaterResponse line) {
+    private static Map<String, Double> skaterStats(RangeSkaterResponse line, boolean playsDefence) {
         Map<String, Double> stats = new LinkedHashMap<>();
         put(stats, "goals", line.getGoals());
         put(stats, "assists", line.getAssists());
@@ -299,11 +310,16 @@ public class StreamerPlannerFreeAgentService {
         put(stats, "fl", line.getFaceoffsLost());
         put(stats, "hatTricks", line.getHatTricks());
         put(stats, "shifts", line.getShifts());
-        put(stats, "shPct", line.getShootingPct());
+        ModelStatMapping.putPercent(stats, "shPct", line.getShootingPct());
         put(stats, "toiPerGame", line.getToiPerGameSeconds());
+        ModelStatMapping.putTotal(
+                stats, "toi", line.getToiPerGameSeconds(), line.getExpectedGames());
         putSum(stats, "stpg", line.getPpGoals(), line.getShGoals());
         putSum(stats, "stpa", line.getPpAssists(), line.getShAssists());
         putSum(stats, "stp", line.getPpPoints(), line.getShPoints());
+        if (playsDefence) {
+            put(stats, "defPoints", line.getPoints());
+        }
         return stats;
     }
 
@@ -318,6 +334,7 @@ public class StreamerPlannerFreeAgentService {
         put(stats, "sv", line.getSaves());
         put(stats, "ga", line.getGoalsAgainst());
         put(stats, "toi", line.getToiSeconds());
+        ModelStatMapping.putWinPct(stats, line.getWins(), line.getLosses(), line.getOtLosses());
         // Rates, not totals: the season's own numbers, which is what the model projects.
         put(stats, "gaa", line.getGoalsAgainstAvg());
         put(stats, "svPct", line.getSavePct());

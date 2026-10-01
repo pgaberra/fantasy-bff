@@ -11,6 +11,7 @@ import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
+import com.fantasy.bff.service.mapping.ModelStatMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
@@ -498,15 +499,13 @@ public class ProjectionSeedService {
         put(scoring, "gwg", p.getGwGoals());
         put(scoring, "hatTricks", p.getHatTricks());
         put(scoring, "sog", p.getShots());
-        // The model works in a fraction; the app's column is a percentage.
-        put(scoring, "shPct", scale(p.getShootingPct(), 100));
+        ModelStatMapping.putPercent(scoring, "shPct", p.getShootingPct());
         put(scoring, "fw", p.getFaceoffsWon());
         put(scoring, "fl", p.getFaceoffsLost());
         put(scoring, "hits", p.getHits());
         put(scoring, "blocks", p.getBlocks());
         put(scoring, "shifts", p.getShifts());
-        // The model reports ice time per game; the column is the season's total.
-        put(scoring, "toi", product(p.getToiPerGameSeconds(), p.getGamesPlayed()));
+        ModelStatMapping.putTotal(scoring, "toi", p.getToiPerGameSeconds(), p.getGamesPlayed());
         // A league that scores special teams scores one category, power play plus shorthanded.
         // The model has no such stat and never will: it is the two it does project, added.
         putSum(scoring, "stpg", p.getPpGoals(), p.getShGoals());
@@ -539,7 +538,7 @@ public class ProjectionSeedService {
         put(scoring, "svPct", p.getSavePct());
         put(scoring, "otl", p.getOtLosses());
         put(scoring, "toi", p.getToiSeconds());
-        putWinPct(scoring, p.getWins(), p.getLosses(), p.getOtLosses());
+        ModelStatMapping.putWinPct(scoring, p.getWins(), p.getLosses(), p.getOtLosses());
 
         return line(platformId, PlayerProjection.TypeEnum.GOALIE, utility, scoring);
     }
@@ -584,35 +583,11 @@ public class ProjectionSeedService {
         return value == null ? "" : value.replaceAll("[\r\n]", "");
     }
 
-    private static BigDecimal scale(BigDecimal value, int factor) {
-        return value == null ? null : value.multiply(BigDecimal.valueOf(factor));
-    }
-
-    private static BigDecimal product(BigDecimal first, BigDecimal second) {
-        return first == null || second == null ? null : first.multiply(second);
-    }
-
     /** A stat the model has no column for, because it is two of the ones it does have. */
     private static void putSum(
             Map<String, Double> target, String key, BigDecimal first, BigDecimal second) {
         if (first != null && second != null) {
             target.put(key, first.add(second).doubleValue());
-        }
-    }
-
-    /**
-     * Share of decisions won. An overtime loss is a decision like any other, so a goalie who
-     * only ever loses past regulation has a win percentage of nought rather than none. Rounded
-     * to the three decimals the column carries, as the split endpoint rounds it.
-     */
-    private static void putWinPct(
-            Map<String, Double> target, BigDecimal wins, BigDecimal losses, BigDecimal otLosses) {
-        if (wins == null || losses == null || otLosses == null) {
-            return;
-        }
-        double decisions = wins.doubleValue() + losses.doubleValue() + otLosses.doubleValue();
-        if (decisions > 0) {
-            target.put("winPct", Math.round(wins.doubleValue() / decisions * 1000.0) / 1000.0);
         }
     }
 }
