@@ -3,8 +3,11 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.response.CreaseGoalie;
+import com.fantasy.bff.dto.response.CreaseNight;
 import com.fantasy.bff.dto.response.FreeAgentListResponse;
 import com.fantasy.bff.dto.response.FreeAgentResponse;
+import com.fantasy.bff.dto.response.PlannerCrease;
 import com.fantasy.bff.dto.response.PlayerAvailability;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
@@ -29,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -167,7 +171,55 @@ public class StreamerPlannerFreeAgentService {
                 end,
                 projections.getSeason(),
                 projections.getModelVersion(),
-                List.copyOf(rows));
+                List.copyOf(rows),
+                creases(projections.getGoalies(), mapping, byPlayerId));
+    }
+
+    /**
+     * The crease of every club with a goalie among the rows. Who starts a game is a question about
+     * the whole crease: a free agent at 0.45 of a night is the likeliest starter beside a rostered
+     * 0.40 and nobody's beside a rostered 0.55, so the rostered goalies go out too, unnamed. They
+     * are the most starts over the stretch first, which is how the client breaks a tie.
+     */
+    private static List<PlannerCrease> creases(
+            List<RangeGoalieResponse> goalies,
+            PlayerIdMapping mapping,
+            Map<String, Available> byPlayerId) {
+        Map<String, List<RangeGoalieResponse>> byClub = new TreeMap<>();
+        for (RangeGoalieResponse goalie : goalies) {
+            if (goalie.getTeam() != null) {
+                byClub.computeIfAbsent(goalie.getTeam(), team -> new ArrayList<>()).add(goalie);
+            }
+        }
+        Comparator<RangeGoalieResponse> mostStartsFirst = Comparator
+                .comparingDouble((RangeGoalieResponse goalie) -> number(goalie.getExpectedGames()))
+                .reversed()
+                .thenComparing(RangeGoalieResponse::getNhlId, Comparator.nullsLast(Comparator.naturalOrder()));
+        List<PlannerCrease> creases = new ArrayList<>();
+        byClub.forEach((team, club) -> {
+            List<CreaseGoalie> crease = club.stream()
+                    .sorted(mostStartsFirst)
+                    .map(goalie -> new CreaseGoalie(
+                            listedGoalieId(mapping, byPlayerId, goalie.getNhlId()), nights(goalie)))
+                    .toList();
+            if (crease.stream().anyMatch(goalie -> goalie.playerId() != null)) {
+                creases.add(new PlannerCrease(team, crease));
+            }
+        });
+        return List.copyOf(creases);
+    }
+
+    /** His platform id when he is listed as a goalie, as {@link #freeAgents} lists him; else null. */
+    private static String listedGoalieId(
+            PlayerIdMapping mapping, Map<String, Available> byPlayerId, Integer nhlId) {
+        Available player = matched(mapping, byPlayerId, nhlId);
+        return player != null && player.goalie() ? player.playerId() : null;
+    }
+
+    private static List<CreaseNight> nights(RangeGoalieResponse goalie) {
+        return goalie.getNights().stream()
+                .map(night -> new CreaseNight(night.getGameDate(), number(night.getShare())))
+                .toList();
     }
 
     /**

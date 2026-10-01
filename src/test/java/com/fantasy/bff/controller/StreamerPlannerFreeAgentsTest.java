@@ -23,6 +23,7 @@ import com.fantasy.bff.exception.YahooAccessDeniedException;
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RangeGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RangeNight;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RangeSkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
@@ -30,6 +31,7 @@ import com.fantasy.bff.security.JwtTokenValidator;
 import com.fantasy.bff.service.scoring.ScoringStatKeys;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -380,6 +382,74 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
         }
         verify(yahooServiceClient).leagueFreeAgents("user-1", "465.l.9", "G", 50);
         verifyNoMoreInteractions(yahooServiceClient);
+    }
+
+    private static RangeGoalieResponse creaseLine(int nhlId, String team, String... shares) {
+        RangeGoalieResponse line = new RangeGoalieResponse();
+        line.setNhlId(nhlId);
+        line.setTeam(team);
+        line.setClubGames(shares.length);
+        BigDecimal starts = BigDecimal.ZERO;
+        List<RangeNight> nights = new ArrayList<>();
+        for (int index = 0; index < shares.length; index++) {
+            RangeNight night = new RangeNight();
+            night.setGameDate(MONDAY.plusDays(2L * index + 1));
+            night.setShare(new BigDecimal(shares[index]));
+            nights.add(night);
+            starts = starts.add(new BigDecimal(shares[index]));
+        }
+        line.setExpectedGames(starts);
+        line.setNights(nights);
+        return line;
+    }
+
+    @Test
+    void sendsTheWholeCreaseOfEveryClubWithAGoalieListedTheRosteredOnesUnnamed() throws Exception {
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
+                .thenReturn(List.of(
+                        yahooPlayer("5555", "Spencer Knight", "Chi", "G", true,
+                                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT),
+                        yahooPlayer("7777", "Arvid Soderblom", "Chi", "G", true,
+                                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT)));
+        when(projectionServiceClient.rangeProjections(eq(MONDAY), eq(SUNDAY), anyInt()))
+                .thenReturn(projections(
+                        List.of(),
+                        List.of(
+                                creaseLine(8482821, "CHI", "0.44", "0.44"),
+                                // Rostered in this league: not a row, but his starts are starts
+                                // the two listed do not get.
+                                creaseLine(8470000, "CHI", "0.08", "0.08"),
+                                creaseLine(8477970, "CHI", "0.48", "0.48"),
+                                // A club with nobody listed has no crease to send.
+                                creaseLine(8471111, "EDM", "1.0", "1.0"))));
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.creases.length()").value(1))
+                .andExpect(jsonPath("$.creases[0].team").value("CHI"))
+                // The most starts first, which is how a tie is broken.
+                .andExpect(jsonPath("$.creases[0].goalies.length()").value(3))
+                .andExpect(jsonPath("$.creases[0].goalies[0].playerId").value("5555"))
+                .andExpect(jsonPath("$.creases[0].goalies[0].nights[0].date").value("2026-10-13"))
+                .andExpect(jsonPath("$.creases[0].goalies[0].nights[0].share").value(0.48))
+                .andExpect(jsonPath("$.creases[0].goalies[0].nights[1].date").value("2026-10-15"))
+                .andExpect(jsonPath("$.creases[0].goalies[1].playerId").value("7777"))
+                .andExpect(jsonPath("$.creases[0].goalies[2].playerId").doesNotExist())
+                .andExpect(jsonPath("$.creases[0].goalies[2].nights[0].share").value(0.08));
+    }
+
+    @Test
+    void aLeagueWithNoGoalieListedHasNoCreases() throws Exception {
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
+                .thenReturn(List.of(yahooPlayer("3737", "Connor McDavid", "Edm", "C", false,
+                        YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT)));
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players.length()").value(1))
+                .andExpect(jsonPath("$.creases.length()").value(0));
     }
 
     @Test

@@ -645,6 +645,13 @@
             "title": "Nhl Id",
             "type": "integer"
           },
+          "nights": {
+            "items": {
+              "$ref": "#/components/schemas/RangeNight"
+            },
+            "title": "Nights",
+            "type": "array"
+          },
           "opponent_strength": {
             "title": "Opponent Strength",
             "type": "number"
@@ -743,6 +750,7 @@
           "team",
           "club_games",
           "expected_games",
+          "nights",
           "opponent_strength",
           "wins",
           "losses",
@@ -756,6 +764,25 @@
           "save_pct"
         ],
         "title": "RangeGoalieResponse",
+        "type": "object"
+      },
+      "RangeNight": {
+        "properties": {
+          "game_date": {
+            "format": "date",
+            "title": "Game Date",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "game_date",
+          "share"
+        ],
+        "title": "RangeNight",
         "type": "object"
       },
       "RangeProjectionsResponse": {
