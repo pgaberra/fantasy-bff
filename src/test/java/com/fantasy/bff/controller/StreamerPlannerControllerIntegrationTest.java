@@ -90,6 +90,8 @@ class StreamerPlannerControllerIntegrationTest extends BaseIntegrationTest {
         game.setBackToBack(false);
         game.setOpponentGoalsAgainst(new BigDecimal("1.11"));
         game.setOpponentGoalsFor(new BigDecimal("0.9"));
+        game.setSkaterWorth(new BigDecimal("1.4374"));
+        game.setGoalieWorth(new BigDecimal("1.4393"));
         TeamScheduleResponse team = new TeamScheduleResponse();
         team.setTeam("EDM");
         team.setGames(1);
@@ -122,7 +124,9 @@ class StreamerPlannerControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.teams[0].team").value("EDM"))
                 .andExpect(jsonPath("$.teams[0].skaterScore").value(1.39))
                 .andExpect(jsonPath("$.teams[0].schedule[0].opponent").value("SJS"))
-                .andExpect(jsonPath("$.teams[0].schedule[0].opponentGoalsAgainst").value(1.11));
+                .andExpect(jsonPath("$.teams[0].schedule[0].opponentGoalsAgainst").value(1.11))
+                .andExpect(jsonPath("$.teams[0].schedule[0].skaterWorth").value(1.4374))
+                .andExpect(jsonPath("$.teams[0].schedule[0].goalieWorth").value(1.4393));
     }
 
     @Test

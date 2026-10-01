@@ -103,7 +103,9 @@ public class StreamerPlannerService {
                 game.getOffNight(),
                 game.getBackToBack(),
                 number(game.getOpponentGoalsAgainst()),
-                number(game.getOpponentGoalsFor()));
+                number(game.getOpponentGoalsFor()),
+                number(game.getSkaterWorth()),
+                number(game.getGoalieWorth()));
     }
 
     private static double number(BigDecimal value) {

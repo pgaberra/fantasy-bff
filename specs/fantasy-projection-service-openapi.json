@@ -1107,6 +1107,10 @@
             "title": "Date",
             "type": "string"
           },
+          "goalie_worth": {
+            "title": "Goalie Worth",
+            "type": "number"
+          },
           "home": {
             "title": "Home",
             "type": "boolean"
@@ -1133,6 +1137,10 @@
           "opponent_goals_for": {
             "title": "Opponent Goals For",
             "type": "number"
+          },
+          "skater_worth": {
+            "title": "Skater Worth",
+            "type": "number"
           }
         },
         "required": [
@@ -1142,7 +1150,9 @@
           "off_night",
           "back_to_back",
           "opponent_goals_against",
-          "opponent_goals_for"
+          "opponent_goals_for",
+          "skater_worth",
+          "goalie_worth"
         ],
         "title": "RatedGameResponse",
         "type": "object"
