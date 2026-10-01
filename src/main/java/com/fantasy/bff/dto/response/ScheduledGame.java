@@ -18,4 +18,11 @@ public record ScheduledGame(
                 double opponentGoalsAgainst,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Goals the opponent scores per game against the league average")
-                double opponentGoalsFor) {}
+                double opponentGoalsFor,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "What the game adds to the team's skaterScore: the night, the opponent and "
+                        + "the venue together. A stretch's score is the sum over its games")
+                double skaterWorth,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "What the game adds to the team's goalieScore")
+                double goalieWorth) {}

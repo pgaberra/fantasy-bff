@@ -3917,13 +3917,25 @@ components:
           type: number
           format: double
           description: Goals the opponent scores per game against the league average
+        skaterWorth:
+          type: number
+          format: double
+          description: "What the game adds to the team's skaterScore: the night, the\
+            \ opponent and the venue together. A stretch's score is the sum over its\
+            \ games"
+        goalieWorth:
+          type: number
+          format: double
+          description: What the game adds to the team's goalieScore
       required:
       - backToBack
       - date
+      - goalieWorth
       - home
       - offNight
       - opponentGoalsAgainst
       - opponentGoalsFor
+      - skaterWorth
     TeamSchedule:
       type: object
       description: "A team's games over the stretch, scored for streaming"
@@ -3947,7 +3959,8 @@ components:
           type: number
           format: double
           description: "Each game counts 1, 1.25 on an off-night, scaled by the goals\
-            \ the opponent concedes. Higher is better"
+            \ the opponent concedes and by the venue (a home game is worth more).\
+            \ Higher is better"
         skaterRank:
           type: integer
           format: int32
@@ -3956,7 +3969,7 @@ components:
           type: number
           format: double
           description: "As skaterScore, scaled by the inverse of the goals the opponent\
-            \ scores"
+            \ scores and by the venue"
         goalieRank:
           type: integer
           format: int32
