@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -28,8 +29,11 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -42,6 +46,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 @TestPropertySource(properties = {
         "streamer-planner.enabled=true",
         // The mapping is cached in a singleton; zero means "always stale", so each test's stubs win.
@@ -163,6 +168,37 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[1].stats.svPct").value(0.908))
                 // The unprojected free agent is counted, not shown with zeroes.
                 .andExpect(jsonPath("$.unprojected").value(1));
+    }
+
+    @Test
+    void logsWhyEachUnrankedFreeAgentWasLeftOut(CapturedOutput output) throws Exception {
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(
+                identity(8478402, "Connor McDavid", "EDM", 97),
+                identity(8477970, "Spencer Knight", "CHI", 30),
+                identity(8485000, "Rostered Prospect", "SJS", 61)));
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyInt()))
+                .thenReturn(List.of(
+                        yahooPlayer("3737", "Connor McDavid", "Edm", "C", false,
+                                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT),
+                        // The platform calls him a skater; the model projects him in goal.
+                        yahooPlayer("5555", "Spencer Knight", "Chi", "C", false,
+                                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT),
+                        yahooPlayer("6161", "Rostered Prospect", "SJ", "LW", false,
+                                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT),
+                        yahooPlayer("9999", "Nobody Projected", "SJS", "LW", false,
+                                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT)));
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players.length()").value(1))
+                .andExpect(jsonPath("$.unprojected").value(3));
+
+        assertThat(output).contains(
+                "left 3 of 4 available YAHOO players unranked: "
+                        + "1 matched no NHL player [Nobody Projected (9999)], "
+                        + "1 have no projection [Rostered Prospect (6161)], "
+                        + "1 are a skater on one side and a goalie on the other [Spencer Knight (5555)]");
     }
 
     @Test
