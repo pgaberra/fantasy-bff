@@ -213,7 +213,7 @@ class LeagueSummaryServiceTest {
     @DisplayName("once the season is under way the model ranks by its rest of the season")
     void theModelRanksByTheRestOfTheSeason() {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
-        when(seedService.restOfSeason(20262027)).thenReturn(Optional.of(new ProjectionSeedService.Seed(
+        when(seedService.inSeason(20262027)).thenReturn(Optional.of(new ProjectionSeedService.Seed(
                 List.of(
                         row(1, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 20.0)),
                         row(2, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 15.0)),
@@ -222,7 +222,7 @@ class LeagueSummaryServiceTest {
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
-        assertThat(result.restOfSeason()).isTrue();
+        assertThat(result.inSeason()).isTrue();
         assertThat(result.summary().teams().get(0).teamId()).isEqualTo("t1");
         assertThat(result.summary().teams().get(0).total()).isCloseTo(20, within(1e-9));
         assertThat(result.summary().teams().get(1).total()).isCloseTo(19, within(1e-9));
@@ -234,11 +234,11 @@ class LeagueSummaryServiceTest {
     @DisplayName("before the season the model ranks by its season line")
     void beforeTheSeasonTheModelRanksByTheSeason() {
         when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
-        when(seedService.restOfSeason(anyInt())).thenReturn(Optional.empty());
+        when(seedService.inSeason(anyInt())).thenReturn(Optional.empty());
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
-        assertThat(result.restOfSeason()).isFalse();
+        assertThat(result.inSeason()).isFalse();
         assertThat(result.summary().teams().get(0).total()).isCloseTo(45, within(1e-9));
     }
 
@@ -251,7 +251,7 @@ class LeagueSummaryServiceTest {
 
         assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON, null))
                 .isInstanceOf(IllegalStateException.class);
-        verify(seedService, never()).restOfSeason(anyInt());
+        verify(seedService, never()).inSeason(anyInt());
     }
 
     @Test

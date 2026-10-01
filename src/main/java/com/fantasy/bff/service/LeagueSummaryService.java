@@ -190,8 +190,8 @@ public class LeagueSummaryService {
         League platformLeague = read.get();
         LeagueProjectionSettingsResponse settings = platformLeague.settings();
 
-        ProjectionSeedService.Seed restOfSeason = restOfSeason(source);
-        List<ScoredPlayer> pool = pool(source, board, restOfSeason);
+        ProjectionSeedService.Seed inSeason = inSeason(source);
+        List<ScoredPlayer> pool = pool(source, board, inSeason);
         List<LeagueSummaryCalculator.TeamPicks> teams = platformLeague.teams();
         LeagueScoring league = scoring(settings, teams.size());
 
@@ -209,7 +209,7 @@ public class LeagueSummaryService {
                 platformLeague.status(),
                 platformLeague.picks(),
                 unprojected(pool, teams),
-                restOfSeason != null);
+                inSeason != null);
     }
 
     /**
@@ -237,8 +237,8 @@ public class LeagueSummaryService {
                 ? projectionService.get(user, projectionId)
                 : null;
 
-        ProjectionSeedService.Seed restOfSeason = restOfSeason(source);
-        List<ScoredPlayer> pool = pool(source, board, restOfSeason);
+        ProjectionSeedService.Seed inSeason = inSeason(source);
+        List<ScoredPlayer> pool = pool(source, board, inSeason);
         List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft);
         LeagueScoring league = scoring(draft.settings(), stored.data().settings(), teams.size());
 
@@ -255,7 +255,7 @@ public class LeagueSummaryService {
                 draftStatus(draft, picks),
                 picks,
                 unprojected(pool, teams),
-                restOfSeason != null);
+                inSeason != null);
     }
 
     private static LeagueDraftStatus draftStatus(DraftState draft, int picks) {
@@ -276,8 +276,8 @@ public class LeagueSummaryService {
      * @param picks how many picks its draft has made, so a league yet to draft can say so rather
      *     than showing every team at nothing
      * @param unprojectedPlayers how many of the teams' players have no line to be scored by
-     * @param restOfSeason whether the model's lines were its rest of the season rather than the
-     *     whole of it
+     * @param inSeason whether the model's lines were its in-season ones: each player's season so
+     *     far plus the rest of it, rather than the season line it was drafted on
      */
     public record Result(
             LeagueSummary summary,
@@ -289,7 +289,7 @@ public class LeagueSummaryService {
             LeagueDraftStatus status,
             int picks,
             int unprojectedPlayers,
-            boolean restOfSeason) {
+            boolean inSeason) {
     }
 
     /**
@@ -308,23 +308,25 @@ public class LeagueSummaryService {
 
     /** The rows the teams are scored against, for the whole pool rather than the rostered players. */
     /**
-     * The model's lines over the games each club has left, once the season is under way: a team
-     * is ranked on what it holds today, so the model is asked what those players will do from
-     * here, not what they would have done from opening night. Null for any other source — a board
-     * and last season's stats are ranked as they are, whole seasons, at any point in the season
-     * (Alexander's call, 2026-09-29) — and while the season has no rest to project.
+     * The model's in-season lines, once the season is under way: each player's season so far plus
+     * the model's rest of it, lifted to the season line's scale, so a team is ranked on what its
+     * players are doing this season rather than on what the model said of them on opening night.
+     * The rest alone (its lines until 2026-10-01) was an expectation beside a lifted season line,
+     * and read that way every star dropped 15-20% a game into the season. Null for any other
+     * source — a board and last season's stats are ranked as they are, whole seasons, at any point
+     * in the season (Alexander's call, 2026-09-29) — and while the season has no rest to project.
      */
-    private ProjectionSeedService.Seed restOfSeason(SummarySource source) {
-        return source == SummarySource.MODEL ? seedService.restOfSeason(defaultSeason).orElse(null) : null;
+    private ProjectionSeedService.Seed inSeason(SummarySource source) {
+        return source == SummarySource.MODEL ? seedService.inSeason(defaultSeason).orElse(null) : null;
     }
 
     private List<ScoredPlayer> pool(
-            SummarySource source, ProjectionResponse board, ProjectionSeedService.Seed restOfSeason) {
+            SummarySource source, ProjectionResponse board, ProjectionSeedService.Seed inSeason) {
         Map<Integer, Identity> identities = identities();
         List<PlayerProjection> rows = switch (source) {
-            case MODEL -> restOfSeason == null
+            case MODEL -> inSeason == null
                     ? modelRows()
-                    : restOfSeason.players().stream().map(PlayerProjection::from).toList();
+                    : inSeason.players().stream().map(PlayerProjection::from).toList();
             case LAST_SEASON -> lastSeasonRows();
             case PROJECTION -> {
                 overridePositions(identities, board.data().positionOverrides());
