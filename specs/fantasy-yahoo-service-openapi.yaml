@@ -317,8 +317,8 @@ paths:
       - Yahoo Leagues
       summary: List the players the league has available
       description: "Free agents and players on waivers, in Yahoo's actual-rank order,\
-        \ so the first rows are the best available. Read with the user's own Yahoo\
-        \ token."
+        \ so the first rows are the best available, optionally only those eligible\
+        \ at one position. Read with the user's own Yahoo token."
       operationId: freeAgents
       parameters:
       - name: leagueKey
@@ -344,6 +344,14 @@ paths:
           default: 150
           maximum: 300
           minimum: 1
+      - name: position
+        in: query
+        description: Only the players eligible at this position; all positions when
+          absent
+        required: false
+        schema:
+          type: string
+          pattern: ^(C|LW|RW|D|G)$
       responses:
         "200":
           description: Available players returned
@@ -354,7 +362,8 @@ paths:
                 items:
                   $ref: "#/components/schemas/YahooAvailablePlayerResponse"
         "400":
-          description: The limit is outside 1-300
+          description: "The limit is outside 1-300 or the position is not one of C,\
+            \ LW, RW, D, G"
           content:
             application/json:
               schema:

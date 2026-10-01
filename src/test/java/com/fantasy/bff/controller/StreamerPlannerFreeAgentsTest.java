@@ -6,7 +6,9 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,6 +19,7 @@ import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.exception.YahooAccessDeniedException;
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RangeGoalieResponse;
@@ -185,7 +188,7 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
         YahooAvailablePlayerResponse makar = yahooPlayer("6789", "Cale Makar", "Col", "D", false,
                 YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT);
         makar.setEligiblePositions(List.of("D", "Util"));
-        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyInt()))
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
                 .thenReturn(List.of(
                         makar,
                         yahooPlayer("3737", "Connor McDavid", "Edm", "C", false,
@@ -228,7 +231,7 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
 
     @Test
     void joinsTheYahooWireToTheModelsLineForTheWeek() throws Exception {
-        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyInt()))
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
                 .thenReturn(List.of(
                         yahooPlayer("3737", "Connor McDavid", "Edm", "C", false,
                                 YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT),
@@ -266,7 +269,7 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
                 identity(8478402, "Connor McDavid", "EDM", 97),
                 identity(8477970, "Spencer Knight", "CHI", 30),
                 identity(8485000, "Rostered Prospect", "SJS", 61)));
-        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyInt()))
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
                 .thenReturn(List.of(
                         yahooPlayer("3737", "Connor McDavid", "Edm", "C", false,
                                 YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT),
@@ -333,6 +336,80 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
     }
 
     @Test
+    void asksForEachPositionOnItsOwnAndListsAPlayerEligibleAtTwoOnce() throws Exception {
+        YahooAvailablePlayerResponse mcdavid = yahooPlayer("3737", "Connor McDavid", "Edm", "C", false,
+                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT);
+        mcdavid.setEligiblePositions(List.of("C", "LW"));
+        // A backup goalie sits far below any mixed top 300; asked by position he is there.
+        YahooAvailablePlayerResponse soderblom = yahooPlayer("7777", "Arvid Soderblom", "Chi", "G", true,
+                YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT);
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
+                .thenReturn(List.of());
+        when(yahooServiceClient.leagueFreeAgents("user-1", "465.l.9", "G", 50))
+                .thenReturn(List.of(soderblom));
+        when(yahooServiceClient.leagueFreeAgents("user-1", "465.l.9", "C", 75))
+                .thenReturn(List.of(mcdavid));
+        when(yahooServiceClient.leagueFreeAgents("user-1", "465.l.9", "LW", 75))
+                .thenReturn(List.of(mcdavid));
+        when(yahooServiceClient.leagueFreeAgents("user-1", "465.l.9", "D", 75))
+                .thenReturn(List.of(yahooPlayer("6789", "Cale Makar", "Col", "D", false,
+                        YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT)));
+        RangeGoalieResponse backup = new RangeGoalieResponse();
+        backup.setNhlId(8482821);
+        backup.setTeam("CHI");
+        backup.setClubGames(3);
+        backup.setExpectedGames(new BigDecimal("0.5"));
+        when(projectionServiceClient.rangeProjections(eq(MONDAY), eq(SUNDAY), anyInt()))
+                .thenReturn(projections(
+                        List.of(fullSkaterLine(8478402, "EDM", "3.8"), fullSkaterLine(8480069, "COL", "3.9")),
+                        List.of(backup)));
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players.length()").value(3))
+                .andExpect(jsonPath("$.players[0].name").value("Cale Makar"))
+                .andExpect(jsonPath("$.players[1].name").value("Connor McDavid"))
+                .andExpect(jsonPath("$.players[1].positions[1]").value("LW"))
+                .andExpect(jsonPath("$.players[2].name").value("Arvid Soderblom"))
+                .andExpect(jsonPath("$.players[2].type").value("goalie"))
+                .andExpect(jsonPath("$.players[2].expectedGames").value(0.5));
+
+        for (String position : List.of("C", "LW", "RW", "D")) {
+            verify(yahooServiceClient).leagueFreeAgents("user-1", "465.l.9", position, 75);
+        }
+        verify(yahooServiceClient).leagueFreeAgents("user-1", "465.l.9", "G", 50);
+        verifyNoMoreInteractions(yahooServiceClient);
+    }
+
+    @Test
+    void aPositionThatFailsFailsTheListWithItsOwnError() throws Exception {
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
+                .thenReturn(List.of());
+        when(yahooServiceClient.leagueFreeAgents("user-1", "465.l.9", "D", 75))
+                .thenThrow(new YahooAccessDeniedException("Yahoo refused"));
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isFailedDependency());
+    }
+
+    @Test
+    void asksAnEspnLeagueForEachPositionToo() throws Exception {
+        when(espnServiceClient.leagueFreeAgents(eq("user-1"), eq("12345"), anyString(), anyInt()))
+                .thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=ESPN&leagueId=12345&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk());
+
+        for (String position : List.of("C", "LW", "RW", "D")) {
+            verify(espnServiceClient).leagueFreeAgents("user-1", "12345", position, 75);
+        }
+        verify(espnServiceClient).leagueFreeAgents("user-1", "12345", "G", 50);
+    }
+
+    @Test
     void readsAnEspnLeagueTheSameWay() throws Exception {
         AvailablePlayer mcdavid = new AvailablePlayer();
         mcdavid.setEspnId(3895074L);
@@ -342,7 +419,7 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
         mcdavid.setGoalie(false);
         mcdavid.setEligiblePositions(List.of("C"));
         mcdavid.setAvailability(AvailablePlayer.AvailabilityEnum.FREE_AGENT);
-        when(espnServiceClient.leagueFreeAgents(eq("user-1"), eq("12345"), anyInt()))
+        when(espnServiceClient.leagueFreeAgents(eq("user-1"), eq("12345"), anyString(), anyInt()))
                 .thenReturn(List.of(mcdavid));
 
         mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=ESPN&leagueId=12345&" + WEEK)
@@ -379,7 +456,7 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
 
     @Test
     void aLeagueWithNothingAvailableIsAnEmptyList() throws Exception {
-        when(yahooServiceClient.leagueFreeAgents(anyString(), anyString(), anyInt()))
+        when(yahooServiceClient.leagueFreeAgents(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)

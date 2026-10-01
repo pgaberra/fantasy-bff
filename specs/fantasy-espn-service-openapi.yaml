@@ -267,8 +267,9 @@ paths:
       tags:
       - ESPN Leagues
       summary: List the players the league has available
-      description: "Free agents and players on waivers, most owned across ESPN first.\
-        \ Needs the user's stored cookies, like any private league read."
+      description: "Free agents and players on waivers, most owned across ESPN first,\
+        \ optionally only those eligible at one position. Needs the user's stored\
+        \ cookies, like any private league read."
       operationId: freeAgents
       parameters:
       - name: leagueId
@@ -300,6 +301,14 @@ paths:
           default: 150
           maximum: 300
           minimum: 1
+      - name: position
+        in: query
+        description: Only the players eligible at this position; all positions when
+          absent
+        required: false
+        schema:
+          type: string
+          pattern: ^(C|LW|RW|D|G)$
       responses:
         "200":
           description: Available players returned
@@ -311,7 +320,8 @@ paths:
                   $ref: "#/components/schemas/AvailablePlayer"
         "400":
           description: "League is private (cookies missing/invalid), the league id/season\
-            \ is malformed, or the limit is outside 1-300"
+            \ is malformed, the limit is outside 1-300, or the position is not one\
+            \ of C, LW, RW, D, G"
           content:
             application/json:
               schema:

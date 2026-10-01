@@ -20,13 +20,20 @@ import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -49,8 +56,14 @@ public class StreamerPlannerFreeAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(StreamerPlannerFreeAgentService.class);
 
-    /** Available players asked of the platform. Deeper than any league's wire. */
-    private static final int PLATFORM_LIMIT = 300;
+    /**
+     * Available players asked of the platform, one position at a time. A single mixed list ranks
+     * every goalie behind hundreds of skaters, so a cap on it cut off the goalies first: at 300 a
+     * Yahoo league came back with six. Fifty goalies is a league's whole goalie wire; 75 skaters
+     * a position is three Yahoo pages, so the slowest position is three calls deep.
+     * Goalies come first because they are fetched alone; see {@link #byPosition}.
+     */
+    private static final Map<String, Integer> POSITION_LIMITS = orderedLimits();
     /** Projections asked of the model: the whole projected league, so no available player is missed. */
     private static final int PROJECTION_LIMIT = 2000;
 
@@ -248,10 +261,65 @@ public class StreamerPlannerFreeAgentService {
                 stats);
     }
 
+    private static Map<String, Integer> orderedLimits() {
+        Map<String, Integer> limits = new LinkedHashMap<>();
+        limits.put("G", 50);
+        limits.put("C", 75);
+        limits.put("LW", 75);
+        limits.put("RW", 75);
+        limits.put("D", 75);
+        return Collections.unmodifiableMap(limits);
+    }
+
+    /**
+     * Every position's available players, each player once: a player eligible at two positions
+     * comes back under both. The first position is fetched alone and the rest together. Each
+     * call checks the user's stored platform token, and fetching the first alone means only one
+     * call can find it expired and refresh it.
+     */
+    private static <T> List<T> byPosition(
+            BiFunction<String, Integer, List<T>> fetch, Function<T, String> playerId) {
+        Iterator<Map.Entry<String, Integer>> positions = POSITION_LIMITS.entrySet().iterator();
+        Map.Entry<String, Integer> lead = positions.next();
+        Map<String, T> unique = new LinkedHashMap<>();
+        addUnique(unique, fetch.apply(lead.getKey(), lead.getValue()), playerId);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<List<T>>> rest = new ArrayList<>();
+            positions.forEachRemaining(position -> rest.add(
+                    executor.submit(() -> fetch.apply(position.getKey(), position.getValue()))));
+            for (Future<List<T>> players : rest) {
+                addUnique(unique, await(players), playerId);
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private static <T> void addUnique(Map<String, T> unique, List<T> players, Function<T, String> playerId) {
+        for (T player : players) {
+            unique.putIfAbsent(playerId.apply(player), player);
+        }
+    }
+
+    /** The call's own exception, so a refusal or a downstream failure maps as it would unthreaded. */
+    private static <T> T await(Future<T> future) {
+        try {
+            return future.get();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while reading available players", interrupted);
+        } catch (ExecutionException failed) {
+            if (failed.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            throw new IllegalStateException("Reading available players failed", failed.getCause());
+        }
+    }
+
     private List<Available> yahooAvailable(String userId, String leagueKey) {
         List<Available> available = new ArrayList<>();
-        for (YahooAvailablePlayerResponse player :
-                yahooServiceClient.leagueFreeAgents(userId, leagueKey, PLATFORM_LIMIT)) {
+        for (YahooAvailablePlayerResponse player : byPosition(
+                (position, limit) -> yahooServiceClient.leagueFreeAgents(userId, leagueKey, position, limit),
+                YahooAvailablePlayerResponse::getYahooId)) {
             available.add(new Available(
                     player.getYahooId(),
                     player.getFullName(),
@@ -266,8 +334,9 @@ public class StreamerPlannerFreeAgentService {
 
     private List<Available> espnAvailable(String userId, String leagueId) {
         List<Available> available = new ArrayList<>();
-        for (AvailablePlayer player :
-                espnServiceClient.leagueFreeAgents(userId, leagueId, PLATFORM_LIMIT)) {
+        for (AvailablePlayer player : byPosition(
+                (position, limit) -> espnServiceClient.leagueFreeAgents(userId, leagueId, position, limit),
+                player -> String.valueOf(player.getEspnId()))) {
             available.add(new Available(
                     String.valueOf(player.getEspnId()),
                     player.getFullName(),
