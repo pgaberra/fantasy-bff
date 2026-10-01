@@ -158,6 +158,6 @@ public class LeagueSummaryController {
                 result.status(),
                 result.picks(),
                 result.unprojectedPlayers(),
-                result.restOfSeason());
+                result.inSeason());
     }
 }
