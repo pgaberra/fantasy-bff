@@ -10,6 +10,8 @@ import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
+import com.fantasy.bff.generated.projection.model.SeasonSoFarAndRestGoalie;
+import com.fantasy.bff.generated.projection.model.SeasonSoFarAndRestSkater;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.mapping.ModelStatMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
@@ -91,86 +93,149 @@ public class ProjectionSeedService {
     }
 
     /**
-     * What the cache holds the rest of the season under. A model version is never called this, so
-     * it cannot be taken for one.
+     * What the cache holds the in-season lines under. A model version is never called this, so it
+     * cannot be taken for one.
      */
-    static final String REST_OF_SEASON = "rest-of-season";
+    static final String IN_SEASON = "in-season";
 
     /**
-     * The model's lines over the games each club has left, mapped and zeroed exactly as the season
-     * line is, or empty while the season has none: before its first game and after its last.
+     * The model's whole season for each player while it is under way, mapped and zeroed exactly
+     * as the season line is, or empty while the season has none: before its first game and after
+     * its last.
+     *
+     * <p>Each line is the player's season so far plus the model's rest of it, lifted to the
+     * season line's scale (the {@code season} the projection service serves beside each rest of
+     * the season). The rest alone is an expectation over the games left, and ranked on it every
+     * star read 15-20% below the line he was drafted on a game into the season, with nothing about
+     * him changed. A row without a {@code season} (one the nightly run wrote before the projection
+     * service served it) is read as its rest alone, as it was until then, and counted in the log.
      *
      * <p>It is the model's own answer for a season under way, counted from the day of the last
      * nightly run, with the injuries and the lines it knew of then. Nothing here derives it from
      * the season line.
      */
-    public Optional<Seed> restOfSeason(int season) {
-        Optional<Seed> cached = cache.get(season, REST_OF_SEASON);
+    public Optional<Seed> inSeason(int season) {
+        Optional<Seed> cached = cache.get(season, IN_SEASON);
         if (cached.isPresent()) {
             return cached;
         }
-        List<SkaterProjectionResponse> skaters = projectionServiceClient.restOfSeasonSkaters(season).stream()
-                .map(ProjectionSeedService::seasonShape)
-                .toList();
-        List<GoalieProjectionResponse> goalies = projectionServiceClient.restOfSeasonGoalies(season).stream()
-                .map(ProjectionSeedService::seasonShape)
-                .toList();
-        if (skaters.isEmpty() && goalies.isEmpty()) {
+        List<RestOfSeasonSkaterResponse> skaterRows = projectionServiceClient.restOfSeasonSkaters(season);
+        List<RestOfSeasonGoalieResponse> goalieRows = projectionServiceClient.restOfSeasonGoalies(season);
+        if (skaterRows.isEmpty() && goalieRows.isEmpty()) {
             return Optional.empty();
         }
-        Seed built = build(season, null, skaters, goalies, true);
-        cache.put(season, REST_OF_SEASON, built);
+        long restAlone = skaterRows.stream().filter(r -> r.getSeason() == null).count()
+                + goalieRows.stream().filter(r -> r.getSeason() == null).count();
+        if (restAlone > 0) {
+            log.warn(
+                    "{} of {} in-season lines for {} have no whole season yet and are read as their "
+                            + "rest of the season alone, until the next nightly run writes one",
+                    restAlone,
+                    skaterRows.size() + goalieRows.size(),
+                    season);
+        }
+        Seed built = build(
+                season,
+                null,
+                skaterRows.stream().map(ProjectionSeedService::seasonShape).toList(),
+                goalieRows.stream().map(ProjectionSeedService::seasonShape).toList(),
+                true);
+        cache.put(season, IN_SEASON, built);
         return Optional.of(built);
     }
 
-    /** A rest-of-season skater line in the season line's shape, which is what the mapping reads. */
+    /** A skater's whole season in the season line's shape, which is what the mapping reads. */
     private static SkaterProjectionResponse seasonShape(RestOfSeasonSkaterResponse r) {
-        return new SkaterProjectionResponse()
+        SkaterProjectionResponse line = new SkaterProjectionResponse()
                 .nhlId(r.getNhlId())
                 .targetSeason(r.getTargetSeason())
-                .modelVersion(r.getModelVersion())
-                .gamesPlayed(r.getGamesPlayed())
-                .toiPerGameSeconds(r.getToiPerGameSeconds())
-                .goals(r.getGoals())
-                .assists(r.getAssists())
-                .points(r.getPoints())
-                .plusMinus(r.getPlusMinus())
-                .pim(r.getPim())
-                .ppGoals(r.getPpGoals())
-                .ppAssists(r.getPpAssists())
-                .ppPoints(r.getPpPoints())
-                .shGoals(r.getShGoals())
-                .shAssists(r.getShAssists())
-                .shPoints(r.getShPoints())
-                .gwGoals(r.getGwGoals())
-                .shots(r.getShots())
-                .shootingPct(r.getShootingPct())
-                .faceoffsWon(r.getFaceoffsWon())
-                .faceoffsLost(r.getFaceoffsLost())
-                .hits(r.getHits())
-                .blocks(r.getBlocks())
-                .shifts(r.getShifts())
-                .hatTricks(r.getHatTricks());
+                .modelVersion(r.getModelVersion());
+        SeasonSoFarAndRestSkater s = r.getSeason();
+        if (s == null) {
+            return line
+                    .gamesPlayed(r.getGamesPlayed())
+                    .toiPerGameSeconds(r.getToiPerGameSeconds())
+                    .goals(r.getGoals())
+                    .assists(r.getAssists())
+                    .points(r.getPoints())
+                    .plusMinus(r.getPlusMinus())
+                    .pim(r.getPim())
+                    .ppGoals(r.getPpGoals())
+                    .ppAssists(r.getPpAssists())
+                    .ppPoints(r.getPpPoints())
+                    .shGoals(r.getShGoals())
+                    .shAssists(r.getShAssists())
+                    .shPoints(r.getShPoints())
+                    .gwGoals(r.getGwGoals())
+                    .shots(r.getShots())
+                    .shootingPct(r.getShootingPct())
+                    .faceoffsWon(r.getFaceoffsWon())
+                    .faceoffsLost(r.getFaceoffsLost())
+                    .hits(r.getHits())
+                    .blocks(r.getBlocks())
+                    .shifts(r.getShifts())
+                    .hatTricks(r.getHatTricks());
+        }
+        return line
+                .gamesPlayed(s.getGamesPlayed())
+                .toiPerGameSeconds(s.getToiPerGameSeconds())
+                .goals(s.getGoals())
+                .assists(s.getAssists())
+                .points(s.getPoints())
+                .plusMinus(s.getPlusMinus())
+                .pim(s.getPim())
+                .ppGoals(s.getPpGoals())
+                .ppAssists(s.getPpAssists())
+                .ppPoints(s.getPpPoints())
+                .shGoals(s.getShGoals())
+                .shAssists(s.getShAssists())
+                .shPoints(s.getShPoints())
+                .gwGoals(s.getGwGoals())
+                .shots(s.getShots())
+                .shootingPct(s.getShootingPct())
+                .faceoffsWon(s.getFaceoffsWon())
+                .faceoffsLost(s.getFaceoffsLost())
+                .hits(s.getHits())
+                .blocks(s.getBlocks())
+                .shifts(s.getShifts())
+                .hatTricks(s.getHatTricks());
     }
 
-    /** A rest-of-season goalie line in the season line's shape. */
+    /** A goalie's whole season in the season line's shape. */
     private static GoalieProjectionResponse seasonShape(RestOfSeasonGoalieResponse r) {
-        return new GoalieProjectionResponse()
+        GoalieProjectionResponse line = new GoalieProjectionResponse()
                 .nhlId(r.getNhlId())
                 .targetSeason(r.getTargetSeason())
-                .modelVersion(r.getModelVersion())
-                .gamesPlayed(r.getGamesPlayed())
-                .gamesStarted(r.getGamesStarted())
-                .wins(r.getWins())
-                .losses(r.getLosses())
-                .otLosses(r.getOtLosses())
-                .shutouts(r.getShutouts())
-                .shotsAgainst(r.getShotsAgainst())
-                .saves(r.getSaves())
-                .goalsAgainst(r.getGoalsAgainst())
-                .goalsAgainstAvg(r.getGoalsAgainstAvg())
-                .savePct(r.getSavePct())
-                .toiSeconds(r.getToiSeconds());
+                .modelVersion(r.getModelVersion());
+        SeasonSoFarAndRestGoalie s = r.getSeason();
+        if (s == null) {
+            return line
+                    .gamesPlayed(r.getGamesPlayed())
+                    .gamesStarted(r.getGamesStarted())
+                    .wins(r.getWins())
+                    .losses(r.getLosses())
+                    .otLosses(r.getOtLosses())
+                    .shutouts(r.getShutouts())
+                    .shotsAgainst(r.getShotsAgainst())
+                    .saves(r.getSaves())
+                    .goalsAgainst(r.getGoalsAgainst())
+                    .goalsAgainstAvg(r.getGoalsAgainstAvg())
+                    .savePct(r.getSavePct())
+                    .toiSeconds(r.getToiSeconds());
+        }
+        return line
+                .gamesPlayed(s.getGamesPlayed())
+                .gamesStarted(s.getGamesStarted())
+                .wins(s.getWins())
+                .losses(s.getLosses())
+                .otLosses(s.getOtLosses())
+                .shutouts(s.getShutouts())
+                .shotsAgainst(s.getShotsAgainst())
+                .saves(s.getSaves())
+                .goalsAgainst(s.getGoalsAgainst())
+                .goalsAgainstAvg(s.getGoalsAgainstAvg())
+                .savePct(s.getSavePct())
+                .toiSeconds(s.getToiSeconds());
     }
 
     /**
@@ -234,7 +299,7 @@ public class ProjectionSeedService {
             String modelVersion,
             List<SkaterProjectionResponse> skaterRows,
             List<GoalieProjectionResponse> goalieRows,
-            boolean restOfSeason) {
+            boolean inSeason) {
         List<PlayerResponse> nhlPlayers = projectionServiceClient.activePlayers(null);
         Map<Long, PlayerResponse> byNhlId = nhlPlayers.stream()
                 .collect(Collectors.toMap(p -> p.getNhlId().longValue(), Function.identity(), (a, b) -> a));
@@ -300,12 +365,12 @@ public class ProjectionSeedService {
                 withoutWorkload,
                 retiredZeroed);
         log.info(
-                "Seeded {} projections for {} (rest of season: {}, {}): {} skaters, {} goalies; {} unmapped, "
+                "Seeded {} projections for {} (in season: {}, {}): {} skaters, {} goalies; {} unmapped, "
                         + "{} goalies without a projected workload, {} retired zeroed. "
                         + "Player pool: {}",
                 seeded.size(),
                 season,
-                restOfSeason,
+                inSeason,
                 forLog(servedVersion),
                 seed.skatersSeeded(),
                 seed.goaliesSeeded(),

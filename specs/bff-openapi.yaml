@@ -4714,12 +4714,13 @@ components:
           description: "How many of the players the teams hold have no line in the\
             \ projection and so count for nothing — a board that leaves players out,\
             \ most often a spreadsheet import"
-        restOfSeason:
+        inSeason:
           type: boolean
-          description: "Whether the model's lines are its rest of the season: each\
-            \ player's games from the last nightly run to the end, which is what the\
-            \ model is ranked by once the season is under way. False for a board and\
-            \ last season's stats, which are whole seasons, and before the first game."
+          description: "Whether the model's lines are its in-season ones: each player's\
+            \ season so far plus the model's rest of it from the last nightly run,\
+            \ on the season line's scale, which is what the model is ranked by once\
+            \ the season is under way. False for a board and last season's stats,\
+            \ which are whole seasons as they stand, and before the first game."
         categoryKeys:
           type: array
           description: "The stats the league counts, in its own order. The labels\
@@ -4738,10 +4739,10 @@ components:
             $ref: "#/components/schemas/LeagueSummaryTeam"
       required:
       - categoryKeys
+      - inSeason
       - picks
       - positionKeys
       - premium
-      - restOfSeason
       - scoringType
       - source
       - status
