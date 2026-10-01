@@ -3988,6 +3988,37 @@ components:
       - skaterRank
       - skaterScore
       - team
+    CreaseGoalie:
+      type: object
+      description: "One goalie of a club's crease: his chance of starting each of\
+        \ its games"
+      properties:
+        playerId:
+          type: string
+          description: "The platform's player id, when he is one of the players listed;\
+            \ absent for a goalie the league has rostered"
+        nights:
+          type: array
+          description: "Each of the club's games in the stretch, in date order"
+          items:
+            $ref: "#/components/schemas/CreaseNight"
+      required:
+      - nights
+    CreaseNight:
+      type: object
+      description: A goalie's chance of starting one of his club's games
+      properties:
+        date:
+          type: string
+          format: date
+        share:
+          type: number
+          format: double
+          description: "His share of the crease that night, 0 to 1; nought while he\
+            \ is out. A club's goalies' shares of a night add up to its one start."
+      required:
+      - date
+      - share
     FreeAgentListResponse:
       type: object
       description: "The players a league has available over a stretch, best projected\
@@ -4012,7 +4043,15 @@ components:
             left out rather than shown with zeroes.
           items:
             $ref: "#/components/schemas/FreeAgentResponse"
+        creases:
+          type: array
+          description: "The crease of every club with a goalie among the players,\
+            \ so a client counting only some of the nights can give each game to the\
+            \ goalie likeliest to start it rather than a fraction of it to each"
+          items:
+            $ref: "#/components/schemas/PlannerCrease"
       required:
+      - creases
       - end
       - players
       - start
@@ -4072,6 +4111,23 @@ components:
       - positions
       - stats
       - type
+    PlannerCrease:
+      type: object
+      description: One club's goalies and each one's chance of starting each of its
+        games in the stretch
+      properties:
+        team:
+          type: string
+          description: "The club, in the model's spelling"
+        goalies:
+          type: array
+          description: "Every goalie the model projects for the club, the most starts\
+            \ over the stretch first, which is the order a tie goes by"
+          items:
+            $ref: "#/components/schemas/CreaseGoalie"
+      required:
+      - goalies
+      - team
     SharedProjectionData:
       type: object
       properties:
