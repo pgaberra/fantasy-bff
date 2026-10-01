@@ -11,6 +11,8 @@ import java.util.Set;
  *
  * @param playerId the platform's id, which the picks are made in
  * @param name shown on a roster row; never used to identify anyone
+ * @param team the NHL club he plays for, as the pool spells it, for the crest beside his name;
+ *     null where the pool lists none. Shown only, never scored on
  * @param goalie whether the line is a goalie's, which decides the pool he is ranked against
  * @param positions eligible position codes (C/LW/RW/D for skaters, G for goalies)
  * @param scoring the scored stats, in the web's vocabulary
@@ -19,16 +21,18 @@ import java.util.Set;
 public record ScoredPlayer(
         int playerId,
         String name,
+        String team,
         boolean goalie,
         Set<String> positions,
         Map<String, Double> scoring,
         Map<String, Double> utility) {
 
-    public static ScoredPlayer of(PlayerProjection row, String name, Set<String> positions) {
+    public static ScoredPlayer of(PlayerProjection row, String name, String team, Set<String> positions) {
         boolean goalie = row.type() == PlayerProjection.Type.GOALIE;
         return new ScoredPlayer(
                 row.playerId(),
                 name,
+                team,
                 goalie,
                 positions == null ? Set.of() : Set.copyOf(positions),
                 row.stats() == null || row.stats().scoring() == null ? Map.of() : row.stats().scoring(),
@@ -54,6 +58,6 @@ public record ScoredPlayer(
             double value = scoringValue(key);
             roundedScoring.put(key, JsNumbers.toFixed(value, decimals.getOrDefault(key, 0)));
         }
-        return new ScoredPlayer(playerId, name, goalie, positions, Map.copyOf(roundedScoring), utility);
+        return new ScoredPlayer(playerId, name, team, goalie, positions, Map.copyOf(roundedScoring), utility);
     }
 }

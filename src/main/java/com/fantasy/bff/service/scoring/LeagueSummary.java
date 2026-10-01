@@ -50,12 +50,16 @@ public record LeagueSummary(
     /**
      * One drafted player, as a row under an expanded team.
      *
+     * @param team the NHL club he plays for, as the pool spells it; null where it lists none
+     * @param positions the positions he is eligible at, G alone for a goalie
      * @param values his raw stat per category key; null where the stat is not of his kind
      * @param contributions his share of the team's cell per category key; null likewise
      */
     public record RosterRow(
             int playerId,
             String name,
+            String team,
+            List<String> positions,
             double total,
             Map<String, Double> values,
             Map<String, Double> contributions) {

@@ -339,7 +339,7 @@ public class LeagueSummaryService {
                 // z-score pool of players nobody can pick would move everyone else's numbers.
                 continue;
             }
-            pool.add(ScoredPlayer.of(row, identity.name(), identity.positions()));
+            pool.add(ScoredPlayer.of(row, identity.name(), identity.team(), identity.positions()));
         }
         return pool;
     }
@@ -354,7 +354,7 @@ public class LeagueSummaryService {
         return poolRows.read().all(false).stream().map(PlayerProjection::from).toList();
     }
 
-    private record Identity(String name, Set<String> positions) {
+    private record Identity(String name, String team, Set<String> positions) {
     }
 
     /**
@@ -373,7 +373,7 @@ public class LeagueSummaryService {
             Set<String> positions = override.positions().stream()
                     .map(Enum::name)
                     .collect(Collectors.toCollection(LinkedHashSet::new));
-            identities.put(override.playerId(), new Identity(identity.name(), positions));
+            identities.put(override.playerId(), new Identity(identity.name(), identity.team(), positions));
         }
     }
 
@@ -383,10 +383,10 @@ public class LeagueSummaryService {
             Set<String> positions = skater.positions().stream()
                     .map(Enum::name)
                     .collect(Collectors.toCollection(LinkedHashSet::new));
-            identities.put(skater.id(), new Identity(skater.name(), positions));
+            identities.put(skater.id(), new Identity(skater.name(), skater.teamAbbrev(), positions));
         }
         for (GoalieResponse goalie : playerService.getGoalies()) {
-            identities.put(goalie.id(), new Identity(goalie.name(), Set.of("G")));
+            identities.put(goalie.id(), new Identity(goalie.name(), goalie.teamAbbrev(), Set.of("G")));
         }
         return identities;
     }

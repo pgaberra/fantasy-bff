@@ -213,9 +213,18 @@ public class LeagueSummaryCalculator {
         return new LeagueSummary.RosterRow(
                 player.playerId(),
                 player.name(),
+                player.team(),
+                positionsInOrder(player),
                 scores.values().getOrDefault(player.playerId(), 0.0),
                 values,
                 contributions);
+    }
+
+    /** The order a lineup is read in, since the pool's positions come as a set with none. */
+    private static final List<String> POSITION_ORDER = List.of("C", "LW", "RW", "D", "G");
+
+    private static List<String> positionsInOrder(ScoredPlayer player) {
+        return POSITION_ORDER.stream().filter(player.positions()::contains).toList();
     }
 
     private double contribution(ProjectionScoring.Scores scores, ScoredPlayer player, String key) {

@@ -153,6 +153,7 @@ class LeagueSummaryGoldenVectorTest {
             pool.add(new ScoredPlayer(
                     row.get("playerId").asInt(),
                     row.get("name").asText(),
+                    null,
                     "goalie".equals(row.get("type").asText()),
                     positions,
                     numbers(row.get("stats").get("scoring")),
