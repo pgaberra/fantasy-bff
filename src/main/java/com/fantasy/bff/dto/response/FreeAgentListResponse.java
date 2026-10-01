@@ -10,8 +10,7 @@ public record FreeAgentListResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDate end,
         @Schema(description = "Season the projections are for") Integer season,
         @Schema(description = "Model version behind them") String modelVersion,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<FreeAgentResponse> players,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Available players the model has no projection for. Mostly fringe "
-                        + "players and call-ups; they are left out rather than shown with zeroes.")
-                int unprojected) {}
+                description = "The available players the model projects. One it does not is "
+                        + "left out rather than shown with zeroes.")
+                List<FreeAgentResponse> players) {}

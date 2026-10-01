@@ -36,6 +36,7 @@
             <Class name="com.fantasy.bff.security.GraphFacebookTokenVerifier"/>
             <Class name="com.fantasy.bff.security.GoogleCodeExchanger"/>
             <Class name="com.fantasy.bff.config.DownstreamKeyVerifier"/>
+            <Class name="com.fantasy.bff.service.StreamerPlannerFreeAgentService"/>
         </Or>
     </Match>
 

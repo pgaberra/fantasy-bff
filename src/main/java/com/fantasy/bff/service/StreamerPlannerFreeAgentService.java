@@ -21,9 +21,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -41,6 +46,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class StreamerPlannerFreeAgentService {
+
+    private static final Logger log = LoggerFactory.getLogger(StreamerPlannerFreeAgentService.class);
 
     /** Available players asked of the platform. Deeper than any league's wire. */
     private static final int PLATFORM_LIMIT = 300;
@@ -138,6 +145,7 @@ public class StreamerPlannerFreeAgentService {
         }
         // A default order, not a ranking: expected games first, since a player who does not play
         // cannot help whatever the league scores. The client re-sorts once it has scored them.
+        logUnranked(platform, available, rows, mapping, projections);
         rows.sort(Comparator.comparingDouble(FreeAgentResponse::expectedGames).reversed()
                 .thenComparing(FreeAgentResponse::name));
 
@@ -146,8 +154,71 @@ public class StreamerPlannerFreeAgentService {
                 end,
                 projections.getSeason(),
                 projections.getModelVersion(),
-                List.copyOf(rows),
-                available.size() - rows.size());
+                List.copyOf(rows));
+    }
+
+    /**
+     * Names the available players left out of the ranking, and why. The response no longer counts
+     * them: the count lumped three different things together and gave the user nothing to act on.
+     * Only one of the three is a fault — a player the model projects whose name did not match —
+     * and that one is worth seeing here, since he vanishes from the ranking without a trace.
+     */
+    private static void logUnranked(
+            PlayerIdSpace platform,
+            List<Available> available,
+            List<FreeAgentResponse> rows,
+            PlayerIdMapping mapping,
+            RangeProjectionsResponse projections) {
+        if (rows.size() == available.size()) {
+            return;
+        }
+        Map<String, Long> nhlIdByPlatformId = new HashMap<>();
+        mapping.nhlIdToPlatformId().forEach((nhlId, platformId) ->
+                nhlIdByPlatformId.put(String.valueOf(platformId), nhlId));
+        Set<Long> projected = new HashSet<>();
+        projections.getSkaters().forEach(line -> addId(projected, line.getNhlId()));
+        projections.getGoalies().forEach(line -> addId(projected, line.getNhlId()));
+        Set<String> ranked = new HashSet<>();
+        rows.forEach(row -> ranked.add(row.playerId()));
+
+        List<String> nameUnmatched = new ArrayList<>();
+        List<String> notProjected = new ArrayList<>();
+        List<String> typeDiffers = new ArrayList<>();
+        for (Available player : available) {
+            if (ranked.contains(player.playerId())) {
+                continue;
+            }
+            Long nhlId = nhlIdByPlatformId.get(player.playerId());
+            // The name and id are the platform's text, so a line break in either is stripped.
+            String label =
+                    (player.name() + " (" + player.playerId() + ")").replaceAll("[\r\n]", "");
+            if (nhlId == null) {
+                nameUnmatched.add(label);
+            } else if (!projected.contains(nhlId)) {
+                notProjected.add(label);
+            } else {
+                typeDiffers.add(label);
+            }
+        }
+        log.info(
+                "Streamer planner left {} of {} available {} players unranked: {} matched no NHL "
+                        + "player {}, {} have no projection {}, {} are a skater on one side and a "
+                        + "goalie on the other {}",
+                available.size() - rows.size(),
+                available.size(),
+                platform,
+                nameUnmatched.size(),
+                nameUnmatched,
+                notProjected.size(),
+                notProjected,
+                typeDiffers.size(),
+                typeDiffers);
+    }
+
+    private static void addId(Set<Long> ids, Integer nhlId) {
+        if (nhlId != null) {
+            ids.add(nhlId.longValue());
+        }
     }
 
     private static Available matched(
