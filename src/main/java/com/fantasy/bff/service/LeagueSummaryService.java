@@ -276,8 +276,8 @@ public class LeagueSummaryService {
      * @param picks how many picks its draft has made, so a league yet to draft can say so rather
      *     than showing every team at nothing
      * @param unprojectedPlayers how many of the teams' players have no line to be scored by
-     * @param inSeason whether the model's lines were its in-season ones: each player's season so
-     *     far plus the rest of it, rather than the season line it was drafted on
+     * @param inSeason whether the model's lines were its in-season ones: each player's rest of
+     *     the season, lifted, rather than the season line it was drafted on
      */
     public record Result(
             LeagueSummary summary,
@@ -308,11 +308,12 @@ public class LeagueSummaryService {
 
     /** The rows the teams are scored against, for the whole pool rather than the rostered players. */
     /**
-     * The model's in-season lines, once the season is under way: each player's season so far plus
-     * the model's rest of it, lifted to the season line's scale, so a team is ranked on what its
-     * players are doing this season rather than on what the model said of them on opening night.
-     * The rest alone (its lines until 2026-10-01) was an expectation beside a lifted season line,
-     * and read that way every star dropped 15-20% a game into the season. Null for any other
+     * The model's in-season lines, once the season is under way: each player's rest of the
+     * season from the last nightly run, lifted to the season line's scale, so a team is ranked on
+     * what its players will do from here: not on goals they scored for another team (the whole
+     * season, 2026-10-01 to 2026-10-02), nor on what the model said of them on opening night. The
+     * rest's expectation (its lines until 2026-10-01) sat beside a lifted season line, and read
+     * that way every star dropped 15-20% a game into the season. Null for any other
      * source — a board and last season's stats are ranked as they are, whole seasons, at any point
      * in the season (Alexander's call, 2026-09-29) — and while the season has no rest to project.
      */

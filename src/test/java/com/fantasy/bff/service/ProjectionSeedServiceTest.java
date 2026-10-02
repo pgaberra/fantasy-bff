@@ -17,8 +17,8 @@ import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
-import com.fantasy.bff.generated.projection.model.SeasonSoFarAndRestGoalie;
-import com.fantasy.bff.generated.projection.model.SeasonSoFarAndRestSkater;
+import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonGoalie;
+import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonSkater;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.mapping.PlayerIdOverrides;
 import com.fantasy.bff.service.mapping.PlayerIdResolver;
@@ -142,13 +142,13 @@ class ProjectionSeedServiceTest {
     }
 
     /**
-     * The whole season as the model serves it while it is under way: the season so far plus the
-     * rest, lifted. The rest alone is an expectation on a smaller scale than the season line, and
-     * must not be what a team is ranked on.
+     * The rest of the season as the model serves it: lifted, the season so far left out. The
+     * rest's expectation beside it is on a smaller scale than the season line, and must not be
+     * what a team is ranked on.
      */
     @Test
-    @DisplayName("seeds each player's whole season, not the rest of it, once the season is under way")
-    void seedsTheWholeSeason() {
+    @DisplayName("seeds each player's served rest of the season, not its expectation, once the season is under way")
+    void seedsTheServedRest() {
         when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(
                         nhlPlayer(8478402, "Connor McDavid", "EDM", 97),
@@ -163,10 +163,10 @@ class ProjectionSeedServiceTest {
                 .gamesRemaining(82)
                 .goals(BigDecimal.valueOf(39.3))
                 .points(BigDecimal.valueOf(120.9))
-                .season(new SeasonSoFarAndRestSkater()
-                        .gamesPlayed(BigDecimal.valueOf(84))
+                .served(new ServedRestOfSeasonSkater()
+                        .gamesPlayed(BigDecimal.valueOf(82))
                         .goals(BigDecimal.valueOf(44.9))
-                        .points(BigDecimal.valueOf(137.1))
+                        .points(BigDecimal.valueOf(135.1))
                         .shootingPct(BigDecimal.valueOf(0.14)));
         RestOfSeasonGoalieResponse crease = new RestOfSeasonGoalieResponse()
                 .nhlId(8479973)
@@ -174,10 +174,10 @@ class ProjectionSeedServiceTest {
                 .gamesStarted(BigDecimal.valueOf(49))
                 .wins(BigDecimal.valueOf(25))
                 .savePct(BigDecimal.valueOf(0.899))
-                .season(new SeasonSoFarAndRestGoalie()
-                        .gamesPlayed(BigDecimal.valueOf(52))
-                        .gamesStarted(BigDecimal.valueOf(51))
-                        .wins(BigDecimal.valueOf(29))
+                .served(new ServedRestOfSeasonGoalie()
+                        .gamesPlayed(BigDecimal.valueOf(51))
+                        .gamesStarted(BigDecimal.valueOf(50))
+                        .wins(BigDecimal.valueOf(28))
                         .savePct(BigDecimal.valueOf(0.909)));
         when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of(rest));
         when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of(crease));
@@ -187,17 +187,17 @@ class ProjectionSeedServiceTest {
         assertThat(seed.modelVersion()).isEqualTo("marcel-v115");
         var skaterStats = seed.players().stream()
                 .filter(p -> p.getPlayerId() == 5000).findFirst().orElseThrow().getStats();
-        assertThat(skaterStats.getUtility()).containsEntry("gp", 84.0);
-        assertThat(skaterStats.getScoring()).containsEntry("points", 137.1).containsEntry("shPct", 14.0);
+        assertThat(skaterStats.getUtility()).containsEntry("gp", 82.0);
+        assertThat(skaterStats.getScoring()).containsEntry("points", 135.1).containsEntry("shPct", 14.0);
         var goalieStats = seed.players().stream()
                 .filter(p -> p.getPlayerId() == 6000).findFirst().orElseThrow().getStats();
-        assertThat(goalieStats.getScoring()).containsEntry("w", 29.0).containsEntry("gs", 51.0);
+        assertThat(goalieStats.getScoring()).containsEntry("w", 28.0).containsEntry("gs", 50.0);
     }
 
-    /** A row the nightly run wrote before the whole season was served is read as it was. */
+    /** A row the nightly run wrote before the served line existed is read as its expectation. */
     @Test
-    @DisplayName("reads a row with no whole season yet as its rest of the season")
-    void readsARowWithoutAWholeSeasonAsItsRest() {
+    @DisplayName("reads a row with no served line yet as its rest of the season's expectation")
+    void readsARowWithoutAServedLineAsItsExpectation() {
         when(projectionServiceClient.activePlayers(any()))
                 .thenReturn(List.of(
                         nhlPlayer(8478402, "Connor McDavid", "EDM", 97),

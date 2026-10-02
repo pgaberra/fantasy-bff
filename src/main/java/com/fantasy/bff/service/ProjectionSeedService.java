@@ -10,8 +10,8 @@ import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
-import com.fantasy.bff.generated.projection.model.SeasonSoFarAndRestGoalie;
-import com.fantasy.bff.generated.projection.model.SeasonSoFarAndRestSkater;
+import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonGoalie;
+import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonSkater;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.mapping.ModelStatMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
@@ -99,16 +99,18 @@ public class ProjectionSeedService {
     static final String IN_SEASON = "in-season";
 
     /**
-     * The model's whole season for each player while it is under way, mapped and zeroed exactly
-     * as the season line is, or empty while the season has none: before its first game and after
-     * its last.
+     * The model's rest of the season for each player while it is under way, served on the
+     * season line's scale, mapped and zeroed exactly as the season line is, or empty while the
+     * season has none: before its first game and after its last.
      *
-     * <p>Each line is the player's season so far plus the model's rest of it, lifted to the
-     * season line's scale (the {@code season} the projection service serves beside each rest of
-     * the season). The rest alone is an expectation over the games left, and ranked on it every
-     * star read 15-20% below the line he was drafted on a game into the season, with nothing about
-     * him changed. A row without a {@code season} (one the nightly run wrote before the projection
-     * service served it) is read as its rest alone, as it was until then, and counted in the log.
+     * <p>Each line is the projection service's {@code served}: the rest of the season lifted
+     * toward the table the whole season will end on, the season so far ranked in it and left out
+     * of it, so a team is ranked on what its players will do from here and not on goals they
+     * scored for another team (Alexander's call, 2026-10-02). The rest's expectation beside it is
+     * on a smaller scale than the season line, and ranked on it every star read 15-20% below the
+     * line he was drafted on a game into the season. A row without {@code served} (one the
+     * nightly run wrote before the projection service served it) is read as that expectation, and
+     * counted in the log.
      *
      * <p>It is the model's own answer for a season under way, counted from the day of the last
      * nightly run, with the injuries and the lines it knew of then. Nothing here derives it from
@@ -124,13 +126,13 @@ public class ProjectionSeedService {
         if (skaterRows.isEmpty() && goalieRows.isEmpty()) {
             return Optional.empty();
         }
-        long restAlone = skaterRows.stream().filter(r -> r.getSeason() == null).count()
-                + goalieRows.stream().filter(r -> r.getSeason() == null).count();
-        if (restAlone > 0) {
+        long unserved = skaterRows.stream().filter(r -> r.getServed() == null).count()
+                + goalieRows.stream().filter(r -> r.getServed() == null).count();
+        if (unserved > 0) {
             log.warn(
-                    "{} of {} in-season lines for {} have no whole season yet and are read as their "
-                            + "rest of the season alone, until the next nightly run writes one",
-                    restAlone,
+                    "{} of {} in-season lines for {} have no served line yet and are read as their "
+                            + "rest of the season's expectation, until the next nightly run writes one",
+                    unserved,
                     skaterRows.size() + goalieRows.size(),
                     season);
         }
@@ -144,13 +146,13 @@ public class ProjectionSeedService {
         return Optional.of(built);
     }
 
-    /** A skater's whole season in the season line's shape, which is what the mapping reads. */
+    /** A skater's served rest of the season in the season line's shape, which is what the mapping reads. */
     private static SkaterProjectionResponse seasonShape(RestOfSeasonSkaterResponse r) {
         SkaterProjectionResponse line = new SkaterProjectionResponse()
                 .nhlId(r.getNhlId())
                 .targetSeason(r.getTargetSeason())
                 .modelVersion(r.getModelVersion());
-        SeasonSoFarAndRestSkater s = r.getSeason();
+        ServedRestOfSeasonSkater s = r.getServed();
         if (s == null) {
             return line
                     .gamesPlayed(r.getGamesPlayed())
@@ -201,13 +203,13 @@ public class ProjectionSeedService {
                 .hatTricks(s.getHatTricks());
     }
 
-    /** A goalie's whole season in the season line's shape. */
+    /** A goalie's served rest of the season in the season line's shape. */
     private static GoalieProjectionResponse seasonShape(RestOfSeasonGoalieResponse r) {
         GoalieProjectionResponse line = new GoalieProjectionResponse()
                 .nhlId(r.getNhlId())
                 .targetSeason(r.getTargetSeason())
                 .modelVersion(r.getModelVersion());
-        SeasonSoFarAndRestGoalie s = r.getSeason();
+        ServedRestOfSeasonGoalie s = r.getServed();
         if (s == null) {
             return line
                     .gamesPlayed(r.getGamesPlayed())
