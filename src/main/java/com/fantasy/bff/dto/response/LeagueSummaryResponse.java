@@ -53,10 +53,10 @@ public record LeagueSummaryResponse(
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether the model's lines are its in-season ones: each player's "
-                        + "season so far plus the model's rest of it from the last nightly run, on "
-                        + "the season line's scale, which is what the model is ranked by once the "
-                        + "season is under way. False for a board and last season's stats, which "
-                        + "are whole seasons as they stand, and before the first game.")
+                        + "rest of the season from the last nightly run, on the season line's "
+                        + "scale, which is what the model is ranked by once the season is under "
+                        + "way. False for a board and last season's stats, which are whole seasons "
+                        + "as they stand, and before the first game.")
         boolean inSeason,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,

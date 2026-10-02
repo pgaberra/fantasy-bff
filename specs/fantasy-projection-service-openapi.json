@@ -1292,10 +1292,10 @@
             ],
             "title": "Saves"
           },
-          "season": {
+          "served": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SeasonSoFarAndRestGoalie"
+                "$ref": "#/components/schemas/ServedRestOfSeasonGoalie"
               },
               {
                 "type": "null"
@@ -1570,10 +1570,10 @@
             ],
             "title": "Pp Points"
           },
-          "season": {
+          "served": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SeasonSoFarAndRestSkater"
+                "$ref": "#/components/schemas/ServedRestOfSeasonSkater"
               },
               {
                 "type": "null"
@@ -1829,8 +1829,8 @@
         "title": "ScheduleWeeksResponse",
         "type": "object"
       },
-      "SeasonSoFarAndRestGoalie": {
-        "description": "A goalie's whole season as served while it is under way: `SeasonSoFarAndRestSkater` for\ngoalies, his save % and GAA read off the season so far and the rest together.",
+      "ServedRestOfSeasonGoalie": {
+        "description": "A goalie's rest of the season as served: `ServedRestOfSeasonSkater` for goalies.",
         "properties": {
           "games_played": {
             "anyOf": [
@@ -1965,11 +1965,11 @@
             "title": "Wins"
           }
         },
-        "title": "SeasonSoFarAndRestGoalie",
+        "title": "ServedRestOfSeasonGoalie",
         "type": "object"
       },
-      "SeasonSoFarAndRestSkater": {
-        "description": "A skater's whole season as served while it is under way: his season so far plus his rest\nof it, lifted toward the table the season will end on at the season line's weights. The season\nline's stats and its scale, so it reads beside the season line as the rest alone does not.",
+      "ServedRestOfSeasonSkater": {
+        "description": "A skater's rest of the season as served: the same games as the expectation beside it, lifted\ntoward the table the whole season will end on at the season line's weights, his season so far\nranked with it and left out of it. The season line's stats and its scale.",
         "properties": {
           "assists": {
             "anyOf": [
@@ -2214,7 +2214,7 @@
             "title": "Toi Per Game Seconds"
           }
         },
-        "title": "SeasonSoFarAndRestSkater",
+        "title": "ServedRestOfSeasonSkater",
         "type": "object"
       },
       "SkaterProjectionResponse": {
