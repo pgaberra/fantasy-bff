@@ -37,7 +37,8 @@ public record CreateProjectionRequest(
         @NotBlank @Size(max = 100) String name,
 
         @Schema(description = "What the projection is for. Defaults to the user's own. A preset "
-                + "draft requires source=default and is named by the server. An imported board "
+                + "draft requires source=default, source=model or source=rest_of_season and is "
+                + "named by the server. An imported board "
                 + "may be created with the caller's own rows (a spreadsheet import): it takes "
                 + "data.players, refuses source, and carries no share origin.")
         ProjectionKind kind,

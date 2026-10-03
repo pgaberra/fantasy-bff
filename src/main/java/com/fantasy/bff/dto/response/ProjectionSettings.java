@@ -86,7 +86,9 @@ public record ProjectionSettings(
         @JsonProperty("blank")
         BLANK,
         @JsonProperty("model")
-        MODEL
+        MODEL,
+        @JsonProperty("rest_of_season")
+        REST_OF_SEASON
     }
 
     public static ProjectionSettings from(com.fantasy.bff.generated.db.model.ProjectionSettings settings) {
@@ -170,6 +172,7 @@ public record ProjectionSettings(
             case LAST_SEASON -> PlayerBasis.LAST_SEASON;
             case BLANK -> PlayerBasis.BLANK;
             case MODEL -> PlayerBasis.MODEL;
+            case REST_OF_SEASON -> PlayerBasis.REST_OF_SEASON;
         };
     }
 
@@ -182,6 +185,8 @@ public record ProjectionSettings(
             case LAST_SEASON -> com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.LAST_SEASON;
             case BLANK -> com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.BLANK;
             case MODEL -> com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.MODEL;
+            case REST_OF_SEASON ->
+                    com.fantasy.bff.generated.db.model.ProjectionSettings.PlayerBasisEnum.REST_OF_SEASON;
         };
     }
 }

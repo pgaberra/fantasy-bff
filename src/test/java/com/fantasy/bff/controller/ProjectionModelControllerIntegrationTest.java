@@ -124,6 +124,25 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("the rest of the season is not there to seed from while no season is under way")
+    void restOfSeasonStatus_beforeTheSeason_isUnavailable() throws Exception {
+        when(projectionServiceClient.restOfSeasonSkaters(anyInt())).thenReturn(List.of());
+        when(projectionServiceClient.restOfSeasonGoalies(anyInt())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/projection-model/rest-of-season/status")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false));
+    }
+
+    @Test
+    @DisplayName("the rest-of-season status requires a signed-in user")
+    void restOfSeasonStatusRequiresAuth() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/rest-of-season/status"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("returns measured totals over a game range, with the player's name")
     void returnsSplits() throws Exception {
         mockMvc.perform(get("/api/v1/projection-model/splits/skaters?lastGames=20")
