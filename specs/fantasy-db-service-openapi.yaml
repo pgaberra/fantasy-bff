@@ -1839,6 +1839,7 @@ components:
           - last_season
           - blank
           - model
+          - rest_of_season
         playerPoolSyncedAt:
           type: string
           format: date-time
@@ -2153,6 +2154,7 @@ components:
           enum:
           - last_season
           - model
+          - rest_of_season
         season:
           type: string
           enum:
@@ -2321,6 +2323,7 @@ components:
           enum:
           - last_season
           - model
+          - rest_of_season
         data:
           $ref: "#/components/schemas/ProjectionData"
         playerIdSpace:

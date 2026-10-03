@@ -69,7 +69,9 @@ public record ProjectionSummaryResponse(
         @JsonProperty("last_season")
         LAST_SEASON,
         @JsonProperty("model")
-        MODEL
+        MODEL,
+        @JsonProperty("rest_of_season")
+        REST_OF_SEASON
     }
 
     /** How far a draft against this projection has got, if one was ever started. */
@@ -122,6 +124,7 @@ public record ProjectionSummaryResponse(
         return switch (preset) {
             case LAST_SEASON -> ProjectionPreset.LAST_SEASON;
             case MODEL -> ProjectionPreset.MODEL;
+            case REST_OF_SEASON -> ProjectionPreset.REST_OF_SEASON;
         };
     }
 

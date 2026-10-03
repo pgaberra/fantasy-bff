@@ -27,8 +27,8 @@ import java.util.Set;
  * <p>A projection is written once and then edited for a season, while the pool underneath it
  * keeps moving: a new season brings a new roster, and trades and call-ups add players all year.
  * A player the pool has gained is added, seeded from what the projection started as — last
- * season's stat line, zeros for one built from scratch, or the model's line for one started from
- * the AI projection. The model has no line for a player with no NHL season behind him, and that
+ * season's stat line, zeros for one built from scratch, the model's line for one started from
+ * the AI projection, or the model's rest of the season for one started from that. The model has no line for a player with no NHL season behind him, and that
  * is most of who arrives mid-season, so those fall back to last season's line.
  *
  * <p><b>Nothing is ever removed.</b> A row whose player has left the pool is left exactly where
@@ -122,8 +122,9 @@ public class ProjectionPoolReconciler {
         }
         // Asked only when someone actually arrived: the model's board is the one expensive read
         // here, and most reconciliations of a model-based projection add nobody.
-        Map<Integer, PlayerProjection> modelLines = basis == PlayerBasisEnum.MODEL && !added.isEmpty()
-                ? modelLines()
+        boolean fromTheModel = basis == PlayerBasisEnum.MODEL || basis == PlayerBasisEnum.REST_OF_SEASON;
+        Map<Integer, PlayerProjection> modelLines = fromTheModel && !added.isEmpty()
+                ? modelLines(basis)
                 : Map.of();
 
         List<PlayerProjection> players = new ArrayList<>(stored);
@@ -141,7 +142,7 @@ public class ProjectionPoolReconciler {
         data.setPlayers(players);
         settings.setPlayerBasis(basis);
         settings.setPlayerPoolSyncedAt(syncedAt);
-        if (basis == PlayerBasisEnum.MODEL && !added.isEmpty()) {
+        if (fromTheModel && !added.isEmpty()) {
             log.info("Squared a model-based projection with the player pool: +{} added, {} from "
                     + "the model and {} from last season", added.size(), fromModel, added.size() - fromModel);
         } else if (blank && !added.isEmpty()) {
@@ -166,7 +167,9 @@ public class ProjectionPoolReconciler {
     }
 
     /**
-     * The model's current line for every player it reaches, keyed by platform id.
+     * The model's current line for every player it reaches, keyed by platform id: the season
+     * line, or for a projection started from the rest of the season, its line for the rest of the
+     * season under way — none once the season is over, which seeds newcomers from last season.
      *
      * <p>Premium is deliberately not asked. The projection was started from the model by someone
      * entitled to it, and a player who joins it later is part of that same projection; a lapsed
@@ -178,13 +181,16 @@ public class ProjectionPoolReconciler {
      * season. That is the same fallback a player the model does not reach gets, and a failed read
      * must not cost the user the projection they were opening.
      */
-    private Map<Integer, PlayerProjection> modelLines() {
+    private Map<Integer, PlayerProjection> modelLines(PlayerBasisEnum basis) {
         if (!aiProjection.available()) {
             return Map.of();
         }
         try {
+            List<PlayerProjection> seeded = basis == PlayerBasisEnum.REST_OF_SEASON
+                    ? seedService.inSeason(projectionSeason).map(ProjectionSeedService.Seed::players).orElse(List.of())
+                    : seedService.seed(projectionSeason, projectionModelVersion).players();
             Map<Integer, PlayerProjection> lines = new HashMap<>();
-            for (PlayerProjection line : seedService.seed(projectionSeason, projectionModelVersion).players()) {
+            for (PlayerProjection line : seeded) {
                 lines.put(line.getPlayerId(), line);
             }
             return lines;

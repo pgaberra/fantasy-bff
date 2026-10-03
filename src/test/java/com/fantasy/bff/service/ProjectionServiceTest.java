@@ -42,6 +42,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -888,7 +889,7 @@ class ProjectionServiceTest {
                         USER_ID,
                         request(emptyData(), ProjectionSource.BLANK, ProjectionKind.DRAFT)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("source=default or source=model");
+                .hasMessageContaining("source=rest_of_season");
     }
 
     /**
@@ -952,5 +953,90 @@ class ProjectionServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("switched off");
         verifyNoInteractions(entitlementService);
+    }
+    @Test
+    @DisplayName("a preset draft from the rest of the season is seeded from the model's in-season lines")
+    void presetDraftFromRestOfSeason_fillsFromTheInSeasonLinesAndRecordsIt() {
+        PlayerProjection rest = new PlayerProjection();
+        rest.setPlayerId(4242);
+        rest.setType(PlayerProjection.TypeEnum.SKATER);
+        when(seedService.inSeason(SEASON))
+                .thenReturn(Optional.of(new ProjectionSeedService.Seed(List.of(rest), null, 1, 0, 0, 0, 0)));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(
+                USER_ID,
+                request(emptyData(), ProjectionSource.REST_OF_SEASON, ProjectionKind.DRAFT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), sentRequest.capture());
+        assertThat(sentRequest.getValue().getData().getPlayers())
+                .extracting(PlayerProjection::getPlayerId)
+                .containsExactly(4242);
+        assertThat(sentRequest.getValue().getPreset()).isEqualTo(
+                com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.REST_OF_SEASON);
+        // A newcomer is seeded on the same scale as everyone else: the rest of the season.
+        assertThat(sentRequest.getValue().getData().getProjectionSettings().getPlayerBasis())
+                .isEqualTo(PlayerBasisEnum.REST_OF_SEASON);
+        verify(seedService, never()).seed(anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("the rest of the season is refused while no season is under way")
+    void restOfSeasonSource_withNoSeasonUnderWay_isRefused() {
+        when(seedService.inSeason(SEASON)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectionService.create(
+                        USER_ID,
+                        request(emptyData(), ProjectionSource.REST_OF_SEASON, ProjectionKind.DRAFT)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no season is under way");
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
+    @DisplayName("the rest of the season is the model's lines too, so it needs premium")
+    void restOfSeasonSource_withoutPremium_isRefused() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+
+        assertThatThrownBy(() -> projectionService.create(
+                        USER_ID,
+                        request(emptyData(), ProjectionSource.REST_OF_SEASON, ProjectionKind.DRAFT)))
+                .isInstanceOf(PremiumRequiredException.class);
+        verifyNoInteractions(seedService);
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
+    @DisplayName("and is switched off with the AI projection")
+    void restOfSeasonSource_withFeatureOff_reportsTheSwitch() {
+        projectionService = serviceWithAiProjection(false);
+
+        assertThatThrownBy(() -> projectionService.create(
+                        USER_ID, request(emptyData(), ProjectionSource.REST_OF_SEASON)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source=rest_of_season is unavailable")
+                .hasMessageContaining("switched off");
+        verifyNoInteractions(seedService);
+    }
+
+    @Test
+    void theRestOfTheSeasonIsAvailableOnlyWhileTheModelHasOne() {
+        when(seedService.inSeason(SEASON)).thenReturn(Optional.empty());
+        assertThat(projectionService.restOfSeasonAvailable()).isFalse();
+
+        when(seedService.inSeason(SEASON))
+                .thenReturn(Optional.of(new ProjectionSeedService.Seed(List.of(), null, 0, 0, 0, 0, 0)));
+        assertThat(projectionService.restOfSeasonAvailable()).isTrue();
+    }
+
+    /** It hands newcomers the model's lines just as the model basis does. */
+    @Test
+    void aCopyClaimingTheRestOfSeasonBasisWithoutPremium_isRecordedAsLastSeason() {
+        when(entitlementService.hasPremiumAccess(USER_ID.toString())).thenReturn(false);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(dataWithBasis(PlayerBasisEnum.REST_OF_SEASON), null));
+
+        assertThat(capturedSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.LAST_SEASON);
     }
 }

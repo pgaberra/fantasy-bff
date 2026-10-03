@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.ModelBoardResponse;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
+import com.fantasy.bff.dto.response.RestOfSeasonStatusResponse;
 import com.fantasy.bff.dto.response.SeededProjectionResponse;
 import com.fantasy.bff.dto.response.SplitSeasonListResponse;
 import com.fantasy.bff.exception.PremiumRequiredException;
@@ -178,6 +179,27 @@ public class ProjectionModelController {
                     "The AI projection is part of premium. Subscribe to see the model's lines.");
         }
         return new ModelBoardResponse(projectionService.modelBoard());
+    }
+
+    @Operation(
+            operationId = "restOfSeasonStatus",
+            summary = "Whether the rest of the season can seed a draft right now",
+            description =
+                    "Whether `POST /api/v1/projections` with `source=rest_of_season` would be "
+                            + "seeded now: only while a season is under way, when the model has a "
+                            + "line for what is left of it. Says nothing about this account's plan — "
+                            + "the rest of the season needs premium like the AI projection, and a "
+                            + "client shows it locked rather than hiding it.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Whether the rest of the season is there to seed from"),
+        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
+    })
+    @GetMapping("/rest-of-season/status")
+    public RestOfSeasonStatusResponse restOfSeasonStatus() {
+        if (!aiProjection.available()) {
+            throw new NoSuchElementException("The AI projection is not enabled");
+        }
+        return new RestOfSeasonStatusResponse(projectionService.restOfSeasonAvailable());
     }
 
     @Operation(

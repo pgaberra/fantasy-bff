@@ -29,7 +29,10 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -152,6 +155,35 @@ class ProjectionPoolReconcilerTest {
         assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 41.0);
         assertThat(gained(data, 101).getStats().getScoring()).containsEntry("w", 36.0);
         assertThat(data.getProjectionSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.MODEL);
+    }
+
+    /**
+     * A draft started from the rest of the season gains a newcomer at the model's rest of the
+     * season, on the scale of everyone else's line, and never at the whole season's.
+     */
+    @Test
+    void seedsAGainedPlayerFromTheRestOfTheSeasonWhenTheProjectionIsBuiltOnIt() {
+        when(seedService.inSeason(SEASON)).thenReturn(Optional.of(
+                new ProjectionSeedService.Seed(List.of(modelLine(2, 30.0)), null, 1, 0, 0, 0, 0)));
+        ProjectionData data = projection(PlayerBasisEnum.REST_OF_SEASON, null, row(1));
+
+        reconciler.reconcile(data);
+
+        assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 30.0);
+        assertThat(gained(data, 101).getStats().getScoring()).containsEntry("w", 36.0);
+        assertThat(data.getProjectionSettings().getPlayerBasis()).isEqualTo(PlayerBasisEnum.REST_OF_SEASON);
+        verify(seedService, never()).seed(anyInt(), any());
+    }
+
+    /** Once the season is over the model has no rest of it, and newcomers take last season's line. */
+    @Test
+    void seedsFromLastSeasonOnceTheSeasonHasNoRestLeft() {
+        when(seedService.inSeason(SEASON)).thenReturn(Optional.empty());
+        ProjectionData data = projection(PlayerBasisEnum.REST_OF_SEASON, null, row(1));
+
+        reconciler.reconcile(data);
+
+        assertThat(gained(data, 2).getStats().getScoring()).containsEntry("goals", 64.0);
     }
 
     /** The model's board is cached and shared, so a projection must not hold its rows. */

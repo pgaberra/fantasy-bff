@@ -198,11 +198,11 @@ public class ProjectionService {
         // environment with the AI projection switched off never reaches the projection service.
         // The web drops the preset on the same answer, read from /api/v1/features; this is what
         // makes it a refusal rather than a hidden button.
-        if (request.source() == ProjectionSource.MODEL) {
+        if (isModel(request.source())) {
             if (!aiProjection.available()) {
                 throw new IllegalArgumentException(
-                        "source=model is unavailable: the AI projection is switched off in this "
-                                + "environment");
+                        "source=" + sourceName(request.source()) + " is unavailable: the AI "
+                                + "projection is switched off in this environment");
             }
             // The model's lines are what premium pays for, so a projection seeded from them is
             // refused here as well as at /projection-model/seed. Both matter: the seed endpoint
@@ -215,7 +215,8 @@ public class ProjectionService {
         if (request.kind() == ProjectionKind.DRAFT && !isPreset(request.source())) {
             throw new IllegalArgumentException(
                     "a draft created here is a draft against a preset, and the preset is defined "
-                            + "by the server: send source=default or source=model and let it fill "
+                            + "by the server: send source=default, source=model or "
+                            + "source=rest_of_season and let it fill "
                             + "in the player rows. To draft against a board of your own, POST "
                             + "/api/v1/projections/{id}/drafts instead");
         }
@@ -258,6 +259,19 @@ public class ProjectionService {
         return data.getPlayers().stream()
                 .map(com.fantasy.bff.dto.response.PlayerProjection::from)
                 .toList();
+    }
+
+    /**
+     * Whether {@code source=rest_of_season} would be seeded right now: only while a season is
+     * under way, which is when the model has a rest of one. Availability and premium are the
+     * caller's to check, as for {@link #modelBoard}.
+     */
+    public boolean restOfSeasonAvailable() {
+        return restOfSeason().isPresent();
+    }
+
+    private Optional<ProjectionSeedService.Seed> restOfSeason() {
+        return seedService.inSeason(projectionSeason);
     }
 
     /**
@@ -370,9 +384,9 @@ public class ProjectionService {
         request.setPlayerIdSpace(updateSpaceOf(playerPool.playerIdSpace()));
         Optional.ofNullable(request.getData())
                 .map(UpdateProjectionData::getProjectionSettings)
-                .ifPresent(settings -> settleClaimedBasis(userId, settings, () ->
+                .ifPresent(settings -> settleClaimedBasis(userId, settings, () -> isModelBasis(
                         databaseServiceClient.getProjection(userId, projectionId)
-                                .getData().getProjectionSettings().getPlayerBasis() == PlayerBasisEnum.MODEL));
+                                .getData().getProjectionSettings().getPlayerBasis())));
         return ProjectionResponse.of(
                 databaseServiceClient.updateProjection(userId, projectionId, request));
     }
@@ -402,9 +416,12 @@ public class ProjectionService {
         if (request.kind() != ProjectionKind.DRAFT) {
             return null;
         }
-        return request.source() == ProjectionSource.MODEL
-                ? com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.MODEL
-                : com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.LAST_SEASON;
+        return switch (request.source()) {
+            case MODEL -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.MODEL;
+            case REST_OF_SEASON ->
+                    com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.REST_OF_SEASON;
+            default -> com.fantasy.bff.generated.db.model.CreateProjectionRequest.PresetEnum.LAST_SEASON;
+        };
     }
 
     /**
@@ -422,7 +439,16 @@ public class ProjectionService {
 
     /** Which sources define a preset: one that fills every row from something the server owns. */
     private static boolean isPreset(ProjectionSource source) {
-        return source == ProjectionSource.DEFAULT || source == ProjectionSource.MODEL;
+        return source == ProjectionSource.DEFAULT || isModel(source);
+    }
+
+    /** Which sources are the model talking, and so switched off with it and sold with premium. */
+    private static boolean isModel(ProjectionSource source) {
+        return source == ProjectionSource.MODEL || source == ProjectionSource.REST_OF_SEASON;
+    }
+
+    private static String sourceName(ProjectionSource source) {
+        return source == ProjectionSource.REST_OF_SEASON ? "rest_of_season" : "model";
     }
 
     private static com.fantasy.bff.generated.db.model.CreateProjectionRequest.KindEnum kindOf(
@@ -449,6 +475,10 @@ public class ProjectionService {
             // Recorded outright. Left null, the reconciliation that runs before the write read
             // the model's rows as last season's and stored that, so newcomers never saw the model.
             case MODEL -> PlayerBasisEnum.MODEL;
+            // So a player who joins the pool later is seeded on the same scale as the rest: a
+            // whole season's line beside everyone else's remaining games would rank him far above
+            // them.
+            case REST_OF_SEASON -> PlayerBasisEnum.REST_OF_SEASON;
         };
     }
 
@@ -464,7 +494,7 @@ public class ProjectionService {
      *     could decide the answer, since it costs a read
      */
     private void settleClaimedBasis(UUID userId, ProjectionSettings settings, BooleanSupplier storedIsModel) {
-        if (settings == null || settings.getPlayerBasis() != PlayerBasisEnum.MODEL) {
+        if (settings == null || !isModelBasis(settings.getPlayerBasis())) {
             return;
         }
         if (entitlementService.hasPremiumAccess(userId.toString()) || storedIsModel.getAsBoolean()) {
@@ -475,14 +505,29 @@ public class ProjectionService {
         settings.setPlayerBasis(PlayerBasisEnum.LAST_SEASON);
     }
 
+    /** Both hand newcomers the model's lines, so both are premium's to grant. */
+    private static boolean isModelBasis(PlayerBasisEnum basis) {
+        return basis == PlayerBasisEnum.MODEL || basis == PlayerBasisEnum.REST_OF_SEASON;
+    }
+
     /**
      * The player rows a new projection starts from. {@code DEFAULT} keeps each player's current
      * stats and {@code BLANK} zeroes them — the two starting points the client used to build
-     * locally and upload. {@code MODEL} instead takes the projection model's lines.
+     * locally and upload. {@code MODEL} instead takes the projection model's lines, and
+     * {@code REST_OF_SEASON} its lines for what is left of the season under way.
      */
     private List<com.fantasy.bff.generated.db.model.PlayerProjection> playersFrom(ProjectionSource source) {
         if (source == ProjectionSource.MODEL) {
             return seedService.seed(projectionSeason, projectionModelVersion).players();
+        }
+        if (source == ProjectionSource.REST_OF_SEASON) {
+            // A copy: the reconciliation that follows adds to the list, and the seed's own is
+            // shared with every other reader of the cached board.
+            return new ArrayList<>(restOfSeason()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "source=rest_of_season is unavailable: no season is under way, so the "
+                                    + "model has no rest of one"))
+                    .players());
         }
         return playerPoolRows.read().all(source == ProjectionSource.BLANK);
     }
