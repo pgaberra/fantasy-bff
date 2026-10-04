@@ -427,6 +427,14 @@ are not committed; every build regenerates them.
   `emails-per-address` is the one limit not keyed on the caller: `EmailSendThrottle` caps the
   verification and password-reset emails one address is sent, whoever asks, and answers a
   request over the cap exactly like one that sent mail.
+- `security/RefreshTokenCookie` — every response that issues a token pair (login, register, google,
+  google/code, facebook, refresh) also sets the refresh token as the HttpOnly cookie `slapstat_refresh`
+  (Path `/api/v1/auth`, SameSite=Lax, host-only; Secure unless `security.refresh-cookie.secure` is
+  false, which only the dev profile sets). Safari wipes localStorage after seven days without a
+  visit; a server-set cookie outlives that. `/refresh` reads the cookie before the body, answers a
+  request with neither with a quiet 401, and clears a cookie it refuses. `POST /auth/logout` and
+  sign-out-everywhere clear it; logout revokes nothing. `refreshToken` stays in the JSON body until
+  the web stops reading it.
 - `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
   `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
   Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified
