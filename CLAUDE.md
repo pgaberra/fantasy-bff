@@ -282,6 +282,17 @@ are not committed; every build regenerates them.
     last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
     Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
     (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
+  - `DraftAnalysisController` — `GET /api/v1/draft-analysis/yahoo/{leagueKey}`: a Yahoo league's
+    draft with **every pick graded against the model** (`DraftAnalysisService`, `scoring.DraftGrader`).
+    Players are valued by the league's own scoring over the whole pool, as Team Power Rankings values
+    them (`ProjectionScoring`), against the frozen preseason line (`model_version=preseason`), or the
+    current season line where none is stored (`preseason: false`). A pick's grade is
+    `(pick + teams) / (rank + teams)` in five bands (STEAL ... BIG_REACH; UNRANKED without a line);
+    its value over the slot is its value less the model's player at that number, summed per team
+    with an A-F letter. Teams' sums for everyone, each pick's rank/grade/best available with premium
+    (the Team Power Rankings rule). Behind `draft-analysis.enabled` (`DRAFT_ANALYSIS_ENABLED`, off by
+    default) AND the AI projection AND league-draft-sync (`DraftAnalysisAvailability`): otherwise
+    404, and `GET /api/v1/features` reports `draftAnalysis` false.
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show

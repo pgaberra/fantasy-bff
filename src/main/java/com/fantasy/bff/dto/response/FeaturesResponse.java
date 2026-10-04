@@ -36,5 +36,10 @@ public record FeaturesResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves the FA scout. False means its "
                         + "endpoint answers 404, so a client should not offer it.")
-        boolean faScout
+        boolean faScout,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves Draft Analysis, a league's draft graded "
+                        + "against the model. False means its endpoint answers 404, so a client should "
+                        + "not offer it.")
+        boolean draftAnalysis
 ) {}
