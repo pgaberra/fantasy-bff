@@ -1382,6 +1382,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleStrengthResponse"
+  /api/v1/streamer-planner/my-team:
+    get:
+      tags:
+      - Streamer planner
+      summary: "The user's own team in a league, today"
+      description: "Read live from the platform: each player's club, the positions\
+        \ the league may start him at, today's slot and whether he is out. Served\
+        \ only where `STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as the planner."
+      operationId: streamerPlannerMyTeam
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: "The team, or found=false when none is the user's"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
+        "404":
+          description: The planner or its own-team view is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
   /api/v1/streamer-planner/free-agents:
     get:
       tags:
@@ -4068,6 +4108,68 @@ components:
       - skaterRank
       - skaterScore
       - team
+    PlannerMyTeamResponse:
+      type: object
+      description: The user's own team in the chosen league
+      properties:
+        found:
+          type: boolean
+          description: "False when no team in the league is the user's: a league they\
+            \ only follow, or an ESPN league read without their cookies"
+        teamName:
+          type: string
+          description: The team's name; absent when not found
+        players:
+          type: array
+          description: "Its players today, bench and injured reserve included; empty\
+            \ when not found or before the draft"
+          items:
+            $ref: "#/components/schemas/PlannerRosterPlayer"
+      required:
+      - found
+      - players
+    PlannerRosterPlayer:
+      type: object
+      description: A player on the user's own team in the chosen league
+      properties:
+        playerId:
+          type: string
+          description: The platform's player id
+        name:
+          type: string
+          description: His name; the platform's id when the platform sent none
+        teamAbbrev:
+          type: string
+          description: "The club he is on, in the platform's own spelling; absent\
+            \ for none"
+        type:
+          type: string
+          description: skater or goalie
+        positions:
+          type: array
+          description: "Every position the league may start him at (C, LW, RW, D,\
+            \ G); empty when the platform does not say"
+          items:
+            type: string
+        slot:
+          type: string
+          description: "The slot he sits in today, in the platform's spelling (C,\
+            \ Util, BN, IR, IR+, NA, ...); absent when the platform does not say"
+        injuryStatus:
+          type: string
+          description: "The platform's injury status (DTD, O, IR, DAY_TO_DAY, OUT,\
+            \ ...); absent for a healthy player"
+        out:
+          type: boolean
+          description: "True when he fills no lineup slot this stretch: parked on\
+            \ injured reserve or not active (IR, IR+, IR-LT, NA), or out with an injury\
+            \ or suspension. A day-to-day player is not out."
+      required:
+      - name
+      - out
+      - playerId
+      - positions
+      - type
     CreaseGoalie:
       type: object
       description: "One goalie of a club's crease: his chance of starting each of\
@@ -4962,11 +5064,18 @@ components:
             \ (source=rest_of_season). False means it is refused and its status endpoint\
             \ answers 404, so a client should not offer it. True still offers it only\
             \ while a season is under way, which the status endpoint says."
+        streamerPlannerMyTeam:
+          type: boolean
+          description: "Whether the streamer planner reads the user's own team in\
+            \ the chosen league, to show the nights it has open lineup slots. False\
+            \ means the my-team endpoint answers 404. Never true while streamerPlanner\
+            \ is false."
       required:
       - aiProjection
       - leagueDraftSync
       - restOfSeasonPreset
       - streamerPlanner
+      - streamerPlannerMyTeam
       - whosHotAvailableFilter
     CredentialStatusResponse:
       type: object
