@@ -88,7 +88,7 @@ public class AuthService {
         this.dummyPasswordHash = passwordEncoder.encode("password-timing-equalizer");
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public IssuedTokens login(LoginRequest request) {
         Optional<User> maybeUser = databaseServiceClient.findUserByEmail(request.email());
         // Always run exactly one bcrypt comparison — against the user's hash, or a dummy hash when
         // the account is missing or password-less (social login) — so an unknown email and a wrong
@@ -111,7 +111,7 @@ public class AuthService {
      * Every refusal is logged with its reason: a client that keeps signing its user out can then
      * be told apart from one whose refreshes we refuse.
      */
-    public AuthResponse refresh(RefreshRequest request) {
+    public IssuedTokens refresh(RefreshRequest request) {
         Claims claims;
         try {
             claims = jwtTokenValidator.validateAndExtractClaims(request.refreshToken());
@@ -165,7 +165,7 @@ public class AuthService {
      * Creates the account and logs the user straight in — registration returns the same
      * token pair as login, so the client never has to follow up with a separate login.
      */
-    public AuthResponse register(RegisterRequest request) {
+    public IssuedTokens register(RegisterRequest request) {
         if (databaseServiceClient.existsByEmail(request.email())) {
             throw new IllegalArgumentException("An account with this email already exists");
         }
@@ -188,7 +188,7 @@ public class AuthService {
      * Logs in (or registers) via a Google ID token obtained client-side (the embedded GSI
      * button). The verifier guarantees signature, audience and a verified email.
      */
-    public AuthResponse googleLogin(GoogleLoginRequest request) {
+    public IssuedTokens googleLogin(GoogleLoginRequest request) {
         return loginWithGoogleIdentity(googleTokenVerifier.verify(request.idToken()));
     }
 
@@ -198,7 +198,7 @@ public class AuthService {
      * top-level-redirect Sign-In the web uses so Google login works on browsers that block the
      * embedded GSI button (notably iOS Safari under Intelligent Tracking Prevention).
      */
-    public AuthResponse googleLoginWithCode(GoogleCodeLoginRequest request) {
+    public IssuedTokens googleLoginWithCode(GoogleCodeLoginRequest request) {
         String idToken = googleCodeExchanger.exchange(request.code(), request.redirectUri());
         return loginWithGoogleIdentity(googleTokenVerifier.verify(idToken));
     }
@@ -208,7 +208,7 @@ public class AuthService {
      * resolves the account by Google subject, links it to an existing same-email account, or
      * creates a new password-less user.
      */
-    private AuthResponse loginWithGoogleIdentity(GoogleIdentity identity) {
+    private IssuedTokens loginWithGoogleIdentity(GoogleIdentity identity) {
         User user = notifyIfCreated(
                 databaseServiceClient.findOrCreateGoogleUser(identity.email(), identity.sub()), SignupMethod.GOOGLE);
         return issueTokens(user.id(), user.email(), user.tokenVersion(), user.emailVerified());
@@ -220,7 +220,7 @@ public class AuthService {
      * the account by Facebook subject, links it to an existing same-email account, or
      * creates a new password-less user.
      */
-    public AuthResponse facebookLogin(FacebookLoginRequest request) {
+    public IssuedTokens facebookLogin(FacebookLoginRequest request) {
         FacebookIdentity identity = facebookTokenVerifier.verify(request.accessToken());
         User user = notifyIfCreated(
                 databaseServiceClient.findOrCreateFacebookUser(identity.email(), identity.sub()), SignupMethod.FACEBOOK);
@@ -297,7 +297,7 @@ public class AuthService {
                 .toUriString();
     }
 
-    private AuthResponse issueTokens(String userId, String email, int tokenVersion, boolean emailVerified) {
+    private IssuedTokens issueTokens(String userId, String email, int tokenVersion, boolean emailVerified) {
         // Admin is granted by email address, so only an address the account has proven it owns may
         // carry it. Registration signs an unverified account straight in: without this, an
         // allowlisted address that has no account yet would make whoever registers it an admin.
@@ -306,7 +306,8 @@ public class AuthService {
         String refreshToken = jwtTokenValidator.generateRefreshToken(userId, email, tokenVersion);
         long expiresIn = jwtTokenValidator.getExpirationMs() / 1000;
         long refreshExpiresIn = jwtTokenValidator.getRefreshExpirationMs() / 1000;
-        return new AuthResponse(token, expiresIn, refreshToken, refreshExpiresIn, admin, emailVerified);
+        return new IssuedTokens(
+                new AuthResponse(token, expiresIn, refreshExpiresIn, admin, emailVerified), refreshToken);
     }
 
     private boolean isAdmin(String email) {

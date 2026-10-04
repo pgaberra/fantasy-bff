@@ -158,7 +158,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.expiresInSeconds").isNumber())
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber())
                 .andExpect(jsonPath("$.admin").value(false));
     }
@@ -176,7 +176,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.expiresInSeconds").isNumber())
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber())
                 .andExpect(jsonPath("$.emailVerified").value(true));
     }
@@ -194,7 +194,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.expiresInSeconds").isNumber())
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
     }
 
@@ -234,7 +234,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                                 new GoogleCodeLoginRequest("auth-code", redirectUri))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.emailVerified").value(true));
     }
 
@@ -286,7 +286,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.expiresInSeconds").isNumber())
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.refreshExpiresInSeconds").isNumber());
     }
 
@@ -324,15 +324,14 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        String refreshToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
-                .get("refreshToken").asText();
+        String refreshToken = loginResult.getResponse().getCookie(COOKIE).getValue();
 
         mockMvc.perform(post("/api/v1/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())));
+                .andExpect(jsonPath("$.refreshToken").doesNotExist());
     }
 
     @Test
@@ -375,8 +374,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, not(containsString("Domain"))))
                 .andReturn();
 
-        assertThat(result.getResponse().getCookie(COOKIE).getValue())
-                .isEqualTo(objectMapper.readTree(result.getResponse().getContentAsString()).get("refreshToken").asText());
+        // The cookie is the only place the refresh token travels: a script on the page can read a body.
+        assertThat(result.getResponse().getCookie(COOKIE).getValue()).isNotBlank();
+        assertThat(objectMapper.readTree(result.getResponse().getContentAsString()).has("refreshToken")).isFalse();
     }
 
     @Test
@@ -435,7 +435,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.refreshToken", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(cookie().value(COOKIE, not(emptyOrNullString())));
     }
 

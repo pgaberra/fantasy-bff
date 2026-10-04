@@ -104,7 +104,7 @@ class AuthServiceTest {
         when(databaseServiceClient.createUser(eq("boss@example.com"), anyString()))
                 .thenReturn(new User("user-2", "boss@example.com", null, "hash", 0, false));
 
-        AuthResponse response = authService.register(new RegisterRequest("boss@example.com", "Passw0rd!"));
+        AuthResponse response = authService.register(new RegisterRequest("boss@example.com", "Passw0rd!")).response();
 
         // Registering an allowlisted address proves nothing about owning it: whoever got there
         // first would be an admin. The claim waits until the verification link has been followed.
@@ -119,7 +119,7 @@ class AuthServiceTest {
                 .thenReturn(Optional.of(new User("user-2", "boss@example.com", null, "hash", 0, true)));
         when(passwordEncoder.matches("Passw0rd!", "hash")).thenReturn(true);
 
-        AuthResponse response = authService.login(new LoginRequest("boss@example.com", "Passw0rd!"));
+        AuthResponse response = authService.login(new LoginRequest("boss@example.com", "Passw0rd!")).response();
 
         assertThat(response.admin()).isTrue();
         verify(jwtTokenValidator).generateToken("user-2", "boss@example.com", true);
@@ -233,10 +233,10 @@ class AuthServiceTest {
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("new-access");
         when(jwtTokenValidator.generateRefreshToken(anyString(), anyString(), anyInt())).thenReturn("new-refresh");
 
-        AuthResponse response = authService.refresh(new RefreshRequest("good-refresh"));
+        IssuedTokens tokens = authService.refresh(new RefreshRequest("good-refresh"));
 
-        assertThat(response.token()).isEqualTo("new-access");
-        assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        assertThat(tokens.response().token()).isEqualTo("new-access");
+        assertThat(tokens.refreshToken()).isEqualTo("new-refresh");
         // The new refresh token is re-stamped with the account's current version.
         verify(jwtTokenValidator).generateRefreshToken("user-1", "user@example.com", 3);
         assertThat(output).doesNotContain("Refresh refused");
@@ -253,11 +253,11 @@ class AuthServiceTest {
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("access");
         when(jwtTokenValidator.generateRefreshToken(anyString(), anyString(), anyInt())).thenReturn("refresh");
 
-        AuthResponse response =
+        IssuedTokens tokens =
                 authService.googleLoginWithCode(new GoogleCodeLoginRequest("auth-code", redirectUri));
 
-        assertThat(response.token()).isEqualTo("access");
-        assertThat(response.refreshToken()).isEqualTo("refresh");
+        assertThat(tokens.response().token()).isEqualTo("access");
+        assertThat(tokens.refreshToken()).isEqualTo("refresh");
         verify(databaseServiceClient).findOrCreateGoogleUser("g@example.com", "google-sub-9");
     }
 
