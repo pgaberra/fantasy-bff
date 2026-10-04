@@ -27,8 +27,13 @@ import com.fantasy.bff.security.JwtTokenValidator;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +50,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(OutputCaptureExtension.class)
 class AuthServiceTest {
 
     private DatabaseServiceClient databaseServiceClient;
@@ -143,27 +149,85 @@ class AuthServiceTest {
         verify(passwordEncoder).matches(eq("guess123"), anyString());
     }
 
-    @Test
-    void refresh_withRevokedTokenVersion_isRejected() {
-        // The refresh token still carries version 0, but the account has since bumped to 1
-        // (e.g. a password reset), so the stale token must be rejected.
+    private Claims refreshClaims(String token, Integer tokenVersion) {
         Claims claims = mock(Claims.class);
         when(claims.get("email", String.class)).thenReturn("user@example.com");
-        when(jwtTokenValidator.validateAndExtractRefreshTokenClaims("stale-refresh")).thenReturn(claims);
-        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.of(0));
+        when(claims.getIssuedAt()).thenReturn(Date.from(Instant.parse("2026-10-01T08:00:00Z")));
+        when(jwtTokenValidator.validateAndExtractClaims(token)).thenReturn(claims);
+        when(jwtTokenValidator.isRefreshToken(claims)).thenReturn(true);
+        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.ofNullable(tokenVersion));
+        return claims;
+    }
+
+    private static void assertRefusalLogged(CapturedOutput output, String reason) {
+        assertThat(output).contains("Refresh refused: " + reason + " (token issued 2026-10-01T08:00:00Z)");
+        assertThat(output).doesNotContain("user@example.com");
+    }
+
+    @Test
+    void refresh_withInvalidOrExpiredToken_isRejected_andSaysWhy(CapturedOutput output) {
+        when(jwtTokenValidator.validateAndExtractClaims("bad-refresh"))
+                .thenThrow(new SecurityException("Invalid or expired JWT token"));
+
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest("bad-refresh")))
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("Invalid or expired JWT token");
+        assertThat(output).contains("Refresh refused: TOKEN_INVALID_OR_EXPIRED");
+        assertThat(output).doesNotContain("bad-refresh");
+    }
+
+    @Test
+    void refresh_withAccessToken_isRejected_andSaysWhy(CapturedOutput output) {
+        Claims claims = refreshClaims("access-token", null);
+        when(jwtTokenValidator.isRefreshToken(claims)).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest("access-token")))
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("Expected refresh token");
+        assertRefusalLogged(output, "NOT_A_REFRESH_TOKEN");
+        verifyNoInteractions(databaseServiceClient);
+    }
+
+    @Test
+    void refresh_forAccountThatIsGone_isRejected_andSaysWhy(CapturedOutput output) {
+        refreshClaims("orphan-refresh", 0);
+        when(databaseServiceClient.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest("orphan-refresh")))
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("Invalid refresh token");
+        assertRefusalLogged(output, "NO_ACCOUNT");
+    }
+
+    @Test
+    void refresh_withoutTokenVersion_isRejected_andSaysWhy(CapturedOutput output) {
+        refreshClaims("unversioned-refresh", null);
+        when(databaseServiceClient.findUserByEmail("user@example.com"))
+                .thenReturn(Optional.of(new User("user-1", "user@example.com", null, "hash", 0, true)));
+
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest("unversioned-refresh")))
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("Refresh token has been revoked");
+        assertRefusalLogged(output, "NO_TOKEN_VERSION");
+    }
+
+    @Test
+    void refresh_withRevokedTokenVersion_isRejected_andSaysWhy(CapturedOutput output) {
+        // The refresh token still carries version 0, but the account has since bumped to 1
+        // (e.g. a password reset), so the stale token must be rejected.
+        refreshClaims("stale-refresh", 0);
         when(databaseServiceClient.findUserByEmail("user@example.com"))
                 .thenReturn(Optional.of(new User("user-1", "user@example.com", null, "hash", 1, true)));
 
         assertThatThrownBy(() -> authService.refresh(new RefreshRequest("stale-refresh")))
-                .isInstanceOf(SecurityException.class);
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("Refresh token has been revoked");
+        assertRefusalLogged(output, "TOKEN_VERSION_REVOKED");
     }
 
     @Test
-    void refresh_withCurrentTokenVersion_issuesNewTokens() {
-        Claims claims = mock(Claims.class);
-        when(claims.get("email", String.class)).thenReturn("user@example.com");
-        when(jwtTokenValidator.validateAndExtractRefreshTokenClaims("good-refresh")).thenReturn(claims);
-        when(jwtTokenValidator.getTokenVersion(claims)).thenReturn(Optional.of(3));
+    void refresh_withCurrentTokenVersion_issuesNewTokens(CapturedOutput output) {
+        refreshClaims("good-refresh", 3);
         when(databaseServiceClient.findUserByEmail("user@example.com"))
                 .thenReturn(Optional.of(new User("user-1", "user@example.com", null, "hash", 3, true)));
         when(jwtTokenValidator.generateToken(anyString(), anyString(), anyBoolean())).thenReturn("new-access");
@@ -175,6 +239,7 @@ class AuthServiceTest {
         assertThat(response.refreshToken()).isEqualTo("new-refresh");
         // The new refresh token is re-stamped with the account's current version.
         verify(jwtTokenValidator).generateRefreshToken("user-1", "user@example.com", 3);
+        assertThat(output).doesNotContain("Refresh refused");
     }
 
     @Test
