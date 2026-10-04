@@ -175,6 +175,13 @@ league-draft-sync:
 streamer-planner:
   enabled: ${STREAMER_PLANNER_ENABLED:false}
 
+# The rest of the season as a draft preset (source=rest_of_season, and
+# /api/v1/projection-model/rest-of-season/status). Off unless this says otherwise, since it is new;
+# off, both are refused and /api/v1/features reports restOfSeasonPreset false. It also needs the AI
+# projection, whose lines it is, and premium like it.
+rest-of-season-preset:
+  enabled: ${REST_OF_SEASON_PRESET_ENABLED:false}
+
 # Who's hot narrowed to the players nobody in the user's linked league holds
 # (GET /api/v1/leagues/rostered-players). Off unless this says otherwise, since it is new; off, the
 # endpoint answers 404 and /api/v1/features reports whosHotAvailableFilter false. It also needs a

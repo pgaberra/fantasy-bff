@@ -21,5 +21,11 @@ public record FeaturesResponse(
                 description = "Whether Who's hot may show only the players a linked league has "
                         + "available. False means the rostered-players endpoint answers 404, so a "
                         + "client should not offer it.")
-        boolean whosHotAvailableFilter
+        boolean whosHotAvailableFilter,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether a draft may be started from the rest of the season "
+                        + "(source=rest_of_season). False means it is refused and its status "
+                        + "endpoint answers 404, so a client should not offer it. True still offers "
+                        + "it only while a season is under way, which the status endpoint says.")
+        boolean restOfSeasonPreset
 ) {}
