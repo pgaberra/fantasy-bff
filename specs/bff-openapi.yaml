@@ -794,10 +794,10 @@ paths:
       tags:
       - Authentication
       summary: Refresh tokens
-      description: "Exchange a valid refresh token for a new access token and refresh\
-        \ token pair. The token is read from the HttpOnly slapstat_refresh cookie,\
-        \ else from the body (legacy clients). With neither, the answer is 401: there\
-        \ is no session to refresh."
+      description: "Exchange a valid refresh token for a new access token; the rotated\
+        \ refresh token comes back only in the HttpOnly slapstat_refresh cookie. The\
+        \ token is read from that cookie, else from the body (sessions stored before\
+        \ the cookie). With neither, the answer is 401: there is no session to refresh."
       operationId: refresh
       requestBody:
         content:
@@ -3379,8 +3379,6 @@ components:
         expiresInSeconds:
           type: integer
           format: int64
-        refreshToken:
-          type: string
         refreshExpiresInSeconds:
           type: integer
           format: int64
@@ -3394,7 +3392,6 @@ components:
       - emailVerified
       - expiresInSeconds
       - refreshExpiresInSeconds
-      - refreshToken
       - token
     RefreshRequest:
       type: object

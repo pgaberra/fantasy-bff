@@ -433,8 +433,9 @@ are not committed; every build regenerates them.
   false, which only the dev profile sets). Safari wipes localStorage after seven days without a
   visit; a server-set cookie outlives that. `/refresh` reads the cookie before the body, answers a
   request with neither with a quiet 401, and clears a cookie it refuses. `POST /auth/logout` and
-  sign-out-everywhere clear it; logout revokes nothing. `refreshToken` stays in the JSON body until
-  the web stops reading it.
+  sign-out-everywhere clear it; logout revokes nothing. The refresh token is never in a response
+  body (`AuthService` returns `IssuedTokens`, the controller splits it into cookie and body); the
+  request body still takes one, for sessions a browser stored in localStorage before the cookie.
 - `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
   `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
   Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified

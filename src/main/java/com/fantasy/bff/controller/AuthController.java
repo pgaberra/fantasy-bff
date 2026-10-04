@@ -13,6 +13,7 @@ import com.fantasy.bff.dto.request.VerifyEmailRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
 import com.fantasy.bff.security.RefreshTokenCookie;
 import com.fantasy.bff.service.AuthService;
+import com.fantasy.bff.service.IssuedTokens;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -56,9 +57,9 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh tokens",
-            description = "Exchange a valid refresh token for a new access token and refresh token pair. "
-                    + "The token is read from the HttpOnly slapstat_refresh cookie, else from the body "
-                    + "(legacy clients). With neither, the answer is 401: there is no session to refresh.")
+            description = "Exchange a valid refresh token for a new access token; the rotated refresh token "
+                    + "comes back only in the HttpOnly slapstat_refresh cookie. The token is read from "
+                    + "that cookie, else from the body (sessions stored before the cookie). With neither, the answer is 401: there is no session to refresh.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Tokens refreshed successfully"),
             @ApiResponse(responseCode = "401", description = "No refresh token, or an invalid, expired or revoked one"),
@@ -202,11 +203,9 @@ public class AuthController {
         throw new SecurityException("No refresh token");
     }
 
-    // refreshToken stays in the body while web clients loaded before the cookie still read it;
-    // drop it from AuthResponse once the web no longer does.
-    private ResponseEntity<AuthResponse> issued(HttpStatus status, AuthResponse tokens) {
+    private ResponseEntity<AuthResponse> issued(HttpStatus status, IssuedTokens tokens) {
         return ResponseEntity.status(status)
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.issue(tokens.refreshToken()).toString())
-                .body(tokens);
+                .body(tokens.response());
     }
 }
