@@ -5,6 +5,7 @@ import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.LeagueDraftSyncAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
+import com.fantasy.bff.service.RoleChangesAvailability;
 import com.fantasy.bff.service.WhosHotAvailableFilterAvailability;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,18 +29,21 @@ public class FeatureController {
     private final StreamerPlannerAvailability streamerPlanner;
     private final WhosHotAvailableFilterAvailability whosHotAvailableFilter;
     private final RestOfSeasonPresetAvailability restOfSeasonPreset;
+    private final RoleChangesAvailability roleChanges;
 
     public FeatureController(
             AiProjectionAvailability aiProjection,
             LeagueDraftSyncAvailability leagueDraftSync,
             StreamerPlannerAvailability streamerPlanner,
             WhosHotAvailableFilterAvailability whosHotAvailableFilter,
-            RestOfSeasonPresetAvailability restOfSeasonPreset) {
+            RestOfSeasonPresetAvailability restOfSeasonPreset,
+            RoleChangesAvailability roleChanges) {
         this.aiProjection = aiProjection;
         this.leagueDraftSync = leagueDraftSync;
         this.streamerPlanner = streamerPlanner;
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
+        this.roleChanges = roleChanges;
     }
 
     @GetMapping
@@ -51,6 +55,7 @@ public class FeatureController {
         return new FeaturesResponse(
                 aiProjection.available(), leagueDraftSync.available(),
                 streamerPlanner.available(), whosHotAvailableFilter.available(),
-                restOfSeasonPreset.available(), streamerPlanner.myTeamAvailable());
+                restOfSeasonPreset.available(), streamerPlanner.myTeamAvailable(),
+                roleChanges.available());
     }
 }
