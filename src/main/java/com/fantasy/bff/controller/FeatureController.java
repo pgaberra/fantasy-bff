@@ -55,6 +55,7 @@ public class FeatureController {
         return new FeaturesResponse(
                 aiProjection.available(), leagueDraftSync.available(),
                 streamerPlanner.available(), whosHotAvailableFilter.available(),
-                restOfSeasonPreset.available(), faScout.available());
+                restOfSeasonPreset.available(), streamerPlanner.myTeamAvailable(),
+                faScout.available());
     }
 }

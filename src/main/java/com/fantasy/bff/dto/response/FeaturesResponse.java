@@ -29,6 +29,11 @@ public record FeaturesResponse(
                         + "it only while a season is under way, which the status endpoint says.")
         boolean restOfSeasonPreset,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether the streamer planner reads the user's own team in the chosen "
+                        + "league, to show the nights it has open lineup slots. False means the "
+                        + "my-team endpoint answers 404. Never true while streamerPlanner is false.")
+        boolean streamerPlannerMyTeam,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves the FA scout. False means its "
                         + "endpoint answers 404, so a client should not offer it.")
         boolean faScout

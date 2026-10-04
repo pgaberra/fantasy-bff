@@ -267,6 +267,11 @@ are not committed; every build regenerates them.
     the rating itself lives there. Signed in, not premium. Behind `streamer-planner.enabled`
     (`STREAMER_PLANNER_ENABLED`, off by default): without it both 404 and `GET /api/v1/features`
     reports `streamerPlanner` false. Team codes are the NHL's (`TBL`), not ESPN's (`TB`).
+    `GET /my-team?platform=&leagueId=` (`StreamerPlannerMyTeamService`) is the user's own team in
+    the league, read live from the platform's rosters (never the pool): each player's club, real
+    positions, today's slot and `out` (IR/NA slots, O/OUT/IR/suspension; day-to-day plays). The web
+    places them per night to find the open slots. Behind `streamer-planner.my-team-enabled`
+    (`STREAMER_PLANNER_MY_TEAM_ENABLED`) on top of the planner; reported as `streamerPlannerMyTeam`.
   - `FaScoutController` — `GET /api/v1/fa-scout/free-agents?platform=&leagueId=`: the players a
     league has available with **two of the model's lines** each, the served rest of the season
     (`ProjectionSeedService.seasonShape`, the same lifted `served` every page reads) and the frozen
