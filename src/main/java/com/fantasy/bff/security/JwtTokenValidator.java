@@ -66,22 +66,15 @@ public final class JwtTokenValidator {
     }
 
     public Claims validateAndExtractAccessTokenClaims(String token) {
-        Claims claims = parseAndValidate(token);
+        Claims claims = validateAndExtractClaims(token);
         if (!TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class))) {
             throw new SecurityException("Expected access token");
         }
         return claims;
     }
 
-    public Claims validateAndExtractRefreshTokenClaims(String token) {
-        Claims claims = parseAndValidate(token);
-        if (!TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class))) {
-            throw new SecurityException("Expected refresh token");
-        }
-        return claims;
-    }
-
-    private Claims parseAndValidate(String token) {
+    /** Signature and expiry only; the caller checks the type (see {@link #isRefreshToken}). */
+    public Claims validateAndExtractClaims(String token) {
         try {
             return Jwts.parser()
                     .verifyWith(signingKey)
@@ -91,6 +84,10 @@ public final class JwtTokenValidator {
         } catch (JwtException | IllegalArgumentException e) {
             throw new SecurityException("Invalid or expired JWT token", e);
         }
+    }
+
+    public boolean isRefreshToken(Claims claims) {
+        return TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class));
     }
 
     public long getExpirationMs() {
