@@ -179,6 +179,12 @@ streamer-planner:
   # /api/v1/features reports streamerPlannerMyTeam false. Never on without the planner itself.
   my-team-enabled: ${STREAMER_PLANNER_MY_TEAM_ENABLED:false}
 
+# Role Changes (GET /api/v1/role-changes): skaters whose ice or power-play role just moved, measured
+# by projection-service. Off unless this says otherwise, since it is a draft; off, the endpoint
+# answers 404 and /api/v1/features reports roleChanges false. Not a premium feature.
+role-changes:
+  enabled: ${ROLE_CHANGES_ENABLED:false}
+
 # The rest of the season as a draft preset (source=rest_of_season, and
 # /api/v1/projection-model/rest-of-season/status). Off unless this says otherwise, since it is new;
 # off, both are refused and /api/v1/features reports restOfSeasonPreset false. It also needs the AI

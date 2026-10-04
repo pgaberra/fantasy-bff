@@ -36,5 +36,9 @@ public record FeaturesResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves the FA scout. False means its "
                         + "endpoint answers 404, so a client should not offer it.")
-        boolean faScout
+        boolean faScout,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves Role Changes. False means its endpoint "
+                        + "answers 404, so a client should not offer it.")
+        boolean roleChanges
 ) {}
