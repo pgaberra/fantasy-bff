@@ -192,6 +192,13 @@ role-changes:
 rest-of-season-preset:
   enabled: ${REST_OF_SEASON_PRESET_ENABLED:false}
 
+# The FA scout (/api/v1/fa-scout/**): a league's available players with the model's rest of the
+# season and its preseason line, to find the ones worth keeping. Off unless this says otherwise,
+# since it is new; off, its endpoint answers 404 and /api/v1/features reports faScout false. It
+# also needs the AI projection, whose lines it shows.
+fa-scout:
+  enabled: ${FA_SCOUT_ENABLED:false}
+
 # Who's hot narrowed to the players nobody in the user's linked league holds
 # (GET /api/v1/leagues/rostered-players). Off unless this says otherwise, since it is new; off, the
 # endpoint answers 404 and /api/v1/features reports whosHotAvailableFilter false. It also needs a

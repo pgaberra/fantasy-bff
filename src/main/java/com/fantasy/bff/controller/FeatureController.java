@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.service.StreamerPlannerAvailability;
 import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
+import com.fantasy.bff.service.FaScoutAvailability;
 import com.fantasy.bff.service.LeagueDraftSyncAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
 import com.fantasy.bff.service.RoleChangesAvailability;
@@ -29,6 +30,7 @@ public class FeatureController {
     private final StreamerPlannerAvailability streamerPlanner;
     private final WhosHotAvailableFilterAvailability whosHotAvailableFilter;
     private final RestOfSeasonPresetAvailability restOfSeasonPreset;
+    private final FaScoutAvailability faScout;
     private final RoleChangesAvailability roleChanges;
 
     public FeatureController(
@@ -37,12 +39,14 @@ public class FeatureController {
             StreamerPlannerAvailability streamerPlanner,
             WhosHotAvailableFilterAvailability whosHotAvailableFilter,
             RestOfSeasonPresetAvailability restOfSeasonPreset,
+            FaScoutAvailability faScout,
             RoleChangesAvailability roleChanges) {
         this.aiProjection = aiProjection;
         this.leagueDraftSync = leagueDraftSync;
         this.streamerPlanner = streamerPlanner;
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
+        this.faScout = faScout;
         this.roleChanges = roleChanges;
     }
 
@@ -56,6 +60,7 @@ public class FeatureController {
                 aiProjection.available(), leagueDraftSync.available(),
                 streamerPlanner.available(), whosHotAvailableFilter.available(),
                 restOfSeasonPreset.available(), streamerPlanner.myTeamAvailable(),
+                faScout.available(),
                 roleChanges.available());
     }
 }

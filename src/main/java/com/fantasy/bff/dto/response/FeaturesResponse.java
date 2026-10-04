@@ -34,6 +34,10 @@ public record FeaturesResponse(
                         + "my-team endpoint answers 404. Never true while streamerPlanner is false.")
         boolean streamerPlannerMyTeam,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves the FA scout. False means its "
+                        + "endpoint answers 404, so a client should not offer it.")
+        boolean faScout,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves Role Changes. False means its endpoint "
                         + "answers 404, so a client should not offer it.")
         boolean roleChanges

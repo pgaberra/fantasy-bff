@@ -272,6 +272,16 @@ are not committed; every build regenerates them.
     positions, today's slot and `out` (IR/NA slots, O/OUT/IR/suspension; day-to-day plays). The web
     places them per night to find the open slots. Behind `streamer-planner.my-team-enabled`
     (`STREAMER_PLANNER_MY_TEAM_ENABLED`) on top of the planner; reported as `streamerPlannerMyTeam`.
+  - `FaScoutController` — `GET /api/v1/fa-scout/free-agents?platform=&leagueId=`: the players a
+    league has available with **two of the model's lines** each, the served rest of the season
+    (`ProjectionSeedService.seasonShape`, the same lifted `served` every page reads) and the frozen
+    preseason line (`model_version=preseason`, absent for a player it did not cover). The wire is
+    read and joined on identity by `LeagueAvailablePlayers`, the planner's own read moved into a
+    shared component. Nothing is scored: the web ranks both lines by the league's settings and the
+    places gained between them are what make a player Rising. Before opening night or after the
+    last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
+    Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
+    (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show
