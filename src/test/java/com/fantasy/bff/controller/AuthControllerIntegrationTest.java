@@ -25,8 +25,11 @@ import com.fantasy.bff.security.JwtTokenValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -59,6 +62,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     private static final String COOKIE = "slapstat_refresh";
@@ -453,16 +457,18 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void refresh_withARefusedCookie_clearsIt() throws Exception {
+    void refresh_withARefusedCookie_clearsIt(CapturedOutput output) throws Exception {
         mockMvc.perform(post("/api/v1/auth/refresh").cookie(new Cookie(COOKIE, "not-a-token")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
                 .andExpect(cookie().maxAge(COOKIE, 0))
                 .andExpect(cookie().path(COOKIE, "/api/v1/auth"));
+
+        assertThat(output).contains("Refresh refused: TOKEN_INVALID_OR_EXPIRED");
     }
 
     @Test
-    void refresh_withNeitherCookieNorBody_returns401_withoutTouchingAnything() throws Exception {
+    void refresh_withNeitherCookieNorBody_returns401_withoutTouchingAnything(CapturedOutput output) throws Exception {
         mockMvc.perform(post("/api/v1/auth/refresh"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
@@ -474,6 +480,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(databaseServiceClient);
+        assertThat(output).doesNotContain("Refresh refused");
     }
 
     @Test
