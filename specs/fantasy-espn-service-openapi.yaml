@@ -655,6 +655,45 @@ components:
       required:
       - name
       - statId
+    LeagueRosterPlayer:
+      type: object
+      properties:
+        espnId:
+          type: integer
+          format: int64
+          description: ESPN's player id
+        fullName:
+          type: string
+          description: His full name; absent when ESPN sends no player with the entry
+        teamAbbrev:
+          type: string
+          description: "The NHL club ESPN has him on, in ESPN's own abbreviation (TB,\
+            \ LA, NJ, SJ). Absent for a player ESPN lists on no club"
+        uniformNumber:
+          type: integer
+          format: int32
+        goalie:
+          type: boolean
+        eligiblePositions:
+          type: array
+          description: Every position he may be started at in this league; empty when
+            ESPN sends no player with the entry
+          items:
+            type: string
+        lineupSlot:
+          type: string
+          description: "The slot he sits in today (C, LW, RW, F, D, G, Util, BN, IR);\
+            \ absent when ESPN does not say"
+          example: BN
+        injuryStatus:
+          type: string
+          description: "ESPN's injury status (DAY_TO_DAY, OUT, INJURY_RESERVE, SUSPENSION,\
+            \ …); absent for a healthy player"
+          example: DAY_TO_DAY
+      required:
+      - eligiblePositions
+      - espnId
+      - goalie
     LeagueRosterTeam:
       type: object
       properties:
@@ -676,10 +715,17 @@ components:
           items:
             type: integer
             format: int64
+        players:
+          type: array
+          description: "The same players as playerIds, in the same order, each with\
+            \ name, club, positions, today's slot and injury status."
+          items:
+            $ref: "#/components/schemas/LeagueRosterPlayer"
       required:
       - mine
       - name
       - playerIds
+      - players
       - teamId
     LeagueRostersResponse:
       type: object
