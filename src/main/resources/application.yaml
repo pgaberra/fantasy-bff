@@ -199,6 +199,13 @@ rest-of-season-preset:
 fa-scout:
   enabled: ${FA_SCOUT_ENABLED:false}
 
+# Draft Analysis (/api/v1/draft-analysis/**): a league's draft with every pick graded against the
+# model's preseason line. Off unless this says otherwise, since it is new; off, its endpoint answers
+# 404 and /api/v1/features reports draftAnalysis false. It also needs the AI projection, whose
+# ranking it grades by, and reading a league's draft (league-draft-sync), where the picks come from.
+draft-analysis:
+  enabled: ${DRAFT_ANALYSIS_ENABLED:false}
+
 # Who's hot narrowed to the players nobody in the user's linked league holds
 # (GET /api/v1/leagues/rostered-players). Off unless this says otherwise, since it is new; off, the
 # endpoint answers 404 and /api/v1/features reports whosHotAvailableFilter false. It also needs a
