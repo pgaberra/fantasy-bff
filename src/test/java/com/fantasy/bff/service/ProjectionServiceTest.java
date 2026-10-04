@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.AiProjectionProperties;
+import com.fantasy.bff.config.RestOfSeasonPresetProperties;
 import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.client.DatabaseServiceClient.FollowedProjection;
@@ -101,15 +102,23 @@ class ProjectionServiceTest {
     }
 
     private ProjectionService serviceWith(boolean aiProjectionEnabled, boolean modelPrefixEnabled) {
+        return serviceWith(aiProjectionEnabled, modelPrefixEnabled, true);
+    }
+
+    private ProjectionService serviceWith(
+            boolean aiProjectionEnabled, boolean modelPrefixEnabled, boolean restOfSeasonPresetEnabled) {
+        AiProjectionAvailability aiProjection = new AiProjectionAvailability(
+                new AiProjectionProperties(aiProjectionEnabled),
+                new SecurityProperties(null, null, null, modelPrefixEnabled));
         return new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
                 playerPool,
                 reconciler,
                 seedService,
-                new AiProjectionAvailability(
-                        new AiProjectionProperties(aiProjectionEnabled),
-                        new SecurityProperties(null, null, null, modelPrefixEnabled)),
+                aiProjection,
+                new RestOfSeasonPresetAvailability(
+                        new RestOfSeasonPresetProperties(restOfSeasonPresetEnabled), aiProjection),
                 entitlementService,
                 SEASON,
                 MODEL_VERSION);
@@ -1017,6 +1026,34 @@ class ProjectionServiceTest {
                 .hasMessageContaining("source=rest_of_season is unavailable")
                 .hasMessageContaining("switched off");
         verifyNoInteractions(seedService);
+    }
+
+    @Test
+    @DisplayName("the rest of the season is refused where its own switch is off, before premium is asked")
+    void restOfSeasonSource_withItsSwitchOff_isRefused() {
+        projectionService = serviceWith(true, true, false);
+
+        assertThatThrownBy(() -> projectionService.create(
+                        USER_ID,
+                        request(emptyData(), ProjectionSource.REST_OF_SEASON, ProjectionKind.DRAFT)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("rest-of-season preset is switched off");
+        verifyNoInteractions(seedService);
+        verifyNoInteractions(databaseServiceClient);
+        verifyNoInteractions(entitlementService);
+    }
+
+    @Test
+    @DisplayName("its switch leaves the AI projection alone")
+    void modelSource_withTheRestOfSeasonSwitchOff_isStillServed() {
+        projectionService = serviceWith(true, true, false);
+        when(seedService.seed(SEASON, MODEL_VERSION))
+                .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL, ProjectionKind.DRAFT));
+
+        verify(databaseServiceClient).createProjection(eq(USER_ID), any());
     }
 
     @Test
