@@ -457,6 +457,49 @@
         "title": "LeaderboardsResponse",
         "type": "object"
       },
+      "LineupListingResponse": {
+        "properties": {
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "out_of_lineup": {
+            "title": "Out Of Lineup",
+            "type": "boolean"
+          },
+          "power_play_unit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Power Play Unit"
+          },
+          "seen_on": {
+            "format": "date",
+            "title": "Seen On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seen_on",
+          "line",
+          "power_play_unit",
+          "out_of_lineup"
+        ],
+        "title": "LineupListingResponse",
+        "type": "object"
+      },
       "NightResponse": {
         "properties": {
           "date": {
@@ -1706,6 +1749,93 @@
         "title": "RestOfSeasonSkaterResponse",
         "type": "object"
       },
+      "RoleChangesResponse": {
+        "properties": {
+          "recent_games": {
+            "title": "Recent Games",
+            "type": "integer"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "skaters": {
+            "items": {
+              "$ref": "#/components/schemas/SkaterRoleChangeResponse"
+            },
+            "title": "Skaters",
+            "type": "array"
+          }
+        },
+        "required": [
+          "season",
+          "recent_games",
+          "skaters"
+        ],
+        "title": "RoleChangesResponse",
+        "type": "object"
+      },
+      "RoleWindowResponse": {
+        "properties": {
+          "games": {
+            "title": "Games",
+            "type": "integer"
+          },
+          "pp_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Share"
+          },
+          "pp_toi_per_game": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Toi Per Game"
+          },
+          "sh_toi_per_game": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sh Toi Per Game"
+          },
+          "toi_per_game": {
+            "title": "Toi Per Game",
+            "type": "number"
+          }
+        },
+        "required": [
+          "games",
+          "toi_per_game",
+          "pp_toi_per_game",
+          "pp_share",
+          "sh_toi_per_game"
+        ],
+        "title": "RoleWindowResponse",
+        "type": "object"
+      },
       "ScheduleStrengthResponse": {
         "properties": {
           "end": {
@@ -2550,6 +2680,96 @@
           "points_high"
         ],
         "title": "SkaterProjectionResponse",
+        "type": "object"
+      },
+      "SkaterRoleChangeResponse": {
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleWindowResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "season",
+                  "last_season"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Source"
+          },
+          "first_recent_game_date": {
+            "format": "date",
+            "title": "First Recent Game Date",
+            "type": "string"
+          },
+          "last_recent_game_date": {
+            "format": "date",
+            "title": "Last Recent Game Date",
+            "type": "string"
+          },
+          "listed_before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineupListingResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listed_now": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineupListingResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nhl_id": {
+            "title": "Nhl Id",
+            "type": "integer"
+          },
+          "recent": {
+            "$ref": "#/components/schemas/RoleWindowResponse"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          }
+        },
+        "required": [
+          "nhl_id",
+          "team",
+          "recent",
+          "baseline",
+          "baseline_source",
+          "first_recent_game_date",
+          "last_recent_game_date",
+          "listed_now",
+          "listed_before"
+        ],
+        "title": "SkaterRoleChangeResponse",
         "type": "object"
       },
       "SkaterSplitResponse": {
@@ -3740,6 +3960,90 @@
         "summary": "List Rest Of Season Skaters",
         "tags": [
           "rest-of-season"
+        ]
+      }
+    },
+    "/api/v1/role-changes/skaters": {
+      "get": {
+        "description": "Every skater who dressed in his club's last `recent_games`: his ice, power-play ice and\nshare of his club's power play over them, beside the same over his baseline, and where the\nlineup page lists him now and before. Unsorted; the client ranks.",
+        "operationId": "skater_role_changes_api_v1_role_changes_skaters_get",
+        "parameters": [
+          {
+            "description": "Season start year, e.g. 2025. Defaults to the newest season with a game logged, which is the season underway once its first game is in",
+            "in": "query",
+            "name": "season",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1917,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Season start year, e.g. 2025. Defaults to the newest season with a game logged, which is the season underway once its first game is in",
+              "title": "Season"
+            }
+          },
+          {
+            "description": "The recent stretch: each club's own last N games, counted back from the latest game logged for that club",
+            "in": "query",
+            "name": "recent_games",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "description": "The recent stretch: each club's own last N games, counted back from the latest game logged for that club",
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Recent Games",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleChangesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skater Role Changes",
+        "tags": [
+          "role-changes"
         ]
       }
     },

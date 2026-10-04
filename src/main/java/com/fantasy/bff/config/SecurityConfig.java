@@ -86,6 +86,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/v1/espn", "/api/v1/espn/**").authenticated()
                             .requestMatchers("/api/v1/streamer-planner/**").authenticated()
                             .requestMatchers("/api/v1/fa-scout/**").authenticated()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/role-changes").authenticated()
                             .requestMatchers("/api/v1/draft-analysis/**").authenticated()
                             .requestMatchers("/api/v1/league-summaries/**").authenticated()
                             .requestMatchers(HttpMethod.GET, "/api/v1/leagues/rostered-players").authenticated()

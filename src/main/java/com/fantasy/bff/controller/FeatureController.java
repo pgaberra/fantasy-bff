@@ -7,6 +7,7 @@ import com.fantasy.bff.service.DraftAnalysisAvailability;
 import com.fantasy.bff.service.FaScoutAvailability;
 import com.fantasy.bff.service.LeagueDraftSyncAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
+import com.fantasy.bff.service.RoleChangesAvailability;
 import com.fantasy.bff.service.WhosHotAvailableFilterAvailability;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -31,6 +32,7 @@ public class FeatureController {
     private final WhosHotAvailableFilterAvailability whosHotAvailableFilter;
     private final RestOfSeasonPresetAvailability restOfSeasonPreset;
     private final FaScoutAvailability faScout;
+    private final RoleChangesAvailability roleChanges;
     private final DraftAnalysisAvailability draftAnalysis;
 
     public FeatureController(
@@ -40,6 +42,7 @@ public class FeatureController {
             WhosHotAvailableFilterAvailability whosHotAvailableFilter,
             RestOfSeasonPresetAvailability restOfSeasonPreset,
             FaScoutAvailability faScout,
+            RoleChangesAvailability roleChanges,
             DraftAnalysisAvailability draftAnalysis) {
         this.aiProjection = aiProjection;
         this.leagueDraftSync = leagueDraftSync;
@@ -47,6 +50,7 @@ public class FeatureController {
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
         this.faScout = faScout;
+        this.roleChanges = roleChanges;
         this.draftAnalysis = draftAnalysis;
     }
 
@@ -60,6 +64,8 @@ public class FeatureController {
                 aiProjection.available(), leagueDraftSync.available(),
                 streamerPlanner.available(), whosHotAvailableFilter.available(),
                 restOfSeasonPreset.available(), streamerPlanner.myTeamAvailable(),
-                faScout.available(), draftAnalysis.available());
+                faScout.available(),
+                roleChanges.available(),
+                draftAnalysis.available());
     }
 }
