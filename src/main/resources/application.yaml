@@ -294,6 +294,11 @@ security:
     secret: ${JWT_SECRET}
     expiration-ms: 900000 # 15 minutes
     refresh-expiration-ms: 2592000000  # 30 days
+  refresh-cookie:
+    # The refresh token also travels as the HttpOnly cookie slapstat_refresh (Path=/api/v1/auth,
+    # SameSite=Lax, host-only). Secure unless turned off, which only the dev profile does: Safari
+    # refuses a Secure cookie set over http://localhost.
+    secure: true
   rate-limit:
     # Per-client-IP limits on the public endpoints (brute-force / reset-email abuse, and the
     # public share reads). Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds =
@@ -321,6 +326,8 @@ security:
       # enough for a household or an office behind one address, tight enough that a stolen or
       # guessed token cannot be tried at speed.
       "[/api/v1/auth/refresh]": { limit: 60, window-seconds: 300 }
+      # Signing out only clears this browser's cookie; nobody needs it more than now and then.
+      "[/api/v1/auth/logout]": { limit: 30, window-seconds: 300 }
       "[/api/v1/billing/checkout-session]": { limit: 10, window-seconds: 300 }
       "[/api/v1/billing/portal-session]": { limit: 10, window-seconds: 300 }
       # The public share reads. The JSON one is per real visitor IP, so it can be tight — a
