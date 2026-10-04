@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.service.StreamerPlannerAvailability;
 import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
+import com.fantasy.bff.service.FaScoutAvailability;
 import com.fantasy.bff.service.LeagueDraftSyncAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
 import com.fantasy.bff.service.WhosHotAvailableFilterAvailability;
@@ -28,18 +29,21 @@ public class FeatureController {
     private final StreamerPlannerAvailability streamerPlanner;
     private final WhosHotAvailableFilterAvailability whosHotAvailableFilter;
     private final RestOfSeasonPresetAvailability restOfSeasonPreset;
+    private final FaScoutAvailability faScout;
 
     public FeatureController(
             AiProjectionAvailability aiProjection,
             LeagueDraftSyncAvailability leagueDraftSync,
             StreamerPlannerAvailability streamerPlanner,
             WhosHotAvailableFilterAvailability whosHotAvailableFilter,
-            RestOfSeasonPresetAvailability restOfSeasonPreset) {
+            RestOfSeasonPresetAvailability restOfSeasonPreset,
+            FaScoutAvailability faScout) {
         this.aiProjection = aiProjection;
         this.leagueDraftSync = leagueDraftSync;
         this.streamerPlanner = streamerPlanner;
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
+        this.faScout = faScout;
     }
 
     @GetMapping
@@ -51,6 +55,6 @@ public class FeatureController {
         return new FeaturesResponse(
                 aiProjection.available(), leagueDraftSync.available(),
                 streamerPlanner.available(), whosHotAvailableFilter.available(),
-                restOfSeasonPreset.available());
+                restOfSeasonPreset.available(), faScout.available());
     }
 }

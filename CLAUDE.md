@@ -267,6 +267,16 @@ are not committed; every build regenerates them.
     the rating itself lives there. Signed in, not premium. Behind `streamer-planner.enabled`
     (`STREAMER_PLANNER_ENABLED`, off by default): without it both 404 and `GET /api/v1/features`
     reports `streamerPlanner` false. Team codes are the NHL's (`TBL`), not ESPN's (`TB`).
+  - `FaScoutController` — `GET /api/v1/fa-scout/free-agents?platform=&leagueId=`: the players a
+    league has available with **two of the model's lines** each, the served rest of the season
+    (`ProjectionSeedService.seasonShape`, the same lifted `served` every page reads) and the frozen
+    preseason line (`model_version=preseason`, absent for a player it did not cover). The wire is
+    read and joined on identity by `LeagueAvailablePlayers`, the planner's own read moved into a
+    shared component. Nothing is scored: the web ranks both lines by the league's settings and the
+    places gained between them are what make a player Rising. Before opening night or after the
+    last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
+    Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
+    (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show

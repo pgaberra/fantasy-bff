@@ -12,6 +12,8 @@ tags:
   description: "Public, read-only projections (no sign-in required)"
 - name: Streamer planner
   description: Team schedules rated for streaming
+- name: FA scout
+  description: Available players worth keeping for the rest of the season
 - name: Projection shares
   description: The current user's public links to their projections
 - name: Yahoo
@@ -2177,6 +2179,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeaturesResponse"
+  /api/v1/fa-scout/free-agents:
+    get:
+      tags:
+      - FA scout
+      summary: "The players a league has available, with the model's rest of the season"
+      description: "Each player carries the model's rest of the season and its line\
+        \ for him before the season began, both in the projection's own stat vocabulary:\
+        \ score them with the league's scoring settings. Joined on identity, so the\
+        \ answer does not depend on which platform the player pool is served from."
+      operationId: faScoutFreeAgents
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: Available players the model projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoutListResponse"
+        "404":
+          description: The FA scout is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoutListResponse"
   /api/v1/espn/leagues/{leagueId}/projection-settings:
     get:
       tags:
@@ -4962,12 +5005,113 @@ components:
             \ (source=rest_of_season). False means it is refused and its status endpoint\
             \ answers 404, so a client should not offer it. True still offers it only\
             \ while a season is under way, which the status endpoint says."
+        faScout:
+          type: boolean
+          description: "Whether this environment serves the FA scout. False means\
+            \ its endpoint answers 404, so a client should not offer it."
       required:
       - aiProjection
+      - faScout
       - leagueDraftSync
       - restOfSeasonPreset
       - streamerPlanner
       - whosHotAvailableFilter
+    ScoutLine:
+      type: object
+      description: "A projected line: the games it covers and the player's totals\
+        \ over them"
+      properties:
+        games:
+          type: number
+          format: double
+          description: "Games the line covers: games played for a skater, starts for\
+            \ a goalie"
+        stats:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "The projected totals over those games, in the projection's\
+            \ own stat vocabulary. Rates (toiPerGame, shPct, svPct, gaa) are per game\
+            \ or per shot and do not scale with the games."
+      required:
+      - games
+      - stats
+    ScoutListResponse:
+      type: object
+      description: A league's available players with the model's rest of the season
+      properties:
+        season:
+          type: integer
+          format: int32
+        modelVersion:
+          type: string
+          description: The model version the rest of the season came from
+        inSeason:
+          type: boolean
+          description: "Whether the season is under way. False before its first game\
+            \ and after its last, when there is no rest of the season and no player\
+            \ is listed."
+        preseasonAvailable:
+          type: boolean
+          description: "Whether the model's preseason line is stored for this season.\
+            \ False leaves every player's preseason absent, so nobody can read as\
+            \ rising."
+        players:
+          type: array
+          description: "Available players the model projects, in no ranked order:\
+            \ score them with the league's settings"
+          items:
+            $ref: "#/components/schemas/ScoutPlayerResponse"
+      required:
+      - inSeason
+      - players
+      - preseasonAvailable
+      - season
+    ScoutPlayerResponse:
+      type: object
+      description: "An available player, his rest of the season and his preseason\
+        \ line"
+      properties:
+        playerId:
+          type: string
+          description: The platform's player id
+        name:
+          type: string
+        teamAbbrev:
+          type: string
+          description: "The club he is on, in the platform's own spelling"
+        type:
+          type: string
+          description: skater or goalie
+        positions:
+          type: array
+          description: Every position the league may start him at
+          items:
+            type: string
+        availability:
+          type: string
+          description: "FREE_AGENT to add now, WAIVERS to claim first, UNKNOWN when\
+            \ the platform does not say"
+          enum:
+          - FREE_AGENT
+          - WAIVERS
+          - UNKNOWN
+        restOfSeason:
+          $ref: "#/components/schemas/ScoutLine"
+          description: "The model's rest of the season, lifted to the season line's\
+            \ scale, with the season so far left out"
+        preseason:
+          $ref: "#/components/schemas/ScoutLine"
+          description: "The model's line for the whole season as it stood on the eve\
+            \ of it, or absent when the model had none for him then"
+      required:
+      - availability
+      - name
+      - playerId
+      - positions
+      - restOfSeason
+      - type
     CredentialStatusResponse:
       type: object
       properties:

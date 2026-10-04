@@ -27,5 +27,9 @@ public record FeaturesResponse(
                         + "(source=rest_of_season). False means it is refused and its status "
                         + "endpoint answers 404, so a client should not offer it. True still offers "
                         + "it only while a season is under way, which the status endpoint says.")
-        boolean restOfSeasonPreset
+        boolean restOfSeasonPreset,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves the FA scout. False means its "
+                        + "endpoint answers 404, so a client should not offer it.")
+        boolean faScout
 ) {}
