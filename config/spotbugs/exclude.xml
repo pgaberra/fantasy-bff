@@ -40,14 +40,15 @@
         </Or>
     </Match>
 
-    <!-- THROWS_METHOD_THROWS_RUNTIMEEXCEPTION in the planner's free-agent read: it fetches
-         each position on its own virtual thread and rethrows the failed call's own exception
-         out of the Future, so GlobalExceptionHandler maps it as it would unthreaded (a Yahoo
-         refusal stays a 424, a downstream status keeps its status). Wrapping it would turn
-         every one of them into the same 502. -->
+    <!-- THROWS_METHOD_THROWS_RUNTIMEEXCEPTION in the read of a league's available players
+         (the streamer planner's and the FA scout's): it fetches each position on its own
+         virtual thread and rethrows the failed call's own exception out of the Future, so
+         GlobalExceptionHandler maps it as it would unthreaded (a Yahoo refusal stays a 424, a
+         downstream status keeps its status). Wrapping it would turn every one of them into the
+         same 502. -->
     <Match>
         <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
-        <Class name="com.fantasy.bff.service.StreamerPlannerFreeAgentService"/>
+        <Class name="com.fantasy.bff.service.LeagueAvailablePlayers"/>
     </Match>
 
     <!-- SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING on the error page: the container's error
