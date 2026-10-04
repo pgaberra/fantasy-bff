@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.Date;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -106,19 +107,48 @@ public class AuthService {
                 maybeUser.get().tokenVersion(), maybeUser.get().emailVerified());
     }
 
+    /**
+     * Every refusal is logged with its reason: a client that keeps signing its user out can then
+     * be told apart from one whose refreshes we refuse.
+     */
     public AuthResponse refresh(RefreshRequest request) {
-        Claims claims = jwtTokenValidator.validateAndExtractRefreshTokenClaims(request.refreshToken());
-        User user = databaseServiceClient.findUserByEmail(claims.get("email", String.class))
-                .orElseThrow(() -> new SecurityException("Invalid refresh token"));
+        Claims claims;
+        try {
+            claims = jwtTokenValidator.validateAndExtractClaims(request.refreshToken());
+        } catch (SecurityException e) {
+            log.info("Refresh refused: TOKEN_INVALID_OR_EXPIRED");
+            throw e;
+        }
+        if (!jwtTokenValidator.isRefreshToken(claims)) {
+            logRefusedRefresh(RefreshRefusal.NOT_A_REFRESH_TOKEN, claims);
+            throw new SecurityException("Expected refresh token");
+        }
+        Optional<User> maybeUser = databaseServiceClient.findUserByEmail(claims.get("email", String.class));
+        if (maybeUser.isEmpty()) {
+            logRefusedRefresh(RefreshRefusal.NO_ACCOUNT, claims);
+            throw new SecurityException("Invalid refresh token");
+        }
+        User user = maybeUser.get();
         int currentVersion = user.tokenVersion();
-        boolean tokenIsCurrent = jwtTokenValidator.getTokenVersion(claims)
-                .map(version -> version == currentVersion)
-                .orElse(false);
-        if (!tokenIsCurrent) {
+        Optional<Integer> tokenVersion = jwtTokenValidator.getTokenVersion(claims);
+        if (tokenVersion.isEmpty()) {
+            logRefusedRefresh(RefreshRefusal.NO_TOKEN_VERSION, claims);
+            throw new SecurityException("Refresh token has been revoked");
+        }
+        if (tokenVersion.get() != currentVersion) {
             // The refresh token was revoked — e.g. a password reset bumped the user's token version.
+            logRefusedRefresh(RefreshRefusal.TOKEN_VERSION_REVOKED, claims);
             throw new SecurityException("Refresh token has been revoked");
         }
         return issueTokens(user.id(), user.email(), currentVersion, user.emailVerified());
+    }
+
+    private enum RefreshRefusal { NOT_A_REFRESH_TOKEN, NO_ACCOUNT, NO_TOKEN_VERSION, TOKEN_VERSION_REVOKED }
+
+    private static void logRefusedRefresh(RefreshRefusal reason, Claims claims) {
+        Date issuedAt = claims.getIssuedAt();
+        log.info("Refresh refused: {} (token issued {})", reason.name(),
+                issuedAt == null ? null : issuedAt.toInstant());
     }
 
     /**
