@@ -1394,8 +1394,10 @@ paths:
       - Streamer planner
       summary: "The user's own team in a league, today"
       description: "Read live from the platform: each player's club, the positions\
-        \ the league may start him at, today's slot and whether he is out. Served\
-        \ only where `STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as the planner."
+        \ the league may start him at, today's slot and whether he is out. Given a\
+        \ stretch, also the model's line over it for each player it projects, on a\
+        \ free agent's scale. Served only where `STREAMER_PLANNER_MY_TEAM_ENABLED`\
+        \ is on as well as the planner."
       operationId: streamerPlannerMyTeam
       parameters:
       - name: platform
@@ -1415,9 +1417,30 @@ paths:
           type: string
           maxLength: 64
           minLength: 0
+      - name: start
+        in: query
+        description: "First date of the stretch to give lines over, e.g. 2026-10-12"
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: end
+        in: query
+        description: "Last date, inclusive; given with start or not at all"
+        required: false
+        schema:
+          type: string
+          format: date
       responses:
         "200":
           description: "The team, or found=false when none is the user's"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
+        "400":
+          description: "Only one of start and end, end before start, or too long a\
+            \ stretch"
           content:
             application/json:
               schema:
@@ -4308,9 +4331,47 @@ components:
             \ when not found or before the draft"
           items:
             $ref: "#/components/schemas/PlannerRosterPlayer"
+        lines:
+          type: array
+          description: "The model's line over the stretch for each player it projects,\
+            \ when a stretch was asked for; empty otherwise. A player the model has\
+            \ no line for, or whose identity did not match, has none."
+          items:
+            $ref: "#/components/schemas/PlannerOwnLine"
       required:
       - found
+      - lines
       - players
+    PlannerOwnLine:
+      type: object
+      description: The model's line for one of the user's players over the chosen
+        stretch
+      properties:
+        playerId:
+          type: string
+          description: "The platform's player id, as the team's players list gives\
+            \ it"
+        clubGames:
+          type: integer
+          format: int32
+          description: Games his club plays in the stretch
+        expectedGames:
+          type: number
+          format: double
+          description: "Games he is expected to dress for, or starts for a goalie"
+        stats:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "The model's projected totals over those games, in the vocabulary\
+            \ a free agent's line uses. Rates (toiPerGame, shPct, svPct, gaa) are\
+            \ the season's own and do not scale with the stretch."
+      required:
+      - clubGames
+      - expectedGames
+      - playerId
+      - stats
     PlannerRosterPlayer:
       type: object
       description: A player on the user's own team in the chosen league
