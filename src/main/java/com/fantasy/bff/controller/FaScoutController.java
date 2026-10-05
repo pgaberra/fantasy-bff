@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.ScoutListResponse;
+import com.fantasy.bff.dto.response.ScoutMyTeamResponse;
 import com.fantasy.bff.service.FaScoutService;
 import com.fantasy.bff.service.PlayerIdSpace;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,5 +53,25 @@ public class FaScoutController {
             @Parameter(description = "The Yahoo league key or the ESPN league id")
                     @RequestParam @NotBlank @Size(max = 64) String leagueId) {
         return scoutService.freeAgents(userId, platform, leagueId);
+    }
+
+    @Operation(
+            operationId = "faScoutMyTeam",
+            summary = "The user's own team in a league, with the model's rest of the season",
+            description = "Each player on the user's team today, bench and injured reserve included, "
+                    + "with the model's rest of the season on the same line the available players "
+                    + "carry: score both together to weigh a pickup against the player it would "
+                    + "replace. Read live from the platform.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "The user's team, or found=false"),
+        @ApiResponse(responseCode = "404", description = "The FA scout is off in this environment")
+    })
+    @GetMapping("/my-team")
+    public ScoutMyTeamResponse myTeam(
+            @AuthenticationPrincipal String userId,
+            @Parameter(description = "Which platform's league to read") @RequestParam PlayerIdSpace platform,
+            @Parameter(description = "The Yahoo league key or the ESPN league id")
+                    @RequestParam @NotBlank @Size(max = 64) String leagueId) {
+        return scoutService.myTeam(userId, platform, leagueId);
     }
 }
