@@ -11,14 +11,21 @@ import com.fantasy.bff.dto.request.ResendVerificationRequest;
 import com.fantasy.bff.dto.request.ResetPasswordRequest;
 import com.fantasy.bff.dto.request.VerifyEmailRequest;
 import com.fantasy.bff.dto.response.AuthResponse;
+import com.fantasy.bff.security.RefreshTokenCookie;
 import com.fantasy.bff.service.AuthService;
+import com.fantasy.bff.service.IssuedTokens;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,9 +37,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final RefreshTokenCookie refreshTokenCookie;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, RefreshTokenCookie refreshTokenCookie) {
         this.authService = authService;
+        this.refreshTokenCookie = refreshTokenCookie;
     }
 
     @PostMapping("/login")
@@ -43,18 +52,45 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Validation error")
     })
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+        return issued(HttpStatus.OK, authService.login(request));
     }
 
     @PostMapping("/refresh")
-    @Operation(summary = "Refresh tokens", description = "Exchange a valid refresh token for a new access token and refresh token pair")
+    @Operation(summary = "Refresh tokens",
+            description = "Exchange a valid refresh token for a new access token; the rotated refresh token "
+                    + "comes back only in the HttpOnly slapstat_refresh cookie. The token is read from "
+                    + "that cookie, else from the body (sessions stored before the cookie). With neither, the answer is 401: there is no session to refresh.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Tokens refreshed successfully"),
-            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token"),
+            @ApiResponse(responseCode = "401", description = "No refresh token, or an invalid, expired or revoked one"),
             @ApiResponse(responseCode = "400", description = "Validation error")
     })
-    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
-        return ResponseEntity.ok(authService.refresh(request));
+    public ResponseEntity<AuthResponse> refresh(
+            @Parameter(hidden = true) @CookieValue(name = RefreshTokenCookie.NAME, required = false) String cookieToken,
+            @Valid @RequestBody(required = false) RefreshRequest request,
+            HttpServletResponse response) {
+        boolean cookiePresented = StringUtils.hasText(cookieToken);
+        try {
+            String refreshToken = presentedRefreshToken(cookieToken, request);
+            return issued(HttpStatus.OK, authService.refresh(new RefreshRequest(refreshToken)));
+        } catch (SecurityException refused) {
+            if (cookiePresented) {
+                response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.clear().toString());
+            }
+            throw refused;
+        }
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Sign this browser out",
+            description = "Clears the refresh-token cookie. Nothing is revoked server-side, so the account's "
+                    + "sessions on other browsers and devices carry on; signing out everywhere is "
+                    + "POST /api/v1/account/sessions/revoke.")
+    @ApiResponse(responseCode = "204", description = "Cookie cleared")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.clear().toString())
+                .build();
     }
 
     @PostMapping("/google")
@@ -65,7 +101,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Validation error")
     })
     public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        return ResponseEntity.ok(authService.googleLogin(request));
+        return issued(HttpStatus.OK, authService.googleLogin(request));
     }
 
     @PostMapping("/google/code")
@@ -79,7 +115,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Unrecognized redirect URI or validation error")
     })
     public ResponseEntity<AuthResponse> googleCodeLogin(@Valid @RequestBody GoogleCodeLoginRequest request) {
-        return ResponseEntity.ok(authService.googleLoginWithCode(request));
+        return issued(HttpStatus.OK, authService.googleLoginWithCode(request));
     }
 
     @PostMapping("/facebook")
@@ -90,7 +126,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Validation error")
     })
     public ResponseEntity<AuthResponse> facebookLogin(@Valid @RequestBody FacebookLoginRequest request) {
-        return ResponseEntity.ok(authService.facebookLogin(request));
+        return issued(HttpStatus.OK, authService.facebookLogin(request));
     }
 
     @PostMapping("/register")
@@ -100,7 +136,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Email already in use or validation error")
     })
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+        return issued(HttpStatus.CREATED, authService.register(request));
     }
 
     @PostMapping("/password/forgot")
@@ -152,5 +188,24 @@ public class AuthController {
     public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
         authService.resendVerificationEmail(request);
         return ResponseEntity.ok().build();
+    }
+
+    private String presentedRefreshToken(String cookieToken, RefreshRequest request) {
+        if (StringUtils.hasText(cookieToken)) {
+            if (cookieToken.length() > RefreshTokenCookie.MAX_VALUE_LENGTH) {
+                throw new SecurityException("Invalid refresh token");
+            }
+            return cookieToken;
+        }
+        if (request != null && StringUtils.hasText(request.refreshToken())) {
+            return request.refreshToken();
+        }
+        throw new SecurityException("No refresh token");
+    }
+
+    private ResponseEntity<AuthResponse> issued(HttpStatus status, IssuedTokens tokens) {
+        return ResponseEntity.status(status)
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.issue(tokens.refreshToken()).toString())
+                .body(tokens.response());
     }
 }

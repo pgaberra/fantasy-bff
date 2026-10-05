@@ -174,6 +174,37 @@ league-draft-sync:
 # endpoints answer 404 and /api/v1/features reports streamerPlanner false. Not a premium feature.
 streamer-planner:
   enabled: ${STREAMER_PLANNER_ENABLED:false}
+  # The user's own team on top (GET /api/v1/streamer-planner/my-team): which nights it has open
+  # lineup slots. Off unless this says otherwise, since it is new; off, the endpoint answers 404 and
+  # /api/v1/features reports streamerPlannerMyTeam false. Never on without the planner itself.
+  my-team-enabled: ${STREAMER_PLANNER_MY_TEAM_ENABLED:false}
+
+# Role Changes (GET /api/v1/role-changes): skaters whose ice or power-play role just moved, measured
+# by projection-service. Off unless this says otherwise, since it is a draft; off, the endpoint
+# answers 404 and /api/v1/features reports roleChanges false. Not a premium feature.
+role-changes:
+  enabled: ${ROLE_CHANGES_ENABLED:false}
+
+# The rest of the season as a draft preset (source=rest_of_season, and
+# /api/v1/projection-model/rest-of-season/status). Off unless this says otherwise, since it is new;
+# off, both are refused and /api/v1/features reports restOfSeasonPreset false. It also needs the AI
+# projection, whose lines it is, and premium like it.
+rest-of-season-preset:
+  enabled: ${REST_OF_SEASON_PRESET_ENABLED:false}
+
+# The FA scout (/api/v1/fa-scout/**): a league's available players with the model's rest of the
+# season and its preseason line, to find the ones worth keeping. Off unless this says otherwise,
+# since it is new; off, its endpoint answers 404 and /api/v1/features reports faScout false. It
+# also needs the AI projection, whose lines it shows.
+fa-scout:
+  enabled: ${FA_SCOUT_ENABLED:false}
+
+# Draft Analysis (/api/v1/draft-analysis/**): a league's draft with every pick graded against the
+# model's preseason line. Off unless this says otherwise, since it is new; off, its endpoint answers
+# 404 and /api/v1/features reports draftAnalysis false. It also needs the AI projection, whose
+# ranking it grades by, and reading a league's draft (league-draft-sync), where the picks come from.
+draft-analysis:
+  enabled: ${DRAFT_ANALYSIS_ENABLED:false}
 
 # Who's hot narrowed to the players nobody in the user's linked league holds
 # (GET /api/v1/leagues/rostered-players). Off unless this says otherwise, since it is new; off, the
@@ -287,6 +318,11 @@ security:
     secret: ${JWT_SECRET}
     expiration-ms: 900000 # 15 minutes
     refresh-expiration-ms: 2592000000  # 30 days
+  refresh-cookie:
+    # The refresh token also travels as the HttpOnly cookie slapstat_refresh (Path=/api/v1/auth,
+    # SameSite=Lax, host-only). Secure unless turned off, which only the dev profile does: Safari
+    # refuses a Secure cookie set over http://localhost.
+    secure: true
   rate-limit:
     # Per-client-IP limits on the public endpoints (brute-force / reset-email abuse, and the
     # public share reads). Non-secret; disable with RATE_LIMIT_ENABLED=false. window-seconds =
@@ -314,6 +350,8 @@ security:
       # enough for a household or an office behind one address, tight enough that a stolen or
       # guessed token cannot be tried at speed.
       "[/api/v1/auth/refresh]": { limit: 60, window-seconds: 300 }
+      # Signing out only clears this browser's cookie; nobody needs it more than now and then.
+      "[/api/v1/auth/logout]": { limit: 30, window-seconds: 300 }
       "[/api/v1/billing/checkout-session]": { limit: 10, window-seconds: 300 }
       "[/api/v1/billing/portal-session]": { limit: 10, window-seconds: 300 }
       # The public share reads. The JSON one is per real visitor IP, so it can be tight — a

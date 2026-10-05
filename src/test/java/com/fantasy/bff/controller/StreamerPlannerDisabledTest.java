@@ -36,6 +36,9 @@ class StreamerPlannerDisabledTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/streamer-planner/teams?start=2026-10-12&end=2026-10-18")
                         .header("Authorization", bearer))
                 .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/streamer-planner/my-team?platform=YAHOO&leagueId=465.l.9")
+                        .header("Authorization", bearer))
+                .andExpect(status().isNotFound());
         verifyNoInteractions(projectionServiceClient);
     }
 
@@ -43,6 +46,7 @@ class StreamerPlannerDisabledTest extends BaseIntegrationTest {
     void theFeatureIsReportedOff() throws Exception {
         mockMvc.perform(get("/api/v1/features"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.streamerPlanner").value(false));
+                .andExpect(jsonPath("$.streamerPlanner").value(false))
+                .andExpect(jsonPath("$.streamerPlannerMyTeam").value(false));
     }
 }

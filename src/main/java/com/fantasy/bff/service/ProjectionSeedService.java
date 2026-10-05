@@ -146,8 +146,11 @@ public class ProjectionSeedService {
         return Optional.of(built);
     }
 
-    /** A skater's served rest of the season in the season line's shape, which is what the mapping reads. */
-    private static SkaterProjectionResponse seasonShape(RestOfSeasonSkaterResponse r) {
+    /**
+     * A skater's served rest of the season in the season line's shape, which is what the mapping
+     * reads. The FA scout reads it too, so its rest of the season is the one every page shows.
+     */
+    static SkaterProjectionResponse seasonShape(RestOfSeasonSkaterResponse r) {
         SkaterProjectionResponse line = new SkaterProjectionResponse()
                 .nhlId(r.getNhlId())
                 .targetSeason(r.getTargetSeason())
@@ -204,7 +207,7 @@ public class ProjectionSeedService {
     }
 
     /** A goalie's served rest of the season in the season line's shape. */
-    private static GoalieProjectionResponse seasonShape(RestOfSeasonGoalieResponse r) {
+    static GoalieProjectionResponse seasonShape(RestOfSeasonGoalieResponse r) {
         GoalieProjectionResponse line = new GoalieProjectionResponse()
                 .nhlId(r.getNhlId())
                 .targetSeason(r.getTargetSeason())

@@ -267,6 +267,32 @@ are not committed; every build regenerates them.
     the rating itself lives there. Signed in, not premium. Behind `streamer-planner.enabled`
     (`STREAMER_PLANNER_ENABLED`, off by default): without it both 404 and `GET /api/v1/features`
     reports `streamerPlanner` false. Team codes are the NHL's (`TBL`), not ESPN's (`TB`).
+    `GET /my-team?platform=&leagueId=` (`StreamerPlannerMyTeamService`) is the user's own team in
+    the league, read live from the platform's rosters (never the pool): each player's club, real
+    positions, today's slot and `out` (IR/NA slots, O/OUT/IR/suspension; day-to-day plays). The web
+    places them per night to find the open slots. Behind `streamer-planner.my-team-enabled`
+    (`STREAMER_PLANNER_MY_TEAM_ENABLED`) on top of the planner; reported as `streamerPlannerMyTeam`.
+  - `FaScoutController` — `GET /api/v1/fa-scout/free-agents?platform=&leagueId=`: the players a
+    league has available with **two of the model's lines** each, the served rest of the season
+    (`ProjectionSeedService.seasonShape`, the same lifted `served` every page reads) and the frozen
+    preseason line (`model_version=preseason`, absent for a player it did not cover). The wire is
+    read and joined on identity by `LeagueAvailablePlayers`, the planner's own read moved into a
+    shared component. Nothing is scored: the web ranks both lines by the league's settings and the
+    places gained between them are what make a player Rising. Before opening night or after the
+    last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
+    Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
+    (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
+  - `DraftAnalysisController` — `GET /api/v1/draft-analysis/yahoo/{leagueKey}`: a Yahoo league's
+    draft with **every pick graded against the model** (`DraftAnalysisService`, `scoring.DraftGrader`).
+    Players are valued by the league's own scoring over the whole pool, as Team Power Rankings values
+    them (`ProjectionScoring`), against the frozen preseason line (`model_version=preseason`), or the
+    current season line where none is stored (`preseason: false`). A pick's grade is
+    `(pick + teams) / (rank + teams)` in five bands (STEAL ... BIG_REACH; UNRANKED without a line);
+    its value over the slot is its value less the model's player at that number, summed per team
+    with an A-F letter. Teams' sums for everyone, each pick's rank/grade/best available with premium
+    (the Team Power Rankings rule). Behind `draft-analysis.enabled` (`DRAFT_ANALYSIS_ENABLED`, off by
+    default) AND the AI projection AND league-draft-sync (`DraftAnalysisAvailability`): otherwise
+    404, and `GET /api/v1/features` reports `draftAnalysis` false.
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes
     back `reachable: false` rather than failing the response — the endpoint exists to show
@@ -427,6 +453,15 @@ are not committed; every build regenerates them.
   `emails-per-address` is the one limit not keyed on the caller: `EmailSendThrottle` caps the
   verification and password-reset emails one address is sent, whoever asks, and answers a
   request over the cap exactly like one that sent mail.
+- `security/RefreshTokenCookie` — every response that issues a token pair (login, register, google,
+  google/code, facebook, refresh) also sets the refresh token as the HttpOnly cookie `slapstat_refresh`
+  (Path `/api/v1/auth`, SameSite=Lax, host-only; Secure unless `security.refresh-cookie.secure` is
+  false, which only the dev profile sets). Safari wipes localStorage after seven days without a
+  visit; a server-set cookie outlives that. `/refresh` reads the cookie before the body, answers a
+  request with neither with a quiet 401, and clears a cookie it refuses. `POST /auth/logout` and
+  sign-out-everywhere clear it; logout revokes nothing. The refresh token is never in a response
+  body (`AuthService` returns `IssuedTokens`, the controller splits it into cookie and body); the
+  request body still takes one, for sessions a browser stored in localStorage before the cookie.
 - `security/` — `JwtAuthenticationFilter`, `JwtTokenValidator`, and
   `GoogleTokenVerifier`/`NimbusGoogleTokenVerifier` (validates Google ID tokens against
   Google's JWKS: signature, issuer, audience = `security.google.client-id`, verified

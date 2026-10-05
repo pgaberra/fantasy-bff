@@ -11,6 +11,7 @@ import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
+import com.fantasy.bff.generated.projection.model.RoleChangesResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import java.time.LocalDate;
 import java.util.List;
@@ -67,6 +68,14 @@ public interface ProjectionServiceClient {
      * @param targetSeason a season to list even before it has a game, or null
      */
     SplitSeasonsResponse splitSeasons(Integer targetSeason);
+
+    /**
+     * Every skater who dressed in his club's last {@code recentGames}: his ice and power-play share
+     * over them beside his baseline, and where the lineup page lists him now and before.
+     *
+     * @param season the season to measure, or null for the newest season with a game played
+     */
+    RoleChangesResponse skaterRoleChanges(Integer season, int recentGames);
 
     /** The newest published season's Monday-Sunday weeks, numbered from opening night. */
     ScheduleWeeksResponse scheduleWeeks();

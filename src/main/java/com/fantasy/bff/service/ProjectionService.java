@@ -41,6 +41,7 @@ public class ProjectionService {
     private final ProjectionPoolReconciler reconciler;
     private final ProjectionSeedService seedService;
     private final AiProjectionAvailability aiProjection;
+    private final RestOfSeasonPresetAvailability restOfSeasonPreset;
     private final EntitlementService entitlementService;
     private final int projectionSeason;
     private final String projectionModelVersion;
@@ -51,6 +52,7 @@ public class ProjectionService {
                              ProjectionPoolReconciler reconciler,
                              ProjectionSeedService seedService,
                              AiProjectionAvailability aiProjection,
+                             RestOfSeasonPresetAvailability restOfSeasonPreset,
                              EntitlementService entitlementService,
                              @Value("${services.projection.season}") int projectionSeason,
                              @Value("${services.projection.model-version}") String projectionModelVersion) {
@@ -60,6 +62,7 @@ public class ProjectionService {
         this.reconciler = reconciler;
         this.seedService = seedService;
         this.aiProjection = aiProjection;
+        this.restOfSeasonPreset = restOfSeasonPreset;
         this.entitlementService = entitlementService;
         this.projectionSeason = projectionSeason;
         this.projectionModelVersion = projectionModelVersion;
@@ -210,6 +213,13 @@ public class ProjectionService {
             // — a client that skipped the first would otherwise still get the model through the
             // second. Checked after the switch above, since an environment without the feature
             // has nothing to sell.
+            // Its own switch on top of the AI projection's, checked before premium for the same
+            // reason: an environment that does not offer it has nothing to sell.
+            if (request.source() == ProjectionSource.REST_OF_SEASON && !restOfSeasonPreset.available()) {
+                throw new IllegalArgumentException(
+                        "source=rest_of_season is unavailable: the rest-of-season preset is switched "
+                                + "off in this environment");
+            }
             requirePremiumFor(userId);
         }
         if (request.kind() == ProjectionKind.DRAFT && !isPreset(request.source())) {

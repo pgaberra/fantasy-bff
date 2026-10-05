@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -225,7 +226,10 @@ class AccountControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void signOutEverywhere_revokesTheSessionsOfTheAccountInTheToken() throws Exception {
         mockMvc.perform(post("/api/v1/account/sessions/revoke").header("Authorization", "Bearer " + token()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().maxAge("slapstat_refresh", 0))
+                .andExpect(cookie().path("slapstat_refresh", "/api/v1/auth"))
+                .andExpect(cookie().httpOnly("slapstat_refresh", true));
 
         verify(databaseServiceClient).revokeSessions(USER_ID);
     }

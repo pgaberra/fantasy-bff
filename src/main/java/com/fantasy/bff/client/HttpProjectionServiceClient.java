@@ -7,6 +7,7 @@ import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
+import com.fantasy.bff.generated.projection.model.RoleChangesResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
@@ -174,6 +175,20 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
                 })
                 .retrieve()
                 .body(SplitSeasonsResponse.class);
+    }
+
+    @Override
+    public RoleChangesResponse skaterRoleChanges(Integer season, int recentGames) {
+        return restClient.get()
+                .uri(b -> {
+                    b.path("/api/v1/role-changes/skaters").queryParam("recent_games", recentGames);
+                    if (season != null) {
+                        b.queryParam("season", season);
+                    }
+                    return b.build();
+                })
+                .retrieve()
+                .body(RoleChangesResponse.class);
     }
 
     @Override
