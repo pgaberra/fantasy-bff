@@ -5,11 +5,9 @@ import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.PlayerAvailability;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.generated.espn.model.AvailablePlayer;
-import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
 import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
-import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -25,12 +23,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * The players a Yahoo or ESPN league has available, joined to the model's NHL ids on
- * <b>identity</b>. The streamer planner and the FA scout both read a league's wire this way.
- *
- * <p>The two sides are keyed differently: the platform numbers its players and the model numbers
- * NHL ids. They are joined here on identity rather than through the player pool's id space, which
- * keeps the answer right whichever platform the pool is served from. A Yahoo league's free agents
- * carry Yahoo ids, and an ESPN-numbered pool could not resolve them at all.
+ * <b>identity</b> ({@link NhlIdentityJoin}). The streamer planner and the FA scout both read a
+ * league's wire this way.
  */
 @Component
 public class LeagueAvailablePlayers {
@@ -46,18 +40,15 @@ public class LeagueAvailablePlayers {
 
     private final YahooServiceClient yahooServiceClient;
     private final EspnServiceClient espnServiceClient;
-    private final PlayerSplitContextProvider contextProvider;
-    private final PlayerIdResolver resolver;
+    private final NhlIdentityJoin identityJoin;
 
     public LeagueAvailablePlayers(
             YahooServiceClient yahooServiceClient,
             EspnServiceClient espnServiceClient,
-            PlayerSplitContextProvider contextProvider,
-            PlayerIdResolver resolver) {
+            NhlIdentityJoin identityJoin) {
         this.yahooServiceClient = yahooServiceClient;
         this.espnServiceClient = espnServiceClient;
-        this.contextProvider = contextProvider;
-        this.resolver = resolver;
+        this.identityJoin = identityJoin;
     }
 
     /** One available player as both sides need him: the platform's id, his identity, his status. */
@@ -111,26 +102,10 @@ public class LeagueAvailablePlayers {
     }
 
     private PlayerIdMapping join(List<Available> available) {
-        Map<Long, PlayerResponse> identities = contextProvider.context().identities();
-        List<PlayerIdResolver.Candidate> platformSide = new ArrayList<>();
-        for (Available player : available) {
-            // The resolver works in numeric platform ids; a Yahoo id is a numeric string, so the
-            // join key goes back to the platform's own form on the way out.
-            Long numeric = numericId(player.playerId());
-            if (numeric != null) {
-                platformSide.add(new PlayerIdResolver.Candidate(
-                        numeric, player.name(), player.teamAbbrev(), player.sweaterNumber()));
-            }
-        }
-        List<PlayerIdResolver.Candidate> nhlSide = new ArrayList<>();
-        for (PlayerResponse identity : identities.values()) {
-            nhlSide.add(new PlayerIdResolver.Candidate(
-                    identity.getNhlId(),
-                    identity.getFullName(),
-                    PlayerIdResolver.platformTeam(identity.getCurrentTeam()),
-                    identity.getSweaterNumber()));
-        }
-        return resolver.resolve(nhlSide, platformSide, Map.of());
+        return identityJoin.join(available.stream()
+                .map(player -> new NhlIdentityJoin.PlatformPlayer(
+                        player.playerId(), player.name(), player.teamAbbrev(), player.sweaterNumber()))
+                .toList());
     }
 
     private static Map<String, Integer> orderedLimits() {
@@ -228,16 +203,5 @@ public class LeagueAvailablePlayers {
             case "WAIVERS" -> PlayerAvailability.WAIVERS;
             default -> PlayerAvailability.UNKNOWN;
         };
-    }
-
-    private static Long numericId(String playerId) {
-        if (playerId == null) {
-            return null;
-        }
-        try {
-            return Long.valueOf(playerId);
-        } catch (NumberFormatException notNumeric) {
-            return null;
-        }
     }
 }

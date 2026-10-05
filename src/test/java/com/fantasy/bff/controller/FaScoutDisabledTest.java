@@ -41,6 +41,15 @@ class FaScoutDisabledTest extends BaseIntegrationTest {
     }
 
     @Test
+    void theOwnTeamIsNotServedEither() throws Exception {
+        String bearer = "Bearer " + jwtTokenValidator.generateToken("user-1", "a@example.com");
+        mockMvc.perform(get("/api/v1/fa-scout/my-team?platform=YAHOO&leagueId=465.l.9")
+                        .header("Authorization", bearer))
+                .andExpect(status().isNotFound());
+        verifyNoInteractions(projectionServiceClient, yahooServiceClient);
+    }
+
+    @Test
     void theFeatureIsReportedOff() throws Exception {
         mockMvc.perform(get("/api/v1/features"))
                 .andExpect(status().isOk())

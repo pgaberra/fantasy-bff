@@ -1,15 +1,20 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
+import com.fantasy.bff.dto.response.PlannerRosterPlayer;
 import com.fantasy.bff.dto.response.ScoutLine;
 import com.fantasy.bff.dto.response.ScoutListResponse;
+import com.fantasy.bff.dto.response.ScoutMyTeamResponse;
 import com.fantasy.bff.dto.response.ScoutPlayerResponse;
+import com.fantasy.bff.dto.response.ScoutRosterPlayer;
+import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.generated.projection.model.GoalieProjectionResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.service.LeagueAvailablePlayers.Available;
 import com.fantasy.bff.service.mapping.ModelStatMapping;
+import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,6 +37,10 @@ import org.springframework.stereotype.Service;
  * as it stood on the eve of the season, frozen as {@code model_version=preseason}. Nothing is
  * scored here, as in the planner: the client ranks both lines by the league's own settings, and
  * the distance between the two ranks is what says a player has risen.
+ *
+ * <p>The user's own team goes out on the same rest-of-season line ({@link #myTeam}), so the client
+ * can weigh each pickup against the player it would replace: a pickup needs a roster spot, and the
+ * one to give up is the player whose loss costs the team least.
  */
 @Service
 public class FaScoutService {
@@ -41,16 +50,22 @@ public class FaScoutService {
 
     private final ProjectionServiceClient projectionServiceClient;
     private final LeagueAvailablePlayers leagueAvailablePlayers;
+    private final LeagueOwnTeam ownTeam;
+    private final NhlIdentityJoin identityJoin;
     private final FaScoutAvailability availability;
     private final int season;
 
     public FaScoutService(
             ProjectionServiceClient projectionServiceClient,
             LeagueAvailablePlayers leagueAvailablePlayers,
+            LeagueOwnTeam ownTeam,
+            NhlIdentityJoin identityJoin,
             FaScoutAvailability availability,
             @Value("${services.projection.season}") int season) {
         this.projectionServiceClient = projectionServiceClient;
         this.leagueAvailablePlayers = leagueAvailablePlayers;
+        this.ownTeam = ownTeam;
+        this.identityJoin = identityJoin;
         this.availability = availability;
         this.season = season;
     }
@@ -106,6 +121,66 @@ public class FaScoutService {
                 true,
                 !preseasonSkaters.isEmpty() || !preseasonGoalies.isEmpty(),
                 List.copyOf(rows));
+    }
+
+    /**
+     * The user's own team in the league, each player with the model's rest of the season on the
+     * line the available players carry, so the two can be scored together. A player the model has
+     * no line for goes out without one.
+     */
+    public ScoutMyTeamResponse myTeam(String userId, PlayerIdSpace platform, String leagueId) {
+        availability.require();
+        LeagueOwnTeam.Team team = ownTeam.read(userId, platform, leagueId);
+        if (!team.found()) {
+            return new ScoutMyTeamResponse(false, null, List.of());
+        }
+        Map<String, Long> nhlIds = new HashMap<>();
+        identityJoin.join(team.players().stream()
+                        .map(rostered -> new NhlIdentityJoin.PlatformPlayer(
+                                rostered.player().playerId(),
+                                rostered.player().name(),
+                                rostered.player().teamAbbrev(),
+                                rostered.sweaterNumber()))
+                        .toList())
+                .nhlIdToPlatformId()
+                .forEach((nhlId, platformId) -> nhlIds.put(String.valueOf(platformId), nhlId));
+        Map<Integer, RestOfSeasonSkaterResponse> skaters = byNhlId(
+                projectionServiceClient.restOfSeasonSkaters(season), RestOfSeasonSkaterResponse::getNhlId);
+        Map<Integer, RestOfSeasonGoalieResponse> goalies = byNhlId(
+                projectionServiceClient.restOfSeasonGoalies(season), RestOfSeasonGoalieResponse::getNhlId);
+
+        List<ScoutRosterPlayer> players = new ArrayList<>();
+        for (LeagueOwnTeam.Rostered rostered : team.players()) {
+            PlannerRosterPlayer player = rostered.player();
+            Long nhlId = nhlIds.get(player.playerId());
+            ScoutLine line = null;
+            if (nhlId != null && "goalie".equals(player.type())) {
+                RestOfSeasonGoalieResponse row = goalies.get(nhlId.intValue());
+                line = row == null ? null : goalieLine(ProjectionSeedService.seasonShape(row));
+            } else if (nhlId != null) {
+                RestOfSeasonSkaterResponse row = skaters.get(nhlId.intValue());
+                line = row == null
+                        ? null
+                        : skaterLine(ProjectionSeedService.seasonShape(row), playsDefence(player.positions()));
+            }
+            players.add(new ScoutRosterPlayer(
+                    player.playerId(),
+                    player.name(),
+                    player.teamAbbrev(),
+                    player.type(),
+                    player.positions(),
+                    player.slot(),
+                    player.injuryStatus(),
+                    LeagueOwnTeam.parked(player.slot()),
+                    player.out(),
+                    line));
+        }
+        return new ScoutMyTeamResponse(true, team.name(), List.copyOf(players));
+    }
+
+    private static boolean playsDefence(List<String> positions) {
+        return positions.stream()
+                .anyMatch(position -> PlayerFieldMapping.fantasyPosition(position) == SkaterPosition.D);
     }
 
     private static <T> Map<Integer, T> byNhlId(List<T> rows, Function<T, Integer> nhlId) {
