@@ -29,6 +29,13 @@ class DraftGraderTest {
         return values;
     }
 
+    /** The same players valued with no positional adjustment: value over replacement is the value. */
+    private static Map<Integer, ReplacementLevel.Valued> valued(int count) {
+        Map<Integer, ReplacementLevel.Valued> valued = new HashMap<>();
+        values(count).forEach((id, value) -> valued.put(id, new ReplacementLevel.Valued(value, value, "C" + id)));
+        return valued;
+    }
+
     private static Map<Integer, DraftGrader.Player> directory(int count) {
         Map<Integer, DraftGrader.Player> directory = new HashMap<>();
         for (int id = 1; id <= count; id++) {
@@ -45,7 +52,7 @@ class DraftGraderTest {
                 new LeagueDraftPick(3, 2, "t2", 3),
                 new LeagueDraftPick(4, 2, "t1", 4));
 
-        DraftGrader.Graded graded = DraftGrader.grade(values(10), directory(10), picks, TEAMS, 2, false);
+        DraftGrader.Graded graded = DraftGrader.grade(valued(10), directory(10), picks, TEAMS, 2, false);
 
         assertThat(graded.picks()).extracting(DraftAnalysisPick::grade).containsOnly(DraftPickGrade.FAIR);
         assertThat(graded.picks()).extracting(DraftAnalysisPick::valueOverSlot).containsOnly(0.0);
@@ -60,7 +67,7 @@ class DraftGraderTest {
                 new LeagueDraftPick(1, 1, "t1", 1),
                 new LeagueDraftPick(2, 1, "t2", 30));
 
-        DraftAnalysisPick reach = DraftGrader.grade(values(40), directory(40), picks, TEAMS, 2, false)
+        DraftAnalysisPick reach = DraftGrader.grade(valued(40), directory(40), picks, TEAMS, 2, false)
                 .picks().get(1);
 
         assertThat(reach.grade()).isEqualTo(DraftPickGrade.BIG_REACH);
@@ -70,6 +77,8 @@ class DraftGraderTest {
         assertThat(reach.bestAvailable().playerId()).isEqualTo(2);
         assertThat(reach.bestAvailable().aiRank()).isEqualTo(2);
         assertThat(reach.bestAvailable().name()).isEqualTo("Player 2");
+        assertThat(reach.bestAvailable().positionRank()).isEqualTo("C2");
+        assertThat(reach.positionRank()).isEqualTo("C30");
     }
 
     @Test
@@ -79,7 +88,7 @@ class DraftGraderTest {
             picks.add(new LeagueDraftPick(overall, (overall + 11) / 12, overall % 2 == 0 ? "t2" : "t1", overall + 100));
         }
         picks.add(new LeagueDraftPick(60, 5, "t1", 30));
-        Map<Integer, Double> values = values(30);
+        Map<Integer, ReplacementLevel.Valued> values = valued(30);
         Map<Integer, DraftGrader.Player> directory = directory(30);
 
         DraftAnalysisPick steal = DraftGrader.grade(values, directory, picks, TEAMS, 12, false).picks().get(59);
@@ -94,13 +103,14 @@ class DraftGraderTest {
         Map<Integer, DraftGrader.Player> directory = directory(5);
         directory.put(99, new DraftGrader.Player("Overseas Signing", null, Set.of("D")));
 
-        DraftGrader.Graded graded = DraftGrader.grade(values(5), directory, picks, TEAMS, 2, false);
+        DraftGrader.Graded graded = DraftGrader.grade(valued(5), directory, picks, TEAMS, 2, false);
         DraftAnalysisPick pick = graded.picks().getFirst();
 
         assertThat(pick.grade()).isEqualTo(DraftPickGrade.UNRANKED);
         assertThat(pick.name()).isEqualTo("Overseas Signing");
         assertThat(pick.positions()).containsExactly("D");
         assertThat(pick.aiRank()).isNull();
+        assertThat(pick.positionRank()).isNull();
         assertThat(pick.valueOverSlot()).isNull();
         assertThat(pick.bestAvailable().playerId()).isEqualTo(1);
         DraftAnalysisTeam mine = graded.teams().stream().filter(DraftAnalysisTeam::mine).findFirst().orElseThrow();
@@ -113,7 +123,7 @@ class DraftGraderTest {
     void anAuctionIsNotGraded() {
         List<LeagueDraftPick> picks = List.of(new LeagueDraftPick(1, 1, "t1", 9));
 
-        DraftAnalysisPick pick = DraftGrader.grade(values(10), directory(10), picks, TEAMS, 2, true).picks().getFirst();
+        DraftAnalysisPick pick = DraftGrader.grade(valued(10), directory(10), picks, TEAMS, 2, true).picks().getFirst();
 
         assertThat(pick.grade()).isNull();
         assertThat(pick.aiRank()).isEqualTo(9);
@@ -125,7 +135,7 @@ class DraftGraderTest {
                 new LeagueDraftPick(1, 1, "t1", 8),
                 new LeagueDraftPick(2, 1, "t2", 1));
 
-        List<DraftAnalysisTeam> teams = DraftGrader.grade(values(10), directory(10), picks, TEAMS, 2, false).teams();
+        List<DraftAnalysisTeam> teams = DraftGrader.grade(valued(10), directory(10), picks, TEAMS, 2, false).teams();
 
         assertThat(teams).extracting(DraftAnalysisTeam::name).containsExactly("Jocke", "Mine");
         assertThat(teams.get(0).goodPicks()).isEqualTo(1);

@@ -10,6 +10,7 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.service.scoring.DraftGrader;
 import com.fantasy.bff.service.scoring.LeagueScoring;
 import com.fantasy.bff.service.scoring.ProjectionScoring;
+import com.fantasy.bff.service.scoring.ReplacementLevel;
 import com.fantasy.bff.service.scoring.ScoredPlayer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,8 +30,9 @@ import org.springframework.stereotype.Service;
  * {@code model_version=preseason}: what the model said when the league drafted, not what it says
  * after a month of games. Where no such line is stored it falls back to the current season line,
  * and says so. The players are valued the way Team Power Rankings values them, by the league's own
- * scoring over the whole pool ({@link ProjectionScoring}), so a player's worth here is his worth
- * there.
+ * scoring over the whole pool ({@link ProjectionScoring}), and then ranked on that value over the
+ * best player at the same position the league would leave unstarted ({@link ReplacementLevel}):
+ * a league that starts four defencemen has to draft them, and the grades say so.
  *
  * <p>As with Team Power Rankings, the teams' sums are everyone's and the per-pick half, which is
  * the model's ranking player by player, is premium's.
@@ -88,8 +90,12 @@ public class DraftAnalysisService {
         Map<Integer, DraftGrader.Player> directory = directory();
         LeagueScoring league = LeagueSummaryService.scoring(settings, draft.teams().size());
         ProjectionScoring.Scores scores = ProjectionScoring.score(pool(seed, directory), league);
+        Map<Integer, Set<String>> positions = new HashMap<>();
+        directory.forEach((playerId, player) -> positions.put(playerId, player.positions()));
+        Map<Integer, ReplacementLevel.Valued> valued = ReplacementLevel.value(
+                scores.values(), positions, league.rosterSlots(), league.leagueSize());
         DraftGrader.Graded graded = DraftGrader.grade(
-                scores.values(), directory, draft.picks(), draft.teams(), league.leagueSize(), draft.auction());
+                valued, directory, draft.picks(), draft.teams(), league.leagueSize(), draft.auction());
 
         boolean premium = entitlementService.hasPremiumAccess(userId);
         List<DraftAnalysisPick> picks = premium

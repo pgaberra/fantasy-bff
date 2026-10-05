@@ -286,10 +286,14 @@ are not committed; every build regenerates them.
     draft with **every pick graded against the model** (`DraftAnalysisService`, `scoring.DraftGrader`).
     Players are valued by the league's own scoring over the whole pool, as Team Power Rankings values
     them (`ProjectionScoring`), against the frozen preseason line (`model_version=preseason`), or the
-    current season line where none is stored (`preseason: false`). A pick's grade is
-    `(pick + teams) / (rank + teams)` in five bands (STEAL ... BIG_REACH; UNRANKED without a line);
-    its value over the slot is its value less the model's player at that number, summed per team
-    with an A-F letter. Teams' sums for everyone, each pick's rank/grade/best available with premium
+    current season line where none is stored (`preseason: false`). The rank is by **value over
+    replacement** (`scoring.ReplacementLevel`): the league's starting slots times its teams are
+    filled best value first (own position, then W, F, Util), and a position's replacement is the
+    best player eligible there left unstarted, so a league starting 4 D and 2 G ranks them up; a
+    multi-position player is measured where his replacement is weakest (`positionRank` "D1"). A
+    pick's grade is `(pick + teams) / (rank + teams)` in five bands (STEAL ... BIG_REACH; UNRANKED
+    without a line); its value over the slot is its value over replacement less that of the
+    model's player at that number, summed per team with an A-F letter. Teams' sums for everyone, each pick's rank/grade/best available with premium
     (the Team Power Rankings rule). Behind `draft-analysis.enabled` (`DRAFT_ANALYSIS_ENABLED`, off by
     default) AND the AI projection AND league-draft-sync (`DraftAnalysisAvailability`): otherwise
     404, and `GET /api/v1/features` reports `draftAnalysis` false.

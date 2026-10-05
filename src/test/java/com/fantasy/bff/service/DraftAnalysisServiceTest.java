@@ -75,17 +75,23 @@ class DraftAnalysisServiceTest {
 
         when(playerService.getSkaters()).thenReturn(List.of(
                 new SkaterResponse(1, "Forward One", "TOR", null, null, Set.of(SkaterPosition.C), null),
-                new SkaterResponse(2, "Forward Two", "BOS", null, null, Set.of(SkaterPosition.LW), null),
-                new SkaterResponse(3, "Forward Three", "MTL", null, null, Set.of(SkaterPosition.RW), null)));
+                new SkaterResponse(2, "Forward Two", "BOS", null, null, Set.of(SkaterPosition.C), null),
+                new SkaterResponse(3, "Forward Three", "MTL", null, null, Set.of(SkaterPosition.C), null),
+                new SkaterResponse(4, "Defence One", "COL", null, null, Set.of(SkaterPosition.D), null),
+                new SkaterResponse(5, "Defence Two", "BUF", null, null, Set.of(SkaterPosition.D), null),
+                new SkaterResponse(6, "Defence Three", "NYR", null, null, Set.of(SkaterPosition.D), null)));
         when(playerService.getGoalies()).thenReturn(List.<GoalieResponse>of());
         when(seedService.seed(SEASON, "preseason")).thenReturn(seed("preseason", List.of(
-                row(1, 40.0), row(2, 30.0), row(3, 15.0))));
+                row(1, 40.0), row(2, 30.0), row(3, 15.0), row(4, 12.0), row(5, 10.0), row(6, 5.0))));
         when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
                 LeagueDraftStatus.FINISHED,
                 false,
                 List.of(new LeagueDraftTeam("t1", "Mine", true), new LeagueDraftTeam("t2", "Jocke", false)),
                 true,
-                List.of(new LeagueDraftPick(1, 1, "t1", 3), new LeagueDraftPick(2, 1, "t2", 1)),
+                List.of(
+                        new LeagueDraftPick(1, 1, "t1", 3),
+                        new LeagueDraftPick(2, 1, "t2", 1),
+                        new LeagueDraftPick(3, 2, "t1", 4)),
                 null));
         when(leagueService.projectionSettings(USER, LEAGUE)).thenReturn(new LeagueProjectionSettingsResponse(
                 ScoringBasis.POINTS,
@@ -93,15 +99,20 @@ class DraftAnalysisServiceTest {
                 List.of("gp"),
                 Map.of("goals", 1.0),
                 "Beer League",
-                new RosterSlots(1, 1, 1, 0, 0, 0, 0, 1, 0),
+                new RosterSlots(1, 0, 0, 0, 0, 1, 0, 0, 0),
                 2,
                 List.of(),
                 List.of()));
         when(entitlementService.hasPremiumAccess(anyString())).thenReturn(true);
     }
 
+    /**
+     * Two teams starting a centre and a defenceman each: the third centre and the third defenceman
+     * are the replacements (15 and 5 goals), so the best defenceman's 12 goals are worth more over
+     * his replacement than the third centre's 15.
+     */
     @Test
-    void gradesEveryPickAgainstThePreseasonLineUnderTheLeaguesScoring() {
+    void gradesEveryPickByValueOverReplacementOnThePreseasonLine() {
         DraftAnalysisResponse analysis = service.yahoo(USER, LEAGUE);
 
         assertThat(analysis.preseason()).isTrue();
@@ -111,14 +122,20 @@ class DraftAnalysisServiceTest {
 
         DraftAnalysisPick first = analysis.picks().get(0);
         assertThat(first.name()).isEqualTo("Forward Three");
-        assertThat(first.aiRank()).isEqualTo(3);
+        assertThat(first.aiRank()).isEqualTo(5);
+        assertThat(first.positionRank()).isEqualTo("C3");
         assertThat(first.value()).isEqualTo(15.0);
-        assertThat(first.valueOverSlot()).isEqualTo(15.0 - 40.0);
+        assertThat(first.valueOverSlot()).isEqualTo(0.0 - 25.0);
         assertThat(first.grade()).isEqualTo(DraftPickGrade.BIG_REACH);
         assertThat(first.bestAvailable().name()).isEqualTo("Forward One");
 
         DraftAnalysisPick second = analysis.picks().get(1);
         assertThat(second.grade()).isEqualTo(DraftPickGrade.GOOD);
+
+        DraftAnalysisPick defenceman = analysis.picks().get(2);
+        assertThat(defenceman.aiRank()).as("fourth in goals, third over replacement").isEqualTo(3);
+        assertThat(defenceman.positionRank()).isEqualTo("D1");
+        assertThat(defenceman.grade()).isEqualTo(DraftPickGrade.FAIR);
         assertThat(analysis.teams()).extracting(DraftAnalysisTeam::name).containsExactly("Jocke", "Mine");
     }
 
@@ -145,6 +162,7 @@ class DraftAnalysisServiceTest {
         assertThat(analysis.picks()).allSatisfy(pick -> {
             assertThat(pick.name()).isNotNull();
             assertThat(pick.aiRank()).isNull();
+            assertThat(pick.positionRank()).isNull();
             assertThat(pick.value()).isNull();
             assertThat(pick.valueOverSlot()).isNull();
             assertThat(pick.grade()).isNull();

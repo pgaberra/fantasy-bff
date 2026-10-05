@@ -11,5 +11,7 @@ public record DraftAnalysisAlternative(
         @Schema(description = "His NHL club as the pool spells it; absent where it lists none") String club,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Eligible positions, C/LW/RW/D/G")
         List<String> positions,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "His rank in the model, from 1")
-        int aiRank) {}
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "His rank in the model by value over replacement, from 1")
+        int aiRank,
+        @Schema(description = "His rank among the players at his position, as \"D3\"") String positionRank) {}

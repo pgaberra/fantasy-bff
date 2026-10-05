@@ -16,7 +16,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Sets a league's picks against the model's ranking of the whole pool.
+ * Sets a league's picks against the model's ranking of the whole pool, ranked by value over
+ * replacement ({@link ReplacementLevel}) so a league's lineup decides what a position is worth.
  *
  * <p>A pick is graded by where the model ranked the player against where he went, with a round of
  * slack on both sides: {@code (pick + teams) / (rank + teams)}. The slack is what keeps the top of
@@ -47,13 +48,14 @@ public final class DraftGrader {
     public record Graded(List<DraftAnalysisPick> picks, List<DraftAnalysisTeam> teams) {
     }
 
-    private record Ranked(int playerId, double value, int rank) {
+    private record Ranked(int playerId, double value, double adjusted, String positionRank, int rank) {
     }
 
     /**
      * Grades a draft.
      *
-     * @param values the model's value per player id under the league's scoring, for the whole pool
+     * @param values the whole pool valued for the league, by player id: ranked on the value over
+     *     replacement
      * @param directory every player a pick may name, for his name and positions
      * @param picks the picks made, in order
      * @param teams the league's teams
@@ -62,7 +64,7 @@ public final class DraftGrader {
      *     picks are not graded
      */
     public static Graded grade(
-            Map<Integer, Double> values,
+            Map<Integer, ReplacementLevel.Valued> values,
             Map<Integer, Player> directory,
             List<LeagueDraftPick> picks,
             List<LeagueDraftTeam> teams,
@@ -93,7 +95,7 @@ public final class DraftGrader {
             Player player = directory.get(pick.playerId());
             Double valueOverSlot = taken == null || ranked.isEmpty()
                     ? null
-                    : taken.value() - ranked.get(Math.min(pick.overall(), ranked.size()) - 1).value();
+                    : taken.adjusted() - ranked.get(Math.min(pick.overall(), ranked.size()) - 1).adjusted();
             graded.add(new DraftAnalysisPick(
                     pick.overall(),
                     pick.round(),
@@ -103,6 +105,7 @@ public final class DraftGrader {
                     player == null ? null : player.club(),
                     player == null ? List.of() : positionsInOrder(player.positions()),
                     taken == null ? null : taken.rank(),
+                    taken == null ? null : taken.positionRank(),
                     taken == null ? null : taken.value(),
                     valueOverSlot,
                     auction ? null : taken == null ? DraftPickGrade.UNRANKED : grade(pick.overall(), taken.rank(), slack),
@@ -129,17 +132,27 @@ public final class DraftGrader {
         return DraftPickGrade.BIG_REACH;
     }
 
-    /** The pool by value, best first; a tie goes to the lower id, so the order is the same every time. */
-    private static List<Ranked> ranked(Map<Integer, Double> values) {
-        List<Map.Entry<Integer, Double>> entries = values.entrySet().stream()
-                .filter(entry -> entry.getValue() != null && Double.isFinite(entry.getValue()))
-                .sorted(Comparator.comparingDouble((Map.Entry<Integer, Double> entry) -> entry.getValue())
+    /**
+     * The pool by value over replacement, best first; a tie goes to the lower id, so the order is
+     * the same every time.
+     */
+    private static List<Ranked> ranked(Map<Integer, ReplacementLevel.Valued> values) {
+        List<Map.Entry<Integer, ReplacementLevel.Valued>> entries = values.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && Double.isFinite(entry.getValue().overReplacement()))
+                .sorted(Comparator.comparingDouble(
+                                (Map.Entry<Integer, ReplacementLevel.Valued> entry) -> entry.getValue().overReplacement())
                         .reversed()
                         .thenComparingInt(Map.Entry::getKey))
                 .toList();
         List<Ranked> ranked = new ArrayList<>(entries.size());
         for (int index = 0; index < entries.size(); index++) {
-            ranked.add(new Ranked(entries.get(index).getKey(), entries.get(index).getValue(), index + 1));
+            ReplacementLevel.Valued valued = entries.get(index).getValue();
+            ranked.add(new Ranked(
+                    entries.get(index).getKey(),
+                    valued.value(),
+                    valued.overReplacement(),
+                    valued.positionRank(),
+                    index + 1));
         }
         return ranked;
     }
@@ -149,7 +162,12 @@ public final class DraftGrader {
             return null;
         }
         return new DraftAnalysisAlternative(
-                best.playerId(), player.name(), player.club(), positionsInOrder(player.positions()), best.rank());
+                best.playerId(),
+                player.name(),
+                player.club(),
+                positionsInOrder(player.positions()),
+                best.rank(),
+                best.positionRank());
     }
 
     private static List<String> positionsInOrder(Set<String> positions) {
