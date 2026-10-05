@@ -108,10 +108,14 @@ public class StreamerPlannerController {
             operationId = "streamerPlannerMyTeam",
             summary = "The user's own team in a league, today",
             description = "Read live from the platform: each player's club, the positions the league "
-                    + "may start him at, today's slot and whether he is out. Served only where "
-                    + "`STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as the planner.")
+                    + "may start him at, today's slot and whether he is out. Given a stretch, also "
+                    + "the model's line over it for each player it projects, on a free agent's "
+                    + "scale. Served only where `STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as "
+                    + "the planner.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "The team, or found=false when none is the user's"),
+        @ApiResponse(responseCode = "400",
+                description = "Only one of start and end, end before start, or too long a stretch"),
         @ApiResponse(responseCode = "404", description = "The planner or its own-team view is off in this environment")
     })
     @GetMapping("/my-team")
@@ -119,7 +123,13 @@ public class StreamerPlannerController {
             @AuthenticationPrincipal String userId,
             @Parameter(description = "Which platform's league to read") @RequestParam PlayerIdSpace platform,
             @Parameter(description = "The Yahoo league key or the ESPN league id")
-                    @RequestParam @NotBlank @Size(max = 64) String leagueId) {
-        return myTeamService.myTeam(userId, platform, leagueId);
+                    @RequestParam @NotBlank @Size(max = 64) String leagueId,
+            @Parameter(description = "First date of the stretch to give lines over, e.g. 2026-10-12")
+                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate start,
+            @Parameter(description = "Last date, inclusive; given with start or not at all")
+                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate end) {
+        return myTeamService.myTeam(userId, platform, leagueId, start, end);
     }
 }

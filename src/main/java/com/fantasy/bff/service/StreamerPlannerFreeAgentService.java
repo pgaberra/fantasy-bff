@@ -224,7 +224,7 @@ public class StreamerPlannerFreeAgentService {
                 stats);
     }
 
-    private static Map<String, Double> skaterStats(RangeSkaterResponse line, boolean playsDefence) {
+    static Map<String, Double> skaterStats(RangeSkaterResponse line, boolean playsDefence) {
         Map<String, Double> stats = new LinkedHashMap<>();
         put(stats, "goals", line.getGoals());
         put(stats, "assists", line.getAssists());
@@ -258,7 +258,7 @@ public class StreamerPlannerFreeAgentService {
         return stats;
     }
 
-    private static Map<String, Double> goalieStats(RangeGoalieResponse line) {
+    static Map<String, Double> goalieStats(RangeGoalieResponse line) {
         Map<String, Double> stats = new LinkedHashMap<>();
         put(stats, "gs", line.getExpectedGames());
         put(stats, "w", line.getWins());
@@ -288,7 +288,7 @@ public class StreamerPlannerFreeAgentService {
         }
     }
 
-    private static double number(BigDecimal value) {
+    static double number(BigDecimal value) {
         return value == null ? 0 : value.doubleValue();
     }
 }

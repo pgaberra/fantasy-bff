@@ -14,4 +14,9 @@ public record PlannerMyTeamResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Its players today, bench and injured reserve included; empty when "
                         + "not found or before the draft")
-                List<PlannerRosterPlayer> players) {}
+                List<PlannerRosterPlayer> players,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "The model's line over the stretch for each player it projects, when a "
+                        + "stretch was asked for; empty otherwise. A player the model has no line "
+                        + "for, or whose identity did not match, has none.")
+                List<PlannerOwnLine> lines) {}
