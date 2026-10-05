@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 class YahooLeagueSettingsMapperTest {
 
@@ -135,6 +136,7 @@ class YahooLeagueSettingsMapperTest {
 
         assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(2, 2, 2, 1, 0, 4, 1, 4, 2));
         assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR");
+        assertThat(mapped.reserveSlots()).containsExactly(entry("IR", 2));
     }
 
     @Test
@@ -147,6 +149,8 @@ class YahooLeagueSettingsMapperTest {
 
         assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(1, 0, 0, 2, 2, 4, 1, 4, 2));
         assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR+", "NA");
+        // Not-active holds prospects, not the injured: no reserve slot.
+        assertThat(mapped.reserveSlots()).containsExactly(entry("IR+", 1));
     }
 
     /** A code the mapper does not know still counts as a skater flex, and is reported. */
@@ -157,6 +161,7 @@ class YahooLeagueSettingsMapperTest {
 
         assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(2, 0, 0, 0, 0, 0, 1, 0, 0));
         assertThat(mapped.unsupportedRosterCodes()).containsExactly("XX");
+        assertThat(mapped.reserveSlots()).isEmpty();
     }
 
     @Test

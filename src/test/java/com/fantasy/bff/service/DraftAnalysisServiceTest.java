@@ -102,7 +102,8 @@ class DraftAnalysisServiceTest {
                 new RosterSlots(1, 0, 0, 0, 0, 1, 0, 0, 0),
                 2,
                 List.of(),
-                List.of()));
+                List.of(),
+                Map.of()));
         when(entitlementService.hasPremiumAccess(anyString())).thenReturn(true);
     }
 

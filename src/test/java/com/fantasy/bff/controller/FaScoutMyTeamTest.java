@@ -1,5 +1,6 @@
 package com.fantasy.bff.controller;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -85,6 +86,7 @@ class FaScoutMyTeamTest extends BaseIntegrationTest {
                         yahooPlayer(6743, "Cale Makar", "Col", List.of("D"), "D", null, 8),
                         yahooPlayer(6744, "Connor McDavid", "Edm", List.of("C"), "IR+", "IR", 97),
                         yahooPlayer(6745, "Spencer Knight", "Chi", List.of("G"), "BN", "DTD", 30),
+                        yahooPlayer(6747, "Filip Hronek", "Van", List.of("D", "IR"), "BN", "O", 17),
                         yahooPlayer(6746, "Unknown Prospect", "Chi", List.of("LW"), "NA", "NA", 77)))));
         when(yahooServiceClient.rosters("user-1", "465.l.9")).thenReturn(rosters);
     }
@@ -161,8 +163,8 @@ class FaScoutMyTeamTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.found").value(true))
                 .andExpect(jsonPath("$.teamName").value("Slapshots"))
-                // His own four, in the platform's order; the other team's player is not one.
-                .andExpect(jsonPath("$.players", hasSize(4)))
+                // His own five, in the platform's order; the other team's player is not one.
+                .andExpect(jsonPath("$.players", hasSize(5)))
                 .andExpect(jsonPath("$.players[0].playerId").value("6743"))
                 .andExpect(jsonPath("$.players[0].type").value("skater"))
                 .andExpect(jsonPath("$.players[0].reserve").value(false))
@@ -181,9 +183,51 @@ class FaScoutMyTeamTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[2].reserve").value(false))
                 .andExpect(jsonPath("$.players[2].out").value(false))
                 .andExpect(jsonPath("$.players[2].restOfSeason.stats.gs").value(50.0))
+                .andExpect(jsonPath("$.players[2].reserveEligible", hasSize(0)))
+                // Out on the bench, and Yahoo says he may go on IR; IR is not a position he plays.
+                .andExpect(jsonPath("$.players[3].name").value("Filip Hronek"))
+                .andExpect(jsonPath("$.players[3].out").value(true))
+                .andExpect(jsonPath("$.players[3].reserve").value(false))
+                .andExpect(jsonPath("$.players[3].positions", contains("D")))
+                .andExpect(jsonPath("$.players[3].reserveEligible", contains("IR")))
                 // Nobody the model knows: listed, without a line.
-                .andExpect(jsonPath("$.players[3].name").value("Unknown Prospect"))
-                .andExpect(jsonPath("$.players[3].restOfSeason").doesNotExist());
+                .andExpect(jsonPath("$.players[4].name").value("Unknown Prospect"))
+                .andExpect(jsonPath("$.players[4].restOfSeason").doesNotExist());
+    }
+
+    @Test
+    void anEspnPlayerOutOrOnInjuredReserveMayTakeItsIrSlotAndADayToDayOneMayNot() throws Exception {
+        var out = espnPlayer(4001L, "Filip Hronek", "OUT");
+        var dayToDay = espnPlayer(4002L, "Jake Walman", "DAY_TO_DAY");
+        var team = new com.fantasy.bff.generated.espn.model.LeagueRosterTeam();
+        team.setTeamId(1);
+        team.setName("Slapshots");
+        team.setMine(true);
+        team.setPlayerIds(List.of(4001L, 4002L));
+        team.setPlayers(List.of(out, dayToDay));
+        var rosters = new com.fantasy.bff.generated.espn.model.LeagueRostersResponse();
+        rosters.setTeams(List.of(team));
+        when(espnServiceClient.rosters("user-1", "123")).thenReturn(rosters);
+
+        mockMvc.perform(get("/api/v1/fa-scout/my-team?platform=ESPN&leagueId=123")
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players[0].reserveEligible", contains("IR")))
+                .andExpect(jsonPath("$.players[1].reserveEligible", hasSize(0)));
+    }
+
+    private static com.fantasy.bff.generated.espn.model.LeagueRosterPlayer espnPlayer(
+            long id, String name, String injuryStatus) {
+        var player = new com.fantasy.bff.generated.espn.model.LeagueRosterPlayer();
+        player.setEspnId(id);
+        player.setFullName(name);
+        player.setTeamAbbrev("Van");
+        player.setGoalie(false);
+        // ESPN lists its IR slot for every player, so the eligible slots say nothing about it.
+        player.setEligiblePositions(List.of("D"));
+        player.setLineupSlot("BN");
+        player.setInjuryStatus(injuryStatus);
+        return player;
     }
 
     @Test

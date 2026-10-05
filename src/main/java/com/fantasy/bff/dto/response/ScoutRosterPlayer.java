@@ -36,6 +36,12 @@ public record ScoutRosterPlayer(
                 description = "True when he fills no lineup slot now: on reserve, or out with an "
                         + "injury or suspension. A day-to-day player is not out.")
                 boolean out,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "The injured-reserve slots (IR, IR+, IR-LT, IR-NR) the platform lets him "
+                        + "be moved into today: on Yahoo the slots it lists among his eligible "
+                        + "positions, on ESPN its IR slot when he is out or on injured reserve. Empty "
+                        + "for a healthy player.")
+                List<String> reserveEligible,
         @Schema(description = "The model's rest of the season, as the available players' lines are "
                 + "given; absent when the model has no line for him")
                 ScoutLine restOfSeason) {}

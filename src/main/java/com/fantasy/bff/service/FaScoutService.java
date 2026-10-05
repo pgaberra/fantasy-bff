@@ -173,6 +173,7 @@ public class FaScoutService {
                     player.injuryStatus(),
                     LeagueOwnTeam.parked(player.slot()),
                     player.out(),
+                    rostered.reserveEligible(),
                     line));
         }
         return new ScoutMyTeamResponse(true, team.name(), List.copyOf(players));
