@@ -12,12 +12,16 @@ tags:
   description: "Public, read-only projections (no sign-in required)"
 - name: Streamer planner
   description: Team schedules rated for streaming
+- name: FA scout
+  description: Available players worth keeping for the rest of the season
 - name: Projection shares
   description: The current user's public links to their projections
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
 - name: Players
   description: "NHL player stats endpoints (public, read-only)"
+- name: Role changes
+  description: Skaters whose role at their club just changed
 - name: Features
   description: Which features this environment serves
 - name: Projection model
@@ -31,6 +35,8 @@ tags:
   description: "Admin-only: Yahoo service account + player sync"
 - name: Account
   description: The signed-in account's own profile
+- name: Draft analysis
+  description: "A league's draft, every pick graded against the model"
 - name: Projections
   description: The authenticated user's saved player projections
 - name: League summaries
@@ -794,15 +800,16 @@ paths:
       tags:
       - Authentication
       summary: Refresh tokens
-      description: Exchange a valid refresh token for a new access token and refresh
-        token pair
+      description: "Exchange a valid refresh token for a new access token; the rotated\
+        \ refresh token comes back only in the HttpOnly slapstat_refresh cookie. The\
+        \ token is read from that cookie, else from the body (sessions stored before\
+        \ the cookie). With neither, the answer is 401: there is no session to refresh."
       operationId: refresh
       requestBody:
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/RefreshRequest"
-        required: true
       responses:
         "200":
           description: Tokens refreshed successfully
@@ -811,7 +818,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
         "401":
-          description: Invalid or expired refresh token
+          description: "No refresh token, or an invalid, expired or revoked one"
           content:
             application/json:
               schema:
@@ -861,6 +868,18 @@ paths:
             account exists)
         "400":
           description: Validation error
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Sign this browser out
+      description: "Clears the refresh-token cookie. Nothing is revoked server-side,\
+        \ so the account's sessions on other browsers and devices carry on; signing\
+        \ out everywhere is POST /api/v1/account/sessions/revoke."
+      operationId: logout
+      responses:
+        "204":
+          description: Cookie cleared
   /api/v1/auth/login:
     post:
       tags:
@@ -1369,6 +1388,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleStrengthResponse"
+  /api/v1/streamer-planner/my-team:
+    get:
+      tags:
+      - Streamer planner
+      summary: "The user's own team in a league, today"
+      description: "Read live from the platform: each player's club, the positions\
+        \ the league may start him at, today's slot and whether he is out. Served\
+        \ only where `STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as the planner."
+      operationId: streamerPlannerMyTeam
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: "The team, or found=false when none is the user's"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
+        "404":
+          description: The planner or its own-team view is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
   /api/v1/streamer-planner/free-agents:
     get:
       tags:
@@ -1488,6 +1547,51 @@ paths:
               schema:
                 type: string
                 format: byte
+  /api/v1/role-changes:
+    get:
+      tags:
+      - Role changes
+      summary: Every skater's recent ice and power-play role beside his baseline
+      description: "Measured, not projected. The recent stretch is each club's own\
+        \ last N games; the baseline is the skater's earlier games this season once\
+        \ he has five, else his last season. The power-play share is read against\
+        \ his club's power-play time, so a club drawing more power plays does not\
+        \ read as a promotion. Unsorted."
+      operationId: roleChanges
+      parameters:
+      - name: season
+        in: query
+        description: Season start year; defaults to the newest season with a game
+          played
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 2100
+          minimum: 1917
+      - name: recentGames
+        in: query
+        description: N in each club's own last N games
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 5
+          maximum: 20
+          minimum: 1
+      responses:
+        "200":
+          description: Every skater who dressed in the recent games
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleChangeListResponse"
+        "404":
+          description: Role changes are off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleChangeListResponse"
   /api/v1/projection-model/splits/skaters:
     get:
       tags:
@@ -1733,7 +1837,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/RestOfSeasonStatusResponse"
         "404":
-          description: The AI projection is switched off
+          description: The rest-of-season preset or the AI projection is switched
+            off
           content:
             application/json:
               schema:
@@ -2163,6 +2268,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeaturesResponse"
+  /api/v1/fa-scout/free-agents:
+    get:
+      tags:
+      - FA scout
+      summary: "The players a league has available, with the model's rest of the season"
+      description: "Each player carries the model's rest of the season and its line\
+        \ for him before the season began, both in the projection's own stat vocabulary:\
+        \ score them with the league's scoring settings. Joined on identity, so the\
+        \ answer does not depend on which platform the player pool is served from."
+      operationId: faScoutFreeAgents
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: Available players the model projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoutListResponse"
+        "404":
+          description: The FA scout is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoutListResponse"
   /api/v1/espn/leagues/{leagueId}/projection-settings:
     get:
       tags:
@@ -2199,6 +2345,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueProjectionSettingsResponse"
+  /api/v1/draft-analysis/yahoo/{leagueKey}:
+    get:
+      tags:
+      - Draft analysis
+      summary: Grade a Yahoo league's draft against the model
+      description: "Reads the league's draft and scoring settings from Yahoo and sets\
+        \ every pick made so far against the model's ranking under the league's own\
+        \ scoring: the line the model froze on the eve of the season where it is stored,\
+        \ its current season line otherwise. The teams and their sums are returned\
+        \ to any signed-in manager; each pick's rank, value, grade and best available\
+        \ need premium and are absent without it."
+      operationId: yahooDraftAnalysis
+      parameters:
+      - name: leagueKey
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: "The draft, graded"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DraftAnalysisResponse"
+        "404":
+          description: "Draft Analysis is off here, or the user has not connected\
+            \ Yahoo"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
+        "424":
+          description: Yahoo refused the request (code YAHOO_ACCESS_DENIED); the message
+            carries Yahoo's own wording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDto"
   /api/v1/billing/entitlements:
     get:
       tags:
@@ -3365,8 +3552,6 @@ components:
         expiresInSeconds:
           type: integer
           format: int64
-        refreshToken:
-          type: string
         refreshExpiresInSeconds:
           type: integer
           format: int64
@@ -3380,17 +3565,16 @@ components:
       - emailVerified
       - expiresInSeconds
       - refreshExpiresInSeconds
-      - refreshToken
       - token
     RefreshRequest:
       type: object
       properties:
         refreshToken:
           type: string
+          description: "Legacy: the refresh token, for a client that does not send\
+            \ the slapstat_refresh cookie yet. The cookie wins when both arrive."
           maxLength: 4096
           minLength: 0
-      required:
-      - refreshToken
     ResetPasswordRequest:
       type: object
       properties:
@@ -4057,6 +4241,68 @@ components:
       - skaterRank
       - skaterScore
       - team
+    PlannerMyTeamResponse:
+      type: object
+      description: The user's own team in the chosen league
+      properties:
+        found:
+          type: boolean
+          description: "False when no team in the league is the user's: a league they\
+            \ only follow, or an ESPN league read without their cookies"
+        teamName:
+          type: string
+          description: The team's name; absent when not found
+        players:
+          type: array
+          description: "Its players today, bench and injured reserve included; empty\
+            \ when not found or before the draft"
+          items:
+            $ref: "#/components/schemas/PlannerRosterPlayer"
+      required:
+      - found
+      - players
+    PlannerRosterPlayer:
+      type: object
+      description: A player on the user's own team in the chosen league
+      properties:
+        playerId:
+          type: string
+          description: The platform's player id
+        name:
+          type: string
+          description: His name; the platform's id when the platform sent none
+        teamAbbrev:
+          type: string
+          description: "The club he is on, in the platform's own spelling; absent\
+            \ for none"
+        type:
+          type: string
+          description: skater or goalie
+        positions:
+          type: array
+          description: "Every position the league may start him at (C, LW, RW, D,\
+            \ G); empty when the platform does not say"
+          items:
+            type: string
+        slot:
+          type: string
+          description: "The slot he sits in today, in the platform's spelling (C,\
+            \ Util, BN, IR, IR+, NA, ...); absent when the platform does not say"
+        injuryStatus:
+          type: string
+          description: "The platform's injury status (DTD, O, IR, DAY_TO_DAY, OUT,\
+            \ ...); absent for a healthy player"
+        out:
+          type: boolean
+          description: "True when he fills no lineup slot this stretch: parked on\
+            \ injured reserve or not active (IR, IR+, IR-LT, NA), or out with an injury\
+            \ or suspension. A day-to-day player is not out."
+      required:
+      - name
+      - out
+      - playerId
+      - positions
+      - type
     CreaseGoalie:
       type: object
       description: "One goalie of a club's crease: his chance of starting each of\
@@ -4261,6 +4507,127 @@ components:
       - teams
       - token
       - updatedAt
+    LineupListing:
+      type: object
+      description: Where the Daily Faceoff lineup page listed a player on one day
+      properties:
+        seenOn:
+          type: string
+          format: date
+        line:
+          type: string
+          description: "Even-strength group: f1-f4 for forward lines, d1-d3 for pairs;\
+            \ absent when listed only on special teams or out of the lineup"
+        powerPlayUnit:
+          type: integer
+          format: int32
+          description: 1 or 2 for the power-play unit; absent for neither
+        outOfLineup:
+          type: boolean
+          description: "Listed out of the lineup: injured, scratched or day to day"
+      required:
+      - outOfLineup
+      - seenOn
+    PlayerRoleChangeResponse:
+      type: object
+      description: A skater's recent ice and power-play role beside his baseline
+      properties:
+        playerId:
+          type: integer
+          format: int32
+          description: The platform's player id
+        name:
+          type: string
+        teamAbbrev:
+          type: string
+        defence:
+          type: boolean
+          description: Eligible at defence
+        recent:
+          $ref: "#/components/schemas/RoleWindow"
+          description: His club's last N games
+        baseline:
+          $ref: "#/components/schemas/RoleWindow"
+          description: What the recent games are compared with; absent for a call-up
+            with no earlier games
+        baselineSource:
+          type: string
+          description: "SEASON for his earlier games this season, LAST_SEASON while\
+            \ this season has too few of them"
+          enum:
+          - SEASON
+          - LAST_SEASON
+        firstRecentGameDate:
+          type: string
+          format: date
+        lastRecentGameDate:
+          type: string
+          format: date
+        listedNow:
+          $ref: "#/components/schemas/LineupListing"
+          description: Where the lineup page lists him now
+        listedBefore:
+          $ref: "#/components/schemas/LineupListing"
+          description: Where the lineup page listed him before the recent games began
+      required:
+      - defence
+      - firstRecentGameDate
+      - lastRecentGameDate
+      - name
+      - playerId
+      - recent
+    RoleChangeListResponse:
+      type: object
+      description: "Every skater who dressed in his club's recent games, with his\
+        \ role then and before"
+      properties:
+        season:
+          type: integer
+          format: int32
+          description: The season measured; absent when no game is logged at all
+        recentGames:
+          type: integer
+          format: int32
+          description: N in each club's last N games
+        players:
+          type: array
+          description: "Unsorted: the client ranks"
+          items:
+            $ref: "#/components/schemas/PlayerRoleChangeResponse"
+      required:
+      - players
+      - recentGames
+    RoleWindow:
+      type: object
+      description: "A skater's usage over a stretch of games: ice a game, power-play\
+        \ ice and his share of his club's power play"
+      properties:
+        games:
+          type: integer
+          format: int32
+          description: Games he dressed for in the stretch
+        toiPerGame:
+          type: number
+          format: double
+          description: Seconds of ice a game
+        ppToiPerGame:
+          type: number
+          format: double
+          description: Seconds of power-play ice a game; absent where no game has
+            the reading
+        ppShare:
+          type: number
+          format: double
+          description: "His power-play seconds over his club's power-play time in\
+            \ the same games, 0 to 1; absent where it cannot be read"
+        shToiPerGame:
+          type: number
+          format: double
+          description: Seconds of shorthanded ice a game; absent where no game has
+            the reading
+      required:
+      - games
+      - toiPerGame
     PlayerSplitResponse:
       type: object
       description: A player's measured totals over a range of their team's games
@@ -4945,11 +5312,137 @@ components:
           description: "Whether Who's hot may show only the players a linked league\
             \ has available. False means the rostered-players endpoint answers 404,\
             \ so a client should not offer it."
+        restOfSeasonPreset:
+          type: boolean
+          description: "Whether a draft may be started from the rest of the season\
+            \ (source=rest_of_season). False means it is refused and its status endpoint\
+            \ answers 404, so a client should not offer it. True still offers it only\
+            \ while a season is under way, which the status endpoint says."
+        streamerPlannerMyTeam:
+          type: boolean
+          description: "Whether the streamer planner reads the user's own team in\
+            \ the chosen league, to show the nights it has open lineup slots. False\
+            \ means the my-team endpoint answers 404. Never true while streamerPlanner\
+            \ is false."
+        faScout:
+          type: boolean
+          description: "Whether this environment serves the FA scout. False means\
+            \ its endpoint answers 404, so a client should not offer it."
+        roleChanges:
+          type: boolean
+          description: "Whether this environment serves Role Changes. False means\
+            \ its endpoint answers 404, so a client should not offer it."
+        draftAnalysis:
+          type: boolean
+          description: "Whether this environment serves Draft Analysis, a league's\
+            \ draft graded against the model. False means its endpoint answers 404,\
+            \ so a client should not offer it."
       required:
       - aiProjection
+      - draftAnalysis
+      - faScout
       - leagueDraftSync
+      - restOfSeasonPreset
+      - roleChanges
       - streamerPlanner
+      - streamerPlannerMyTeam
       - whosHotAvailableFilter
+    ScoutLine:
+      type: object
+      description: "A projected line: the games it covers and the player's totals\
+        \ over them"
+      properties:
+        games:
+          type: number
+          format: double
+          description: "Games the line covers: games played for a skater, starts for\
+            \ a goalie"
+        stats:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "The projected totals over those games, in the projection's\
+            \ own stat vocabulary. Rates (toiPerGame, shPct, svPct, gaa) are per game\
+            \ or per shot and do not scale with the games."
+      required:
+      - games
+      - stats
+    ScoutListResponse:
+      type: object
+      description: A league's available players with the model's rest of the season
+      properties:
+        season:
+          type: integer
+          format: int32
+        modelVersion:
+          type: string
+          description: The model version the rest of the season came from
+        inSeason:
+          type: boolean
+          description: "Whether the season is under way. False before its first game\
+            \ and after its last, when there is no rest of the season and no player\
+            \ is listed."
+        preseasonAvailable:
+          type: boolean
+          description: "Whether the model's preseason line is stored for this season.\
+            \ False leaves every player's preseason absent, so nobody can read as\
+            \ rising."
+        players:
+          type: array
+          description: "Available players the model projects, in no ranked order:\
+            \ score them with the league's settings"
+          items:
+            $ref: "#/components/schemas/ScoutPlayerResponse"
+      required:
+      - inSeason
+      - players
+      - preseasonAvailable
+      - season
+    ScoutPlayerResponse:
+      type: object
+      description: "An available player, his rest of the season and his preseason\
+        \ line"
+      properties:
+        playerId:
+          type: string
+          description: The platform's player id
+        name:
+          type: string
+        teamAbbrev:
+          type: string
+          description: "The club he is on, in the platform's own spelling"
+        type:
+          type: string
+          description: skater or goalie
+        positions:
+          type: array
+          description: Every position the league may start him at
+          items:
+            type: string
+        availability:
+          type: string
+          description: "FREE_AGENT to add now, WAIVERS to claim first, UNKNOWN when\
+            \ the platform does not say"
+          enum:
+          - FREE_AGENT
+          - WAIVERS
+          - UNKNOWN
+        restOfSeason:
+          $ref: "#/components/schemas/ScoutLine"
+          description: "The model's rest of the season, lifted to the season line's\
+            \ scale, with the season so far left out"
+        preseason:
+          $ref: "#/components/schemas/ScoutLine"
+          description: "The model's line for the whole season as it stood on the eve\
+            \ of it, or absent when the model had none for him then"
+      required:
+      - availability
+      - name
+      - playerId
+      - positions
+      - restOfSeason
+      - type
     CredentialStatusResponse:
       type: object
       properties:
@@ -4957,6 +5450,196 @@ components:
           type: boolean
       required:
       - hasCredentials
+    DraftAnalysisAlternative:
+      type: object
+      description: The player the model ranked highest of those still undrafted when
+        a pick was made
+      properties:
+        playerId:
+          type: integer
+          format: int32
+          description: "The player, by the pool's own id."
+        name:
+          type: string
+        club:
+          type: string
+          description: His NHL club as the pool spells it; absent where it lists none
+        positions:
+          type: array
+          description: "Eligible positions, C/LW/RW/D/G"
+          items:
+            type: string
+        aiRank:
+          type: integer
+          format: int32
+          description: "His rank in the model, from 1"
+      required:
+      - aiRank
+      - name
+      - playerId
+      - positions
+    DraftAnalysisPick:
+      type: object
+      description: "One pick of a league's draft, set against the model's ranking"
+      properties:
+        overall:
+          type: integer
+          format: int32
+          description: "Overall pick number, from 1."
+        round:
+          type: integer
+          format: int32
+        teamId:
+          type: string
+          description: The id of the team that made the pick.
+        playerId:
+          type: integer
+          format: int32
+          description: "The player, by the pool's own id."
+        name:
+          type: string
+          description: The player's name; absent where the pool does not carry him
+        club:
+          type: string
+          description: His NHL club as the pool spells it; absent where it lists none
+        positions:
+          type: array
+          description: "Eligible positions, C/LW/RW/D/G; empty where the pool does\
+            \ not carry him"
+          items:
+            type: string
+        aiRank:
+          type: integer
+          format: int32
+          description: "His rank in the model under the league's scoring, from 1.\
+            \ Absent without premium, and for a player the model has no line for."
+        value:
+          type: number
+          format: double
+          description: "His value in the model: fantasy points in a points league,\
+            \ the summed z-score in a category league. Absent without premium, and\
+            \ for a player the model has no line for."
+        valueOverSlot:
+          type: number
+          format: double
+          description: "His value less the value of the player the model ranks at\
+            \ this pick's number: what the pick gained or gave away against taking\
+            \ the model's player there. Absent without premium, and for a player the\
+            \ model has no line for."
+        grade:
+          type: string
+          description: "The pick's grade. Absent without premium, and in an auction\
+            \ draft."
+          enum:
+          - STEAL
+          - GOOD
+          - FAIR
+          - REACH
+          - BIG_REACH
+          - UNRANKED
+        bestAvailable:
+          $ref: "#/components/schemas/DraftAnalysisAlternative"
+          description: "The player the model ranked highest of those still undrafted,\
+            \ where he ranked above the one taken. Absent without premium."
+      required:
+      - overall
+      - playerId
+      - positions
+      - round
+      - teamId
+    DraftAnalysisResponse:
+      type: object
+      description: "A league's draft, every pick graded against the model's ranking"
+      properties:
+        status:
+          type: string
+          enum:
+          - PRE_DRAFT
+          - IN_PROGRESS
+          - FINISHED
+          - UNKNOWN
+        auction:
+          type: boolean
+          description: "True for an auction draft, whose pick order is nomination\
+            \ order: no pick is graded."
+        scoringType:
+          type: string
+          description: "How the league scores, which is what values are in: fantasy\
+            \ points or summed z-scores."
+          enum:
+          - points
+          - category
+        preseason:
+          type: boolean
+          description: "Whether the picks were graded against the model's line frozen\
+            \ on the eve of the season (true), or its current season line where that\
+            \ is not stored."
+        modelVersion:
+          type: string
+          description: The model version the grades came from
+        premium:
+          type: boolean
+          description: "Whether the per-pick half is filled in. False leaves every\
+            \ pick's rank, value, grade and best available absent; the teams' sums\
+            \ are everyone's."
+        teams:
+          type: array
+          description: "The teams, best draft first by value added"
+          items:
+            $ref: "#/components/schemas/DraftAnalysisTeam"
+        picks:
+          type: array
+          description: "The picks made, in order"
+          items:
+            $ref: "#/components/schemas/DraftAnalysisPick"
+      required:
+      - auction
+      - picks
+      - premium
+      - preseason
+      - scoringType
+      - status
+      - teams
+    DraftAnalysisTeam:
+      type: object
+      description: "One team's draft, summed over its picks"
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        mine:
+          type: boolean
+          description: Whether this is the user's own team.
+        picks:
+          type: integer
+          format: int32
+          description: How many picks it made.
+        valueAdded:
+          type: number
+          format: double
+          description: "Its picks' value over their slots, summed: in the league's\
+            \ own unit."
+        goodPicks:
+          type: integer
+          format: int32
+          description: Picks graded STEAL or GOOD.
+        badPicks:
+          type: integer
+          format: int32
+          description: Picks graded REACH or BIG_REACH.
+        grade:
+          type: string
+          description: "A letter from A to F for the whole draft, from its picks'\
+            \ grades. Absent where none of its picks could be graded."
+      required:
+      - badPicks
+      - goodPicks
+      - id
+      - mine
+      - name
+      - picks
+      - valueAdded
     EntitlementsResponse:
       type: object
       properties:

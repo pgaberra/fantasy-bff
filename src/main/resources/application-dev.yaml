@@ -19,6 +19,9 @@ security:
     - "/v3/api-docs/**"
   cors-allowed-origins:
     - "http://localhost:4200"
+  refresh-cookie:
+    # Safari refuses a Secure cookie set over http://localhost, so the local run sends it bare.
+    secure: false
   google:
     # Public OAuth Client ID (not a secret); the same client allows the
     # http://localhost:4200 JS origin, so local dev works out of the box.

@@ -1,43 +1,28 @@
 package com.fantasy.bff.service;
 
-import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
-import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.CreaseGoalie;
 import com.fantasy.bff.dto.response.CreaseNight;
 import com.fantasy.bff.dto.response.FreeAgentListResponse;
 import com.fantasy.bff.dto.response.FreeAgentResponse;
 import com.fantasy.bff.dto.response.PlannerCrease;
-import com.fantasy.bff.dto.response.PlayerAvailability;
-import com.fantasy.bff.dto.response.SkaterPosition;
-import com.fantasy.bff.generated.espn.model.AvailablePlayer;
-import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RangeGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RangeSkaterResponse;
-import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
+import com.fantasy.bff.service.LeagueAvailablePlayers.Available;
 import com.fantasy.bff.service.mapping.ModelStatMapping;
-import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
-import com.fantasy.bff.service.mapping.PlayerIdResolver;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -46,10 +31,7 @@ import org.springframework.stereotype.Service;
  * The streamer planner's second half: of the players a league has available, which ones the model
  * expects the most from over the chosen week.
  *
- * <p>The two sides are keyed differently — the platform numbers its players, the model numbers
- * NHL ids — and they are joined on <b>identity</b> here rather than through the player pool's id
- * space. That keeps the answer right whichever platform the pool is served from: a Yahoo league's
- * free agents carry Yahoo ids, which an ESPN-numbered pool could not resolve at all.
+ * <p>The league's wire is read and joined to the model on identity by {@link LeagueAvailablePlayers}.
  *
  * <p>Nothing here scores the players. The stats go out in the projection's own vocabulary and the
  * client weighs them by the league's scoring settings, as it does everywhere else — a ranking
@@ -60,101 +42,42 @@ public class StreamerPlannerFreeAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(StreamerPlannerFreeAgentService.class);
 
-    /**
-     * Available players asked of the platform, one position at a time. A single mixed list ranks
-     * every goalie behind hundreds of skaters, so a cap on it cut off the goalies first: at 300 a
-     * Yahoo league came back with six. Fifty goalies is a league's whole goalie wire; 75 skaters
-     * a position is three Yahoo pages, so the slowest position is three calls deep.
-     * Goalies come first because they are fetched alone; see {@link #byPosition}.
-     */
-    private static final Map<String, Integer> POSITION_LIMITS = orderedLimits();
     /** Projections asked of the model: the whole projected league, so no available player is missed. */
     private static final int PROJECTION_LIMIT = 2000;
 
     private final ProjectionServiceClient projectionServiceClient;
-    private final YahooServiceClient yahooServiceClient;
-    private final EspnServiceClient espnServiceClient;
-    private final PlayerSplitContextProvider contextProvider;
-    private final PlayerIdResolver resolver;
+    private final LeagueAvailablePlayers leagueAvailablePlayers;
     private final StreamerPlannerAvailability availability;
 
     public StreamerPlannerFreeAgentService(
             ProjectionServiceClient projectionServiceClient,
-            YahooServiceClient yahooServiceClient,
-            EspnServiceClient espnServiceClient,
-            PlayerSplitContextProvider contextProvider,
-            PlayerIdResolver resolver,
+            LeagueAvailablePlayers leagueAvailablePlayers,
             StreamerPlannerAvailability availability) {
         this.projectionServiceClient = projectionServiceClient;
-        this.yahooServiceClient = yahooServiceClient;
-        this.espnServiceClient = espnServiceClient;
-        this.contextProvider = contextProvider;
-        this.resolver = resolver;
+        this.leagueAvailablePlayers = leagueAvailablePlayers;
         this.availability = availability;
-    }
-
-    /** One available player as both sides need him: the platform's id, his identity, his status. */
-    private record Available(
-            String playerId,
-            String name,
-            String teamAbbrev,
-            List<String> positions,
-            boolean goalie,
-            Integer sweaterNumber,
-            PlayerAvailability availability) {
-
-        boolean playsDefence() {
-            return positions != null
-                    && positions.stream()
-                            .anyMatch(position ->
-                                    PlayerFieldMapping.fantasyPosition(position) == SkaterPosition.D);
-        }
     }
 
     public FreeAgentListResponse freeAgents(
             String userId, PlayerIdSpace platform, String leagueId, LocalDate start, LocalDate end) {
         availability.require();
         StreamerPlannerService.requireStretch(start, end);
-        List<Available> available = platform == PlayerIdSpace.YAHOO
-                ? yahooAvailable(userId, leagueId)
-                : espnAvailable(userId, leagueId);
+        LeagueAvailablePlayers.Wire wire = leagueAvailablePlayers.read(userId, platform, leagueId);
+        List<Available> available = wire.players();
+        PlayerIdMapping mapping = wire.mapping();
         RangeProjectionsResponse projections =
                 projectionServiceClient.rangeProjections(start, end, PROJECTION_LIMIT);
 
-        Map<Long, PlayerResponse> identities = contextProvider.context().identities();
-        Map<String, Available> byPlayerId = new LinkedHashMap<>();
-        List<PlayerIdResolver.Candidate> platformSide = new ArrayList<>();
-        for (Available player : available) {
-            byPlayerId.put(player.playerId(), player);
-            // The resolver works in numeric platform ids; a Yahoo id is a numeric string, so the
-            // join key goes back to the platform's own form on the way out.
-            Long numeric = numericId(player.playerId());
-            if (numeric != null) {
-                platformSide.add(new PlayerIdResolver.Candidate(
-                        numeric, player.name(), player.teamAbbrev(), player.sweaterNumber()));
-            }
-        }
-
-        List<PlayerIdResolver.Candidate> nhlSide = new ArrayList<>();
-        for (PlayerResponse identity : identities.values()) {
-            nhlSide.add(new PlayerIdResolver.Candidate(
-                    identity.getNhlId(),
-                    identity.getFullName(),
-                    PlayerIdResolver.platformTeam(identity.getCurrentTeam()),
-                    identity.getSweaterNumber()));
-        }
-        PlayerIdMapping mapping = resolver.resolve(nhlSide, platformSide, Map.of());
-
         List<FreeAgentResponse> rows = new ArrayList<>();
         for (RangeSkaterResponse skater : projections.getSkaters()) {
-            Available player = matched(mapping, byPlayerId, skater.getNhlId());
+            Available player = wire.matched(skater.getNhlId());
             if (player != null && !player.goalie()) {
                 rows.add(row(player, "skater", skater.getClubGames(), skater.getExpectedGames(),
                         skaterStats(skater, player.playsDefence())));
             }
         }
         for (RangeGoalieResponse goalie : projections.getGoalies()) {
-            Available player = matched(mapping, byPlayerId, goalie.getNhlId());
+            Available player = wire.matched(goalie.getNhlId());
             if (player != null && player.goalie()) {
                 rows.add(row(player, "goalie", goalie.getClubGames(), goalie.getExpectedGames(),
                         goalieStats(goalie)));
@@ -172,7 +95,7 @@ public class StreamerPlannerFreeAgentService {
                 projections.getSeason(),
                 projections.getModelVersion(),
                 List.copyOf(rows),
-                creases(projections.getGoalies(), mapping, byPlayerId));
+                creases(projections.getGoalies(), wire));
     }
 
     /**
@@ -182,9 +105,7 @@ public class StreamerPlannerFreeAgentService {
      * are the most starts over the stretch first, which is how the client breaks a tie.
      */
     private static List<PlannerCrease> creases(
-            List<RangeGoalieResponse> goalies,
-            PlayerIdMapping mapping,
-            Map<String, Available> byPlayerId) {
+            List<RangeGoalieResponse> goalies, LeagueAvailablePlayers.Wire wire) {
         Map<String, List<RangeGoalieResponse>> byClub = new TreeMap<>();
         for (RangeGoalieResponse goalie : goalies) {
             if (goalie.getTeam() != null) {
@@ -200,7 +121,7 @@ public class StreamerPlannerFreeAgentService {
             List<CreaseGoalie> crease = club.stream()
                     .sorted(mostStartsFirst)
                     .map(goalie -> new CreaseGoalie(
-                            listedGoalieId(mapping, byPlayerId, goalie.getNhlId()), nights(goalie)))
+                            listedGoalieId(wire, goalie.getNhlId()), nights(goalie)))
                     .toList();
             if (crease.stream().anyMatch(goalie -> goalie.playerId() != null)) {
                 creases.add(new PlannerCrease(team, crease));
@@ -210,9 +131,8 @@ public class StreamerPlannerFreeAgentService {
     }
 
     /** His platform id when he is listed as a goalie, as {@link #freeAgents} lists him; else null. */
-    private static String listedGoalieId(
-            PlayerIdMapping mapping, Map<String, Available> byPlayerId, Integer nhlId) {
-        Available player = matched(mapping, byPlayerId, nhlId);
+    private static String listedGoalieId(LeagueAvailablePlayers.Wire wire, Integer nhlId) {
+        Available player = wire.matched(nhlId);
         return player != null && player.goalie() ? player.playerId() : null;
     }
 
@@ -286,15 +206,6 @@ public class StreamerPlannerFreeAgentService {
         }
     }
 
-    private static Available matched(
-            PlayerIdMapping mapping, Map<String, Available> byPlayerId, Integer nhlId) {
-        if (nhlId == null) {
-            return null;
-        }
-        Integer platformId = mapping.nhlIdToPlatformId().get(nhlId.longValue());
-        return platformId == null ? null : byPlayerId.get(String.valueOf(platformId));
-    }
-
     private static FreeAgentResponse row(
             Available player,
             String type,
@@ -311,103 +222,6 @@ public class StreamerPlannerFreeAgentService {
                 clubGames == null ? 0 : clubGames,
                 number(expectedGames),
                 stats);
-    }
-
-    private static Map<String, Integer> orderedLimits() {
-        Map<String, Integer> limits = new LinkedHashMap<>();
-        limits.put("G", 50);
-        limits.put("C", 75);
-        limits.put("LW", 75);
-        limits.put("RW", 75);
-        limits.put("D", 75);
-        return Collections.unmodifiableMap(limits);
-    }
-
-    /**
-     * Every position's available players, each player once: a player eligible at two positions
-     * comes back under both. The first position is fetched alone and the rest together. Each
-     * call checks the user's stored platform token, and fetching the first alone means only one
-     * call can find it expired and refresh it.
-     */
-    private static <T> List<T> byPosition(
-            BiFunction<String, Integer, List<T>> fetch, Function<T, String> playerId) {
-        Iterator<Map.Entry<String, Integer>> positions = POSITION_LIMITS.entrySet().iterator();
-        Map.Entry<String, Integer> lead = positions.next();
-        Map<String, T> unique = new LinkedHashMap<>();
-        addUnique(unique, fetch.apply(lead.getKey(), lead.getValue()), playerId);
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<List<T>>> rest = new ArrayList<>();
-            positions.forEachRemaining(position -> rest.add(
-                    executor.submit(() -> fetch.apply(position.getKey(), position.getValue()))));
-            for (Future<List<T>> players : rest) {
-                addUnique(unique, await(players), playerId);
-            }
-        }
-        return List.copyOf(unique.values());
-    }
-
-    private static <T> void addUnique(Map<String, T> unique, List<T> players, Function<T, String> playerId) {
-        for (T player : players) {
-            unique.putIfAbsent(playerId.apply(player), player);
-        }
-    }
-
-    /** The call's own exception, so a refusal or a downstream failure maps as it would unthreaded. */
-    private static <T> T await(Future<T> future) {
-        try {
-            return future.get();
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while reading available players", interrupted);
-        } catch (ExecutionException failed) {
-            if (failed.getCause() instanceof RuntimeException cause) {
-                throw cause;
-            }
-            throw new IllegalStateException("Reading available players failed", failed.getCause());
-        }
-    }
-
-    private List<Available> yahooAvailable(String userId, String leagueKey) {
-        List<Available> available = new ArrayList<>();
-        for (YahooAvailablePlayerResponse player : byPosition(
-                (position, limit) -> yahooServiceClient.leagueFreeAgents(userId, leagueKey, position, limit),
-                YahooAvailablePlayerResponse::getYahooId)) {
-            available.add(new Available(
-                    player.getYahooId(),
-                    player.getFullName(),
-                    player.getTeamAbbrev(),
-                    player.getEligiblePositions(),
-                    Boolean.TRUE.equals(player.getGoalie()),
-                    player.getUniformNumber(),
-                    availability(player.getAvailability().getValue())));
-        }
-        return available;
-    }
-
-    private List<Available> espnAvailable(String userId, String leagueId) {
-        List<Available> available = new ArrayList<>();
-        for (AvailablePlayer player : byPosition(
-                (position, limit) -> espnServiceClient.leagueFreeAgents(userId, leagueId, position, limit),
-                player -> String.valueOf(player.getEspnId()))) {
-            available.add(new Available(
-                    String.valueOf(player.getEspnId()),
-                    player.getFullName(),
-                    player.getTeamAbbrev(),
-                    player.getEligiblePositions(),
-                    Boolean.TRUE.equals(player.getGoalie()),
-                    player.getUniformNumber(),
-                    availability(player.getAvailability().getValue())));
-        }
-        return available;
-    }
-
-    /** The platforms' own wording, which their specs make required, mapped to the BFF's one name. */
-    private static PlayerAvailability availability(String platformValue) {
-        return switch (platformValue) {
-            case "FREE_AGENT" -> PlayerAvailability.FREE_AGENT;
-            case "WAIVERS" -> PlayerAvailability.WAIVERS;
-            default -> PlayerAvailability.UNKNOWN;
-        };
     }
 
     private static Map<String, Double> skaterStats(RangeSkaterResponse line, boolean playsDefence) {
@@ -476,16 +290,5 @@ public class StreamerPlannerFreeAgentService {
 
     private static double number(BigDecimal value) {
         return value == null ? 0 : value.doubleValue();
-    }
-
-    private static Long numericId(String playerId) {
-        if (playerId == null) {
-            return null;
-        }
-        try {
-            return Long.valueOf(playerId);
-        } catch (NumberFormatException notNumeric) {
-            return null;
-        }
     }
 }

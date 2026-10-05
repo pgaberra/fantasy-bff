@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.request.SetUsernameRequest;
 import com.fantasy.bff.dto.response.AccountResponse;
+import com.fantasy.bff.security.RefreshTokenCookie;
 import com.fantasy.bff.service.AuthService;
 import com.fantasy.bff.service.AvatarService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,12 +43,14 @@ public class AccountController {
     private final DatabaseServiceClient databaseServiceClient;
     private final AvatarService avatarService;
     private final AuthService authService;
+    private final RefreshTokenCookie refreshTokenCookie;
 
     public AccountController(DatabaseServiceClient databaseServiceClient, AvatarService avatarService,
-                             AuthService authService) {
+                             AuthService authService, RefreshTokenCookie refreshTokenCookie) {
         this.databaseServiceClient = databaseServiceClient;
         this.avatarService = avatarService;
         this.authService = authService;
+        this.refreshTokenCookie = refreshTokenCookie;
     }
 
     @Operation(operationId = "getAccount", summary = "Fetch the signed-in account's profile")
@@ -123,8 +127,10 @@ public class AccountController {
                     + "issued stays valid until it expires (15 minutes).")
     @ApiResponse(responseCode = "204", description = "Every session revoked")
     @PostMapping("/sessions/revoke")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void signOutEverywhere(@AuthenticationPrincipal String userId) {
+    public ResponseEntity<Void> signOutEverywhere(@AuthenticationPrincipal String userId) {
         authService.signOutEverywhere(userId);
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.clear().toString())
+                .build();
     }
 }

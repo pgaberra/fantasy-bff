@@ -1,10 +1,12 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.FreeAgentListResponse;
+import com.fantasy.bff.dto.response.PlannerMyTeamResponse;
 import com.fantasy.bff.dto.response.PlannerWeeksResponse;
 import com.fantasy.bff.dto.response.ScheduleStrengthResponse;
 import com.fantasy.bff.service.PlayerIdSpace;
 import com.fantasy.bff.service.StreamerPlannerFreeAgentService;
+import com.fantasy.bff.service.StreamerPlannerMyTeamService;
 import com.fantasy.bff.service.StreamerPlannerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,11 +36,15 @@ public class StreamerPlannerController {
 
     private final StreamerPlannerService plannerService;
     private final StreamerPlannerFreeAgentService freeAgentService;
+    private final StreamerPlannerMyTeamService myTeamService;
 
     public StreamerPlannerController(
-            StreamerPlannerService plannerService, StreamerPlannerFreeAgentService freeAgentService) {
+            StreamerPlannerService plannerService,
+            StreamerPlannerFreeAgentService freeAgentService,
+            StreamerPlannerMyTeamService myTeamService) {
         this.plannerService = plannerService;
         this.freeAgentService = freeAgentService;
+        this.myTeamService = myTeamService;
     }
 
     @Operation(
@@ -96,5 +102,24 @@ public class StreamerPlannerController {
             @Parameter(description = "Last date, inclusive")
                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         return freeAgentService.freeAgents(userId, platform, leagueId, start, end);
+    }
+
+    @Operation(
+            operationId = "streamerPlannerMyTeam",
+            summary = "The user's own team in a league, today",
+            description = "Read live from the platform: each player's club, the positions the league "
+                    + "may start him at, today's slot and whether he is out. Served only where "
+                    + "`STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as the planner.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "The team, or found=false when none is the user's"),
+        @ApiResponse(responseCode = "404", description = "The planner or its own-team view is off in this environment")
+    })
+    @GetMapping("/my-team")
+    public PlannerMyTeamResponse myTeam(
+            @AuthenticationPrincipal String userId,
+            @Parameter(description = "Which platform's league to read") @RequestParam PlayerIdSpace platform,
+            @Parameter(description = "The Yahoo league key or the ESPN league id")
+                    @RequestParam @NotBlank @Size(max = 64) String leagueId) {
+        return myTeamService.myTeam(userId, platform, leagueId);
     }
 }

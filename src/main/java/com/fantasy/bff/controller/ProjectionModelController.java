@@ -12,6 +12,7 @@ import com.fantasy.bff.service.EntitlementService;
 import com.fantasy.bff.service.PlayerSplitService;
 import com.fantasy.bff.service.ProjectionService;
 import com.fantasy.bff.service.ProjectionSeedService;
+import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -67,6 +68,7 @@ public class ProjectionModelController {
     private final AiProjectionAvailability aiProjection;
     private final EntitlementService entitlementService;
     private final ProjectionService projectionService;
+    private final RestOfSeasonPresetAvailability restOfSeasonPreset;
     private final int defaultSeason;
     private final String defaultModelVersion;
 
@@ -76,6 +78,7 @@ public class ProjectionModelController {
             AiProjectionAvailability aiProjection,
             EntitlementService entitlementService,
             ProjectionService projectionService,
+            RestOfSeasonPresetAvailability restOfSeasonPreset,
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
         this.seedService = seedService;
@@ -83,6 +86,7 @@ public class ProjectionModelController {
         this.aiProjection = aiProjection;
         this.entitlementService = entitlementService;
         this.projectionService = projectionService;
+        this.restOfSeasonPreset = restOfSeasonPreset;
         this.defaultSeason = defaultSeason;
         this.defaultModelVersion = defaultModelVersion;
     }
@@ -192,12 +196,12 @@ public class ProjectionModelController {
                             + "client shows it locked rather than hiding it.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Whether the rest of the season is there to seed from"),
-        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
+        @ApiResponse(responseCode = "404", description = "The rest-of-season preset or the AI projection is switched off")
     })
     @GetMapping("/rest-of-season/status")
     public RestOfSeasonStatusResponse restOfSeasonStatus() {
-        if (!aiProjection.available()) {
-            throw new NoSuchElementException("The AI projection is not enabled");
+        if (!restOfSeasonPreset.available()) {
+            throw new NoSuchElementException("The rest-of-season preset is not enabled");
         }
         return new RestOfSeasonStatusResponse(projectionService.restOfSeasonAvailable());
     }

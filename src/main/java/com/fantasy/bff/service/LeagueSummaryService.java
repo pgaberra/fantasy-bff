@@ -506,7 +506,7 @@ public class LeagueSummaryService {
      * How the league scores, as the league itself states it. Its size is its team count where
      * Yahoo does not say, which is the number the two z-score pools are sized from.
      */
-    private LeagueScoring scoring(LeagueProjectionSettingsResponse settings, int teamCount) {
+    static LeagueScoring scoring(LeagueProjectionSettingsResponse settings, int teamCount) {
         Integer leagueSize = settings.leagueSize();
         return LeagueScoring.of(
                 settings.scoringType() == ScoringBasis.POINTS,

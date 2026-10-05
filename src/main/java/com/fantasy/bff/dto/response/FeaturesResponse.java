@@ -21,5 +21,29 @@ public record FeaturesResponse(
                 description = "Whether Who's hot may show only the players a linked league has "
                         + "available. False means the rostered-players endpoint answers 404, so a "
                         + "client should not offer it.")
-        boolean whosHotAvailableFilter
+        boolean whosHotAvailableFilter,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether a draft may be started from the rest of the season "
+                        + "(source=rest_of_season). False means it is refused and its status "
+                        + "endpoint answers 404, so a client should not offer it. True still offers "
+                        + "it only while a season is under way, which the status endpoint says.")
+        boolean restOfSeasonPreset,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether the streamer planner reads the user's own team in the chosen "
+                        + "league, to show the nights it has open lineup slots. False means the "
+                        + "my-team endpoint answers 404. Never true while streamerPlanner is false.")
+        boolean streamerPlannerMyTeam,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves the FA scout. False means its "
+                        + "endpoint answers 404, so a client should not offer it.")
+        boolean faScout,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves Role Changes. False means its endpoint "
+                        + "answers 404, so a client should not offer it.")
+        boolean roleChanges,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves Draft Analysis, a league's draft graded "
+                        + "against the model. False means its endpoint answers 404, so a client should "
+                        + "not offer it.")
+        boolean draftAnalysis
 ) {}

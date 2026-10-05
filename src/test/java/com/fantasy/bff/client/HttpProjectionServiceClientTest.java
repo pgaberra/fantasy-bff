@@ -97,6 +97,43 @@ class HttpProjectionServiceClientTest {
     }
 
     @Test
+    void skaterRoleChanges_sendsTheStretchAndParsesBothWindowsAndTheListing() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .withQueryParam("recent_games", equalTo("5"))
+                .withQueryParam("season", equalTo("2026"))
+                .willReturn(okJson("""
+                        {"season":2026,"recent_games":5,"skaters":[{"nhl_id":8481000,"team":"EDM",
+                          "recent":{"games":4,"toi_per_game":1080.0,"pp_toi_per_game":240.0,
+                            "pp_share":0.85,"sh_toi_per_game":0.0},
+                          "baseline":null,"baseline_source":null,
+                          "first_recent_game_date":"2026-09-29","last_recent_game_date":"2026-10-04",
+                          "listed_now":{"seen_on":"2026-10-04","line":"f2","power_play_unit":1,
+                            "out_of_lineup":false},
+                          "listed_before":null}]}
+                        """)));
+
+        var answer = client.skaterRoleChanges(2026, 5);
+
+        assertThat(answer.getSkaters()).hasSize(1);
+        var skater = answer.getSkaters().getFirst();
+        assertThat(skater.getRecent().getPpShare()).isEqualByComparingTo(new BigDecimal("0.85"));
+        assertThat(skater.getBaseline()).isNull();
+        assertThat(skater.getListedNow().getPowerPlayUnit()).isEqualTo(1);
+    }
+
+    @Test
+    void skaterRoleChanges_leavesTheSeasonOutWhenNoneIsNamed() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .willReturn(okJson("{\"season\":null,\"recent_games\":3,\"skaters\":[]}")));
+
+        client.skaterRoleChanges(null, 3);
+
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .withQueryParam("recent_games", equalTo("3"))
+                .withoutQueryParam("season"));
+    }
+
+    @Test
     void skaterSplits_sendsAnExplicitRangeAndParsesTheNewCounts() {
         server.stubFor(get(urlPathEqualTo("/api/v1/splits/skaters"))
                 .withQueryParam("season", equalTo("2025"))
