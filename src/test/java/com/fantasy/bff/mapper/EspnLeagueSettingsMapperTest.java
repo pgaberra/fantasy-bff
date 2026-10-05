@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 class EspnLeagueSettingsMapperTest {
 
@@ -207,6 +208,7 @@ class EspnLeagueSettingsMapperTest {
 
         assertThat(mapped.rosterSlots()).isEqualTo(new RosterSlots(2, 2, 2, 0, 1, 4, 1, 4, 2));
         assertThat(mapped.unsupportedRosterCodes()).containsExactly("IR");
+        assertThat(mapped.reserveSlots()).containsExactly(entry("IR", 2));
     }
 
     /**

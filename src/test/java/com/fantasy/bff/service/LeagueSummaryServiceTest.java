@@ -129,7 +129,8 @@ class LeagueSummaryServiceTest {
                 new RosterSlots(1, 1, 1, 0, 0, 0, 0, 1, 0),
                 leagueSize,
                 List.of(),
-                List.of());
+                List.of(),
+                Map.of());
     }
 
     /** The totals are fantasy points or z-scores depending on the league, and the page has to say

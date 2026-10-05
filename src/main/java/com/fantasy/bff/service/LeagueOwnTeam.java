@@ -40,8 +40,11 @@ public class LeagueOwnTeam {
      */
     public record Team(boolean found, String name, List<Rostered> players) {}
 
-    /** A player on it, with the sweater number the platform has for him, for the join on identity. */
-    public record Rostered(PlannerRosterPlayer player, Integer sweaterNumber) {}
+    /**
+     * A player on it, with the sweater number the platform has for him, for the join on identity,
+     * and the injured-reserve slots he may be moved into ({@link InjuredReserve}).
+     */
+    public record Rostered(PlannerRosterPlayer player, Integer sweaterNumber, List<String> reserveEligible) {}
 
     public Team read(String userId, PlayerIdSpace platform, String leagueId) {
         return platform == PlayerIdSpace.YAHOO ? yahoo(userId, leagueId) : espn(userId, leagueId);
@@ -66,7 +69,8 @@ public class LeagueOwnTeam {
                                 player.getEligiblePositions(),
                                 player.getSelectedPosition(),
                                 player.getStatus()),
-                        player.getUniformNumber()))
+                        player.getUniformNumber(),
+                        InjuredReserve.yahooEligible(player.getEligiblePositions())))
                 .toList();
         return new Team(true, mine.getName(), players);
     }
@@ -90,7 +94,8 @@ public class LeagueOwnTeam {
                                 player.getEligiblePositions(),
                                 player.getLineupSlot(),
                                 player.getInjuryStatus()),
-                        player.getUniformNumber()))
+                        player.getUniformNumber(),
+                        InjuredReserve.espnEligible(player.getInjuryStatus())))
                 .toList();
         return new Team(true, mine.getName(), players);
     }

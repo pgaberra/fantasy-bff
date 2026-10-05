@@ -19,5 +19,9 @@ public record LeagueProjectionSettingsResponse(
         @Schema(description = "League size from the Yahoo league's team count; null when unknown.")
         Integer leagueSize,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> unsupportedStats,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> unsupportedRosterCodes
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> unsupportedRosterCodes,
+        @Schema(description = "The league's injured-reserve slots by the platform's code (IR, IR+, "
+                + "IR-LT, IR-NR) and how many of each; not-active (NA) is not one. A player in one "
+                + "takes no roster spot. Empty for a league without any.")
+        Map<String, Integer> reserveSlots
 ) {}

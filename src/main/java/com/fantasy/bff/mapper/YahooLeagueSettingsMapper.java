@@ -6,6 +6,7 @@ import com.fantasy.bff.dto.response.RosterSlots;
 import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.RosterSlot;
 import com.fantasy.bff.generated.yahoo.model.StatCategory;
+import com.fantasy.bff.service.InjuredReserve;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -112,7 +113,8 @@ public class YahooLeagueSettingsMapper {
                 roster.rosterSlots(),
                 clampLeagueSize(numTeams).orElse(null),
                 unsupportedStats,
-                roster.unsupported()
+                roster.unsupported(),
+                roster.reserveSlots()
         );
     }
 
@@ -129,7 +131,8 @@ public class YahooLeagueSettingsMapper {
         return hasWeights ? ScoringBasis.POINTS : ScoringBasis.CATEGORY;
     }
 
-    private record RosterMapping(RosterSlots rosterSlots, List<String> unsupported) {
+    private record RosterMapping(
+            RosterSlots rosterSlots, List<String> unsupported, Map<String, Integer> reserveSlots) {
     }
 
     private RosterMapping mapRoster(List<RosterSlot> positions) {
@@ -138,10 +141,15 @@ public class YahooLeagueSettingsMapper {
             counts.put(slot, 0);
         }
         List<String> unsupported = new ArrayList<>();
+        Map<String, Integer> reserveSlots = new LinkedHashMap<>();
         for (RosterSlot position : positions) {
             String raw = position.getPosition();
             String code = raw.toUpperCase(Locale.ROOT);
             int count = position.getCount();
+            if (InjuredReserve.isSlot(code) && count > 0) {
+                // No lineup slot, but room off the roster for an injured player.
+                reserveSlots.merge(code, count, Integer::sum);
+            }
             if (IGNORED_POSITION_CODES.contains(code)) {
                 unsupported.add(raw);
                 continue;
@@ -158,7 +166,7 @@ public class YahooLeagueSettingsMapper {
                 counts.get(Slot.C), counts.get(Slot.LW), counts.get(Slot.RW), counts.get(Slot.W),
                 counts.get(Slot.F), counts.get(Slot.D), counts.get(Slot.UTIL), counts.get(Slot.BN),
                 counts.get(Slot.G));
-        return new RosterMapping(slots, unsupported);
+        return new RosterMapping(slots, unsupported, reserveSlots);
     }
 
     private Map<String, Double> buildWeights(Map<String, Double> scored) {
