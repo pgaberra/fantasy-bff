@@ -17,16 +17,21 @@ public record DraftAnalysisPick(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Eligible positions, C/LW/RW/D/G; empty where the pool does not carry him")
         List<String> positions,
-        @Schema(description = "His rank in the model under the league's scoring, from 1. Absent without "
-                + "premium, and for a player the model has no line for.")
+        @Schema(description = "His rank in the model by value over replacement under the league's scoring "
+                + "and roster, from 1: his value less that of the best player at his position nobody in "
+                + "the league would start. Absent without premium, and for a player the model has no "
+                + "line for.")
         Integer aiRank,
+        @Schema(description = "His rank by value among the players at the position he is measured at, as "
+                + "\"D1\". Absent without premium, and for a player the model has no line for.")
+        String positionRank,
         @Schema(description = "His value in the model: fantasy points in a points league, the summed "
                 + "z-score in a category league. Absent without premium, and for a player the model "
                 + "has no line for.")
         Double value,
-        @Schema(description = "His value less the value of the player the model ranks at this pick's "
-                + "number: what the pick gained or gave away against taking the model's player there. "
-                + "Absent without premium, and for a player the model has no line for.")
+        @Schema(description = "His value over replacement less that of the player the model ranks at "
+                + "this pick's number: what the pick gained or gave away against taking the model's "
+                + "player there. Absent without premium, and for a player the model has no line for.")
         Double valueOverSlot,
         @Schema(description = "The pick's grade. Absent without premium, and in an auction draft.")
         DraftPickGrade grade,
@@ -37,6 +42,6 @@ public record DraftAnalysisPick(
     /** The same pick with nothing of the model's in it, for an account without premium. */
     public DraftAnalysisPick withoutModel() {
         return new DraftAnalysisPick(
-                overall, round, teamId, playerId, name, club, positions, null, null, null, null, null);
+                overall, round, teamId, playerId, name, club, positions, null, null, null, null, null, null);
     }
 }
