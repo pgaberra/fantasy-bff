@@ -4253,6 +4253,21 @@ components:
           type: number
           format: double
           description: What the game adds to the team's goalieScore
+        statWorth:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "What the game is worth to each stat a player's line over the\
+            \ stretch moves with, against an average night: the opponent's allowance\
+            \ of the stat and the venue. Keyed by the free agents' stat keys; a stat\
+            \ not listed is worth an average night. A page counting only some nights\
+            \ weighs a line by these over the nights it keeps"
+        plusMinusPerMinute:
+          type: number
+          format: double
+          description: "What the game adds to a player's plus-minus per minute of\
+            \ his ice, which moves by an amount rather than a share"
       required:
       - backToBack
       - date
@@ -4261,7 +4276,9 @@ components:
       - offNight
       - opponentGoalsAgainst
       - opponentGoalsFor
+      - plusMinusPerMinute
       - skaterWorth
+      - statWorth
     TeamSchedule:
       type: object
       description: "A team's games over the stretch, scored for streaming"

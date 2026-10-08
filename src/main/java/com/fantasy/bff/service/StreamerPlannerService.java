@@ -10,6 +10,7 @@ import com.fantasy.bff.dto.response.TeamSchedule;
 import com.fantasy.bff.generated.projection.model.RatedGameResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.TeamScheduleResponse;
+import com.fantasy.bff.service.mapping.ModelStatMapping;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -105,7 +106,9 @@ public class StreamerPlannerService {
                 number(game.getOpponentGoalsAgainst()),
                 number(game.getOpponentGoalsFor()),
                 number(game.getSkaterWorth()),
-                number(game.getGoalieWorth()));
+                number(game.getGoalieWorth()),
+                ModelStatMapping.statWorth(game.getStatWorth()),
+                number(game.getPlusMinusPerMinute()));
     }
 
     private static double number(BigDecimal value) {

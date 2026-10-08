@@ -2,6 +2,7 @@ package com.fantasy.bff.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
+import java.util.Map;
 
 @Schema(description = "One game on a team's schedule, with what makes it a good or bad one to stream")
 public record ScheduledGame(
@@ -25,4 +26,15 @@ public record ScheduledGame(
                 double skaterWorth,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "What the game adds to the team's goalieScore")
-                double goalieWorth) {}
+                double goalieWorth,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "What the game is worth to each stat a player's line over the stretch "
+                        + "moves with, against an average night: the opponent's allowance of the stat "
+                        + "and the venue. Keyed by the free agents' stat keys; a stat not listed is "
+                        + "worth an average night. A page counting only some nights weighs a line by "
+                        + "these over the nights it keeps")
+                Map<String, Double> statWorth,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "What the game adds to a player's plus-minus per minute of his ice, "
+                        + "which moves by an amount rather than a share")
+                double plusMinusPerMinute) {}
