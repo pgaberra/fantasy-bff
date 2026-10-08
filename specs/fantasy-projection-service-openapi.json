@@ -1208,9 +1208,20 @@
             "title": "Opponent Goals For",
             "type": "number"
           },
+          "plus_minus_per_minute": {
+            "title": "Plus Minus Per Minute",
+            "type": "number"
+          },
           "skater_worth": {
             "title": "Skater Worth",
             "type": "number"
+          },
+          "stat_worth": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Stat Worth",
+            "type": "object"
           }
         },
         "required": [
@@ -1222,7 +1233,9 @@
           "opponent_goals_against",
           "opponent_goals_for",
           "skater_worth",
-          "goalie_worth"
+          "goalie_worth",
+          "stat_worth",
+          "plus_minus_per_minute"
         ],
         "title": "RatedGameResponse",
         "type": "object"

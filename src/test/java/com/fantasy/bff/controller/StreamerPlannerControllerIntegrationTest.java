@@ -18,6 +18,7 @@ import com.fantasy.bff.security.JwtTokenValidator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -92,6 +93,13 @@ class StreamerPlannerControllerIntegrationTest extends BaseIntegrationTest {
         game.setOpponentGoalsFor(new BigDecimal("0.9"));
         game.setSkaterWorth(new BigDecimal("1.4374"));
         game.setGoalieWorth(new BigDecimal("1.4393"));
+        game.setStatWorth(Map.of(
+                "goals", new BigDecimal("1.12"),
+                "hits", new BigDecimal("0.93"),
+                "pp_points", new BigDecimal("1.2"),
+                "wins", new BigDecimal("1.15"),
+                "something_new", new BigDecimal("2")));
+        game.setPlusMinusPerMinute(new BigDecimal("0.0051"));
         TeamScheduleResponse team = new TeamScheduleResponse();
         team.setTeam("EDM");
         team.setGames(1);
@@ -126,7 +134,16 @@ class StreamerPlannerControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.teams[0].schedule[0].opponent").value("SJS"))
                 .andExpect(jsonPath("$.teams[0].schedule[0].opponentGoalsAgainst").value(1.11))
                 .andExpect(jsonPath("$.teams[0].schedule[0].skaterWorth").value(1.4374))
-                .andExpect(jsonPath("$.teams[0].schedule[0].goalieWorth").value(1.4393));
+                .andExpect(jsonPath("$.teams[0].schedule[0].goalieWorth").value(1.4393))
+                // Each worth goes out under the app's stat keys, sums of a stat included, and a
+                // stat the app does not know is left out.
+                .andExpect(jsonPath("$.teams[0].schedule[0].statWorth.goals").value(1.12))
+                .andExpect(jsonPath("$.teams[0].schedule[0].statWorth.hits").value(0.93))
+                .andExpect(jsonPath("$.teams[0].schedule[0].statWorth.ppp").value(1.2))
+                .andExpect(jsonPath("$.teams[0].schedule[0].statWorth.stp").value(1.2))
+                .andExpect(jsonPath("$.teams[0].schedule[0].statWorth.w").value(1.15))
+                .andExpect(jsonPath("$.teams[0].schedule[0].statWorth.something_new").doesNotExist())
+                .andExpect(jsonPath("$.teams[0].schedule[0].plusMinusPerMinute").value(0.0051));
     }
 
     @Test
