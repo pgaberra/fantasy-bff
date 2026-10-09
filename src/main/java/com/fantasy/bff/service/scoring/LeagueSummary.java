@@ -5,13 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * What a drafted league adds up to: every team's totals, and — for whoever may see them — the
- * players behind each one.
- *
- * <p>The aggregates are the whole of what a free account is shown, which is why they are computed
- * here rather than in the browser: a total the browser worked out is a total the browser was given
- * the lines for. The per-player halves ({@code roster}, {@code positionPlayers}) are dropped
- * before the response leaves for an account without premium.
+ * What a drafted league adds up to: every team's totals, and the players behind each one.
  *
  * @param categoryKeys the stats the league counts, in the order the league gave them; the labels
  *     are the web's to write
@@ -29,10 +23,8 @@ public record LeagueSummary(
      *
      * @param values the cell per category key and per position key; the category cells sum to the
      *     total, and so do the position cells
-     * @param roster the team's players, best first by what their lineup starts them for —
-     *     premium only, null otherwise
-     * @param positionPlayers who starts in each lineup slot, and for how much — premium only, null
-     *     otherwise
+     * @param roster the team's players, best first by what their lineup starts them for
+     * @param positionPlayers who starts in each lineup slot, and for how much
      */
     public record Team(
             String teamId,
@@ -42,11 +34,6 @@ public record LeagueSummary(
             Map<String, Double> values,
             List<RosterRow> roster,
             Map<String, List<Contributor>> positionPlayers) {
-
-        /** The same line with everything per-player taken out of it. */
-        public Team aggregatesOnly() {
-            return new Team(teamId, name, mine, total, values, null, null);
-        }
     }
 
     /**
@@ -71,11 +58,5 @@ public record LeagueSummary(
 
     /** A player under a lineup slot, and what he is worth there. */
     public record Contributor(String name, double value) {
-    }
-
-    /** The same summary with every per-player half dropped. */
-    public LeagueSummary aggregatesOnly() {
-        return new LeagueSummary(
-                categoryKeys, positionKeys, teams.stream().map(Team::aggregatesOnly).toList());
     }
 }

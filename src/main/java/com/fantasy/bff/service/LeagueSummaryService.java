@@ -59,9 +59,11 @@ import org.springframework.stereotype.Service;
  *
  * <p>A draft made here is the other thing it totals: a mock draft, or one played against a
  * league it cannot read, whose picks exist nowhere else. There the teams, the picks and the scoring are the
- * draft's own, which the user chose, unlike a league's. The totals are still everyone's and the
- * players behind them still premium's (Alexander's call, 2026-09-28): the same rule whichever
- * kind of league is being ranked.
+ * draft's own, which the user chose, unlike a league's.
+ *
+ * <p>The totals and the players behind them are everyone's, whichever kind of league is being
+ * ranked and whichever projection it is ranked on (Alexander's call, 2026-10-09; until then the
+ * players were premium's against the model and last season).
  */
 @Service
 public class LeagueSummaryService {
@@ -88,7 +90,6 @@ public class LeagueSummaryService {
     private final PlayerPoolRows poolRows;
     private final PlayerService playerService;
     private final AiProjectionAvailability aiProjection;
-    private final EntitlementService entitlementService;
     private final LeagueSummaryCalculator calculator;
     private final SeasonScheduleService scheduleService;
     private final int defaultSeason;
@@ -105,7 +106,6 @@ public class LeagueSummaryService {
             PlayerPoolRows poolRows,
             PlayerService playerService,
             AiProjectionAvailability aiProjection,
-            EntitlementService entitlementService,
             LeagueSummaryCalculator calculator,
             SeasonScheduleService scheduleService,
             @Value("${services.projection.season}") int defaultSeason,
@@ -120,7 +120,6 @@ public class LeagueSummaryService {
         this.poolRows = poolRows;
         this.playerService = playerService;
         this.aiProjection = aiProjection;
-        this.entitlementService = entitlementService;
         this.calculator = calculator;
         this.scheduleService = scheduleService;
         this.defaultSeason = defaultSeason;
@@ -134,7 +133,7 @@ public class LeagueSummaryService {
      * @param leagueKey the league, which the user must have access to
      * @param source which projection the players are scored against
      * @param projectionId the board, where the source is {@link SummarySource#PROJECTION}
-     * @return the summary, with the per-player halves in it only for an account that may see them
+     * @return the summary, with the per-player halves in it
      */
     public Result summarise(String userId, String leagueKey, SummarySource source, UUID projectionId) {
         return summariseLeague(userId, source, projectionId, () -> {
@@ -155,7 +154,7 @@ public class LeagueSummaryService {
      * @param leagueId ESPN's id for the league
      * @param source which projection the players are scored against
      * @param projectionId the board, where the source is {@link SummarySource#PROJECTION}
-     * @return the summary, with the per-player halves in it only for an account that may see them
+     * @return the summary, with the per-player halves in it
      */
     public Result summariseEspn(String userId, String leagueId, SummarySource source, UUID projectionId) {
         return summariseLeague(userId, source, projectionId, () -> {
@@ -201,15 +200,11 @@ public class LeagueSummaryService {
         LeagueScoring league = scoring(settings, teams.size());
 
         LeagueSummary summary = calculator.summarise(pool, teams, league, scheduleService.schedule());
-        // The totals are everyone's. The lines behind the model's and last season's are what
-        // premium pays for; a board's are the user's own, or ones they already follow row by row.
-        boolean premium = board != null || entitlementService.hasPremiumAccess(userId);
         return new Result(
-                premium ? summary : summary.aggregatesOnly(),
+                summary,
                 source,
                 source == SummarySource.MODEL ? defaultModelVersion : null,
                 board == null ? null : board.id(),
-                premium,
                 settings.scoringType(),
                 platformLeague.status(),
                 platformLeague.picks(),
@@ -220,11 +215,11 @@ public class LeagueSummaryService {
     /**
      * A draft made here, its teams totalled from their picks.
      *
-     * @param userId whose draft it is, which is also whose account decides the premium half
+     * @param userId whose draft it is
      * @param draftId the draft, one of the user's own
      * @param source which projection the players are scored against
      * @param projectionId the board, where the source is {@link SummarySource#PROJECTION}
-     * @return the summary, with the per-player halves in it only for an account that may see them
+     * @return the summary, with the per-player halves in it
      * @throws NoSuchElementException where the id is not a draft, or the model was asked for and is
      *     off
      */
@@ -248,14 +243,12 @@ public class LeagueSummaryService {
         LeagueScoring league = scoring(draft.settings(), stored.data().settings(), teams.size());
 
         LeagueSummary summary = calculator.summarise(pool, teams, league, scheduleService.schedule());
-        boolean premium = board != null || entitlementService.hasPremiumAccess(userId);
         int picks = draft.picks() == null ? 0 : draft.picks().size();
         return new Result(
-                premium ? summary : summary.aggregatesOnly(),
+                summary,
                 source,
                 source == SummarySource.MODEL ? defaultModelVersion : null,
                 board == null ? null : board.id(),
-                premium,
                 league.points() ? ScoringBasis.POINTS : ScoringBasis.CATEGORY,
                 draftStatus(draft, picks),
                 picks,
@@ -275,7 +268,6 @@ public class LeagueSummaryService {
      * @param source which projection they were scored against
      * @param modelVersion the model's version where it was the model, null otherwise
      * @param projectionId the board's id where it was a board, null otherwise
-     * @param premium whether the per-player halves are filled in
      * @param scoringType how the league scores, which is what its totals are in
      * @param status where the league's draft has got to
      * @param picks how many picks its draft has made, so a league yet to draft can say so rather
@@ -289,7 +281,6 @@ public class LeagueSummaryService {
             SummarySource source,
             String modelVersion,
             String projectionId,
-            boolean premium,
             ScoringBasis scoringType,
             LeagueDraftStatus status,
             int picks,

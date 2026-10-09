@@ -43,8 +43,7 @@ public class LeagueSummaryCalculator {
      * @param teams the teams and their players
      * @param league how the league scores and what it starts
      * @param schedule the nights each club plays over the stretch being ranked
-     * @return the teams, best total first, with the per-player halves filled in; drop them with
-     *     {@link LeagueSummary#aggregatesOnly()} for an account that may not see them
+     * @return the teams, best total first, with the per-player halves filled in
      */
     public LeagueSummary summarise(
             List<ScoredPlayer> pool, List<TeamPicks> teams, LeagueScoring league, LeagueSchedule schedule) {

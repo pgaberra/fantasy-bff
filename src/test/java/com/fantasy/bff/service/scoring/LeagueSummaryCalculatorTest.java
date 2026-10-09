@@ -270,23 +270,6 @@ class LeagueSummaryCalculatorTest {
         assertThat(keeper.values().get("w")).isEqualTo(35);
     }
 
-    /** What a free account is handed: the totals, and nothing that says how they were reached. */
-    @Test
-    @DisplayName("the aggregates survive on their own, with every per-player half dropped")
-    void aggregatesOnlyDropsThePlayers() {
-        List<ScoredPlayer> pool = List.of(skater(1, "Centre", Set.of("C"), 40));
-        LeagueSummary summary = calculator.summarise(
-                pool,
-                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1))),
-                pointsLeague(ONE_EACH), SEASON).aggregatesOnly();
-
-        LeagueSummary.Team team = summary.teams().get(0);
-        assertThat(team.total()).isCloseTo(40, within(1e-9));
-        assertThat(team.values()).isNotEmpty();
-        assertThat(team.roster()).isNull();
-        assertThat(team.positionPlayers()).isNull();
-    }
-
     @Test
     @DisplayName("a team that drafted nobody is still a team, at nothing")
     void emptyTeam() {

@@ -2098,10 +2098,7 @@ paths:
         \ over. Only a team's best players by projected value count, as many as the\
         \ league's roster spots less injured reserve, whatever slot each holds. The\
         \ teams, their totals and where each one places are returned to any signed-in\
-        \ manager; the roster rows and lineups behind those totals need premium against\
-        \ the model or last season, and are absent without it. Against one of the\
-        \ user's own boards, or one they follow (`projectionId`), they are always\
-        \ filled in: those are lines the user can already read row by row. 404 where\
+        \ manager, with the roster rows and lineups behind those totals. 404 where\
         \ this environment does not offer reading a league's draft, where the AI projection\
         \ is off and the model was asked for, or where the board is not the user's\
         \ to read."
@@ -2165,11 +2162,9 @@ paths:
       description: "Reads the league's rosters and scoring settings from ESPN, with\
         \ the user's stored cookies where the league is private, and totals every\
         \ team's current roster the way a Yahoo league's is totalled; while the draft\
-        \ runs a roster is the team's picks so far. The same premium rule as a Yahoo\
-        \ league: the teams, their totals and where each one places for any signed-in\
-        \ manager, the roster rows and lineups behind them with premium against the\
-        \ model or last season, and always against one of the user's own boards or\
-        \ one they follow (`projectionId`). ESPN's refusal of a private league without\
+        \ runs a roster is the team's picks so far. As with a Yahoo league, the teams,\
+        \ their totals, where each one places and the roster rows and lineups behind\
+        \ them go to any signed-in manager. ESPN's refusal of a private league without\
         \ valid cookies is a 400, and a league ESPN does not have this season a 404."
       operationId: espnLeague
       parameters:
@@ -2226,12 +2221,10 @@ paths:
         \ the way a Yahoo league's are totalled: only a team's best players by projected\
         \ value count, as many as the draft's roster spots less injured reserve. The\
         \ teams and the scoring are the draft's own. The teams, their totals and where\
-        \ each one places are returned to any signed-in manager; the roster rows and\
-        \ lineups behind them need premium against the model or last season, and are\
-        \ always filled in against one of the user's own boards or one they follow\
-        \ (`projectionId`). 404 where the id is not one of the user's drafts, where\
-        \ the AI projection is off and the model was asked for, or where the board\
-        \ is not the user's to read."
+        \ each one places are returned to any signed-in manager, with the roster rows\
+        \ and lineups behind them. 404 where the id is not one of the user's drafts,\
+        \ where the AI projection is off and the model was asked for, or where the\
+        \ board is not the user's to read."
       operationId: draftSummary
       parameters:
       - name: draftId
@@ -5276,9 +5269,9 @@ components:
             \ `source: projection`"
         premium:
           type: boolean
-          description: "Whether the per-player halves are filled in: premium pays\
-            \ for them against the model and last season, and a board of the user's\
-            \ own or one they follow always has them"
+          deprecated: true
+          description: "Always true: the per-player halves are filled in for everyone.\
+            \ Kept for web builds that still read it."
         scoringType:
           type: string
           description: "How the league scores, which decides what the totals are:\
@@ -5408,8 +5401,7 @@ components:
         roster:
           type: array
           description: "The team's players, best first by what they count for: its\
-            \ current roster once the draft is over, its picks until then. Premium\
-            \ only; absent otherwise."
+            \ current roster once the draft is over, its picks until then."
           items:
             $ref: "#/components/schemas/LeagueSummaryRosterRow"
         positionPlayers:
@@ -5418,7 +5410,7 @@ components:
             type: array
             items:
               $ref: "#/components/schemas/LeagueSummaryContributor"
-          description: Who fills each lineup slot. Premium only; absent otherwise.
+          description: Who fills each lineup slot.
       required:
       - mine
       - name
