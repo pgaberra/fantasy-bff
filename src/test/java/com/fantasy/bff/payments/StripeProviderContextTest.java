@@ -18,7 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest
 @TestPropertySource(properties = {
-        "payments.enabled=true",
         "payments.provider=stripe",
         "payments.stripe.api-key=sk_test_key",
         "payments.stripe.webhook-secret=whsec_test",

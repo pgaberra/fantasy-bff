@@ -44,8 +44,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-        "streamer-planner.enabled=true",
-        "streamer-planner.my-team-enabled=true",
         // The mapping is cached in a singleton; zero means "always stale", so each test's stubs win.
         "services.projection.player-mapping-ttl-ms=0"
 })
@@ -263,13 +261,5 @@ class StreamerPlannerMyTeamTest extends BaseIntegrationTest {
                         .header("Authorization", bearer))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(yahooServiceClient);
-    }
-
-    @Test
-    void theFeatureIsReportedOn() throws Exception {
-        mockMvc.perform(get("/api/v1/features"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.streamerPlanner").value(true))
-                .andExpect(jsonPath("$.streamerPlannerMyTeam").value(true));
     }
 }

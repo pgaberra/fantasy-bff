@@ -154,9 +154,7 @@ are not committed; every build regenerates them.
     stays stateless and only relays. Everything goes through the `payments/`
     `PaymentProvider` interface, so which provider is live is a `payments.provider` config
     change and nothing else — `MockPaymentProvider` drives the whole lifecycle locally,
-    `StripePaymentProvider` is the real one. Three things to know before changing it: every
-    mutating endpoint **404s unless `payments.enabled`** (and `/entitlements` answers "no
-    premium" rather than failing, so the web renders the same either way); the **webhook is
+    `StripePaymentProvider` is the real one. Two things to know before changing it: the **webhook is
     `permitAll`** — the provider calls it unauthenticated, so its only defence is the
     signature `parseAndVerify` checks over the *raw* body, and the body stays `byte[]` the
     whole way down because re-serializing it would change the bytes the signature covers;
@@ -192,14 +190,13 @@ are not committed; every build regenerates them.
     `/splits/seasons` lists each season's own length (82, or 84 from 2026-27) and how far it has
     got, which is where the web takes both from; no season length lives in this repo.
     **Whether the AI projection is served at all is one answer, `AiProjectionAvailability`**:
-    `ai-projection.enabled` (`AI_PROJECTION_ENABLED`, on by default) *and*
-    `security.projection-model-enabled` (`PROJECTION_MODEL_ENABLED`, off by default, which also
-    closes the whole prefix). `/seed` 404s without it, `source=model` in
+    `ai-projection.enabled` (`AI_PROJECTION_ENABLED`, on by default). The prefix itself is open
+    to any signed-in user (its `PROJECTION_MODEL_ENABLED` switch was removed 2026-10-09).
+    `/seed` 404s without it, `source=model` in
     `ProjectionService.create` is refused without it, and public `GET /api/v1/features`
     reports it as `aiProjection`, which is what the web reads to offer or drop the AI preset.
     The web has no switch of its own, so the two cannot disagree. `ai-projection.enabled` does
-    **not** cover the splits: those are measured numbers behind Who's hot and stay up while the
-    prefix is open.
+    **not** cover the splits: those are measured numbers behind Who's hot and stay up.
     **The model's lines are premium**, and there are two ways to them that share no code, so
     both are gated: `/seed`, which hands them to the new-projection page, and `source=model`
     in `ProjectionService.create`, which fills a projection or a preset's draft with them
@@ -216,11 +213,10 @@ are not committed; every build regenerates them.
     length is asked of projection-service, and only for a window short enough to be free); anything else is
     **403 `PREMIUM_REQUIRED`**, including an open range, which means the whole season. Two
     orderings matter and are tested: the range is judged *before* the subscription is read, so
-    a free account's own requests cost db-service nothing, and `payments.enabled` is read
-    before that, so an environment that sells no premium gates nothing at all. Entitlement
-    comes from `EntitlementService`, which `BillingController` shares — `entitlements()` is
-    what to *report*, `hasPremiumAccess()` is what to *allow*, and they differ exactly when
-    payments are off.
+    a free account's own requests cost db-service nothing. Entitlement comes from
+    `EntitlementService`, which `BillingController` shares — `entitlements()` is what to
+    *report*, `hasPremiumAccess()` is what to *allow*. Payments are always on (the
+    `PAYMENTS_ENABLED` switch was removed 2026-10-09).
   - `YahooController` / `EspnController` — the signed-in user's league integrations, both
     forwarding the JWT subject to the service that owns the data and both ending at the same
     place: `…/leagues/{id}/projection-settings`, the league's scoring mapped into *our*
@@ -237,10 +233,10 @@ are not committed; every build regenerates them.
     of picks made from pick 1, since the board numbers a pick by its place in the list.
     `orderKnown` is yahoo-service's, passed on unchanged: false while the teams are in Yahoo's own
     list order rather than the draft's, as they are before a live draft runs. It is
-    **one answer, `LeagueDraftSyncAvailability`**: `league-draft-sync.enabled`
-    (`DRAFT_LEAGUE_SYNC_ENABLED`, off by default) *and* a pool on Yahoo ids, because the picks
-    name players by Yahoo's. Without it the endpoint 404s, and `GET /api/v1/features` reports it
-    as `leagueDraftSync`. Not premium.
+    served wherever **`LeagueDraftSyncAvailability`** says so: a pool on Yahoo ids, because the
+    picks name players by Yahoo's. Without it the endpoint 404s. Its `DRAFT_LEAGUE_SYNC_ENABLED`
+    switch and the `leagueDraftSync` field on `GET /api/v1/features` were removed 2026-10-09, so
+    the web offers following unconditionally. Not premium.
     An ESPN league's draft is **not** followed: ESPN's league API lists a draft's picks only once
     the draft is over (seen on a real draft 2026-09-29), so the ESPN draft endpoint and its
     `ESPN_DRAFT_LEAGUE_SYNC_ENABLED` switch were removed (2026-09-30). What survives of it is
@@ -259,19 +255,18 @@ are not committed; every build regenerates them.
     answer is right whichever way `PLAYERS_SOURCE` is set. Stats go out in the projection's own
     vocabulary and **nothing here scores them**: the client weighs them by the league's scoring
     settings, as everywhere else. A free agent the model does not project is counted in
-    `unprojected` rather than shown with zeroes. Same switch, same 404.
+    `unprojected` rather than shown with zeroes.
   - `StreamerPlannerController` — `/api/v1/streamer-planner`: `GET /weeks` (the newest published
     season's Monday-Sunday weeks, numbered from opening night, and the week today falls in) and
     `GET /teams?start=&end=` (every NHL team's games over up to 31 days, with a skater and a goalie
     score and rank). Both are projection-service's `/schedule/*`, mapped into the BFF's own records;
-    the rating itself lives there. Signed in, not premium. Behind `streamer-planner.enabled`
-    (`STREAMER_PLANNER_ENABLED`, off by default): without it both 404 and `GET /api/v1/features`
-    reports `streamerPlanner` false. Team codes are the NHL's (`TBL`), not ESPN's (`TB`).
+    the rating itself lives there. Signed in, not premium; always served (the
+    `STREAMER_PLANNER_ENABLED` / `STREAMER_PLANNER_MY_TEAM_ENABLED` switches were removed
+    2026-10-09). Team codes are the NHL's (`TBL`), not ESPN's (`TB`).
     `GET /my-team?platform=&leagueId=` (`StreamerPlannerMyTeamService`) is the user's own team in
     the league, read live from the platform's rosters (never the pool): each player's club, real
     positions, today's slot and `out` (IR/NA slots, O/OUT/IR/suspension; day-to-day plays). The web
-    places them per night to find the open slots. Behind `streamer-planner.my-team-enabled`
-    (`STREAMER_PLANNER_MY_TEAM_ENABLED`) on top of the planner; reported as `streamerPlannerMyTeam`.
+    places them per night to find the open slots.
   - `FaScoutController` — `GET /api/v1/fa-scout/free-agents?platform=&leagueId=`: the players a
     league has available with **two of the model's lines** each, the served rest of the season
     (`ProjectionSeedService.seasonShape`, the same lifted `served` every page reads) and the frozen
@@ -295,7 +290,7 @@ are not committed; every build regenerates them.
     without a line); its value over the slot is its value over replacement less that of the
     model's player at that number, summed per team with an A-F letter. Teams' sums for everyone, each pick's rank/grade/best available with premium
     (the Team Power Rankings rule). Behind `draft-analysis.enabled` (`DRAFT_ANALYSIS_ENABLED`, off by
-    default) AND the AI projection AND league-draft-sync (`DraftAnalysisAvailability`): otherwise
+    default) AND the AI projection AND a Yahoo-id pool (`DraftAnalysisAvailability`): otherwise
     404, and `GET /api/v1/features` reports `draftAnalysis` false.
   - `VersionController` — `GET /api/v1/versions`: each service's deployed version and whether
     it answered, probed in parallel on virtual threads. A service that cannot be reached comes

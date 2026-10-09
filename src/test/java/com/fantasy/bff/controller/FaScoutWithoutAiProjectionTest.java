@@ -15,10 +15,10 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** The scout's own switch on, with the AI projection, whose lines it shows, left off by default. */
+/** The scout's own switch on, with the AI projection, whose lines it shows, switched off. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "fa-scout.enabled=true")
+@TestPropertySource(properties = {"fa-scout.enabled=true", "ai-projection.enabled=false"})
 class FaScoutWithoutAiProjectionTest extends BaseIntegrationTest {
 
     @Autowired private MockMvc mockMvc;

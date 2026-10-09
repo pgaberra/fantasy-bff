@@ -154,30 +154,11 @@ services:
 # not worth offering does not offer one.
 #
 # NOTE: this leaves Who's hot alone. The game-range splits under the same path prefix are
-# measured numbers rather than the model's estimates, and stay up either way. Whether anyone
-# may read the prefix at all is a separate switch (security.projection-model-enabled), and the
-# AI projection is served only where both allow it (AiProjectionAvailability). That one answer
-# is what /api/v1/features reports and what the web follows, so the web has no switch of its own.
+# measured numbers rather than the model's estimates, and stay up either way. This one answer
+# (AiProjectionAvailability) is what /api/v1/features reports and what the web follows, so the
+# web has no switch of its own.
 ai-projection:
   enabled: ${AI_PROJECTION_ENABLED:true}
-
-# Following a Yahoo league's live draft from the draft room (GET /api/v1/yahoo/leagues/{key}/draft,
-# polled while a user follows). Off unless this says otherwise, since it is new. It also needs a
-# pool on Yahoo ids, because the picks name players by Yahoo's; LeagueDraftSyncAvailability
-# combines the two, and that answer is what /api/v1/features reports. Not a premium feature.
-# An ESPN league's draft is not followed: ESPN's league API lists the picks only once it is over.
-league-draft-sync:
-  enabled: ${DRAFT_LEAGUE_SYNC_ENABLED:false}
-
-# The streamer planner (/api/v1/streamer-planner/**): every NHL team's schedule rated by week, read
-# from projection-service. Off unless this says otherwise, since the feature is new; off, its
-# endpoints answer 404 and /api/v1/features reports streamerPlanner false. Not a premium feature.
-streamer-planner:
-  enabled: ${STREAMER_PLANNER_ENABLED:false}
-  # The user's own team on top (GET /api/v1/streamer-planner/my-team): which nights it has open
-  # lineup slots. Off unless this says otherwise, since it is new; off, the endpoint answers 404 and
-  # /api/v1/features reports streamerPlannerMyTeam false. Never on without the planner itself.
-  my-team-enabled: ${STREAMER_PLANNER_MY_TEAM_ENABLED:false}
 
 # Role Changes (GET /api/v1/role-changes): skaters whose ice or power-play role just moved, measured
 # by projection-service. Off unless this says otherwise, since it is a draft; off, the endpoint
@@ -235,8 +216,6 @@ signup-notification:
   notify-email: ${SIGNUP_NOTIFY_EMAIL:}
 
 payments:
-  # Subscription billing. Off by default (dark launch); enable per environment when going live.
-  enabled: ${PAYMENTS_ENABLED:false}
   # Which provider implementation serves checkout/portal/webhooks: "mock" (in-repo test double,
   # the default) or "stripe". Selecting a provider is a config change only.
   provider: ${PAYMENTS_PROVIDER:mock}
@@ -279,19 +258,6 @@ security:
   # Comma-separated allowlist of admin emails (e.g. ADMIN_EMAILS="me@x.com,you@y.com").
   # Logins by these addresses get an `admin` claim in their JWT (ROLE_ADMIN). Empty = no admins.
   admin-emails: ${ADMIN_EMAILS:}
-  # /api/v1/projection-model/** serves the projection engine's raw output — the model itself,
-  # not a user's own saved projection. Off unless this says otherwise, so an environment that
-  # has not yet decided who may read the model denies the endpoints outright rather than
-  # leaning on the projection service happening to be unreachable. See fantasy-bff#105.
-  #
-  # Off also takes the AI projection away, both doors to it (/seed and source=model), whatever
-  # AI_PROJECTION_ENABLED says; the web stops offering it on the same answer.
-  #
-  # NOTE: the web's "Who's hot" page reads /splits/** from under this prefix, so leaving this
-  # off makes that page show its error state. Turn it on wherever Who's hot should work — and
-  # note the splits also need the season's per-game logs ingested in the projection service
-  # (`projection game-logs --season <year>`).
-  projection-model-enabled: ${PROJECTION_MODEL_ENABLED:false}
   google:
     # Public OAuth Client ID for "Sign in with Google" (not a secret). When unset,
     # /api/v1/auth/google rejects all requests and the web hides the Google button.

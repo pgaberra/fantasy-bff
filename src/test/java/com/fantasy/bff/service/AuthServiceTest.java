@@ -93,7 +93,7 @@ class AuthServiceTest {
                 passwordResetEmailSender,
                 emailVerificationEmailSender,
                 signupNotificationEmailSender,
-                new SecurityProperties(List.of(), List.of(), List.of(adminEmails), false),
+                new SecurityProperties(List.of(), List.of(), List.of(adminEmails)),
                 emailSendThrottle,
                 "http://localhost:4200");
     }

@@ -10,14 +10,6 @@ public record FeaturesResponse(
                         + "this account's plan: an AI projection that needs premium is still available.")
         boolean aiProjection,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Whether the draft room may follow a linked Yahoo league's live draft. False means "
-                        + "the draft endpoint answers 404, so a client should not offer it.")
-        boolean leagueDraftSync,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Whether this environment serves the streamer planner. False means its "
-                        + "endpoints answer 404, so a client should not offer it.")
-        boolean streamerPlanner,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether Who's hot may show only the players a linked league has "
                         + "available. False means the rostered-players endpoint answers 404, so a "
                         + "client should not offer it.")
@@ -28,11 +20,6 @@ public record FeaturesResponse(
                         + "endpoint answers 404, so a client should not offer it. True still offers "
                         + "it only while a season is under way, which the status endpoint says.")
         boolean restOfSeasonPreset,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Whether the streamer planner reads the user's own team in the chosen "
-                        + "league, to show the nights it has open lineup slots. False means the "
-                        + "my-team endpoint answers 404. Never true while streamerPlanner is false.")
-        boolean streamerPlannerMyTeam,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves the FA scout. False means its "
                         + "endpoint answers 404, so a client should not offer it.")

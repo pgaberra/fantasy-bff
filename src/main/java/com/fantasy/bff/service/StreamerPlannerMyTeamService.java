@@ -34,17 +34,14 @@ public class StreamerPlannerMyTeamService {
     /** Projections asked of the model: the whole projected league, as the free agents ask. */
     private static final int PROJECTION_LIMIT = 2000;
 
-    private final StreamerPlannerAvailability availability;
     private final LeagueOwnTeam ownTeam;
     private final ProjectionServiceClient projectionServiceClient;
     private final NhlIdentityJoin identityJoin;
 
     public StreamerPlannerMyTeamService(
-            StreamerPlannerAvailability availability,
             LeagueOwnTeam ownTeam,
             ProjectionServiceClient projectionServiceClient,
             NhlIdentityJoin identityJoin) {
-        this.availability = availability;
         this.ownTeam = ownTeam;
         this.projectionServiceClient = projectionServiceClient;
         this.identityJoin = identityJoin;
@@ -56,7 +53,6 @@ public class StreamerPlannerMyTeamService {
      */
     public PlannerMyTeamResponse myTeam(
             String userId, PlayerIdSpace platform, String leagueId, LocalDate start, LocalDate end) {
-        availability.requireMyTeam();
         if ((start == null) != (end == null)) {
             throw new IllegalArgumentException("start and end go together");
         }

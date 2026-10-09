@@ -19,8 +19,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * The streamer planner: the season's weeks, and how good every NHL team's schedule is over one.
- * The rating is projection-service's, read off the published schedule; this checks the switch and
- * the stretch, and maps the answer into the BFF's own types.
+ * The rating is projection-service's, read off the published schedule; this checks the stretch and maps the answer into the BFF's own types.
  */
 @Service
 public class StreamerPlannerService {
@@ -29,16 +28,12 @@ public class StreamerPlannerService {
     static final int MAX_STRETCH_DAYS = 31;
 
     private final ProjectionServiceClient projectionServiceClient;
-    private final StreamerPlannerAvailability availability;
 
-    public StreamerPlannerService(
-            ProjectionServiceClient projectionServiceClient, StreamerPlannerAvailability availability) {
+    public StreamerPlannerService(ProjectionServiceClient projectionServiceClient) {
         this.projectionServiceClient = projectionServiceClient;
-        this.availability = availability;
     }
 
     public PlannerWeeksResponse weeks() {
-        availability.require();
         ScheduleWeeksResponse answer = projectionServiceClient.scheduleWeeks();
         if (answer == null) {
             return new PlannerWeeksResponse(null, null, List.of());
@@ -65,7 +60,6 @@ public class StreamerPlannerService {
     }
 
     public ScheduleStrengthResponse strength(LocalDate start, LocalDate end) {
-        availability.require();
         requireStretch(start, end);
         var answer = projectionServiceClient.scheduleStrength(start, end);
         if (answer == null) {

@@ -22,6 +22,7 @@ import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
+import com.fantasy.bff.service.EntitlementService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
@@ -38,7 +39,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-        "security.projection-model-enabled=true",
         "rest-of-season-preset.enabled=true",
         // The id mapping is cached in a singleton, so without this the first test's stubs would
         // answer for every later one. Zero means "always stale", i.e. rebuilt per request.
@@ -53,11 +53,14 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
     @MockitoBean private PlayerServiceClient playerServiceClient;
     /** Keeps the ESPN stat-line enrichment off the network; unstubbed means "no ESPN stats". */
     @MockitoBean private EspnServiceClient espnServiceClient;
+    /** A subscriber: what premium gates is pinned in PremiumAiProjectionTest and PremiumGameRangeTest. */
+    @MockitoBean private EntitlementService entitlementService;
 
     private String token;
 
     @BeforeEach
     void setUp() {
+        when(entitlementService.hasPremiumAccess(any())).thenReturn(true);
         token = jwtTokenValidator.generateToken("user-1", "test@example.com");
 
         PlayerResponse mcdavid = new PlayerResponse();

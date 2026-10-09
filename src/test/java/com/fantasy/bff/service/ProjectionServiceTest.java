@@ -3,7 +3,6 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.config.AiProjectionProperties;
 import com.fantasy.bff.config.RestOfSeasonPresetProperties;
-import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.request.CreateProjectionRequest;
 import com.fantasy.bff.client.DatabaseServiceClient.FollowedProjection;
 import com.fantasy.bff.dto.request.CopyProjectionRequest;
@@ -101,15 +100,9 @@ class ProjectionServiceTest {
         return serviceWith(enabled, true);
     }
 
-    private ProjectionService serviceWith(boolean aiProjectionEnabled, boolean modelPrefixEnabled) {
-        return serviceWith(aiProjectionEnabled, modelPrefixEnabled, true);
-    }
-
-    private ProjectionService serviceWith(
-            boolean aiProjectionEnabled, boolean modelPrefixEnabled, boolean restOfSeasonPresetEnabled) {
-        AiProjectionAvailability aiProjection = new AiProjectionAvailability(
-                new AiProjectionProperties(aiProjectionEnabled),
-                new SecurityProperties(null, null, null, modelPrefixEnabled));
+    private ProjectionService serviceWith(boolean aiProjectionEnabled, boolean restOfSeasonPresetEnabled) {
+        AiProjectionAvailability aiProjection =
+                new AiProjectionAvailability(new AiProjectionProperties(aiProjectionEnabled));
         return new ProjectionService(
                 databaseServiceClient,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
@@ -713,25 +706,6 @@ class ProjectionServiceTest {
         verifyNoInteractions(databaseServiceClient);
     }
 
-    /**
-     * The seed endpoint is closed with the model prefix, and a model-seeded projection is the
-     * same lines by another door. Leaving it open would serve the model in an environment that
-     * decided not to, and have the web offer a preset whose preview is refused.
-     */
-    @Test
-    @DisplayName("model source is refused when the model endpoints are closed, even with the AI projection on")
-    void withModelSource_whenTheModelPrefixIsClosed_isRefused() {
-        ProjectionService service = serviceWith(true, false);
-
-        assertThatThrownBy(() -> service.create(USER_ID, request(emptyData(), ProjectionSource.MODEL)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("switched off");
-
-        verifyNoInteractions(seedService);
-        verifyNoInteractions(databaseServiceClient);
-        verifyNoInteractions(entitlementService);
-    }
-
     @Test
     @DisplayName("switching the AI projection off leaves the other starting points alone")
     void whenAiProjectionIsOff_theOtherSourcesStillFillTheirRows() {
@@ -1031,7 +1005,7 @@ class ProjectionServiceTest {
     @Test
     @DisplayName("the rest of the season is refused where its own switch is off, before premium is asked")
     void restOfSeasonSource_withItsSwitchOff_isRefused() {
-        projectionService = serviceWith(true, true, false);
+        projectionService = serviceWith(true, false);
 
         assertThatThrownBy(() -> projectionService.create(
                         USER_ID,
@@ -1046,7 +1020,7 @@ class ProjectionServiceTest {
     @Test
     @DisplayName("its switch leaves the AI projection alone")
     void modelSource_withTheRestOfSeasonSwitchOff_isStillServed() {
-        projectionService = serviceWith(true, true, false);
+        projectionService = serviceWith(true, false);
         when(seedService.seed(SEASON, MODEL_VERSION))
                 .thenReturn(new ProjectionSeedService.Seed(List.of(), "marcel-v14", 0, 0, 0, 0, 0));
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());

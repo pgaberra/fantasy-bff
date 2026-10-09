@@ -49,7 +49,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-        "payments.enabled=true",
         "payments.provider=mock",
         "payments.mock.webhook-secret=test-mock-secret",
         "payments.mock.self-base-url=http://localhost:8080"

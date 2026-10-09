@@ -71,17 +71,9 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.GET, "/api/v1/features").permitAll()
                             .requestMatchers("/api/v1/account", "/api/v1/account/**").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/v1/feedback").authenticated()
-                            .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated();
-
-                    if (securityProperties.projectionModelEnabled()) {
-                        auth.requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**")
-                                .authenticated();
-                    } else {
-                        auth.requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**")
-                                .denyAll();
-                    }
-
-                    auth
+                            .requestMatchers("/api/v1/projections", "/api/v1/projections/**").authenticated()
+                            .requestMatchers("/api/v1/projection-model", "/api/v1/projection-model/**")
+                                    .authenticated()
                             .requestMatchers("/api/v1/yahoo", "/api/v1/yahoo/**").authenticated()
                             .requestMatchers("/api/v1/espn", "/api/v1/espn/**").authenticated()
                             .requestMatchers("/api/v1/streamer-planner/**").authenticated()

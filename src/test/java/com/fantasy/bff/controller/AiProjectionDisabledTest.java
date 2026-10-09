@@ -18,6 +18,7 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
+import com.fantasy.bff.service.EntitlementService;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,15 +34,11 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * An environment with AI_PROJECTION_ENABLED=false must refuse the model's own lines rather than
  * merely have the web hide the preset: a request that skips the UI would otherwise still be served.
- *
- * <p>The prefix is left readable here (security.projection-model-enabled=true) on purpose —
- * otherwise the 403 from that switch would hide whether this one does anything at all.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "ai-projection.enabled=false",
-        "security.projection-model-enabled=true",
         "services.projection.player-mapping-ttl-ms=0"
 })
 class AiProjectionDisabledTest extends BaseIntegrationTest {
@@ -53,11 +50,14 @@ class AiProjectionDisabledTest extends BaseIntegrationTest {
     @MockitoBean private PlayerServiceClient playerServiceClient;
     /** Keeps the ESPN stat-line enrichment off the network; unstubbed means "no ESPN stats". */
     @MockitoBean private EspnServiceClient espnServiceClient;
+    /** A subscriber: what premium gates is pinned in PremiumAiProjectionTest and PremiumGameRangeTest. */
+    @MockitoBean private EntitlementService entitlementService;
 
     private String token;
 
     @BeforeEach
     void setUp() {
+        when(entitlementService.hasPremiumAccess(any())).thenReturn(true);
         token = jwtTokenValidator.generateToken("user-1", "test@example.com");
     }
 

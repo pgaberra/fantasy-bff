@@ -61,10 +61,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @TestPropertySource(
         properties = {
-            "payments.enabled=true",
             "payments.provider=mock",
             "payments.mock.webhook-secret=test-mock-secret",
-            "security.projection-model-enabled=true",
             "services.projection.player-mapping-ttl-ms=0"
         })
 class PremiumAiProjectionTest extends BaseIntegrationTest {

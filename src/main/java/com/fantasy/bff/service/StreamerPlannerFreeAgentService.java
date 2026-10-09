@@ -47,20 +47,16 @@ public class StreamerPlannerFreeAgentService {
 
     private final ProjectionServiceClient projectionServiceClient;
     private final LeagueAvailablePlayers leagueAvailablePlayers;
-    private final StreamerPlannerAvailability availability;
 
     public StreamerPlannerFreeAgentService(
             ProjectionServiceClient projectionServiceClient,
-            LeagueAvailablePlayers leagueAvailablePlayers,
-            StreamerPlannerAvailability availability) {
+            LeagueAvailablePlayers leagueAvailablePlayers) {
         this.projectionServiceClient = projectionServiceClient;
         this.leagueAvailablePlayers = leagueAvailablePlayers;
-        this.availability = availability;
     }
 
     public FreeAgentListResponse freeAgents(
             String userId, PlayerIdSpace platform, String leagueId, LocalDate start, LocalDate end) {
-        availability.require();
         StreamerPlannerService.requireStretch(start, end);
         LeagueAvailablePlayers.Wire wire = leagueAvailablePlayers.read(userId, platform, leagueId);
         List<Available> available = wire.players();

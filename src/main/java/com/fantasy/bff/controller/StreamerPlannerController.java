@@ -25,8 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The streamer planner: which NHL teams have the best schedule in a week. Signed in, not premium,
- * and served only where {@code STREAMER_PLANNER_ENABLED} says so; elsewhere every route is a 404.
+ * The streamer planner: which NHL teams have the best schedule in a week. Signed in, not premium.
  */
 @RestController
 @Validated
@@ -54,7 +53,6 @@ public class StreamerPlannerController {
                     + "of opening night, and the week today falls in.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "The weeks, in order"),
-        @ApiResponse(responseCode = "404", description = "The streamer planner is off in this environment")
     })
     @GetMapping("/weeks")
     public PlannerWeeksResponse weeks() {
@@ -69,7 +67,6 @@ public class StreamerPlannerController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "The teams, ranked"),
         @ApiResponse(responseCode = "400", description = "`end` is before `start`, or the stretch is too long"),
-        @ApiResponse(responseCode = "404", description = "The streamer planner is off in this environment")
     })
     @GetMapping("/teams")
     public ScheduleStrengthResponse teams(
@@ -89,7 +86,6 @@ public class StreamerPlannerController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Available players, best projected first"),
         @ApiResponse(responseCode = "400", description = "`end` is before `start`, or the stretch is too long"),
-        @ApiResponse(responseCode = "404", description = "The streamer planner is off in this environment")
     })
     @GetMapping("/free-agents")
     public FreeAgentListResponse freeAgents(
@@ -110,13 +106,11 @@ public class StreamerPlannerController {
             description = "Read live from the platform: each player's club, the positions the league "
                     + "may start him at, today's slot and whether he is out. Given a stretch, also "
                     + "the model's line over it for each player it projects, on a free agent's "
-                    + "scale. Served only where `STREAMER_PLANNER_MY_TEAM_ENABLED` is on as well as "
-                    + "the planner.")
+                    + "scale.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "The team, or found=false when none is the user's"),
         @ApiResponse(responseCode = "400",
                 description = "Only one of start and end, end before start, or too long a stretch"),
-        @ApiResponse(responseCode = "404", description = "The planner or its own-team view is off in this environment")
     })
     @GetMapping("/my-team")
     public PlannerMyTeamResponse myTeam(

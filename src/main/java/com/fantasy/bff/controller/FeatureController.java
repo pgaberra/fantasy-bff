@@ -1,11 +1,9 @@
 package com.fantasy.bff.controller;
 
-import com.fantasy.bff.service.StreamerPlannerAvailability;
 import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.DraftAnalysisAvailability;
 import com.fantasy.bff.service.FaScoutAvailability;
-import com.fantasy.bff.service.LeagueDraftSyncAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
 import com.fantasy.bff.service.RoleChangesAvailability;
 import com.fantasy.bff.service.WhosHotAvailableFilterAvailability;
@@ -27,8 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class FeatureController {
 
     private final AiProjectionAvailability aiProjection;
-    private final LeagueDraftSyncAvailability leagueDraftSync;
-    private final StreamerPlannerAvailability streamerPlanner;
     private final WhosHotAvailableFilterAvailability whosHotAvailableFilter;
     private final RestOfSeasonPresetAvailability restOfSeasonPreset;
     private final FaScoutAvailability faScout;
@@ -37,16 +33,12 @@ public class FeatureController {
 
     public FeatureController(
             AiProjectionAvailability aiProjection,
-            LeagueDraftSyncAvailability leagueDraftSync,
-            StreamerPlannerAvailability streamerPlanner,
             WhosHotAvailableFilterAvailability whosHotAvailableFilter,
             RestOfSeasonPresetAvailability restOfSeasonPreset,
             FaScoutAvailability faScout,
             RoleChangesAvailability roleChanges,
             DraftAnalysisAvailability draftAnalysis) {
         this.aiProjection = aiProjection;
-        this.leagueDraftSync = leagueDraftSync;
-        this.streamerPlanner = streamerPlanner;
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
         this.faScout = faScout;
@@ -61,9 +53,8 @@ public class FeatureController {
     @ApiResponse(responseCode = "200", description = "Features retrieved successfully")
     public FeaturesResponse getFeatures() {
         return new FeaturesResponse(
-                aiProjection.available(), leagueDraftSync.available(),
-                streamerPlanner.available(), whosHotAvailableFilter.available(),
-                restOfSeasonPreset.available(), streamerPlanner.myTeamAvailable(),
+                aiProjection.available(), whosHotAvailableFilter.available(),
+                restOfSeasonPreset.available(),
                 faScout.available(),
                 roleChanges.available(),
                 draftAnalysis.available());

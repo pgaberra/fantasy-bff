@@ -44,7 +44,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "fa-scout.enabled=true",
-        "security.projection-model-enabled=true",
         // The mapping is cached in a singleton; zero means "always stale", so each test's stubs win.
         "services.projection.player-mapping-ttl-ms=0"
 })

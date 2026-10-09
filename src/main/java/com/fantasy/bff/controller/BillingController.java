@@ -7,7 +7,6 @@ import com.fantasy.bff.dto.response.PortalUrlResponse;
 import com.fantasy.bff.generated.db.model.SubscriptionResponse;
 import com.fantasy.bff.generated.db.model.UpsertSubscriptionRequest;
 import com.fantasy.bff.payments.PaymentProvider;
-import com.fantasy.bff.payments.PaymentsProperties;
 import com.fantasy.bff.payments.PortalRequest;
 import com.fantasy.bff.payments.PortalSession;
 import com.fantasy.bff.payments.SubscriptionSnapshot;
@@ -39,7 +38,7 @@ import java.util.UUID;
 /**
  * Subscription checkout, customer portal, entitlements and the provider webhook. Billing state
  * lives in db-service (the BFF is stateless); the {@link PaymentProvider} abstraction keeps this
- * controller provider-agnostic. Every mutating endpoint is inert (404) unless {@code payments.enabled}.
+ * controller provider-agnostic.
  */
 @Tag(name = "Billing", description = "Subscription checkout, customer portal and premium entitlements")
 @RestController
@@ -50,18 +49,15 @@ public class BillingController {
     private final DatabaseServiceClient databaseServiceClient;
     private final EntitlementService entitlementService;
     private final CheckoutService checkoutService;
-    private final PaymentsProperties paymentsProperties;
     private final String webBaseUrl;
 
     public BillingController(PaymentProvider paymentProvider, DatabaseServiceClient databaseServiceClient,
                              EntitlementService entitlementService, CheckoutService checkoutService,
-                             PaymentsProperties paymentsProperties,
                              @Value("${app.web-base-url}") String webBaseUrl) {
         this.paymentProvider = paymentProvider;
         this.databaseServiceClient = databaseServiceClient;
         this.entitlementService = entitlementService;
         this.checkoutService = checkoutService;
-        this.paymentsProperties = paymentsProperties;
         this.webBaseUrl = webBaseUrl;
     }
 
@@ -70,12 +66,10 @@ public class BillingController {
                     + "An account that already has a checkout it can still pay gets that same one back.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Checkout URL created"),
-            @ApiResponse(responseCode = "404", description = "Payments are not enabled"),
             @ApiResponse(responseCode = "409", description = "The account already has a live subscription")
     })
     @PostMapping("/checkout-session")
     public CheckoutUrlResponse checkoutSession(@AuthenticationPrincipal String userId) {
-        requireEnabled();
         return new CheckoutUrlResponse(checkoutService.checkoutUrlFor(userId));
     }
 
@@ -83,11 +77,10 @@ public class BillingController {
             description = "Returns the provider-hosted customer-portal URL for managing or cancelling the subscription.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Portal URL created"),
-            @ApiResponse(responseCode = "404", description = "Payments not enabled, or the user has no billing customer")
+            @ApiResponse(responseCode = "404", description = "The user has no billing customer")
     })
     @PostMapping("/portal-session")
     public PortalUrlResponse portalSession(@AuthenticationPrincipal String userId) {
-        requireEnabled();
         String customerId = databaseServiceClient.getSubscription(UUID.fromString(userId))
                 .map(SubscriptionResponse::getProviderCustomerId)
                 .filter(StringUtils::hasText)
@@ -108,7 +101,6 @@ public class BillingController {
     @Hidden
     @PostMapping("/webhook")
     public void webhook(@RequestBody byte[] rawBody, @RequestHeader HttpHeaders headers) {
-        requireEnabled();
         WebhookEvent event = paymentProvider.parseAndVerify(rawBody, headers);
         SubscriptionSnapshot snapshot = event.subscription();
         // A verified event that says nothing about a subscription is acknowledged and dropped.
@@ -127,12 +119,6 @@ public class BillingController {
                 .cancelAtPeriodEnd(snapshot.cancelAtPeriodEnd())
                 .eventAt(toOffset(event.occurredAt()));
         databaseServiceClient.upsertSubscription(UUID.fromString(snapshot.userId()), request);
-    }
-
-    private void requireEnabled() {
-        if (!paymentsProperties.enabled()) {
-            throw new NoSuchElementException("Payments are not enabled");
-        }
     }
 
     private static OffsetDateTime toOffset(Instant instant) {

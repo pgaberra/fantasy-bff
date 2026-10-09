@@ -27,7 +27,7 @@ public class YahooLeagueDraftService {
 
     public LeagueDraftResponse draft(String appUserId, String leagueKey) {
         if (!availability.available()) {
-            throw new NoSuchElementException("Following a league's draft is not enabled");
+            throw new NoSuchElementException("Following a league's draft needs a pool on Yahoo ids");
         }
         var draft = yahooServiceClient.draft(appUserId, leagueKey);
         List<LeagueDraftTeam> teams = draft.getTeams().stream()

@@ -24,14 +24,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** With STREAMER_PLANNER_ENABLED=true, any signed-in user gets the weeks and the rated teams. */
+/** Any signed-in user gets the weeks and the rated teams. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "streamer-planner.enabled=true")
 class StreamerPlannerControllerIntegrationTest extends BaseIntegrationTest {
 
     private static final LocalDate MONDAY = LocalDate.of(2026, 10, 12);
@@ -46,11 +44,6 @@ class StreamerPlannerControllerIntegrationTest extends BaseIntegrationTest {
     @BeforeEach
     void setUp() {
         bearer = "Bearer " + jwtTokenValidator.generateToken("user-1", "a@example.com");
-    }
-
-    @Test
-    void theFeatureIsReportedOn() throws Exception {
-        mockMvc.perform(get("/api/v1/features")).andExpect(jsonPath("$.streamerPlanner").value(true));
     }
 
     @Test

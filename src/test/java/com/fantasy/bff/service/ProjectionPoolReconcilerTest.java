@@ -1,7 +1,6 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.config.AiProjectionProperties;
-import com.fantasy.bff.config.SecurityProperties;
 import com.fantasy.bff.dto.response.GoalieResponse;
 import com.fantasy.bff.dto.response.SkaterPosition;
 import com.fantasy.bff.dto.response.SkaterResponse;
@@ -316,8 +315,7 @@ class ProjectionPoolReconcilerTest {
                 playerPool,
                 new PlayerPoolRows(playerService, JsonMapper.builder().build()),
                 seedService,
-                new AiProjectionAvailability(
-                        new AiProjectionProperties(enabled), new SecurityProperties(null, null, null, true)),
+                new AiProjectionAvailability(new AiProjectionProperties(enabled)),
                 SEASON,
                 MODEL_VERSION);
     }
