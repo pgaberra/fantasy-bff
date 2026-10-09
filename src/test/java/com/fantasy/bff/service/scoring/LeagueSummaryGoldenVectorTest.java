@@ -68,7 +68,7 @@ class LeagueSummaryGoldenVectorTest {
                     ScoredPlayer player = byName.get(expectedRow.get("name").asText());
                     assertThat(player).as("%s: %s in the pool", where, expectedRow.get("name").asText()).isNotNull();
                     assertRow(where, LeagueSummaryCalculator.rosterRow(
-                            player, scores, league.activeScoringColumns(), 1), expectedRow);
+                            player, scores, league.activeScoringColumns(), 1, false, true), expectedRow);
                 }
             }
         }
