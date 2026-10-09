@@ -45,7 +45,8 @@ public record LeagueSummary(
      * @param total what he counts for the team: his value over the games his lineup starts him in
      * @param contributions his share of the team's cell per category key, over those games; null
      *     likewise
-     * @param reserve whether he is parked today in an injured-reserve or not-active slot
+     * @param reserveSlot the injured-reserve or not-active slot he is parked in today (IR, IR+,
+     *     IR-LT, IR-NR or NA, in the platform's spelling), or null for a player in neither
      * @param counted whether he is among the players the team's lineup is picked from: its best,
      *     as many as its roster holds; one who is not counts for nothing
      */
@@ -57,7 +58,7 @@ public record LeagueSummary(
             double total,
             Map<String, Double> values,
             Map<String, Double> contributions,
-            boolean reserve,
+            String reserveSlot,
             boolean counted) {
     }
 

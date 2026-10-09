@@ -430,7 +430,7 @@ public class LeagueSummaryService {
                 }
             }
         }
-        Set<Integer> reserve = rosters == null ? Set.of() : rosters.reserve();
+        Map<Integer, String> reserve = rosters == null ? Map.of() : rosters.reserve();
         return draft.teams().stream()
                 .map(team -> teamPicks(
                         team.id(), team.name(), team.mine(), playersByTeam.get(team.id()), reserve))
@@ -439,8 +439,14 @@ public class LeagueSummaryService {
 
     /** A team and its players, with those of them the league's reserve holds marked as such. */
     private static LeagueSummaryCalculator.TeamPicks teamPicks(
-            String teamId, String name, boolean mine, List<Integer> playerIds, Set<Integer> reserve) {
-        Set<Integer> parked = playerIds.stream().filter(reserve::contains).collect(Collectors.toSet());
+            String teamId, String name, boolean mine, List<Integer> playerIds, Map<Integer, String> reserve) {
+        Map<Integer, String> parked = new HashMap<>();
+        for (Integer playerId : playerIds) {
+            String slot = reserve.get(playerId);
+            if (slot != null) {
+                parked.put(playerId, slot);
+            }
+        }
         return new LeagueSummaryCalculator.TeamPicks(teamId, name, mine, List.copyOf(playerIds), parked);
     }
 
