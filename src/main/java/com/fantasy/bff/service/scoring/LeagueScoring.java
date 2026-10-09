@@ -39,8 +39,8 @@ public record LeagueScoring(
 
     private static final int DEFAULT_MIN_GOALIE_GAMES = 25;
 
-    /** What a team counts where the league's slots add up to nothing: a standard Yahoo roster. */
-    static final int DEFAULT_COUNTED_PLAYERS = 16;
+    /** What a team starts where the league's slots start no one: a standard Yahoo lineup. */
+    static final RosterSlots STANDARD_LINEUP = new RosterSlots(2, 2, 2, 0, 0, 4, 0, 4, 2);
 
     public LeagueScoring {
         statWeights = statWeights == null ? Map.of() : new LinkedHashMap<>(statWeights);
@@ -88,14 +88,14 @@ public record LeagueScoring(
     }
 
     /**
-     * How many of a team's players count towards its totals: every roster spot the league plays,
-     * starters and bench, but no injured-reserve spot. A team carrying injured players and their
-     * replacements holds more than that, and counting them all would credit it for players no
-     * lineup can hold. The league's settings leave IR, IR+ and NA out of the slots, so the slots
-     * add up to exactly this.
+     * The slots a team starts players in each night. A league whose settings start no one would
+     * otherwise count nobody at all, so it is read as a standard Yahoo lineup.
      */
-    public int countedPlayers() {
-        int spots = rosterSlots.skaterSlots() + rosterSlots.g();
-        return spots > 0 ? spots : DEFAULT_COUNTED_PLAYERS;
+    public RosterSlots lineup() {
+        if (rosterSlots == null) {
+            return STANDARD_LINEUP;
+        }
+        int starting = rosterSlots.skaterSlots() - rosterSlots.bn() + rosterSlots.g();
+        return starting > 0 ? rosterSlots : STANDARD_LINEUP;
     }
 }

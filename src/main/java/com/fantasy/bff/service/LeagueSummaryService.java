@@ -38,7 +38,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Where a league stands: every team's current roster totalled against a projection.
+ * Where a league stands: every team's current roster totalled against a projection, counting what
+ * its best lineup would start night by night over the NHL schedule — the rest of the season once
+ * it is under way, the whole season before it.
  *
  * <p>This is the cold path — a manager who plays in Yahoo and has never built a board here.
  * Three things are deliberately <b>not</b> taken from the caller: the rosters, the teams and the
@@ -88,6 +90,7 @@ public class LeagueSummaryService {
     private final AiProjectionAvailability aiProjection;
     private final EntitlementService entitlementService;
     private final LeagueSummaryCalculator calculator;
+    private final SeasonScheduleService scheduleService;
     private final int defaultSeason;
     private final String defaultModelVersion;
 
@@ -104,6 +107,7 @@ public class LeagueSummaryService {
             AiProjectionAvailability aiProjection,
             EntitlementService entitlementService,
             LeagueSummaryCalculator calculator,
+            SeasonScheduleService scheduleService,
             @Value("${services.projection.season}") int defaultSeason,
             @Value("${services.projection.model-version}") String defaultModelVersion) {
         this.draftService = draftService;
@@ -118,6 +122,7 @@ public class LeagueSummaryService {
         this.aiProjection = aiProjection;
         this.entitlementService = entitlementService;
         this.calculator = calculator;
+        this.scheduleService = scheduleService;
         this.defaultSeason = defaultSeason;
         this.defaultModelVersion = defaultModelVersion;
     }
@@ -195,7 +200,7 @@ public class LeagueSummaryService {
         List<LeagueSummaryCalculator.TeamPicks> teams = platformLeague.teams();
         LeagueScoring league = scoring(settings, teams.size());
 
-        LeagueSummary summary = calculator.summarise(pool, teams, league);
+        LeagueSummary summary = calculator.summarise(pool, teams, league, scheduleService.schedule());
         // The totals are everyone's. The lines behind the model's and last season's are what
         // premium pays for; a board's are the user's own, or ones they already follow row by row.
         boolean premium = board != null || entitlementService.hasPremiumAccess(userId);
@@ -242,7 +247,7 @@ public class LeagueSummaryService {
         List<LeagueSummaryCalculator.TeamPicks> teams = teams(draft);
         LeagueScoring league = scoring(draft.settings(), stored.data().settings(), teams.size());
 
-        LeagueSummary summary = calculator.summarise(pool, teams, league);
+        LeagueSummary summary = calculator.summarise(pool, teams, league, scheduleService.schedule());
         boolean premium = board != null || entitlementService.hasPremiumAccess(userId);
         int picks = draft.picks() == null ? 0 : draft.picks().size();
         return new Result(

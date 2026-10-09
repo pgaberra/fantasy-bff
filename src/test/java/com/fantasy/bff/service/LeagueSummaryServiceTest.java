@@ -31,7 +31,9 @@ import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.dto.response.SummarySource;
 import com.fantasy.bff.generated.db.model.PlayerProjection;
 import com.fantasy.bff.generated.db.model.PlayerStats;
+import com.fantasy.bff.service.scoring.LeagueSchedule;
 import com.fantasy.bff.service.scoring.LeagueSummaryCalculator;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,6 +75,7 @@ class LeagueSummaryServiceTest {
     @Mock private PlayerService playerService;
     @Mock private AiProjectionAvailability aiProjection;
     @Mock private EntitlementService entitlementService;
+    @Mock private SeasonScheduleService scheduleService;
 
     private LeagueSummaryService service;
 
@@ -91,7 +95,13 @@ class LeagueSummaryServiceTest {
         service = new LeagueSummaryService(
                 draftService, rosterService, leagueService, espnRosterService, espnLeagueService,
                 seedService, projectionService, poolRows, playerService, aiProjection,
-                entitlementService, new LeagueSummaryCalculator(), 20262027, "v1.2.3");
+                entitlementService, new LeagueSummaryCalculator(), scheduleService, 20262027, "v1.2.3");
+
+        // Every club plays every night of an 82-game season and every line is 82 games, so the
+        // totals here are the lineup's, exactly, with nobody missing a game.
+        List<LocalDate> nights = IntStream.range(0, 82).mapToObj(LocalDate.of(2026, 10, 7)::plusDays).toList();
+        when(scheduleService.schedule()).thenReturn(new LeagueSchedule(
+                Map.of("TOR", nights), Map.of("TOR", 82)));
 
         when(aiProjection.available()).thenReturn(true);
         when(playerService.getSkaters()).thenReturn(List.of(
