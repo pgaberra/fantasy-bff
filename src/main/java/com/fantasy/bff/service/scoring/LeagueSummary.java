@@ -15,7 +15,7 @@ import java.util.Map;
  *
  * @param categoryKeys the stats the league counts, in the order the league gave them; the labels
  *     are the web's to write
- * @param positionKeys the lineup slots that hold anyone, bench last
+ * @param positionKeys the lineup slots the league starts players in; the bench scores nothing
  * @param teams the teams, best total first
  */
 @Schema(description = "A drafted league's teams, totalled by category and by lineup slot")
@@ -29,8 +29,10 @@ public record LeagueSummary(
      *
      * @param values the cell per category key and per position key; the category cells sum to the
      *     total, and so do the position cells
-     * @param roster the drafted players, best first — premium only, null otherwise
-     * @param positionPlayers who fills each lineup slot — premium only, null otherwise
+     * @param roster the team's players, best first by what their lineup starts them for —
+     *     premium only, null otherwise
+     * @param positionPlayers who starts in each lineup slot, and for how much — premium only, null
+     *     otherwise
      */
     public record Team(
             String teamId,
@@ -48,12 +50,14 @@ public record LeagueSummary(
     }
 
     /**
-     * One drafted player, as a row under an expanded team.
+     * One of a team's players, as a row under an expanded team.
      *
      * @param team the NHL club he plays for, as the pool spells it; null where it lists none
      * @param positions the positions he is eligible at, G alone for a goalie
      * @param values his raw stat per category key; null where the stat is not of his kind
-     * @param contributions his share of the team's cell per category key; null likewise
+     * @param total what he counts for the team: his value over the games his lineup starts him in
+     * @param contributions his share of the team's cell per category key, over those games; null
+     *     likewise
      */
     public record RosterRow(
             int playerId,

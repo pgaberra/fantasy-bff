@@ -5251,6 +5251,7 @@ components:
         value:
           type: number
           format: double
+          description: His value over the games he starts in this slot
       required:
       - name
       - value
@@ -5318,7 +5319,8 @@ components:
             type: string
         positionKeys:
           type: array
-          description: "The lineup slots that hold anyone, bench last"
+          description: "The lineup slots the league starts players in. The bench scores\
+            \ nothing, so it has no column"
           items:
             type: string
         teams:
@@ -5358,6 +5360,8 @@ components:
         total:
           type: number
           format: double
+          description: "What he counts for the team: his value over the games its\
+            \ lineup starts him in"
         values:
           type: object
           additionalProperties:
@@ -5370,7 +5374,8 @@ components:
           additionalProperties:
             type: number
             format: double
-          description: His share of the team's cell per category key; null likewise
+          description: "His share of the team's cell per category key, over the games\
+            \ he starts; null likewise"
       required:
       - name
       - playerId
@@ -5389,6 +5394,10 @@ components:
         total:
           type: number
           format: double
+          description: "What the team's lineup will score: night by night over the\
+            \ schedule, the players with a game fill the league's slots best first\
+            \ and the rest are benched, so each player counts for the share of his\
+            \ games it starts him in"
         values:
           type: object
           additionalProperties:
@@ -5398,9 +5407,9 @@ components:
             to the total.
         roster:
           type: array
-          description: "The team's counted players, best first: the best of its current\
-            \ roster once the draft is over, of its picks until then, as many as the\
-            \ league has roster spots less injured reserve. Premium only; absent otherwise."
+          description: "The team's players, best first by what they count for: its\
+            \ current roster once the draft is over, its picks until then. Premium\
+            \ only; absent otherwise."
           items:
             $ref: "#/components/schemas/LeagueSummaryRosterRow"
         positionPlayers:

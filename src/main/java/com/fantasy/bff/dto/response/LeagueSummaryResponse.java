@@ -65,7 +65,8 @@ public record LeagueSummaryResponse(
         List<String> categoryKeys,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "The lineup slots that hold anyone, bench last")
+                description = "The lineup slots the league starts players in. The bench scores "
+                        + "nothing, so it has no column")
         List<String> positionKeys,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Teams, best total first")
@@ -80,14 +81,19 @@ public record LeagueSummaryResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "Whether this is the signed-in manager's team")
             boolean mine,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double total,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "What the team's lineup will score: night by night over the "
+                            + "schedule, the players with a game fill the league's slots best "
+                            + "first and the rest are benched, so each player counts for the "
+                            + "share of his games it starts him in")
+            double total,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "The cell per category key and per lineup slot. Each set sums to "
                             + "the total.")
             Map<String, Double> values,
-            @Schema(description = "The team's counted players, best first: the best of its current "
-                    + "roster once the draft is over, of its picks until then, as many as the league "
-                    + "has roster spots less injured reserve. Premium only; absent otherwise.")
+            @Schema(description = "The team's players, best first by what they count for: its "
+                    + "current roster once the draft is over, its picks until then. Premium only; "
+                    + "absent otherwise.")
             List<RosterRow> roster,
             @Schema(description = "Who fills each lineup slot. Premium only; absent otherwise.")
             Map<String, List<Contributor>> positionPlayers) {
@@ -105,10 +111,14 @@ public record LeagueSummaryResponse(
                     description = "The positions he is eligible at, in lineup order; G alone for a "
                             + "goalie")
             List<String> positions,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double total,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "What he counts for the team: his value over the games its "
+                            + "lineup starts him in")
+            double total,
             @Schema(description = "His raw stat per category key; null where the stat is not his kind")
             Map<String, Double> values,
-            @Schema(description = "His share of the team's cell per category key; null likewise")
+            @Schema(description = "His share of the team's cell per category key, over the games he "
+                    + "starts; null likewise")
             Map<String, Double> contributions) {
     }
 
@@ -116,7 +126,9 @@ public record LeagueSummaryResponse(
     @Schema(name = "LeagueSummaryContributor")
     public record Contributor(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) double value) {
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "His value over the games he starts in this slot")
+            double value) {
     }
 
     public static LeagueSummaryResponse from(

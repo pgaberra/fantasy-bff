@@ -23,11 +23,11 @@ class LeagueScoringTest {
 
     /**
      * The standard Yahoo roster, with the injured-reserve spots Yahoo lists beside it: those
-     * never reach the slots, so a team counts the sixteen players its lineup and bench hold.
+     * never reach the slots, so the lineup a team sets each night is the twelve starters.
      */
     @Test
-    @DisplayName("a standard Yahoo roster counts sixteen, its IR, IR+ and NA spots left out")
-    void standardYahooRosterCountsSixteen() {
+    @DisplayName("a standard Yahoo lineup is its starters, its IR, IR+ and NA spots left out")
+    void standardYahooLineup() {
         LeagueSettingsResponse settings = new LeagueSettingsResponse()
                 .leagueKey("465.l.1")
                 .name("League")
@@ -39,28 +39,22 @@ class LeagueScoringTest {
 
         RosterSlots slots = new YahooLeagueSettingsMapper().toProjectionSettings(settings, 12).rosterSlots();
 
-        assertThat(league(slots).countedPlayers()).isEqualTo(16);
+        assertThat(league(slots).lineup()).isEqualTo(new RosterSlots(2, 2, 2, 0, 0, 4, 0, 4, 2));
     }
 
     @Test
-    @DisplayName("every lineup and bench spot counts, the flex included")
-    void countsEverySpot() {
-        assertThat(league(new RosterSlots(2, 2, 2, 0, 0, 4, 2, 5, 2)).countedPlayers()).isEqualTo(19);
-    }
-
-    @Test
-    @DisplayName("the forward and wing flex slots count, and size the skater pool")
+    @DisplayName("the forward and wing flex slots size the skater pool")
     void countsTheForwardFlexSlots() {
-        LeagueScoring forwardsOnly = league(new RosterSlots(0, 0, 0, 0, 9, 5, 1, 5, 2));
-
-        assertThat(forwardsOnly.countedPlayers()).isEqualTo(22);
-        assertThat(forwardsOnly.skaterPoolSize()).isEqualTo(12 * 20);
+        assertThat(league(new RosterSlots(0, 0, 0, 0, 9, 5, 1, 5, 2)).skaterPoolSize()).isEqualTo(12 * 20);
         assertThat(league(new RosterSlots(2, 2, 2, 2, 0, 4, 0, 4, 2)).skaterPoolSize()).isEqualTo(12 * 16);
     }
 
     @Test
-    @DisplayName("a league whose slots add up to nothing counts sixteen")
-    void fallsBackToSixteen() {
-        assertThat(league(new RosterSlots(0, 0, 0, 0, 0, 0, 0, 0, 0)).countedPlayers()).isEqualTo(16);
+    @DisplayName("a league whose slots start no one is read as a standard Yahoo lineup")
+    void fallsBackToTheStandardLineup() {
+        assertThat(league(new RosterSlots(0, 0, 0, 0, 0, 0, 0, 3, 0)).lineup())
+                .isEqualTo(new RosterSlots(2, 2, 2, 0, 0, 4, 0, 4, 2));
+        assertThat(league(new RosterSlots(0, 0, 0, 0, 3, 0, 0, 0, 1)).lineup())
+                .isEqualTo(new RosterSlots(0, 0, 0, 0, 3, 0, 0, 0, 1));
     }
 }
