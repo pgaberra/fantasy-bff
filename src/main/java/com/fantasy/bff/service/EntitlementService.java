@@ -2,7 +2,6 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.DatabaseServiceClient;
 import com.fantasy.bff.dto.response.EntitlementsResponse;
-import com.fantasy.bff.payments.PaymentsProperties;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -18,34 +17,19 @@ import org.springframework.stereotype.Service;
 public class EntitlementService {
 
     private final DatabaseServiceClient databaseServiceClient;
-    private final PaymentsProperties paymentsProperties;
 
-    public EntitlementService(
-            DatabaseServiceClient databaseServiceClient, PaymentsProperties paymentsProperties) {
+    public EntitlementService(DatabaseServiceClient databaseServiceClient) {
         this.databaseServiceClient = databaseServiceClient;
-        this.paymentsProperties = paymentsProperties;
     }
 
-    /**
-     * What to report to the user about their own premium access. With payments switched off this
-     * answers "no premium" rather than failing, so the web renders the same either way.
-     */
+    /** What to report to the user about their own premium access. */
     public EntitlementsResponse entitlements(String userId) {
-        if (!paymentsProperties.enabled()) {
-            return EntitlementsResponse.none();
-        }
         return EntitlementsResponse.from(
                 databaseServiceClient.getPremiumEntitlement(UUID.fromString(userId)));
     }
 
-    /**
-     * Whether this user may use a feature that premium pays for. Not the same question as
-     * {@link #entitlements}: where premium is not sold, nothing is held back for it. The web's
-     * pricing page redirects home while {@code payments.enabled} is off, so gating then would
-     * be a door with no handle, and the flag is checked first so the common case never costs a
-     * call to db-service.
-     */
+    /** Whether this user may use a feature that premium pays for. */
     public boolean hasPremiumAccess(String userId) {
-        return !paymentsProperties.enabled() || entitlements(userId).premium();
+        return entitlements(userId).premium();
     }
 }

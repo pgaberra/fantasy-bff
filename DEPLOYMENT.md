@@ -92,14 +92,12 @@ secret is environment-specific: staging and production never share one.
 |---|---|---|---|---|
 | `PLAYERS_SOURCE` | | no | `yahoo` | `yahoo` or `espn`. Player ids differ between the two, so this flips only together with migrating stored projections. |
 | `PLAYER_AVATARS_ENABLED` | | no | `false` | Players' pictures. Off in staging and production: they are the platform's photographs and we hold no licence to show them. Off, no player or share row carries a headshot, `/api/v1/players/{id}/headshot` answers 404 without fetching, and the web draws initials. |
-| `PROJECTION_MODEL_ENABLED` | | no | `false` | Opens `/api/v1/projection-model/**`: the model's output **and** the Who's hot splits. Off also takes the AI projection away. |
-| `AI_PROJECTION_ENABLED` | | no | `true` | The AI projection (model-seeded start). Served only where `PROJECTION_MODEL_ENABLED` is also on. |
+| `AI_PROJECTION_ENABLED` | | no | `true` | The AI projection (model-seeded start). |
 
 ### Payments
 
 | Variable | Secret | Required | Default | Notes |
 |---|---|---|---|---|
-| `PAYMENTS_ENABLED` | | no | `false` | Subscription billing. |
 | `PAYMENTS_PROVIDER` | | no | `mock` | `mock` or `stripe`. |
 | `PAYMENTS_MOCK_WEBHOOK_SECRET` | yes | with `mock` | empty | Signs the mock provider's tokens and webhooks; the mock flow fails without it. |
 | `PAYMENTS_MOCK_SELF_BASE_URL` | | no | `http://localhost:8080` | Where the mock posts its own webhook. |
@@ -116,8 +114,7 @@ With Stripe, the webhook endpoint is `https://<bff host>/api/v1/billing/webhook`
 and the Customer portal must be switched on in the Stripe dashboard (test and live separately), or
 "Manage billing" fails.
 
-"With `mock`" / "with `stripe`" means required when `PAYMENTS_ENABLED=true` and that provider
-is selected. The app still starts without them; the payment flow is what fails.
+"With `mock`" / "with `stripe`" means required when that provider is selected. The app still starts without them; the payment flow is what fails.
 
 ### Seasons and the model
 

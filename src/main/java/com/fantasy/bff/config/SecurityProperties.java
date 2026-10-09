@@ -12,7 +12,7 @@ import java.util.Locale;
 @ConfigurationProperties(prefix = "security")
 @Validated
 public record SecurityProperties(List<String> permittedUrls, List<String> corsAllowedOrigins,
-                                 List<String> adminEmails, boolean projectionModelEnabled) {
+                                 List<String> adminEmails) {
     public SecurityProperties {
         if (permittedUrls == null) {
             permittedUrls = List.of();

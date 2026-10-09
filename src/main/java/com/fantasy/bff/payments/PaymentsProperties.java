@@ -3,7 +3,7 @@ package com.fantasy.bff.payments;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "payments")
-public record PaymentsProperties(boolean enabled, String provider, Mock mock, Stripe stripe) {
+public record PaymentsProperties(String provider, Mock mock, Stripe stripe) {
 
     public PaymentsProperties {
         provider = (provider == null || provider.isBlank()) ? "mock" : provider;

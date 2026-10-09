@@ -21,11 +21,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** With DRAFT_LEAGUE_SYNC_ENABLED=true over the Yahoo pool, a league's draft is served to any signed-in user. */
+/** Over the Yahoo pool, a league's draft is served to any signed-in user. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = {"league-draft-sync.enabled=true", "players.source=yahoo"})
-class LeagueDraftSyncEnabledTest extends BaseIntegrationTest {
+@TestPropertySource(properties = {"players.source=yahoo"})
+class LeagueDraftSyncTest extends BaseIntegrationTest {
 
     private static final String USER_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -54,13 +54,6 @@ class LeagueDraftSyncEnabledTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.orderKnown").value(true))
                 .andExpect(jsonPath("$.picks[0].overall").value(1))
                 .andExpect(jsonPath("$.picks[0].playerId").value(6743));
-    }
-
-    @Test
-    void reportsTheFeatureAvailable() throws Exception {
-        mockMvc.perform(get("/api/v1/features"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.leagueDraftSync").value(true));
     }
 
     @Test

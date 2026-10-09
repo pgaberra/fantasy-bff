@@ -40,7 +40,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  */
 // With the model's own kill switch on: an endpoint a switched-off feature denies is denied on
 // purpose, and the question here is whether anything is denied by omission.
-@SpringBootTest(properties = "security.projection-model-enabled=true")
+@SpringBootTest
 @AutoConfigureMockMvc
 class EveryEndpointIsReachableTest extends BaseIntegrationTest {
 

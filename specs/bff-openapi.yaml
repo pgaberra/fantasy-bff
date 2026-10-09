@@ -697,7 +697,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PortalUrlResponse"
         "404":
-          description: "Payments not enabled, or the user has no billing customer"
+          description: The user has no billing customer
           content:
             application/json:
               schema:
@@ -714,12 +714,6 @@ paths:
       responses:
         "200":
           description: Checkout URL created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CheckoutUrlResponse"
-        "404":
-          description: Payments are not enabled
           content:
             application/json:
               schema:
@@ -1340,12 +1334,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlannerWeeksResponse"
-        "404":
-          description: The streamer planner is off in this environment
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlannerWeeksResponse"
   /api/v1/streamer-planner/teams:
     get:
       tags:
@@ -1382,12 +1370,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleStrengthResponse"
-        "404":
-          description: The streamer planner is off in this environment
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScheduleStrengthResponse"
   /api/v1/streamer-planner/my-team:
     get:
       tags:
@@ -1396,8 +1378,7 @@ paths:
       description: "Read live from the platform: each player's club, the positions\
         \ the league may start him at, today's slot and whether he is out. Given a\
         \ stretch, also the model's line over it for each player it projects, on a\
-        \ free agent's scale. Served only where `STREAMER_PLANNER_MY_TEAM_ENABLED`\
-        \ is on as well as the planner."
+        \ free agent's scale."
       operationId: streamerPlannerMyTeam
       parameters:
       - name: platform
@@ -1441,12 +1422,6 @@ paths:
         "400":
           description: "Only one of start and end, end before start, or too long a\
             \ stretch"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlannerMyTeamResponse"
-        "404":
-          description: The planner or its own-team view is off in this environment
           content:
             application/json:
               schema:
@@ -1502,12 +1477,6 @@ paths:
                 $ref: "#/components/schemas/FreeAgentListResponse"
         "400":
           description: "`end` is before `start`, or the stretch is too long"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FreeAgentListResponse"
-        "404":
-          description: The streamer planner is off in this environment
           content:
             application/json:
               schema:
@@ -5427,15 +5396,6 @@ components:
             \ neither is served to anyone, so a client should not offer it. It says\
             \ nothing about this account's plan: an AI projection that needs premium\
             \ is still available."
-        leagueDraftSync:
-          type: boolean
-          description: "Whether the draft room may follow a linked Yahoo league's\
-            \ live draft. False means the draft endpoint answers 404, so a client\
-            \ should not offer it."
-        streamerPlanner:
-          type: boolean
-          description: "Whether this environment serves the streamer planner. False\
-            \ means its endpoints answer 404, so a client should not offer it."
         whosHotAvailableFilter:
           type: boolean
           description: "Whether Who's hot may show only the players a linked league\
@@ -5447,12 +5407,6 @@ components:
             \ (source=rest_of_season). False means it is refused and its status endpoint\
             \ answers 404, so a client should not offer it. True still offers it only\
             \ while a season is under way, which the status endpoint says."
-        streamerPlannerMyTeam:
-          type: boolean
-          description: "Whether the streamer planner reads the user's own team in\
-            \ the chosen league, to show the nights it has open lineup slots. False\
-            \ means the my-team endpoint answers 404. Never true while streamerPlanner\
-            \ is false."
         faScout:
           type: boolean
           description: "Whether this environment serves the FA scout. False means\
@@ -5470,11 +5424,8 @@ components:
       - aiProjection
       - draftAnalysis
       - faScout
-      - leagueDraftSync
       - restOfSeasonPreset
       - roleChanges
-      - streamerPlanner
-      - streamerPlannerMyTeam
       - whosHotAvailableFilter
     ScoutLine:
       type: object
