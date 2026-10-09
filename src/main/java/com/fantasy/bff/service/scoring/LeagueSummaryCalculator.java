@@ -308,6 +308,7 @@ public class LeagueSummaryCalculator {
                 player.team(),
                 positionsInOrder(player),
                 value(scores, player) * share,
+                value(scores, player),
                 values,
                 contributions,
                 reserveSlot,

@@ -483,6 +483,8 @@ class LeagueSummaryCalculatorTest {
                 .containsExactly("Parked", "Leaf", "Hab");
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::reserveSlot).containsExactly("IR", null, null);
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::counted).containsExactly(true, true, false);
+        assertThat(team.roster().get(2).total()).as("cut, he counts for nothing").isEqualTo(0);
+        assertThat(team.roster().get(2).fullValue()).as("but is still worth his own value").isCloseTo(25, within(1e-9));
     }
 
     @Test
