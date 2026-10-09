@@ -6,11 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Where a league stands: the teams, best first, with each one's totals.
- *
- * <p>The per-player halves of a team — its roster rows and who fills each lineup slot — are
- * filled in only for an account with premium. That is not a decision the browser could carry
- * out: the totals are computed here precisely so the lines behind them need never be sent.
+ * Where a league stands: the teams, best first, with each one's totals and the players behind
+ * them — its roster rows and who fills each lineup slot — for every signed-in manager.
  */
 @Schema(description = "A league's teams, totalled against a projection")
 public record LeagueSummaryResponse(
@@ -26,10 +23,9 @@ public record LeagueSummaryResponse(
                 + "`source: projection`")
         String projectionId,
 
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Whether the per-player halves are filled in: premium pays for them "
-                        + "against the model and last season, and a board of the user's own or one "
-                        + "they follow always has them")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, deprecated = true,
+                description = "Always true: the per-player halves are filled in for everyone. "
+                        + "Kept for web builds that still read it.")
         boolean premium,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
@@ -92,10 +88,9 @@ public record LeagueSummaryResponse(
                             + "the total.")
             Map<String, Double> values,
             @Schema(description = "The team's players, best first by what they count for: its "
-                    + "current roster once the draft is over, its picks until then. Premium only; "
-                    + "absent otherwise.")
+                    + "current roster once the draft is over, its picks until then.")
             List<RosterRow> roster,
-            @Schema(description = "Who fills each lineup slot. Premium only; absent otherwise.")
+            @Schema(description = "Who fills each lineup slot.")
             Map<String, List<Contributor>> positionPlayers) {
     }
 
@@ -136,7 +131,6 @@ public record LeagueSummaryResponse(
             SummarySource source,
             String modelVersion,
             String projectionId,
-            boolean premium,
             ScoringBasis scoringType,
             LeagueDraftStatus status,
             int picks,
@@ -146,7 +140,7 @@ public record LeagueSummaryResponse(
                 source,
                 modelVersion,
                 projectionId,
-                premium,
+                true,
                 scoringType,
                 status,
                 picks,

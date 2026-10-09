@@ -23,8 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Where a league stands, for a manager who plays on the platform rather than building a board here.
  *
- * <p>The summary is computed in full and then cut to what the account may see: the teams and
- * their totals for everyone, the players behind them only with premium. It is a read of the
+ * <p>The teams, their totals and the players behind them go to any signed-in manager. It is a read of the
  * user's own league — the rosters, the teams and the scoring settings all come from Yahoo or ESPN,
  * none of them from the caller — so no request can shape the rosters into a per-player readout of
  * the model's lines.
@@ -49,11 +48,8 @@ public class LeagueSummaryController {
                     + "every team's current roster, or its picks until the draft is over. Only a team's best "
                     + "players by projected value count, as many as the league's roster spots less "
                     + "injured reserve, whatever slot each holds. The teams, their totals and where each one places are "
-                    + "returned to any signed-in manager; the roster rows and lineups behind those "
-                    + "totals need premium against the model or last season, and are absent "
-                    + "without it. Against one of the user's own boards, or one they follow "
-                    + "(`projectionId`), they are always filled in: those are lines the user can "
-                    + "already read row by row. 404 where this environment does not offer reading "
+                    + "returned to any signed-in manager, with the roster rows and lineups behind those "
+                    + "totals. 404 where this environment does not offer reading "
                     + "a league's draft, where the AI projection is off and the model was asked "
                     + "for, or where the board is not the user's to read.")
     @ApiResponses({
@@ -85,10 +81,8 @@ public class LeagueSummaryController {
             description = "Reads the league's rosters and scoring settings from ESPN, with the user's stored "
                     + "cookies where the league is private, and totals every team's current roster the way a "
                     + "Yahoo league's is totalled; while the draft runs a roster is the team's picks so far. "
-                    + "The same premium rule as a Yahoo league: the teams, their totals and where each one "
-                    + "places for any signed-in manager, the roster rows and lineups behind them with premium "
-                    + "against the model or last season, and always against one of the user's own boards or "
-                    + "one they follow (`projectionId`). ESPN's refusal of a private league without valid "
+                    + "As with a Yahoo league, the teams, their totals, where each one places and the roster "
+                    + "rows and lineups behind them go to any signed-in manager. ESPN's refusal of a private league without valid "
                     + "cookies is a 400, and a league ESPN does not have this season a 404.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The league's teams, totalled"),
@@ -120,9 +114,8 @@ public class LeagueSummaryController {
                     + "Yahoo league's are totalled: only a team's best players by projected value count, "
                     + "as many as the draft's roster spots less injured reserve. The teams and the "
                     + "scoring are the draft's own. The teams, their totals and where each one places "
-                    + "are returned to any signed-in manager; the roster rows and lineups behind them "
-                    + "need premium against the model or last season, and are always filled in against "
-                    + "one of the user's own boards or one they follow (`projectionId`). 404 where the "
+                    + "are returned to any signed-in manager, with the roster rows and lineups behind "
+                    + "them. 404 where the "
                     + "id is not one of the user's drafts, where the AI projection is off and the model "
                     + "was asked for, or where the board is not the user's to read.")
     @ApiResponses({
@@ -153,7 +146,6 @@ public class LeagueSummaryController {
                 result.source(),
                 result.modelVersion(),
                 result.projectionId(),
-                result.premium(),
                 result.scoringType(),
                 result.status(),
                 result.picks(),

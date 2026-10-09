@@ -74,7 +74,6 @@ class LeagueSummaryServiceTest {
     @Mock private PlayerPoolRows poolRows;
     @Mock private PlayerService playerService;
     @Mock private AiProjectionAvailability aiProjection;
-    @Mock private EntitlementService entitlementService;
     @Mock private SeasonScheduleService scheduleService;
 
     private LeagueSummaryService service;
@@ -95,7 +94,7 @@ class LeagueSummaryServiceTest {
         service = new LeagueSummaryService(
                 draftService, rosterService, leagueService, espnRosterService, espnLeagueService,
                 seedService, projectionService, poolRows, playerService, aiProjection,
-                entitlementService, new LeagueSummaryCalculator(), scheduleService, 20262027, "v1.2.3");
+                new LeagueSummaryCalculator(), scheduleService, 20262027, "v1.2.3");
 
         // Every club plays every night of an 82-game season and every line is 82 games, so the
         // totals here are the lineup's, exactly, with nobody missing a game.
@@ -148,8 +147,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("says how the league scores, which is what its totals are in")
     void saysHowTheLeagueScores() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
-
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.scoringType()).isEqualTo(ScoringBasis.POINTS);
@@ -158,8 +155,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("totals the league's own teams from the league's own picks")
     void totalsTheLeague() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
-
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.picks()).isEqualTo(3);
@@ -172,31 +167,12 @@ class LeagueSummaryServiceTest {
         assertThat(result.summary().teams().get(1).total()).isCloseTo(40, within(1e-9));
     }
 
-    /** The whole point of totalling here: a free account is handed the totals and nothing else. */
+    /** The players behind the totals are everyone's, premium or not (Alexander's call, 2026-10-09). */
     @Test
-    @DisplayName("an account without premium gets the totals with no lines behind them")
-    void freeAccountGetsAggregatesOnly() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
-
+    @DisplayName("every account gets the players behind each total, the model's included")
+    void everyAccountGetsThePlayers() {
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
-        assertThat(result.premium()).isFalse();
-        assertThat(result.summary().teams()).allSatisfy(team -> {
-            assertThat(team.total()).isNotNull();
-            assertThat(team.values()).isNotEmpty();
-            assertThat(team.roster()).as("no roster rows").isNull();
-            assertThat(team.positionPlayers()).as("no lineups").isNull();
-        });
-    }
-
-    @Test
-    @DisplayName("premium gets the players behind each total")
-    void premiumGetsThePlayers() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
-
-        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
-
-        assertThat(result.premium()).isTrue();
         assertThat(result.summary().teams()).allSatisfy(team -> {
             assertThat(team.roster()).isNotNull();
             assertThat(team.positionPlayers()).isNotNull();
@@ -211,7 +187,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("last season's stats are read from the pool, and the model is left alone")
     void lastSeasonDoesNotTouchTheModel() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(poolRows.read()).thenThrow(new IllegalStateException("read"));
 
         assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON, null))
@@ -223,7 +198,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("once the season is under way the model ranks by its rest of the season")
     void theModelRanksByTheRestOfTheSeason() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(seedService.inSeason(20262027)).thenReturn(Optional.of(new ProjectionSeedService.Seed(
                 List.of(
                         row(1, PlayerProjection.TypeEnum.SKATER, Map.of("goals", 20.0)),
@@ -244,7 +218,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("before the season the model ranks by its season line")
     void beforeTheSeasonTheModelRanksByTheSeason() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(seedService.inSeason(anyInt())).thenReturn(Optional.empty());
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
@@ -257,7 +230,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("last season's stats are not asked about the rest of the season")
     void lastSeasonIgnoresTheRestOfTheSeason() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(poolRows.read()).thenThrow(new IllegalStateException("read"));
 
         assertThatThrownBy(() -> service.summarise(USER, LEAGUE, SummarySource.LAST_SEASON, null))
@@ -278,7 +250,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a pick for a team the league does not list is dropped, not credited to anyone")
     void unknownTeamIsDropped() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
                 LeagueDraftStatus.FINISHED,
                 false,
@@ -299,7 +270,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a league with no stated size is sized by its teams")
     void leagueSizeFallsBackToTheTeamCount() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(leagueService.projectionSettings(USER, LEAGUE)).thenReturn(settings(null));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
@@ -314,7 +284,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a traded player counts for the team that holds him now")
     void tradedPlayerCountsForHisNewTeam() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1, 3), "t2", List.of(2)));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
@@ -332,7 +301,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a dropped player counts for nobody")
     void droppedPlayerCountsForNobody() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2)));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
@@ -347,7 +315,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a player picked up after the draft counts for the team that picked him up")
     void pickupCounts() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
                 LeagueDraftStatus.FINISHED,
                 false,
@@ -366,7 +333,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a roster for a team the league does not list is dropped, not credited to anyone")
     void rosterOfAnUnknownTeamIsDropped() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "ghost", List.of(2, 3)));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
@@ -378,7 +344,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a finished draft whose rosters Yahoo lists all empty is totalled from its picks")
     void emptyRostersFallBackToPicks() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(), "t2", List.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
@@ -391,7 +356,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a draft under way is totalled from its picks without reading the rosters")
     void liveDraftFollowsThePicks() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
                 LeagueDraftStatus.IN_PROGRESS,
                 false,
@@ -409,7 +373,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a league that has not drafted yet says so, with every team at nothing")
     void preDraftLeague() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(draftService.draft(USER, LEAGUE)).thenReturn(new LeagueDraftResponse(
                 LeagueDraftStatus.PRE_DRAFT,
                 false,
@@ -443,7 +406,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a board of the user's own ranks the league by its numbers, not the model's")
     void boardRanksByItsOwnNumbers() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
         when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
                 List.of(boardRow(1, 60), boardRow(2, 10), boardRow(3, 5)), null));
 
@@ -457,24 +419,6 @@ class LeagueSummaryServiceTest {
         assertThat(result.summary().teams().get(0).total()).isCloseTo(60, within(1e-9));
         assertThat(result.summary().teams().get(1).total()).isCloseTo(15, within(1e-9));
         verify(seedService, never()).seed(anyInt(), anyString());
-    }
-
-    /**
-     * Premium pays for the model's lines. A board's lines are ones the user can already read row by
-     * row, so there is nothing behind its totals to hold back.
-     */
-    @Test
-    @DisplayName("a board's players are shown without premium")
-    void boardShowsItsPlayersWithoutPremium() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
-        when(projectionService.get(UUID.fromString(USER), BOARD)).thenReturn(board(
-                List.of(boardRow(1, 60), boardRow(2, 10), boardRow(3, 5)), null));
-
-        LeagueSummaryService.Result result =
-                service.summarise(USER, LEAGUE, SummarySource.PROJECTION, BOARD);
-
-        assertThat(result.premium()).isTrue();
-        assertThat(result.summary().teams()).allSatisfy(team -> assertThat(team.roster()).isNotNull());
     }
 
     @Test
@@ -520,8 +464,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("the model's pool leaves nobody the teams hold unprojected")
     void modelHasNoUnprojectedPlayers() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
-
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
         assertThat(result.unprojectedPlayers()).isZero();
@@ -591,7 +533,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a draft made here is totalled from its own teams and picks")
     void totalsADraftFromItsOwnPicks() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         when(projectionService.get(UUID.fromString(USER), DRAFT)).thenReturn(
                 draftRow(null, draftState(draftLeague(), OffsetDateTime.parse("2026-09-28T10:00:00Z"), MOCK_PICKS)));
 
@@ -608,21 +549,19 @@ class LeagueSummaryServiceTest {
         verify(draftService, never()).draft(anyString(), anyString());
     }
 
-    /** The same rule as a league's, whichever kind of league it is (Alexander's call, 2026-09-28). */
+    /** The same rule as a league's, whichever kind of league it is. */
     @Test
-    @DisplayName("a draft's totals reach an account without premium, the players behind them do not")
-    void aDraftGivesAFreeAccountTheTotalsOnly() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+    @DisplayName("a draft's totals and the players behind them reach every account")
+    void aDraftGivesEveryAccountThePlayers() {
         when(projectionService.get(UUID.fromString(USER), DRAFT)).thenReturn(
                 draftRow(null, draftState(draftLeague(), null, MOCK_PICKS)));
 
         LeagueSummaryService.Result result = service.summariseDraft(USER, DRAFT, SummarySource.MODEL, null);
 
-        assertThat(result.premium()).isFalse();
         assertThat(result.status()).isEqualTo(LeagueDraftStatus.IN_PROGRESS);
         assertThat(result.summary().teams()).allSatisfy(team -> {
             assertThat(team.total()).isNotNull();
-            assertThat(team.roster()).as("no roster rows").isNull();
+            assertThat(team.roster()).as("roster rows").isNotNull();
         });
     }
 
@@ -641,7 +580,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a draft with no league of its own scores by its projection's settings")
     void anOldDraftScoresByItsProjection() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         ProjectionSettings settings = new ProjectionSettings(
                 ProjectionSettings.ScoringType.POINTS, Map.of("goals", 2.0), List.of("goals"), List.of("gp"),
                 null, null, true, null, null, null, null, null, null, null, null, null, null);
@@ -677,7 +615,6 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("totals an ESPN league's teams from what each holds on ESPN today")
     void totalsAnEspnLeague() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         espnLeague(LeagueDraftStatus.FINISHED, Map.of(
                 "espn.l.123.t.1", List.of(1),
                 "espn.l.123.t.2", List.of(2, 3)));
@@ -694,23 +631,20 @@ class LeagueSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("an ESPN league follows the same premium rule as a Yahoo one")
-    void espnFreeAccountGetsAggregatesOnly() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(false);
+    @DisplayName("an ESPN league gives every account the players, as a Yahoo one does")
+    void espnGivesEveryAccountThePlayers() {
         espnLeague(LeagueDraftStatus.FINISHED, Map.of(
                 "espn.l.123.t.1", List.of(1),
                 "espn.l.123.t.2", List.of(2, 3)));
 
         LeagueSummaryService.Result result = service.summariseEspn(USER, ESPN_LEAGUE, SummarySource.MODEL, null);
 
-        assertThat(result.premium()).isFalse();
-        assertThat(result.summary().teams()).allSatisfy(team -> assertThat(team.roster()).isNull());
+        assertThat(result.summary().teams()).allSatisfy(team -> assertThat(team.roster()).isNotNull());
     }
 
     @Test
     @DisplayName("an ESPN league yet to draft has no picks, and a player the pool lacks counts as unprojected")
     void espnLeagueCountsWhatItHolds() {
-        when(entitlementService.hasPremiumAccess(USER)).thenReturn(true);
         espnLeague(LeagueDraftStatus.PRE_DRAFT, Map.of(
                 "espn.l.123.t.1", List.of(),
                 "espn.l.123.t.2", List.of()));
