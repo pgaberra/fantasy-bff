@@ -3,13 +3,14 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.dto.response.LeagueDraftStatus;
 import com.fantasy.bff.dto.response.LeagueDraftTeam;
+import com.fantasy.bff.generated.espn.model.LeagueRosterPlayer;
 import com.fantasy.bff.generated.espn.model.LeagueRosterTeam;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import org.springframework.stereotype.Service;
 
 /**
@@ -39,13 +40,14 @@ public class EspnLeagueRosterService {
      *     kept under the negative of his ESPN id (no pool id is negative, so he cannot be taken for
      *     somebody else), so he counts as unprojected rather than vanishing
      * @param reserve the players, on any team and numbered as in {@code players}, parked today in an
-     *     injured-reserve slot, which holds a player without taking one of the roster's spots
+     *     injured-reserve slot, which holds a player without taking one of the roster's spots, each
+     *     with that slot's code
      */
     public record Rosters(
             LeagueDraftStatus status,
             List<LeagueDraftTeam> teams,
             Map<String, List<Integer>> players,
-            Set<Integer> reserve) {
+            Map<Integer, String> reserve) {
     }
 
     public Rosters rosters(String appUserId, String leagueId) {
@@ -58,16 +60,19 @@ public class EspnLeagueRosterService {
 
         List<LeagueDraftTeam> teams = new ArrayList<>();
         Map<String, List<Integer>> players = new LinkedHashMap<>();
-        Set<Integer> reserve = new HashSet<>();
+        Map<Integer, String> reserve = new HashMap<>();
         for (LeagueRosterTeam team : response.getTeams()) {
             String teamId = teamId(response.getLeagueId(), team.getTeamId());
             teams.add(new LeagueDraftTeam(teamId, team.getName(), Boolean.TRUE.equals(team.getMine())));
             players.put(teamId, team.getPlayerIds().stream()
                     .map(espnId -> poolId(poolIds, espnId))
                     .toList());
-            team.getPlayers().stream()
-                    .filter(player -> LeagueOwnTeam.parked(player.getLineupSlot()))
-                    .forEach(player -> reserve.add(poolId(poolIds, player.getEspnId())));
+            for (LeagueRosterPlayer player : team.getPlayers()) {
+                String slot = player.getLineupSlot();
+                if (slot != null && LeagueOwnTeam.parked(slot)) {
+                    reserve.put(poolId(poolIds, player.getEspnId()), slot.toUpperCase(Locale.ROOT));
+                }
+            }
         }
         return new Rosters(status(response.getStatus()), teams, players, reserve);
     }

@@ -9,6 +9,7 @@ import com.fantasy.bff.generated.yahoo.model.LeagueRosterPlayer;
 import com.fantasy.bff.generated.yahoo.model.LeagueRosterTeam;
 import com.fantasy.bff.generated.yahoo.model.LeagueRostersResponse;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class YahooLeagueRosterServiceTest {
@@ -34,6 +35,6 @@ class YahooLeagueRosterServiceTest {
         assertThat(rosters.players().keySet()).containsExactly("465.l.1.t.2", "465.l.1.t.3", "465.l.1.t.1");
         assertThat(rosters.players().get("465.l.1.t.2")).containsExactly(9, 4);
         assertThat(rosters.players().get("465.l.1.t.1")).isEmpty();
-        assertThat(rosters.reserve()).containsExactlyInAnyOrder(4, 7);
+        assertThat(rosters.reserve()).containsExactlyInAnyOrderEntriesOf(Map.of(4, "IR", 7, "NA"));
     }
 }

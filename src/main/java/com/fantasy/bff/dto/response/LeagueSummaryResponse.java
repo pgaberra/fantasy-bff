@@ -119,10 +119,10 @@ public record LeagueSummaryResponse(
             @Schema(description = "His share of the team's cell per category key, over the games he "
                     + "starts; null likewise")
             Map<String, Double> contributions,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                    description = "Whether he is parked today in an injured-reserve or not-active slot, "
-                            + "which holds a player without taking a roster spot")
-            boolean reserve,
+            @Schema(description = "The injured-reserve or not-active slot he is parked in today (IR, "
+                    + "IR+, IR-LT, IR-NR or NA), which holds a player without taking a roster spot; "
+                    + "absent for a player in neither")
+            String reserveSlot,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "Whether he is among the players the team's lineup is picked from: "
                             + "its best, as many as the roster holds. One who is not counts for nothing")
@@ -179,7 +179,7 @@ public record LeagueSummaryResponse(
     private static RosterRow rosterRow(LeagueSummary.RosterRow row) {
         return new RosterRow(
                 row.playerId(), row.name(), row.team(), row.positions(), row.total(), row.fullValue(), row.values(),
-                row.contributions(), row.reserve(), row.counted());
+                row.contributions(), row.reserveSlot(), row.counted());
     }
 
     private static Map<String, List<Contributor>> contributors(

@@ -41,17 +41,19 @@ public class LeagueSummaryCalculator {
     /**
      * One team as it stands: who it is, and the players it holds, in pick order.
      *
-     * @param reserve those of its players parked today in an injured-reserve or not-active slot
+     * @param reserve those of its players parked today in an injured-reserve or not-active slot, each
+     *     with that slot's code
      */
-    public record TeamPicks(String teamId, String name, boolean mine, List<Integer> playerIds, Set<Integer> reserve) {
+    public record TeamPicks(
+            String teamId, String name, boolean mine, List<Integer> playerIds, Map<Integer, String> reserve) {
 
         public TeamPicks {
-            reserve = reserve == null ? Set.of() : Set.copyOf(reserve);
+            reserve = reserve == null ? Map.of() : Map.copyOf(reserve);
         }
 
         /** A team nobody has parked anyone for: a draft's, or one read before the season. */
         public TeamPicks(String teamId, String name, boolean mine, List<Integer> playerIds) {
-            this(teamId, name, mine, playerIds, Set.of());
+            this(teamId, name, mine, playerIds, Map.of());
         }
     }
 
@@ -154,7 +156,7 @@ public class LeagueSummaryCalculator {
                         scores,
                         league.categoryKeys(),
                         shares.get(player.playerId()),
-                        team.reserve().contains(player.playerId()),
+                        team.reserve().get(player.playerId()),
                         counted.contains(player.playerId())))
                 .sorted(Comparator.comparingDouble(LeagueSummary.RosterRow::total).reversed())
                 .toList();
@@ -283,7 +285,7 @@ public class LeagueSummaryCalculator {
      * and his share of each category cell, scaled to the games his lineup starts him in.
      *
      * @param share the share of his games he starts, 0 to 1
-     * @param reserve whether he is parked today in an injured-reserve or not-active slot
+     * @param reserveSlot the injured-reserve or not-active slot he is parked in today, or null
      * @param counted whether he is among the players the team's lineup is picked from
      */
     static LeagueSummary.RosterRow rosterRow(
@@ -291,7 +293,7 @@ public class LeagueSummaryCalculator {
             ProjectionScoring.Scores scores,
             List<String> categoryKeys,
             double share,
-            boolean reserve,
+            String reserveSlot,
             boolean counted) {
         Map<String, Double> values = new LinkedHashMap<>();
         Map<String, Double> contributions = new LinkedHashMap<>();
@@ -309,7 +311,7 @@ public class LeagueSummaryCalculator {
                 value(scores, player),
                 values,
                 contributions,
-                reserve,
+                reserveSlot,
                 counted);
     }
 

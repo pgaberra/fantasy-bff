@@ -473,7 +473,7 @@ class LeagueSummaryCalculatorTest {
 
         LeagueSummary.Team team = calculator.summarise(
                 pool,
-                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3), Set.of(3))),
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3), Map.of(3, "IR"))),
                 pointsLeague(new RosterSlots(0, 1, 0, 0, 0, 0, 0, 1, 0)),
                 alternating).teams().get(0);
 
@@ -481,7 +481,7 @@ class LeagueSummaryCalculatorTest {
         assertThat(team.total()).isCloseTo(40, within(1e-9));
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::name)
                 .containsExactly("Parked", "Leaf", "Hab");
-        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::reserve).containsExactly(true, false, false);
+        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::reserveSlot).containsExactly("IR", null, null);
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::counted).containsExactly(true, true, false);
         assertThat(team.roster().get(2).total()).as("cut, he counts for nothing").isEqualTo(0);
         assertThat(team.roster().get(2).fullValue()).as("but is still worth his own value").isCloseTo(25, within(1e-9));
@@ -524,7 +524,7 @@ class LeagueSummaryCalculatorTest {
 
         assertThat(team.roster()).allSatisfy(row -> {
             assertThat(row.counted()).isTrue();
-            assertThat(row.reserve()).isFalse();
+            assertThat(row.reserveSlot()).isNull();
         });
     }
 }
