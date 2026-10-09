@@ -5338,10 +5338,11 @@ components:
             format: double
           description: "His share of the team's cell per category key, over the games\
             \ he starts; null likewise"
-        reserve:
-          type: boolean
-          description: "Whether he is parked today in an injured-reserve or not-active\
-            \ slot, which holds a player without taking a roster spot"
+        reserveSlot:
+          type: string
+          description: "The injured-reserve or not-active slot he is parked in today\
+            \ (IR, IR+, IR-LT, IR-NR or NA), which holds a player without taking a\
+            \ roster spot; absent for a player in neither"
         counted:
           type: boolean
           description: "Whether he is among the players the team's lineup is picked\
@@ -5352,7 +5353,6 @@ components:
       - name
       - playerId
       - positions
-      - reserve
       - total
     LeagueSummaryTeam:
       type: object

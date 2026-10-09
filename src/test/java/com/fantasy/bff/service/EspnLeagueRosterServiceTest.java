@@ -68,7 +68,7 @@ class EspnLeagueRosterServiceTest {
         EspnLeagueRosterService.Rosters result = service.rosters(USER_ID, LEAGUE_ID);
 
         // Numbered as the players are: the pool's id, or the negative of an unmatched ESPN id.
-        assertThat(result.reserve()).containsExactlyInAnyOrder(6743, -4002);
+        assertThat(result.reserve()).containsExactlyInAnyOrderEntriesOf(Map.of(6743, "IR", -4002, "IR"));
     }
 
     @Test
