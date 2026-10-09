@@ -43,6 +43,8 @@ public record LeagueSummary(
      * @param positions the positions he is eligible at, G alone for a goalie
      * @param values his raw stat per category key; null where the stat is not of his kind
      * @param total what he counts for the team: his value over the games his lineup starts him in
+     * @param fullValue his value over every game he plays, as if his lineup started him in all of
+     *     them; what a player the team does not count would be worth if it did
      * @param contributions his share of the team's cell per category key, over those games; null
      *     likewise
      * @param reserve whether he is parked today in an injured-reserve or not-active slot
@@ -55,6 +57,7 @@ public record LeagueSummary(
             String team,
             List<String> positions,
             double total,
+            double fullValue,
             Map<String, Double> values,
             Map<String, Double> contributions,
             boolean reserve,

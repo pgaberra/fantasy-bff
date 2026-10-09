@@ -110,6 +110,10 @@ public record LeagueSummaryResponse(
                     description = "What he counts for the team: his value over the games its "
                             + "lineup starts him in")
             double total,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "His value over every game he plays, as if his lineup started him in "
+                            + "all of them: what a player the team does not count would be worth if it did")
+            double fullValue,
             @Schema(description = "His raw stat per category key; null where the stat is not his kind")
             Map<String, Double> values,
             @Schema(description = "His share of the team's cell per category key, over the games he "
@@ -174,7 +178,7 @@ public record LeagueSummaryResponse(
 
     private static RosterRow rosterRow(LeagueSummary.RosterRow row) {
         return new RosterRow(
-                row.playerId(), row.name(), row.team(), row.positions(), row.total(), row.values(),
+                row.playerId(), row.name(), row.team(), row.positions(), row.total(), row.fullValue(), row.values(),
                 row.contributions(), row.reserve(), row.counted());
     }
 

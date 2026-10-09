@@ -5324,6 +5324,12 @@ components:
           format: double
           description: "What he counts for the team: his value over the games its\
             \ lineup starts him in"
+        fullValue:
+          type: number
+          format: double
+          description: "His value over every game he plays, as if his lineup started\
+            \ him in all of them: what a player the team does not count would be worth\
+            \ if it did"
         values:
           type: object
           additionalProperties:
@@ -5349,6 +5355,7 @@ components:
             \ nothing"
       required:
       - counted
+      - fullValue
       - name
       - playerId
       - positions
