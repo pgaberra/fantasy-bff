@@ -5,10 +5,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Predicate;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,12 @@ import org.springframework.stereotype.Component;
  * forwards gets nothing from the D and G slots it leaves empty. Before this a team was its best N
  * players at their whole value, positions aside (fantasy-bff#363 replaced fantasy-bff#317).
  *
+ * <p>The lineup is picked from the team's best players, as many as its roster holds, starters and
+ * bench: a team carrying more (players parked on injured reserve or not-active, which take no
+ * roster spot) would have to drop the extra to play them, so they are not a deeper bench. A
+ * player out a week still counts where he is among the best, and the weakest healthy one sits
+ * out instead (Alexander's call, 2026-10-10).
+ *
  * <p>What each player is worth is the same arithmetic as the web's Draft Mode table
  * ({@code fantasy-web/src/app/draft-mode/league-projection.ts}), held to it player by player by
  * {@code LeagueSummaryGoldenVectorTest}. How much of it a team gets is this side's alone: the web
@@ -30,8 +38,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class LeagueSummaryCalculator {
 
-    /** One team as it stands: who it is, and the players it holds, in pick order. */
-    public record TeamPicks(String teamId, String name, boolean mine, List<Integer> playerIds) {
+    /**
+     * One team as it stands: who it is, and the players it holds, in pick order.
+     *
+     * @param reserve those of its players parked today in an injured-reserve or not-active slot
+     */
+    public record TeamPicks(String teamId, String name, boolean mine, List<Integer> playerIds, Set<Integer> reserve) {
+
+        public TeamPicks {
+            reserve = reserve == null ? Set.of() : Set.copyOf(reserve);
+        }
+
+        /** A team nobody has parked anyone for: a draft's, or one read before the season. */
+        public TeamPicks(String teamId, String name, boolean mine, List<Integer> playerIds) {
+            this(teamId, name, mine, playerIds, Set.of());
+        }
     }
 
     /**
@@ -62,7 +83,7 @@ public class LeagueSummaryCalculator {
                 .toList();
         Ranking ranking = new Ranking(
                 scores, categoryKeys, positionKeys, NightlyLineups.seats(lineup), schedule,
-                creaseOffsets(teams, byId, schedule));
+                creaseOffsets(teams, byId, schedule), lineup);
 
         List<LeagueSummary.Team> rows = teams.stream()
                 .map(team -> row(team, byId, ranking))
@@ -79,7 +100,8 @@ public class LeagueSummaryCalculator {
             List<String> positionKeys,
             List<LineupSlot> seats,
             LeagueSchedule schedule,
-            Map<Integer, Double> creaseOffsets) {
+            Map<Integer, Double> creaseOffsets,
+            RosterSlots lineup) {
     }
 
     private LeagueSummary.Team row(TeamPicks team, Map<Integer, ScoredPlayer> byId, Ranking league) {
@@ -89,7 +111,9 @@ public class LeagueSummaryCalculator {
                 .filter(Objects::nonNull)
                 .toList();
 
+        Set<Integer> counted = counted(held, scores, league.lineup());
         List<NightlyLineups.Player> lineupPlayers = held.stream()
+                .filter(player -> counted.contains(player.playerId()))
                 .map(player -> new NightlyLineups.Player(
                         player.playerId(),
                         player.goalie(),
@@ -125,7 +149,13 @@ public class LeagueSummaryCalculator {
         }
 
         List<LeagueSummary.RosterRow> roster = held.stream()
-                .map(player -> rosterRow(player, scores, league.categoryKeys(), shares.get(player.playerId())))
+                .map(player -> rosterRow(
+                        player,
+                        scores,
+                        league.categoryKeys(),
+                        shares.get(player.playerId()),
+                        team.reserve().contains(player.playerId()),
+                        counted.contains(player.playerId())))
                 .sorted(Comparator.comparingDouble(LeagueSummary.RosterRow::total).reversed())
                 .toList();
 
@@ -150,6 +180,43 @@ public class LeagueSummaryCalculator {
 
         return new LeagueSummary.Team(
                 team.teamId(), team.name(), team.mine(), total, values, roster, positionPlayers);
+    }
+
+    /**
+     * The players a team's lineup is picked from: its best by value, as many as the roster holds,
+     * starters and bench. Whoever is cut goes worst first, but not a goalie the G slots need, nor a
+     * skater the skater slots need: a weak backup goalie still starts more than a sixteenth skater.
+     */
+    static Set<Integer> counted(List<ScoredPlayer> held, ProjectionScoring.Scores scores, RosterSlots lineup) {
+        Set<Integer> counted = new HashSet<>();
+        held.forEach(player -> counted.add(player.playerId()));
+        int excess = held.size() - (lineup.skaterSlots() + lineup.g());
+        if (excess <= 0) {
+            return counted;
+        }
+        long goalies = held.stream().filter(ScoredPlayer::goalie).count();
+        long skaters = held.size() - goalies;
+        int skaterSeats = lineup.skaterSlots() - lineup.bn();
+        List<ScoredPlayer> worstFirst = held.stream()
+                .sorted(Comparator.comparingDouble((ScoredPlayer player) -> value(scores, player))
+                        .thenComparing(Comparator.comparingInt(ScoredPlayer::playerId).reversed()))
+                .toList();
+        for (ScoredPlayer player : worstFirst) {
+            if (excess == 0) {
+                break;
+            }
+            if (player.goalie() ? goalies <= lineup.g() : skaters <= skaterSeats) {
+                continue;
+            }
+            counted.remove(player.playerId());
+            excess--;
+            if (player.goalie()) {
+                goalies--;
+            } else {
+                skaters--;
+            }
+        }
+        return counted;
     }
 
     /** A player under a slot, before the slot's list is put in order. */
@@ -216,9 +283,16 @@ public class LeagueSummaryCalculator {
      * and his share of each category cell, scaled to the games his lineup starts him in.
      *
      * @param share the share of his games he starts, 0 to 1
+     * @param reserve whether he is parked today in an injured-reserve or not-active slot
+     * @param counted whether he is among the players the team's lineup is picked from
      */
     static LeagueSummary.RosterRow rosterRow(
-            ScoredPlayer player, ProjectionScoring.Scores scores, List<String> categoryKeys, double share) {
+            ScoredPlayer player,
+            ProjectionScoring.Scores scores,
+            List<String> categoryKeys,
+            double share,
+            boolean reserve,
+            boolean counted) {
         Map<String, Double> values = new LinkedHashMap<>();
         Map<String, Double> contributions = new LinkedHashMap<>();
         for (String key : categoryKeys) {
@@ -233,7 +307,9 @@ public class LeagueSummaryCalculator {
                 positionsInOrder(player),
                 value(scores, player) * share,
                 values,
-                contributions);
+                contributions,
+                reserve,
+                counted);
     }
 
     /** The order a lineup is read in, since the pool's positions come as a set with none. */

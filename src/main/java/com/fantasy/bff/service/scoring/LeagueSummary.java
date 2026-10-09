@@ -45,6 +45,9 @@ public record LeagueSummary(
      * @param total what he counts for the team: his value over the games his lineup starts him in
      * @param contributions his share of the team's cell per category key, over those games; null
      *     likewise
+     * @param reserve whether he is parked today in an injured-reserve or not-active slot
+     * @param counted whether he is among the players the team's lineup is picked from: its best,
+     *     as many as its roster holds; one who is not counts for nothing
      */
     public record RosterRow(
             int playerId,
@@ -53,7 +56,9 @@ public record LeagueSummary(
             List<String> positions,
             double total,
             Map<String, Double> values,
-            Map<String, Double> contributions) {
+            Map<String, Double> contributions,
+            boolean reserve,
+            boolean counted) {
     }
 
     /** A player under a lineup slot, and what he is worth there. */

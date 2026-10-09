@@ -2,9 +2,11 @@ package com.fantasy.bff.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -103,6 +105,9 @@ class LeagueSummaryServiceTest {
                 Map.of("TOR", nights), Map.of("TOR", 82)));
 
         when(aiProjection.available()).thenReturn(true);
+        // Yahoo lists every roster empty unless a case says otherwise, so the picks are read.
+        lenient().when(rosterService.rosters(anyString(), anyString()))
+                .thenReturn(new YahooLeagueRosterService.Rosters(Map.of(), Set.of()));
         when(playerService.getSkaters()).thenReturn(List.of(
                 skater(1, "Forward One", SkaterPosition.C),
                 skater(2, "Forward Two", SkaterPosition.LW),
@@ -284,7 +289,7 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a traded player counts for the team that holds him now")
     void tradedPlayerCountsForHisNewTeam() {
-        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1, 3), "t2", List.of(2)));
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(new YahooLeagueRosterService.Rosters(Map.of("t1", List.of(1, 3), "t2", List.of(2)), Set.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
@@ -299,9 +304,22 @@ class LeagueSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("a player Yahoo has parked on injured reserve is marked so on his team's row")
+    void parkedPlayerIsMarked() {
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(new YahooLeagueRosterService.Rosters(
+                Map.of("t1", List.of(1, 3), "t2", List.of(2)), Set.of(3)));
+
+        LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
+
+        assertThat(result.summary().teams().get(0).roster())
+                .extracting(row -> row.name(), row -> row.reserve())
+                .containsExactly(tuple("Forward One", false), tuple("Forward Three", true));
+    }
+
+    @Test
     @DisplayName("a dropped player counts for nobody")
     void droppedPlayerCountsForNobody() {
-        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2)));
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(new YahooLeagueRosterService.Rosters(Map.of("t1", List.of(1), "t2", List.of(2)), Set.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
@@ -321,7 +339,7 @@ class LeagueSummaryServiceTest {
                 List.of(new LeagueDraftTeam("t1", "Mine", true), new LeagueDraftTeam("t2", "Theirs", false)),
                 true,
                 List.of(new LeagueDraftPick(1, 1, "t1", 1), new LeagueDraftPick(2, 1, "t2", 2)), null));
-        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "t2", List.of(2, 3)));
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(new YahooLeagueRosterService.Rosters(Map.of("t1", List.of(1), "t2", List.of(2, 3)), Set.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
@@ -333,7 +351,7 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a roster for a team the league does not list is dropped, not credited to anyone")
     void rosterOfAnUnknownTeamIsDropped() {
-        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(1), "ghost", List.of(2, 3)));
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(new YahooLeagueRosterService.Rosters(Map.of("t1", List.of(1), "ghost", List.of(2, 3)), Set.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
@@ -344,7 +362,7 @@ class LeagueSummaryServiceTest {
     @Test
     @DisplayName("a finished draft whose rosters Yahoo lists all empty is totalled from its picks")
     void emptyRostersFallBackToPicks() {
-        when(rosterService.rosters(USER, LEAGUE)).thenReturn(Map.of("t1", List.of(), "t2", List.of()));
+        when(rosterService.rosters(USER, LEAGUE)).thenReturn(new YahooLeagueRosterService.Rosters(Map.of("t1", List.of(), "t2", List.of()), Set.of()));
 
         LeagueSummaryService.Result result = service.summarise(USER, LEAGUE, SummarySource.MODEL, null);
 
@@ -608,7 +626,8 @@ class LeagueSummaryServiceTest {
                 List.of(
                         new LeagueDraftTeam("espn.l.123.t.1", "Mine", true),
                         new LeagueDraftTeam("espn.l.123.t.2", "Theirs", false)),
-                players));
+                players,
+                Set.of()));
         when(espnLeagueService.projectionSettings(USER, ESPN_LEAGUE)).thenReturn(settings(null));
     }
 

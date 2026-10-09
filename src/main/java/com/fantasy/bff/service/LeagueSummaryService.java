@@ -161,8 +161,8 @@ public class LeagueSummaryService {
             EspnLeagueRosterService.Rosters rosters = espnRosterService.rosters(userId, leagueId);
             LeagueProjectionSettingsResponse settings = espnLeagueService.projectionSettings(userId, leagueId);
             List<LeagueSummaryCalculator.TeamPicks> teams = rosters.teams().stream()
-                    .map(team -> new LeagueSummaryCalculator.TeamPicks(
-                            team.id(), team.name(), team.mine(), rosters.players().get(team.id())))
+                    .map(team -> teamPicks(
+                            team.id(), team.name(), team.mine(), rosters.players().get(team.id()), rosters.reserve()))
                     .toList();
             int rostered = teams.stream().mapToInt(team -> team.playerIds().size()).sum();
             return new League(teams, settings, rosters.status(), rostered);
@@ -394,12 +394,13 @@ public class LeagueSummaryService {
      * Each team's players today by Yahoo's team key, or null where the draft's picks are what the
      * teams hold: before the draft is over, and in a league whose rosters Yahoo lists all empty.
      */
-    private Map<String, List<Integer>> currentRosters(String userId, String leagueKey, LeagueDraftResponse draft) {
+    private YahooLeagueRosterService.Rosters currentRosters(
+            String userId, String leagueKey, LeagueDraftResponse draft) {
         if (draft.status() == LeagueDraftStatus.PRE_DRAFT || draft.status() == LeagueDraftStatus.IN_PROGRESS) {
             return null;
         }
-        Map<String, List<Integer>> rosters = rosterService.rosters(userId, leagueKey);
-        boolean anyRostered = rosters.values().stream().anyMatch(players -> !players.isEmpty());
+        YahooLeagueRosterService.Rosters rosters = rosterService.rosters(userId, leagueKey);
+        boolean anyRostered = rosters.players().values().stream().anyMatch(players -> !players.isEmpty());
         return anyRostered ? rosters : null;
     }
 
@@ -409,13 +410,13 @@ public class LeagueSummaryService {
      * is dropped rather than credited to anyone.
      */
     private List<LeagueSummaryCalculator.TeamPicks> teams(
-            LeagueDraftResponse draft, Map<String, List<Integer>> rosters) {
+            LeagueDraftResponse draft, YahooLeagueRosterService.Rosters rosters) {
         Map<String, List<Integer>> playersByTeam = new LinkedHashMap<>();
         for (LeagueDraftTeam team : draft.teams()) {
             playersByTeam.put(team.id(), new ArrayList<>());
         }
         if (rosters != null) {
-            rosters.forEach((teamId, players) -> {
+            rosters.players().forEach((teamId, players) -> {
                 List<Integer> held = playersByTeam.get(teamId);
                 if (held != null) {
                     held.addAll(players);
@@ -429,13 +430,18 @@ public class LeagueSummaryService {
                 }
             }
         }
+        Set<Integer> reserve = rosters == null ? Set.of() : rosters.reserve();
         return draft.teams().stream()
-                .map(team -> new LeagueSummaryCalculator.TeamPicks(
-                        team.id(),
-                        team.name(),
-                        team.mine(),
-                        List.copyOf(playersByTeam.get(team.id()))))
+                .map(team -> teamPicks(
+                        team.id(), team.name(), team.mine(), playersByTeam.get(team.id()), reserve))
                 .toList();
+    }
+
+    /** A team and its players, with those of them the league's reserve holds marked as such. */
+    private static LeagueSummaryCalculator.TeamPicks teamPicks(
+            String teamId, String name, boolean mine, List<Integer> playerIds, Set<Integer> reserve) {
+        Set<Integer> parked = playerIds.stream().filter(reserve::contains).collect(Collectors.toSet());
+        return new LeagueSummaryCalculator.TeamPicks(teamId, name, mine, List.copyOf(playerIds), parked);
     }
 
     /**

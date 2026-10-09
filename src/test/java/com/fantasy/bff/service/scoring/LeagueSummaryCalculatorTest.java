@@ -452,4 +452,77 @@ class LeagueSummaryCalculatorTest {
 
         assertThat(oneTeam(pool, slots).total()).isEqualTo(oneTeam(pool, slots).total());
     }
+
+    /**
+     * Alexander's example: a roster of two (one LW, one bench) carrying a third man on injured
+     * reserve. TOR and MTL play on alternate nights, so a third left wing would start every night
+     * the others do not, a depth no league allows: to activate him a team drops someone. The
+     * parked man is the best of the three, so he counts and the weakest healthy one is cut.
+     */
+    @Test
+    @DisplayName("a team counts its best players, as many as its roster holds, parked ones included")
+    void theRosterHoldsItsBestPlayers() {
+        List<LocalDate> even = IntStream.range(0, 41).mapToObj(day -> OPENING_NIGHT.plusDays(2L * day)).toList();
+        List<LocalDate> odd = IntStream.range(0, 41).mapToObj(day -> OPENING_NIGHT.plusDays(2L * day + 1)).toList();
+        LeagueSchedule alternating = new LeagueSchedule(
+                Map.of("TOR", even, "MTL", odd), Map.of("TOR", 41, "MTL", 41));
+        List<ScoredPlayer> pool = List.of(
+                skater(1, "Leaf", "TOR", Set.of("LW"), 30, 41),
+                skater(2, "Hab", "MTL", Set.of("LW"), 25, 41),
+                skater(3, "Parked", "TOR", Set.of("LW"), 40, 41));
+
+        LeagueSummary.Team team = calculator.summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3), Set.of(3))),
+                pointsLeague(new RosterSlots(0, 1, 0, 0, 0, 0, 0, 1, 0)),
+                alternating).teams().get(0);
+
+        // Parked starts every TOR night over Leaf; Hab, cut, no longer fills the MTL nights.
+        assertThat(team.total()).isCloseTo(40, within(1e-9));
+        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::name)
+                .containsExactly("Parked", "Leaf", "Hab");
+        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::reserve).containsExactly(true, false, false);
+        assertThat(team.roster()).extracting(LeagueSummary.RosterRow::counted).containsExactly(true, true, false);
+    }
+
+    @Test
+    @DisplayName("the cut passes over a goalie the G slot needs, however little he is worth")
+    void theCutKeepsTheGoalieTheLineupNeeds() {
+        List<ScoredPlayer> pool = List.of(
+                skater(1, "Centre", Set.of("C"), 50),
+                goalie(2, "Backup", "TOR", 5, 82),
+                skater(3, "Spare", Set.of("C"), 30));
+        LeagueScoring league = LeagueScoring.of(
+                true,
+                new java.util.LinkedHashMap<>(Map.of("goals", 1.0, "w", 1.0)),
+                List.of("goals", "w"),
+                new RosterSlots(1, 0, 0, 0, 0, 0, 0, 0, 1),
+                2,
+                25,
+                Map.of("goals", 0, "assists", 0, "w", 0));
+
+        LeagueSummary.Team team = calculator.summarise(
+                pool,
+                List.of(new LeagueSummaryCalculator.TeamPicks("t1", "Mine", true, List.of(1, 2, 3))),
+                league,
+                SEASON).teams().get(0);
+
+        assertThat(team.total()).isCloseTo(55, within(1e-9));
+        assertThat(team.roster()).filteredOn(LeagueSummary.RosterRow::counted)
+                .extracting(LeagueSummary.RosterRow::name).containsExactlyInAnyOrder("Centre", "Backup");
+    }
+
+    @Test
+    @DisplayName("a team within its roster counts everyone")
+    void aTeamWithinItsRosterCountsEveryone() {
+        LeagueSummary.Team team = oneTeam(List.of(
+                        skater(1, "Starter", Set.of("C"), 50),
+                        skater(2, "Spare", Set.of("C"), 40)),
+                new RosterSlots(1, 0, 0, 0, 0, 0, 0, 1, 0));
+
+        assertThat(team.roster()).allSatisfy(row -> {
+            assertThat(row.counted()).isTrue();
+            assertThat(row.reserve()).isFalse();
+        });
+    }
 }

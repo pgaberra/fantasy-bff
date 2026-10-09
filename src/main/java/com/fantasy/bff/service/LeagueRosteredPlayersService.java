@@ -34,7 +34,7 @@ public class LeagueRosteredPlayersService {
     public RosteredPlayersResponse rostered(String userId, PlayerIdSpace platform, String leagueId) {
         availability.require();
         Collection<List<Integer>> teams = platform == PlayerIdSpace.YAHOO
-                ? yahooRosters.rosters(userId, leagueId).values()
+                ? yahooRosters.rosters(userId, leagueId).players().values()
                 : espnRosters.rosters(userId, leagueId).players().values();
         TreeSet<Integer> playerIds = new TreeSet<>();
         for (List<Integer> team : teams) {
