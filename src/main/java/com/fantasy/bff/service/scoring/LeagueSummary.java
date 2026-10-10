@@ -9,7 +9,7 @@ import java.util.Map;
  *
  * @param categoryKeys the stats the league counts, in the order the league gave them; the labels
  *     are the web's to write
- * @param positionKeys the lineup slots the league starts players in; the bench scores nothing
+ * @param positionKeys the lineup slots the league starts players in, then BN where it has a bench
  * @param teams the teams, best total first
  */
 @Schema(description = "A drafted league's teams, totalled by category and by lineup slot")
@@ -28,7 +28,9 @@ public record LeagueSummary(
      * @param fullValues the category cells on that same footing, which sum to the full total; no
      *     position cells, since a lineup slot is what starting decides
      * @param roster the team's players, best first by what their lineup starts them for
-     * @param positionPlayers who starts in each lineup slot, and for how much
+     * @param positionPlayers the team's best lineup: who holds each slot, one slot apiece, and who
+     *     sits on the bench, each with what he counts for the team; a player it does not count is
+     *     in no slot
      */
     public record Team(
             String teamId,

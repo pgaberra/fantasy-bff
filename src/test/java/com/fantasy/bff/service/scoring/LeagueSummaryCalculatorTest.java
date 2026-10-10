@@ -137,6 +137,44 @@ class LeagueSummaryCalculatorTest {
                 .containsExactly("Centre only");
     }
 
+    /**
+     * Alexander's example: two strong centres and a centre-winger better than the team's other left
+     * wing. The best lineup plays him on the wing and benches the left wing, and the breakdown says
+     * so, one slot per player, where night by night he would show under both.
+     */
+    @Test
+    @DisplayName("the slot breakdown is the best lineup, a centre-winger on the wing his centres leave")
+    void slotBreakdownIsTheBestLineup() {
+        LeagueSummary.Team team = oneTeam(List.of(
+                        skater(1, "Top centre", Set.of("C"), 60),
+                        skater(2, "Centre-winger", Set.of("C", "LW"), 55),
+                        skater(3, "Second centre", Set.of("C"), 50),
+                        skater(4, "Left wing", Set.of("LW"), 20)),
+                new RosterSlots(2, 1, 0, 0, 0, 0, 0, 1, 0));
+
+        assertThat(names(team, "C")).containsExactly("Top centre", "Second centre");
+        assertThat(names(team, "LW")).containsExactly("Centre-winger");
+        assertThat(names(team, "BN")).containsExactly("Left wing");
+    }
+
+    @Test
+    @DisplayName("Util takes the best of those the named slots leave out, and the rest sit")
+    void utilTakesTheBestOfTheRest() {
+        LeagueSummary.Team team = oneTeam(List.of(
+                        skater(1, "Centre", Set.of("C"), 60),
+                        skater(2, "Left wing", Set.of("LW"), 50),
+                        skater(3, "Second centre", Set.of("C"), 40),
+                        skater(4, "Second left wing", Set.of("LW"), 30)),
+                new RosterSlots(1, 1, 0, 0, 0, 0, 1, 1, 0));
+
+        assertThat(names(team, "C")).containsExactly("Centre");
+        assertThat(names(team, "LW")).containsExactly("Left wing");
+        assertThat(names(team, "UTIL")).containsExactly("Second centre");
+        assertThat(names(team, "BN")).containsExactly("Second left wing");
+        assertThat(team.positionPlayers().values().stream().mapToInt(List::size).sum())
+                .as("every player in one cell").isEqualTo(4);
+    }
+
     private static LeagueSummary.Team oneTeam(List<ScoredPlayer> pool, RosterSlots slots) {
         List<Integer> ids = pool.stream().map(ScoredPlayer::playerId).toList();
         return calculator().summarise(
@@ -224,7 +262,7 @@ class LeagueSummaryCalculatorTest {
     }
 
     @Test
-    @DisplayName("a player with nowhere to start counts for nothing, and the bench has no column")
+    @DisplayName("a player with nowhere to start counts for nothing, and sits on the bench")
     void benchCountsForNothing() {
         List<ScoredPlayer> pool = List.of(
                 skater(1, "Starter", Set.of("C"), 50),
@@ -236,7 +274,9 @@ class LeagueSummaryCalculatorTest {
                 pointsLeague(slots), SEASON);
 
         LeagueSummary.Team team = summary.teams().get(0);
-        assertThat(summary.positionKeys()).containsExactly("LW", "C");
+        assertThat(summary.positionKeys()).containsExactly("LW", "C", "BN");
+        assertThat(names(team, "BN")).containsExactly("Spare");
+        assertThat(team.values().get("BN")).isEqualTo(0);
         assertThat(team.total()).isCloseTo(50, within(1e-9));
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::name).containsExactly("Starter", "Spare");
         assertThat(team.roster().get(1).total()).isEqualTo(0);
@@ -485,6 +525,8 @@ class LeagueSummaryCalculatorTest {
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::counted).containsExactly(true, true, false);
         assertThat(team.roster().get(2).total()).as("cut, he counts for nothing").isEqualTo(0);
         assertThat(team.roster().get(2).fullValue()).as("but is still worth his own value").isCloseTo(25, within(1e-9));
+        assertThat(names(team, "LW")).containsExactly("Parked");
+        assertThat(names(team, "BN")).as("the bench holds one, and the cut man is in no slot").containsExactly("Leaf");
         assertThat(team.roster().get(2).fullContributions()).containsEntry("goals", 25.0);
         assertThat(team.fullTotal()).as("every player started every game, the cut one too")
                 .isCloseTo(40 + 30 + 25, within(1e-9));
