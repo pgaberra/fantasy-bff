@@ -5213,7 +5213,8 @@ components:
         value:
           type: number
           format: double
-          description: His value over the games he starts in this slot
+          description: "What he counts for the team: his value over the games its\
+            \ lineup starts him in, the `total` of his roster row"
       required:
       - name
       - value
@@ -5281,8 +5282,8 @@ components:
             type: string
         positionKeys:
           type: array
-          description: "The lineup slots the league starts players in. The bench scores\
-            \ nothing, so it has no column"
+          description: "The lineup slots the league starts players in, then `BN` where\
+            \ the league has a bench"
           items:
             type: string
         teams:
@@ -5417,7 +5418,9 @@ components:
             type: array
             items:
               $ref: "#/components/schemas/LeagueSummaryContributor"
-          description: Who fills each lineup slot.
+          description: "The team's best lineup per position key: who holds each slot,\
+            \ one slot apiece (a dual-position player where the lineup is best with\
+            \ him), and under `BN` everyone it leaves out."
       required:
       - fullTotal
       - fullValues

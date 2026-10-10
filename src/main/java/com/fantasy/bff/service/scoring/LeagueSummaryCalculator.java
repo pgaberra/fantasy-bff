@@ -38,6 +38,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class LeagueSummaryCalculator {
 
+    /** The position column for a team's bench: everyone its best lineup leaves out. */
+    static final String BENCH = "BN";
+
     /**
      * One team as it stands: who it is, and the players it holds, in pick order.
      *
@@ -79,10 +82,13 @@ public class LeagueSummaryCalculator {
         // The league's own order, which is the order its columns are read in.
         List<String> categoryKeys = league.activeScoringColumns();
         RosterSlots lineup = league.lineup();
-        List<String> positionKeys = Arrays.stream(LineupSlot.values())
+        List<String> positionKeys = new ArrayList<>(Arrays.stream(LineupSlot.values())
                 .filter(slot -> slot.count(lineup) > 0)
                 .map(LineupSlot::column)
-                .toList();
+                .toList());
+        if (lineup.bn() > 0) {
+            positionKeys.add(BENCH);
+        }
         Ranking ranking = new Ranking(
                 scores, categoryKeys, positionKeys, NightlyLineups.seats(lineup), schedule,
                 creaseOffsets(teams, byId, schedule), lineup);
@@ -167,14 +173,30 @@ public class LeagueSummaryCalculator {
                 .sorted(Comparator.comparingDouble(LeagueSummary.RosterRow::total).reversed())
                 .toList();
 
+        // The slot breakdown is the team's best lineup, one slot per player and the rest on the
+        // bench, each with all he counts for: night by night a centre-winger fills whichever slot is
+        // free, but a reader looks for two left wings under LW, not a share of five players
+        // (Alexander's call, 2026-10-10). Every player sits in one cell, so the cells still sum
+        // to the total wherever the league has a bench.
+        Map<Integer, Double> worth = new HashMap<>();
+        held.forEach(player -> worth.put(player.playerId(), value(scores, player)));
+        Map<Integer, LineupSlot> standing = NightlyLineups.standing(
+                lineupPlayers.stream()
+                        .sorted(Comparator.comparingDouble((NightlyLineups.Player player) -> worth.get(player.playerId()))
+                                .reversed()
+                                .thenComparingInt(NightlyLineups.Player::playerId))
+                        .toList(),
+                league.seats());
         Map<String, List<LeagueSummary.Contributor>> positionPlayers = new LinkedHashMap<>();
         for (String key : league.positionKeys()) {
-            LineupSlot slot = LineupSlot.valueOf(key);
             List<Ranked> ranked = new ArrayList<>();
             for (ScoredPlayer player : held) {
-                Double share = starts.getOrDefault(player.playerId(), Map.of()).get(slot);
-                if (share != null) {
-                    ranked.add(new Ranked(player.playerId(), player.name(), value(scores, player) * share));
+                LineupSlot slot = standing.get(player.playerId());
+                if (BENCH.equals(key) ? slot == null : slot != null && slot.column().equals(key)) {
+                    ranked.add(new Ranked(
+                            player.playerId(),
+                            player.name(),
+                            worth.get(player.playerId()) * shares.get(player.playerId())));
                 }
             }
             List<LeagueSummary.Contributor> contributors = ranked.stream()

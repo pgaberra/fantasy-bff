@@ -111,13 +111,7 @@ final class NightlyLineups {
             }
         }
 
-        boolean[][] eligible = new boolean[count][seats.size()];
-        for (int player = 0; player < count; player++) {
-            Player candidate = ordered.get(player);
-            for (int seat = 0; seat < seats.size(); seat++) {
-                eligible[player][seat] = seats.get(seat).eligible(candidate.goalie(), candidate.positions());
-            }
-        }
+        boolean[][] eligible = eligibility(ordered, seats);
 
         long[] plays = new long[count];
         long[][] slotStarts = new long[count][LineupSlot.values().length];
@@ -170,6 +164,47 @@ final class NightlyLineups {
             }
         }
         return shares;
+    }
+
+    /**
+     * Where each player stands in the team's best lineup, one slot apiece, as on a night they all
+     * play: filled best first, the way every night is, so a centre-winger plays the wing when the
+     * team's centres are better than its second left wing, and the flex slots keep the best of
+     * those the named slots leave out. A player with no seat in it, a bench player, has no entry.
+     *
+     * @param bestFirst the players, best first; who is better decides who starts
+     */
+    static Map<Integer, LineupSlot> standing(List<Player> bestFirst, List<LineupSlot> seats) {
+        boolean[][] eligible = eligibility(bestFirst, seats);
+        int[] owner = new int[seats.size()];
+        boolean[] tried = new boolean[seats.size()];
+        Arrays.fill(owner, -1);
+        for (int player = 0; player < bestFirst.size(); player++) {
+            if (!takeFreeSeat(player, eligible, owner)) {
+                Arrays.fill(tried, false);
+                seat(player, eligible, owner, tried);
+            }
+        }
+        keepFlexForTheMarginal(seats, eligible, owner);
+        Map<Integer, LineupSlot> standing = new HashMap<>();
+        for (int seat = 0; seat < seats.size(); seat++) {
+            if (owner[seat] >= 0) {
+                standing.put(bestFirst.get(owner[seat]).playerId(), seats.get(seat));
+            }
+        }
+        return standing;
+    }
+
+    /** Which seat each player may fill, players and seats in the order given. */
+    private static boolean[][] eligibility(List<Player> players, List<LineupSlot> seats) {
+        boolean[][] eligible = new boolean[players.size()][seats.size()];
+        for (int player = 0; player < players.size(); player++) {
+            Player candidate = players.get(player);
+            for (int seat = 0; seat < seats.size(); seat++) {
+                eligible[player][seat] = seats.get(seat).eligible(candidate.goalie(), candidate.positions());
+            }
+        }
+        return eligible;
     }
 
     /**

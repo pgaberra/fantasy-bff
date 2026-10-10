@@ -61,8 +61,8 @@ public record LeagueSummaryResponse(
         List<String> categoryKeys,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "The lineup slots the league starts players in. The bench scores "
-                        + "nothing, so it has no column")
+                description = "The lineup slots the league starts players in, then `BN` where the "
+                        + "league has a bench")
         List<String> positionKeys,
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Teams, best total first")
@@ -99,7 +99,9 @@ public record LeagueSummaryResponse(
             @Schema(description = "The team's players, best first by what they count for: its "
                     + "current roster once the draft is over, its picks until then.")
             List<RosterRow> roster,
-            @Schema(description = "Who fills each lineup slot.")
+            @Schema(description = "The team's best lineup per position key: who holds each slot, "
+                    + "one slot apiece (a dual-position player where the lineup is best with him), and "
+                    + "under `BN` everyone it leaves out.")
             Map<String, List<Contributor>> positionPlayers) {
     }
 
@@ -146,7 +148,8 @@ public record LeagueSummaryResponse(
     public record Contributor(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                    description = "His value over the games he starts in this slot")
+                    description = "What he counts for the team: his value over the games its "
+                            + "lineup starts him in, the `total` of his roster row")
             double value) {
     }
 
