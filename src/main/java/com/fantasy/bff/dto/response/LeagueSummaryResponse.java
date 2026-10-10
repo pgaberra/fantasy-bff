@@ -87,6 +87,15 @@ public record LeagueSummaryResponse(
                     description = "The cell per category key and per lineup slot. Each set sums to "
                             + "the total.")
             Map<String, Double> values,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "What the team would score were every player it holds started in "
+                            + "every game he plays, the ones it does not count included: the sum of "
+                            + "its players' `fullValue`")
+            double fullTotal,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The cell per category key on the `fullTotal` footing; they sum to "
+                            + "it. No lineup-slot cells, since a slot is what starting decides.")
+            Map<String, Double> fullValues,
             @Schema(description = "The team's players, best first by what they count for: its "
                     + "current roster once the draft is over, its picks until then.")
             List<RosterRow> roster,
@@ -119,6 +128,9 @@ public record LeagueSummaryResponse(
             @Schema(description = "His share of the team's cell per category key, over the games he "
                     + "starts; null likewise")
             Map<String, Double> contributions,
+            @Schema(description = "His share of the team's `fullValues` cell per category key, over "
+                    + "every game he plays; null likewise")
+            Map<String, Double> fullContributions,
             @Schema(description = "The injured-reserve or not-active slot he is parked in today (IR, "
                     + "IR+, IR-LT, IR-NR or NA), which holds a player without taking a roster spot; "
                     + "absent for a player in neither")
@@ -170,6 +182,8 @@ public record LeagueSummaryResponse(
                 team.mine(),
                 team.total(),
                 team.values(),
+                team.fullTotal(),
+                team.fullValues(),
                 team.roster() == null
                         ? null
                         : team.roster().stream().map(LeagueSummaryResponse::rosterRow).toList(),
@@ -179,7 +193,7 @@ public record LeagueSummaryResponse(
     private static RosterRow rosterRow(LeagueSummary.RosterRow row) {
         return new RosterRow(
                 row.playerId(), row.name(), row.team(), row.positions(), row.total(), row.fullValue(), row.values(),
-                row.contributions(), row.reserveSlot(), row.counted());
+                row.contributions(), row.fullContributions(), row.reserveSlot(), row.counted());
     }
 
     private static Map<String, List<Contributor>> contributors(
