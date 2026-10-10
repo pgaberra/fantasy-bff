@@ -5344,6 +5344,13 @@ components:
             format: double
           description: "His share of the team's cell per category key, over the games\
             \ he starts; null likewise"
+        fullContributions:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "His share of the team's `fullValues` cell per category key,\
+            \ over every game he plays; null likewise"
         reserveSlot:
           type: string
           description: "The injured-reserve or not-active slot he is parked in today\
@@ -5385,6 +5392,19 @@ components:
             format: double
           description: The cell per category key and per lineup slot. Each set sums
             to the total.
+        fullTotal:
+          type: number
+          format: double
+          description: "What the team would score were every player it holds started\
+            \ in every game he plays, the ones it does not count included: the sum\
+            \ of its players' `fullValue`"
+        fullValues:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          description: "The cell per category key on the `fullTotal` footing; they\
+            \ sum to it. No lineup-slot cells, since a slot is what starting decides."
         roster:
           type: array
           description: "The team's players, best first by what they count for: its\
@@ -5399,6 +5419,8 @@ components:
               $ref: "#/components/schemas/LeagueSummaryContributor"
           description: Who fills each lineup slot.
       required:
+      - fullTotal
+      - fullValues
       - mine
       - name
       - teamId

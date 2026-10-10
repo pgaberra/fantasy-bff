@@ -23,6 +23,10 @@ public record LeagueSummary(
      *
      * @param values the cell per category key and per position key; the category cells sum to the
      *     total, and so do the position cells
+     * @param fullTotal what the team would score were every player it holds started in every game
+     *     he plays, the ones it does not count included: the sum of its players' full values
+     * @param fullValues the category cells on that same footing, which sum to the full total; no
+     *     position cells, since a lineup slot is what starting decides
      * @param roster the team's players, best first by what their lineup starts them for
      * @param positionPlayers who starts in each lineup slot, and for how much
      */
@@ -32,6 +36,8 @@ public record LeagueSummary(
             boolean mine,
             double total,
             Map<String, Double> values,
+            double fullTotal,
+            Map<String, Double> fullValues,
             List<RosterRow> roster,
             Map<String, List<Contributor>> positionPlayers) {
     }
@@ -47,6 +53,8 @@ public record LeagueSummary(
      *     them; what a player the team does not count would be worth if it did
      * @param contributions his share of the team's cell per category key, over those games; null
      *     likewise
+     * @param fullContributions his share of the team's full cell per category key, over every game
+     *     he plays; null likewise
      * @param reserveSlot the injured-reserve or not-active slot he is parked in today (IR, IR+,
      *     IR-LT, IR-NR or NA, in the platform's spelling), or null for a player in neither
      * @param counted whether he is among the players the team's lineup is picked from: its best,
@@ -61,6 +69,7 @@ public record LeagueSummary(
             double fullValue,
             Map<String, Double> values,
             Map<String, Double> contributions,
+            Map<String, Double> fullContributions,
             String reserveSlot,
             boolean counted) {
     }

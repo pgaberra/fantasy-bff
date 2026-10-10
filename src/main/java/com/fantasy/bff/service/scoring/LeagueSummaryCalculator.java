@@ -141,6 +141,7 @@ public class LeagueSummaryCalculator {
         // A category cell aggregates only the players the stat applies to — a goalie contributes
         // no hits, a skater no saves — so each column sums over its own side of the roster.
         Map<String, Double> values = new LinkedHashMap<>();
+        Map<String, Double> fullValues = new LinkedHashMap<>();
         for (String key : league.categoryKeys()) {
             boolean wantsSkater = ScoringStatKeys.SKATER_SCORING_SET.contains(key);
             Predicate<ScoredPlayer> ofThisKind = player -> !player.goalie() == wantsSkater;
@@ -148,7 +149,12 @@ public class LeagueSummaryCalculator {
                     .filter(ofThisKind)
                     .mapToDouble(player -> contribution(scores, player, key) * shares.get(player.playerId()))
                     .sum());
+            fullValues.put(key, held.stream()
+                    .filter(ofThisKind)
+                    .mapToDouble(player -> contribution(scores, player, key))
+                    .sum());
         }
+        double fullTotal = held.stream().mapToDouble(player -> value(scores, player)).sum();
 
         List<LeagueSummary.RosterRow> roster = held.stream()
                 .map(player -> rosterRow(
@@ -181,7 +187,8 @@ public class LeagueSummaryCalculator {
         }
 
         return new LeagueSummary.Team(
-                team.teamId(), team.name(), team.mine(), total, values, roster, positionPlayers);
+                team.teamId(), team.name(), team.mine(), total, values, fullTotal, fullValues, roster,
+                positionPlayers);
     }
 
     /**
@@ -297,10 +304,12 @@ public class LeagueSummaryCalculator {
             boolean counted) {
         Map<String, Double> values = new LinkedHashMap<>();
         Map<String, Double> contributions = new LinkedHashMap<>();
+        Map<String, Double> fullContributions = new LinkedHashMap<>();
         for (String key : categoryKeys) {
             boolean applies = ScoringStatKeys.SKATER_SCORING_SET.contains(key) == !player.goalie();
             values.put(key, applies ? Double.valueOf(player.scoringValue(key)) : null);
             contributions.put(key, applies ? Double.valueOf(contribution(scores, player, key) * share) : null);
+            fullContributions.put(key, applies ? Double.valueOf(contribution(scores, player, key)) : null);
         }
         return new LeagueSummary.RosterRow(
                 player.playerId(),
@@ -311,6 +320,7 @@ public class LeagueSummaryCalculator {
                 value(scores, player),
                 values,
                 contributions,
+                fullContributions,
                 reserveSlot,
                 counted);
     }

@@ -485,6 +485,10 @@ class LeagueSummaryCalculatorTest {
         assertThat(team.roster()).extracting(LeagueSummary.RosterRow::counted).containsExactly(true, true, false);
         assertThat(team.roster().get(2).total()).as("cut, he counts for nothing").isEqualTo(0);
         assertThat(team.roster().get(2).fullValue()).as("but is still worth his own value").isCloseTo(25, within(1e-9));
+        assertThat(team.roster().get(2).fullContributions()).containsEntry("goals", 25.0);
+        assertThat(team.fullTotal()).as("every player started every game, the cut one too")
+                .isCloseTo(40 + 30 + 25, within(1e-9));
+        assertThat(team.fullValues().get("goals")).isCloseTo(team.fullTotal(), within(1e-9));
     }
 
     @Test
