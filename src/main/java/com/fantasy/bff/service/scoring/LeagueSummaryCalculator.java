@@ -173,11 +173,12 @@ public class LeagueSummaryCalculator {
                 .sorted(Comparator.comparingDouble(LeagueSummary.RosterRow::total).reversed())
                 .toList();
 
-        // The slot breakdown is the team's best lineup, one slot per player and the rest on the
-        // bench, each with all he counts for: night by night a centre-winger fills whichever slot is
-        // free, but a reader looks for two left wings under LW, not a share of five players
-        // (Alexander's call, 2026-10-10). Every player sits in one cell, so the cells still sum
-        // to the total wherever the league has a bench.
+        // The slot breakdown is the team's best lineup, one slot per player and the rest of those it
+        // counts on the bench, each with all he counts for: night by night a centre-winger fills
+        // whichever slot is free, but a reader looks for two left wings under LW, not a share of
+        // five players (Alexander's call, 2026-10-10). A player the team does not count is in no
+        // cell, so the bench holds as many as the league's bench does, and since he counts for
+        // nothing the cells still sum to the total wherever the league has a bench.
         Map<Integer, Double> worth = new HashMap<>();
         held.forEach(player -> worth.put(player.playerId(), value(scores, player)));
         Map<Integer, LineupSlot> standing = NightlyLineups.standing(
@@ -192,7 +193,10 @@ public class LeagueSummaryCalculator {
             List<Ranked> ranked = new ArrayList<>();
             for (ScoredPlayer player : held) {
                 LineupSlot slot = standing.get(player.playerId());
-                if (BENCH.equals(key) ? slot == null : slot != null && slot.column().equals(key)) {
+                boolean here = BENCH.equals(key)
+                        ? slot == null && counted.contains(player.playerId())
+                        : slot != null && slot.column().equals(key);
+                if (here) {
                     ranked.add(new Ranked(
                             player.playerId(),
                             player.name(),

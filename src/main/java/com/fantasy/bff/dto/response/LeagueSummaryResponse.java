@@ -101,7 +101,8 @@ public record LeagueSummaryResponse(
             List<RosterRow> roster,
             @Schema(description = "The team's best lineup per position key: who holds each slot, "
                     + "one slot apiece (a dual-position player where the lineup is best with him), and "
-                    + "under `BN` everyone it leaves out.")
+                    + "under `BN` the rest of the players the team counts, as many as its bench holds; "
+                    + "a player it does not count is in none.")
             Map<String, List<Contributor>> positionPlayers) {
     }
 

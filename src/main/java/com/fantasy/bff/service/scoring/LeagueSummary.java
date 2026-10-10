@@ -29,7 +29,8 @@ public record LeagueSummary(
      *     position cells, since a lineup slot is what starting decides
      * @param roster the team's players, best first by what their lineup starts them for
      * @param positionPlayers the team's best lineup: who holds each slot, one slot apiece, and who
-     *     sits on the bench, each with what he counts for the team
+     *     sits on the bench, each with what he counts for the team; a player it does not count is
+     *     in no slot
      */
     public record Team(
             String teamId,
