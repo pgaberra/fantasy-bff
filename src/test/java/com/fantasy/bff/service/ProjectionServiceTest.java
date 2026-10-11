@@ -361,13 +361,52 @@ class ProjectionServiceTest {
         givenAReconcilerThatAddsToAnUnsquaredModelBoard(lacked);
         when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
 
-        List<com.fantasy.bff.dto.response.PlayerProjection> board = projectionService.modelBoard();
+        List<com.fantasy.bff.dto.response.PlayerProjection> board = projectionService.presetBoard(ProjectionSource.MODEL);
         projectionService.create(USER_ID, request(emptyData(), ProjectionSource.MODEL));
 
         assertThat(board).containsExactlyElementsOf(
                 capturedPlayers().stream().map(com.fantasy.bff.dto.response.PlayerProjection::from).toList());
         assertThat(board).extracting(com.fantasy.bff.dto.response.PlayerProjection::playerId)
                 .containsExactly(4242, 9);
+    }
+
+    /** The same promise for the rest of the season: the preview is the rows Create writes. */
+    @Test
+    void theRestOfSeasonBoard_isExactlyTheRowsARestOfSeasonProjectionIsWrittenWith() {
+        PlayerProjection rest = new PlayerProjection().playerId(4242).type(PlayerProjection.TypeEnum.SKATER)
+                .stats(new PlayerStats().utility(Map.of("gp", 80.0)).scoring(Map.of("goals", 44.9)));
+        when(seedService.inSeason(SEASON))
+                .thenReturn(Optional.of(new ProjectionSeedService.Seed(List.of(rest), "marcel-v115", 1, 0, 0, 0, 0)));
+        PlayerProjection lacked = new PlayerProjection().playerId(9).type(PlayerProjection.TypeEnum.GOALIE)
+                .stats(new PlayerStats().utility(Map.of("gp", 60.0)).scoring(Map.of("w", 38.0)));
+        givenAReconcilerThatAddsToAnUnsquaredModelBoard(lacked);
+        when(databaseServiceClient.createProjection(eq(USER_ID), any())).thenReturn(created());
+
+        List<com.fantasy.bff.dto.response.PlayerProjection> board =
+                projectionService.presetBoard(ProjectionSource.REST_OF_SEASON);
+        projectionService.create(USER_ID, request(emptyData(), ProjectionSource.REST_OF_SEASON));
+
+        assertThat(board).containsExactlyElementsOf(
+                capturedPlayers().stream().map(com.fantasy.bff.dto.response.PlayerProjection::from).toList());
+        assertThat(board).extracting(com.fantasy.bff.dto.response.PlayerProjection::playerId)
+                .containsExactly(4242, 9);
+        verify(seedService, never()).seed(anyInt(), any());
+    }
+
+    @Test
+    void theRestOfSeasonBoard_withNoSeasonUnderWay_isRefused() {
+        when(seedService.inSeason(SEASON)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectionService.presetBoard(ProjectionSource.REST_OF_SEASON))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no season is under way");
+    }
+
+    @Test
+    void onlyTheModelSeededSources_haveABoardToPreview() {
+        assertThatThrownBy(() -> projectionService.presetBoard(ProjectionSource.DEFAULT))
+                .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(seedService);
     }
 
     /**
@@ -396,7 +435,9 @@ class ProjectionServiceTest {
         when(reconciler.reconcile(any())).thenAnswer(invocation -> {
             ProjectionData data = invocation.getArgument(0);
             ProjectionSettings settings = data.getProjectionSettings();
-            if (settings.getPlayerBasis() != PlayerBasisEnum.MODEL || settings.getPlayerPoolSyncedAt() != null) {
+            boolean modelBasis = settings.getPlayerBasis() == PlayerBasisEnum.MODEL
+                    || settings.getPlayerBasis() == PlayerBasisEnum.REST_OF_SEASON;
+            if (!modelBasis || settings.getPlayerPoolSyncedAt() != null) {
                 return Optional.empty();
             }
             data.setPlayers(Stream.concat(data.getPlayers().stream(), Stream.of(lacked)).toList());

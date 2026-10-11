@@ -3,6 +3,7 @@ package com.fantasy.bff.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
@@ -17,12 +18,15 @@ import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.request.GameRange;
 import com.fantasy.bff.dto.response.SkaterResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
+import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonSkater;
 import com.fantasy.bff.generated.projection.model.SkaterProjectionResponse;
 import com.fantasy.bff.generated.projection.model.SkaterSplitResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonResponse;
 import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.security.JwtTokenValidator;
 import com.fantasy.bff.service.EntitlementService;
+import com.fantasy.bff.service.ProjectionSeedCache;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
@@ -55,11 +59,14 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
     @MockitoBean private EspnServiceClient espnServiceClient;
     /** A subscriber: what premium gates is pinned in PremiumAiProjectionTest and PremiumGameRangeTest. */
     @MockitoBean private EntitlementService entitlementService;
+    /** Cleared per test: a board built under one test's stubs must not answer the next. */
+    @Autowired private ProjectionSeedCache seedCache;
 
     private String token;
 
     @BeforeEach
     void setUp() {
+        seedCache.clear();
         when(entitlementService.hasPremiumAccess(any())).thenReturn(true);
         token = jwtTokenValidator.generateToken("user-1", "test@example.com");
 
@@ -137,6 +144,78 @@ class ProjectionModelControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.available").value(false));
+    }
+
+    /**
+     * The new-projection page previews the rest-of-season starting point from these endpoints, so
+     * they serve the in-season lines the projection it creates is written from: the served line,
+     * under the platform's id, with the version the nightly run stamped on it.
+     */
+    @Test
+    @DisplayName("the rest of the season's board and seed are the model's in-season lines")
+    void restOfSeasonBoardAndSeed_serveTheInSeasonLines() throws Exception {
+        withOneInSeasonSkater();
+
+        mockMvc.perform(get("/api/v1/projection-model/board?source=rest_of_season")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players[0].playerId").value(5000))
+                .andExpect(jsonPath("$.players[0].stats.scoring.points").value(135.1))
+                .andExpect(jsonPath("$.players[0].stats.utility.gp").value(82.0));
+
+        mockMvc.perform(get("/api/v1/projection-model/seed?source=rest_of_season&skaterLimit=1")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players[0].playerId").value(5000))
+                .andExpect(jsonPath("$.players[0].stats.scoring.points").value(135.1))
+                .andExpect(jsonPath("$.modelVersion").value("marcel-v115"));
+        // The season line was never asked for: these are the in-season lines and nothing else.
+        verify(projectionServiceClient, never()).skaterProjections(anyInt(), anyString());
+    }
+
+    @Test
+    @DisplayName("the rest of the season's board and seed are refused while no season is under way")
+    void restOfSeasonBoardAndSeed_beforeTheSeason_areRefused() throws Exception {
+        when(projectionServiceClient.restOfSeasonSkaters(anyInt())).thenReturn(List.of());
+        when(projectionServiceClient.restOfSeasonGoalies(anyInt())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/projection-model/board?source=rest_of_season")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("no season is under way")));
+        mockMvc.perform(get("/api/v1/projection-model/seed?source=rest_of_season")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("a source that is neither of the model's two is refused")
+    void boardWithAnUnknownSource_isRefused() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/board?source=default")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/projection-model/seed?source=blank")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+        verify(projectionServiceClient, never()).restOfSeasonSkaters(anyInt());
+        verify(projectionServiceClient, never()).skaterProjections(anyInt(), anyString());
+    }
+
+    /** One served in-season line for the skater the pool knows, with no goalies. */
+    private void withOneInSeasonSkater() {
+        RestOfSeasonSkaterResponse rest = new RestOfSeasonSkaterResponse()
+                .nhlId(8478402)
+                .modelVersion("marcel-v115")
+                .gamesPlayed(BigDecimal.valueOf(77.7))
+                .gamesRemaining(80)
+                .goals(BigDecimal.valueOf(39.3))
+                .points(BigDecimal.valueOf(120.9))
+                .served(new ServedRestOfSeasonSkater()
+                        .gamesPlayed(BigDecimal.valueOf(82))
+                        .goals(BigDecimal.valueOf(44.9))
+                        .points(BigDecimal.valueOf(135.1)));
+        when(projectionServiceClient.restOfSeasonSkaters(anyInt())).thenReturn(List.of(rest));
+        when(projectionServiceClient.restOfSeasonGoalies(anyInt())).thenReturn(List.of());
     }
 
     @Test

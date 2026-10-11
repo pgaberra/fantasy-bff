@@ -1,6 +1,7 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.request.GameRange;
+import com.fantasy.bff.dto.request.ProjectionSource;
 import com.fantasy.bff.dto.response.ModelBoardResponse;
 import com.fantasy.bff.dto.response.PlayerSplitResponse;
 import com.fantasy.bff.dto.response.RestOfSeasonStatusResponse;
@@ -15,6 +16,7 @@ import com.fantasy.bff.service.ProjectionSeedService;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -109,12 +111,15 @@ public class ProjectionModelController {
                             + "drawing a preview rather than seeding a projection. They trim the "
                             + "rows and nothing else: the counts still report everything the model "
                             + "reached, so a five-row preview can still say how much of the league "
-                            + "that is.")
+                            + "that is. `source=rest_of_season` serves the model's line for what is "
+                            + "left of the season under way instead - the lines "
+                            + "`POST /api/v1/projections` with that source writes - on the same "
+                            + "terms; it is refused while no season is under way.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Generated lines plus a summary of what was skipped"),
-        @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500"),
+        @ApiResponse(responseCode = "400", description = "A limit is not between 1 and 500, source is not one of the two, or the rest of the season was asked for while no season is under way"),
         @ApiResponse(responseCode = "403", description = "More than the free preview needs premium and this account has none"),
-        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
+        @ApiResponse(responseCode = "404", description = "The AI projection, or for source=rest_of_season the rest-of-season preset, is switched off")
     })
     @GetMapping("/seed")
     public SeededProjectionResponse seed(
@@ -122,6 +127,12 @@ public class ProjectionModelController {
             @Parameter(description = "Season to project; defaults to the configured one")
                     @RequestParam(required = false)
                     Integer season,
+            @Parameter(
+                            description = "Which of the model's lines: the whole season (`model`, the "
+                                    + "default) or what is left of the one under way (`rest_of_season`)",
+                            schema = @Schema(allowableValues = {"model", "rest_of_season"}, defaultValue = "model"))
+                    @RequestParam(required = false)
+                    String source,
             @Parameter(description = "How many skater lines to return; all of them when absent")
                     @RequestParam(required = false)
                     @Min(1)
@@ -134,9 +145,7 @@ public class ProjectionModelController {
                     Integer goalieLimit) {
         // These are the model's own lines, which is the whole of what the AI projection is. The
         // splits below are not: they are measured totals behind Who's hot, and stay up either way.
-        if (!aiProjection.available()) {
-            throw new NoSuchElementException("The AI projection is not enabled");
-        }
+        ProjectionSource lines = servedSource(source);
         // Every row here is the model talking, which is the thing premium pays for — all of it
         // except the top few, which the new-projection page draws as a preview for everyone. A
         // starting point nobody may look at is a hard thing to want.
@@ -145,8 +154,12 @@ public class ProjectionModelController {
                     "The AI projection is part of premium. Subscribe to see the model's lines.");
         }
         int target = season == null ? defaultSeason : season;
-        ProjectionSeedService.Seed seed =
-                seedService.seed(target, defaultModelVersion, skaterLimit, goalieLimit);
+        ProjectionSeedService.Seed seed = lines == ProjectionSource.REST_OF_SEASON
+                ? seedService.inSeason(target, skaterLimit, goalieLimit)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "source=rest_of_season is unavailable: no season is under way, so "
+                                        + "the model has no rest of one"))
+                : seedService.seed(target, defaultModelVersion, skaterLimit, goalieLimit);
         return new SeededProjectionResponse(
                 seed.players(),
                 target,
@@ -163,26 +176,57 @@ public class ProjectionModelController {
             operationId = "modelBoard",
             summary = "The rows a projection created from the model would start with",
             description =
-                    "Exactly the rows `POST /api/v1/projections` with `source=model` writes, without "
-                            + "writing anything: the model's lines, plus last season's line for every "
-                            + "player in the pool the model does not reach. For previewing the AI "
-                            + "starting point, so the preview ranks the board it creates and not a "
-                            + "slice of it. Needs a premium subscription.")
+                    "Exactly the rows `POST /api/v1/projections` with `source=model` (or, with "
+                            + "`source=rest_of_season`, that source) writes, without writing anything: "
+                            + "the model's lines, plus last season's line for every player in the "
+                            + "pool the model does not reach. For previewing the AI starting points, "
+                            + "so the preview ranks the board it creates and not a slice of it. Needs "
+                            + "a premium subscription.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Every row the new projection would hold"),
+        @ApiResponse(responseCode = "400", description = "source is not one of the two, or the rest of the season was asked for while no season is under way"),
         @ApiResponse(responseCode = "403", description = "This account has no premium"),
-        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
+        @ApiResponse(responseCode = "404", description = "The AI projection, or for source=rest_of_season the rest-of-season preset, is switched off")
     })
     @GetMapping("/board")
-    public ModelBoardResponse board(@AuthenticationPrincipal String userId) {
-        if (!aiProjection.available()) {
-            throw new NoSuchElementException("The AI projection is not enabled");
-        }
+    public ModelBoardResponse board(
+            @AuthenticationPrincipal String userId,
+            @Parameter(
+                            description = "Which starting point: the whole season (`model`, the default) "
+                                    + "or what is left of the one under way (`rest_of_season`)",
+                            schema = @Schema(allowableValues = {"model", "rest_of_season"}, defaultValue = "model"))
+                    @RequestParam(required = false)
+                    String source) {
+        ProjectionSource lines = servedSource(source);
         if (!entitlementService.hasPremiumAccess(userId)) {
             throw new PremiumRequiredException(
                     "The AI projection is part of premium. Subscribe to see the model's lines.");
         }
-        return new ModelBoardResponse(projectionService.modelBoard());
+        return new ModelBoardResponse(projectionService.presetBoard(lines));
+    }
+
+    /**
+     * The model-seeded source a {@code source} query names, once this environment is known to
+     * serve it: a 404 otherwise, before anything is asked of the projection service, as
+     * {@code POST /api/v1/projections} refuses the same sources. Absent means the whole season.
+     *
+     * <p>A string rather than the enum, because Spring binds a query parameter to an enum by its
+     * Java name and the API spells these as the JSON names the create request takes.
+     */
+    private ProjectionSource servedSource(String source) {
+        ProjectionSource lines = switch (source == null ? "model" : source) {
+            case "model" -> ProjectionSource.MODEL;
+            case "rest_of_season" -> ProjectionSource.REST_OF_SEASON;
+            default -> throw new IllegalArgumentException(
+                    "source must be model or rest_of_season, not '" + source + "'");
+        };
+        if (!aiProjection.available()) {
+            throw new NoSuchElementException("The AI projection is not enabled");
+        }
+        if (lines == ProjectionSource.REST_OF_SEASON && !restOfSeasonPreset.available()) {
+            throw new NoSuchElementException("The rest-of-season preset is not enabled");
+        }
+        return lines;
     }
 
     @Operation(

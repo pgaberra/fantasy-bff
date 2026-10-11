@@ -194,6 +194,40 @@ class ProjectionSeedServiceTest {
         assertThat(goalieStats.getScoring()).containsEntry("w", 28.0).containsEntry("gs", 50.0);
     }
 
+    /** The limits trim the in-season board as they trim the season line: rows only, out of one cache entry. */
+    @Test
+    @DisplayName("serves only the top of the in-season board when asked to, counting the whole of it")
+    void trimsTheInSeasonBoardToTheLimits() {
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(
+                nhlPlayer(8478402, "Connor McDavid", "EDM", 97),
+                nhlPlayer(8477934, "Leon Draisaitl", "EDM", 29),
+                nhlPlayer(8479973, "Stuart Skinner", "EDM", 74)));
+        when(playerPool.getSkaters()).thenReturn(List.of(
+                platformSkater(5000, "Connor McDavid", "EDM"),
+                platformSkater(5001, "Leon Draisaitl", "EDM")));
+        when(playerPool.getGoalies()).thenReturn(List.of(platformGoalie(6000, "Stuart Skinner", "EDM")));
+        when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of(
+                new RestOfSeasonSkaterResponse().nhlId(8478402).gamesRemaining(80)
+                        .served(new ServedRestOfSeasonSkater().points(BigDecimal.valueOf(135.1))),
+                new RestOfSeasonSkaterResponse().nhlId(8477934).gamesRemaining(80)
+                        .served(new ServedRestOfSeasonSkater().points(BigDecimal.valueOf(110.2)))));
+        when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of(
+                new RestOfSeasonGoalieResponse().nhlId(8479973)
+                        .served(new ServedRestOfSeasonGoalie()
+                                .gamesStarted(BigDecimal.valueOf(50))
+                                .wins(BigDecimal.valueOf(28))
+                                .savePct(BigDecimal.valueOf(0.909)))));
+
+        ProjectionSeedService.Seed top = service.inSeason(2026, 1, 1).orElseThrow();
+
+        assertThat(top.players()).extracting(PlayerProjection::getPlayerId).containsExactly(5000, 6000);
+        assertThat(top.skatersSeeded()).isEqualTo(2);
+        assertThat(top.goaliesSeeded()).isEqualTo(1);
+        // One cache entry: the trimmed read did not ask projection-service again.
+        assertThat(service.inSeason(2026).orElseThrow().players()).hasSize(3);
+        verify(projectionServiceClient, times(1)).restOfSeasonSkaters(2026);
+    }
+
     /** A row the nightly run wrote before the served line existed is read as its expectation. */
     @Test
     @DisplayName("reads a row with no served line yet as its rest of the season's expectation")

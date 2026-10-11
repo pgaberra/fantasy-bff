@@ -254,17 +254,26 @@ public class ProjectionService {
     }
 
     /**
-     * The rows a projection created with {@code source=model} is written with, without writing
-     * one: the model's lines, squared with the pool exactly as {@link #create} squares them. What
-     * the new-projection page ranks to preview the AI starting point, so its top rows are the top
-     * rows of the board it creates; the two share {@link #fillFrom} and {@link #squareWithPool}
-     * so they cannot come apart. Availability and premium are the caller's to check.
+     * The rows a projection created with {@code source=model} or {@code source=rest_of_season} is
+     * written with, without writing one: the model's lines, squared with the pool exactly as
+     * {@link #create} squares them. What the new-projection page ranks to preview the AI starting
+     * points, so its top rows are the top rows of the board it creates; the two share
+     * {@link #fillFrom} and {@link #squareWithPool} so they cannot come apart. Availability and
+     * premium are the caller's to check; the rest of the season while no season is under way is
+     * refused here, as {@link #create} refuses it.
+     *
+     * @throws IllegalArgumentException for a source the model does not seed, or the rest of a
+     *     season that is not under way
      */
-    public List<com.fantasy.bff.dto.response.PlayerProjection> modelBoard() {
+    public List<com.fantasy.bff.dto.response.PlayerProjection> presetBoard(ProjectionSource source) {
+        if (!isModel(source)) {
+            throw new IllegalArgumentException(
+                    "only source=model and source=rest_of_season have a board to preview");
+        }
         ProjectionData data = new ProjectionData()
                 .projectionSettings(new ProjectionSettings())
                 .players(new ArrayList<>());
-        fillFrom(ProjectionSource.MODEL, data);
+        fillFrom(source, data);
         squareWithPool(data);
         return data.getPlayers().stream()
                 .map(com.fantasy.bff.dto.response.PlayerProjection::from)

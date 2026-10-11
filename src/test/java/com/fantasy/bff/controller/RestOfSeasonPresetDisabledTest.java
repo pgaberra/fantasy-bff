@@ -36,6 +36,18 @@ class RestOfSeasonPresetDisabledTest extends BaseIntegrationTest {
         verifyNoInteractions(projectionServiceClient);
     }
 
+    /** Its preview is off with it, so the create page has nothing to draw under a card it does not show. */
+    @Test
+    void theBoardAndSeedAreNotServedAndProjectionServiceIsNotAsked() throws Exception {
+        String bearer = "Bearer " + jwtTokenValidator.generateToken("user-1", "a@example.com");
+        mockMvc.perform(get("/api/v1/projection-model/board?source=rest_of_season").header("Authorization", bearer))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/projection-model/seed?source=rest_of_season&skaterLimit=5")
+                        .header("Authorization", bearer))
+                .andExpect(status().isNotFound());
+        verifyNoInteractions(projectionServiceClient);
+    }
+
     @Test
     void theFeatureIsReportedOff() throws Exception {
         mockMvc.perform(get("/api/v1/features"))

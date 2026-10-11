@@ -117,6 +117,28 @@ public class ProjectionSeedService {
      * the season line.
      */
     public Optional<Seed> inSeason(int season) {
+        return inSeason(season, null, null);
+    }
+
+    /**
+     * {@link #inSeason(int)}, optionally only the top of it, trimmed exactly as
+     * {@link #seed(int, String, Integer, Integer)} trims the season line: the rows and nothing
+     * else, out of the one cached board the projection it seeds is written from.
+     */
+    public Optional<Seed> inSeason(int season, Integer skaterLimit, Integer goalieLimit) {
+        return wholeInSeason(season).map(whole -> skaterLimit == null && goalieLimit == null
+                ? whole
+                : new Seed(
+                        topOf(whole.players(), skaterLimit, goalieLimit),
+                        whole.modelVersion(),
+                        whole.skatersSeeded(),
+                        whole.goaliesSeeded(),
+                        whole.unmapped(),
+                        whole.withoutWorkload(),
+                        whole.retiredZeroed()));
+    }
+
+    private Optional<Seed> wholeInSeason(int season) {
         Optional<Seed> cached = cache.get(season, IN_SEASON);
         if (cached.isPresent()) {
             return cached;
