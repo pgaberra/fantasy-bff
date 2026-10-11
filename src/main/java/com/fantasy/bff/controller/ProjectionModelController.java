@@ -231,21 +231,25 @@ public class ProjectionModelController {
 
     @Operation(
             operationId = "restOfSeasonStatus",
-            summary = "Whether the rest of the season can seed a draft right now",
+            summary = "Whether a season is under way for the model right now",
             description =
-                    "Whether `POST /api/v1/projections` with `source=rest_of_season` would be "
-                            + "seeded now: only while a season is under way, when the model has a "
-                            + "line for what is left of it. Says nothing about this account's plan — "
-                            + "the rest of the season needs premium like the AI projection, and a "
-                            + "client shows it locked rather than hiding it.")
+                    "Whether the model has a rest of the season at the moment: true from a season's "
+                            + "first game to its last, when its served lines cover what is left of it "
+                            + "rather than a whole season, and `POST /api/v1/projections` with "
+                            + "`source=rest_of_season` would be seeded (where that preset is on, "
+                            + "which `/api/v1/features` says). Served wherever the AI projection is, "
+                            + "so a page can know before it shows a choice whether the model ranks "
+                            + "the rest of the season. Says nothing about this account's plan — the "
+                            + "rest of the season needs premium like the AI projection, and a client "
+                            + "shows it locked rather than hiding it.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Whether the rest of the season is there to seed from"),
-        @ApiResponse(responseCode = "404", description = "The rest-of-season preset or the AI projection is switched off")
+        @ApiResponse(responseCode = "200", description = "Whether the rest of the season is there"),
+        @ApiResponse(responseCode = "404", description = "The AI projection is switched off")
     })
     @GetMapping("/rest-of-season/status")
     public RestOfSeasonStatusResponse restOfSeasonStatus() {
-        if (!restOfSeasonPreset.available()) {
-            throw new NoSuchElementException("The rest-of-season preset is not enabled");
+        if (!aiProjection.available()) {
+            throw new NoSuchElementException("The AI projection is not enabled");
         }
         return new RestOfSeasonStatusResponse(projectionService.restOfSeasonAvailable());
     }
