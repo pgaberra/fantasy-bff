@@ -16,9 +16,9 @@ public record FeaturesResponse(
         boolean whosHotAvailableFilter,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether a draft may be started from the rest of the season "
-                        + "(source=rest_of_season). False means it is refused and its status "
-                        + "endpoint answers 404, so a client should not offer it. True still offers "
-                        + "it only while a season is under way, which the status endpoint says.")
+                        + "(source=rest_of_season). False means it is refused, so a client should "
+                        + "not offer it. True still offers it only while a season is under way, "
+                        + "which `/projection-model/rest-of-season/status` says.")
         boolean restOfSeasonPreset,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Whether this environment serves the FA scout. False means its "
