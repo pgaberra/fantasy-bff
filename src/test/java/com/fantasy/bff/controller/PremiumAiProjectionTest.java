@@ -63,7 +63,8 @@ import org.springframework.test.web.servlet.MockMvc;
         properties = {
             "payments.provider=mock",
             "payments.mock.webhook-secret=test-mock-secret",
-            "services.projection.player-mapping-ttl-ms=0"
+            "services.projection.player-mapping-ttl-ms=0",
+            "rest-of-season-preset.enabled=true"
         })
 class PremiumAiProjectionTest extends BaseIntegrationTest {
 
@@ -238,6 +239,23 @@ class PremiumAiProjectionTest extends BaseIntegrationTest {
         withoutASubscription();
 
         mockMvc.perform(get("/api/v1/projection-model/board").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
+        verifyNoInteractions(projectionServiceClient);
+    }
+
+    /** The rest of the season is the model's lines too: its whole board is refused on the same terms. */
+    @Test
+    @DisplayName("the rest of the season's board is refused to an account without premium")
+    void restOfSeasonBoard_withoutPremium_isForbidden() throws Exception {
+        withoutASubscription();
+
+        mockMvc.perform(get("/api/v1/projection-model/board?source=rest_of_season")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
+        mockMvc.perform(get("/api/v1/projection-model/seed?source=rest_of_season")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("PREMIUM_REQUIRED"));
         verifyNoInteractions(projectionServiceClient);

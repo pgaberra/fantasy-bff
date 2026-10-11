@@ -7,7 +7,7 @@ import java.util.List;
  * The rows a projection created from the model starts with, before it is created: the model's
  * lines, plus last season's line for every player in the pool the model does not reach.
  */
-@Schema(description = "The rows a projection created with source=model would be written with")
+@Schema(description = "The rows a projection created with source=model or source=rest_of_season would be written with")
 public record ModelBoardResponse(
         @Schema(
                         requiredMode = Schema.RequiredMode.REQUIRED,
