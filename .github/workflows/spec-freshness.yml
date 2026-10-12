@@ -40,7 +40,7 @@ jobs:
             pinned_path: specs/fantasy-espn-service-openapi.yaml
             remedy: ./gradlew generateEspnClient and fix any compile errors
           - service: projection-service
-            producer: pgaberra/fantasy-projection-service
+            producer: slapstat/fantasy-projection-service
             producer_path: specs/openapi.json
             pinned_path: specs/fantasy-projection-service-openapi.json
             remedy: ./gradlew generateProjectionClient and fix any compile errors
@@ -76,11 +76,10 @@ jobs:
           FILE=.github/workflows/promote-to-prod.yml
           drift=0
           for repo in fantasy-web fantasy-db-service fantasy-espn-service fantasy-yahoo-service fantasy-projection-service; do
-            token="$PUBLIC_TOKEN"; owner=slapstat
-            # projection-service is still under the user account; it moves to slapstat last.
-            if [ "$repo" = fantasy-projection-service ]; then token="$PRIVATE_TOKEN"; owner=pgaberra; fi
+            token="$PUBLIC_TOKEN"
+            if [ "$repo" = fantasy-projection-service ]; then token="$PRIVATE_TOKEN"; fi
             if ! curl -fsSL -H "Authorization: Bearer $token" -H "Accept: application/vnd.github.raw" \
-                "https://api.github.com/repos/$owner/$repo/contents/$FILE" -o theirs.yml; then
+                "https://api.github.com/repos/slapstat/$repo/contents/$FILE" -o theirs.yml; then
               echo "::error::could not read $FILE from $repo (for projection-service, check SPEC_READ_TOKEN has not expired)"
               drift=1
               continue
