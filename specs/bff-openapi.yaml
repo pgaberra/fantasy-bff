@@ -1833,23 +1833,26 @@ paths:
     get:
       tags:
       - Projection model
-      summary: Whether the rest of the season can seed a draft right now
-      description: "Whether `POST /api/v1/projections` with `source=rest_of_season`\
-        \ would be seeded now: only while a season is under way, when the model has\
-        \ a line for what is left of it. Says nothing about this account's plan —\
-        \ the rest of the season needs premium like the AI projection, and a client\
-        \ shows it locked rather than hiding it."
+      summary: Whether a season is under way for the model right now
+      description: "Whether the model has a rest of the season at the moment: true\
+        \ from a season's first game to its last, when its served lines cover what\
+        \ is left of it rather than a whole season, and `POST /api/v1/projections`\
+        \ with `source=rest_of_season` would be seeded (where that preset is on, which\
+        \ `/api/v1/features` says). Served wherever the AI projection is, so a page\
+        \ can know before it shows a choice whether the model ranks the rest of the\
+        \ season. Says nothing about this account's plan — the rest of the season\
+        \ needs premium like the AI projection, and a client shows it locked rather\
+        \ than hiding it."
       operationId: restOfSeasonStatus
       responses:
         "200":
-          description: Whether the rest of the season is there to seed from
+          description: Whether the rest of the season is there
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RestOfSeasonStatusResponse"
         "404":
-          description: The rest-of-season preset or the AI projection is switched
-            off
+          description: The AI projection is switched off
           content:
             application/json:
               schema:
@@ -5488,9 +5491,9 @@ components:
         restOfSeasonPreset:
           type: boolean
           description: "Whether a draft may be started from the rest of the season\
-            \ (source=rest_of_season). False means it is refused and its status endpoint\
-            \ answers 404, so a client should not offer it. True still offers it only\
-            \ while a season is under way, which the status endpoint says."
+            \ (source=rest_of_season). False means it is refused, so a client should\
+            \ not offer it. True still offers it only while a season is under way,\
+            \ which `/projection-model/rest-of-season/status` says."
         faScout:
           type: boolean
           description: "Whether this environment serves the FA scout. False means\

@@ -69,6 +69,14 @@ class AiProjectionDisabledTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("nor whether a season is under way for it")
+    void restOfSeasonStatus_isNotFound() throws Exception {
+        mockMvc.perform(get("/api/v1/projection-model/rest-of-season/status")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("and the environment reports the AI projection as unavailable")
     void features_reportItUnavailable() throws Exception {
         mockMvc.perform(get("/api/v1/features"))
