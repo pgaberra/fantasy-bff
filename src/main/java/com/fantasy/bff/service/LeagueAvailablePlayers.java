@@ -1,6 +1,7 @@
 package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.EspnServiceClient;
+import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.PlayerAvailability;
 import com.fantasy.bff.dto.response.SkaterPosition;
@@ -40,14 +41,17 @@ public class LeagueAvailablePlayers {
 
     private final YahooServiceClient yahooServiceClient;
     private final EspnServiceClient espnServiceClient;
+    private final PlayerServiceClient playerServiceClient;
     private final NhlIdentityJoin identityJoin;
 
     public LeagueAvailablePlayers(
             YahooServiceClient yahooServiceClient,
             EspnServiceClient espnServiceClient,
+            PlayerServiceClient playerServiceClient,
             NhlIdentityJoin identityJoin) {
         this.yahooServiceClient = yahooServiceClient;
         this.espnServiceClient = espnServiceClient;
+        this.playerServiceClient = playerServiceClient;
         this.identityJoin = identityJoin;
     }
 
@@ -59,7 +63,8 @@ public class LeagueAvailablePlayers {
             List<String> positions,
             boolean goalie,
             Integer sweaterNumber,
-            PlayerAvailability availability) {
+            PlayerAvailability availability,
+            Double percentRostered) {
 
         public boolean playsDefence() {
             return positions != null
@@ -93,9 +98,37 @@ public class LeagueAvailablePlayers {
 
     /** The league's available players, read from the platform and joined on identity. */
     public Wire read(String userId, PlayerIdSpace platform, String leagueId) {
-        List<Available> available = platform == PlayerIdSpace.YAHOO
+        return wire(platform == PlayerIdSpace.YAHOO
                 ? yahooAvailable(userId, leagueId)
-                : espnAvailable(userId, leagueId);
+                : espnAvailable(userId, leagueId));
+    }
+
+    /**
+     * The whole Yahoo pool read as if it were one league's wire: every player Yahoo rosters in at
+     * most {@code maxPercentRostered} of its leagues. The admins' demo stands this in for a league
+     * it does not have. A player with no percentage is left out, since unknown is not low, and
+     * nobody is a free agent or on waivers without a league, so every one is UNKNOWN.
+     */
+    public Wire readPool(double maxPercentRostered) {
+        List<Available> available = new ArrayList<>();
+        for (PlayerServiceClient.RosteredPlayer player : playerServiceClient.getRosteredPlayers()) {
+            Double percent = player.percentRostered();
+            if (percent != null && percent <= maxPercentRostered) {
+                available.add(new Available(
+                        player.yahooId(),
+                        player.name(),
+                        player.teamAbbrev(),
+                        player.eligiblePositions(),
+                        player.goalie(),
+                        player.sweaterNumber(),
+                        PlayerAvailability.UNKNOWN,
+                        percent));
+            }
+        }
+        return wire(available);
+    }
+
+    private Wire wire(List<Available> available) {
         Map<String, Available> byPlayerId = new LinkedHashMap<>();
         available.forEach(player -> byPlayerId.put(player.playerId(), player));
         return new Wire(available, Collections.unmodifiableMap(byPlayerId), join(available));
@@ -174,7 +207,8 @@ public class LeagueAvailablePlayers {
                     player.getEligiblePositions(),
                     Boolean.TRUE.equals(player.getGoalie()),
                     player.getUniformNumber(),
-                    availability(player.getAvailability().getValue())));
+                    availability(player.getAvailability().getValue()),
+                    null));
         }
         return available;
     }
@@ -191,7 +225,8 @@ public class LeagueAvailablePlayers {
                     player.getEligiblePositions(),
                     Boolean.TRUE.equals(player.getGoalie()),
                     player.getUniformNumber(),
-                    availability(player.getAvailability().getValue())));
+                    availability(player.getAvailability().getValue()),
+                    null));
         }
         return available;
     }

@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -80,6 +81,36 @@ public class HttpPlayerServiceClient implements PlayerServiceClient {
                 .retrieve()
                 .body(GOALIE_LIST);
         return response == null ? List.of() : response.stream().map(HttpPlayerServiceClient::toGoalie).toList();
+    }
+
+    @Override
+    public List<RosteredPlayer> getRosteredPlayers() {
+        List<RosteredPlayer> players = new ArrayList<>();
+        List<com.fantasy.bff.generated.yahoo.model.SkaterResponse> skaters = restClient.get()
+                .uri(b -> limited(b.path("/api/v1/players/skaters"), null))
+                .retrieve()
+                .body(SKATER_LIST);
+        if (skaters != null) {
+            skaters.forEach(s -> players.add(new RosteredPlayer(
+                    String.valueOf(s.getId()), fullName(s.getFirstName(), s.getLastName()),
+                    s.getTeamAbbrev(), s.getEligiblePositions(), false, s.getSweaterNumber(),
+                    s.getPercentRostered())));
+        }
+        List<com.fantasy.bff.generated.yahoo.model.GoalieResponse> goalies = restClient.get()
+                .uri(b -> limited(b.path("/api/v1/players/goalies"), null))
+                .retrieve()
+                .body(GOALIE_LIST);
+        if (goalies != null) {
+            goalies.forEach(g -> players.add(new RosteredPlayer(
+                    String.valueOf(g.getId()), fullName(g.getFirstName(), g.getLastName()),
+                    g.getTeamAbbrev(), g.getEligiblePositions(), true, g.getSweaterNumber(),
+                    g.getPercentRostered())));
+        }
+        return players;
+    }
+
+    private static String fullName(String firstName, String lastName) {
+        return ((firstName == null ? "" : firstName) + " " + (lastName == null ? "" : lastName)).trim();
     }
 
     /**

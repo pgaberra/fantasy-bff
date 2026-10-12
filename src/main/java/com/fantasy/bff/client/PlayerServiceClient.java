@@ -29,6 +29,22 @@ public interface PlayerServiceClient {
         return getGoalies(null);
     }
 
+    /**
+     * A pool player with Yahoo's percent rostered: the share of all Yahoo leagues that roster him,
+     * 0-100, or null when Yahoo gave none.
+     */
+    record RosteredPlayer(
+            String yahooId,
+            String name,
+            String teamAbbrev,
+            List<String> eligiblePositions,
+            boolean goalie,
+            Integer sweaterNumber,
+            Double percentRostered) {}
+
+    /** Every skater and goalie in the pool, with his percent rostered. */
+    List<RosteredPlayer> getRosteredPlayers();
+
     /** The player's headshot thumbnail as PNG bytes, empty when none is stored for them. */
     Optional<byte[]> getHeadshot(int playerId);
 

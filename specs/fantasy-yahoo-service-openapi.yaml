@@ -1349,6 +1349,12 @@ components:
         totalFaceoffLosses:
           type: integer
           format: int32
+        percentRostered:
+          type: number
+          format: double
+          description: "Share of all Yahoo leagues that roster the player, 0-100,\
+            \ as of the last sync. Yahoo's own number, the same whichever league it\
+            \ is read through; null when Yahoo gave none"
       required:
       - eligiblePositions
       - firstName
@@ -1412,6 +1418,12 @@ components:
         savePctg:
           type: number
           format: double
+        percentRostered:
+          type: number
+          format: double
+          description: "Share of all Yahoo leagues that roster the player, 0-100,\
+            \ as of the last sync. Yahoo's own number, the same whichever league it\
+            \ is read through; null when Yahoo gave none"
       required:
       - eligiblePositions
       - firstName
