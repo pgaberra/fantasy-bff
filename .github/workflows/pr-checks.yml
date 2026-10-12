@@ -67,7 +67,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           bash .github/scripts/check-pinned-spec.sh \
-            pgaberra/fantasy-projection-service specs/openapi.json specs/fantasy-projection-service-openapi.json \
+            slapstat/fantasy-projection-service specs/openapi.json specs/fantasy-projection-service-openapi.json \
             './gradlew generateProjectionClient and fix any compile errors'
 
       - name: Set up JDK
