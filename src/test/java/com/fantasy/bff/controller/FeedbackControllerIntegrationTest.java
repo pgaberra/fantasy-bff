@@ -57,7 +57,7 @@ class FeedbackControllerIntegrationTest extends BaseIntegrationTest {
         when(databaseServiceClient.findUserById(USER_ID))
                 .thenReturn(new User(USER_ID.toString(), "manager@example.com", "alex", "hash", 0, true));
         when(gitHubIssueClient.createIssue(anyString(), anyString(), any()))
-                .thenReturn(new GitHubIssue(3, "https://github.com/pgaberra/slapstat-feedback/issues/3"));
+                .thenReturn(new GitHubIssue(3, "https://github.com/slapstat/slapstat-feedback/issues/3"));
 
         mockMvc.perform(post("/api/v1/feedback")
                         .header("Authorization", "Bearer " + token())
@@ -68,7 +68,7 @@ class FeedbackControllerIntegrationTest extends BaseIntegrationTest {
         verify(gitHubIssueClient).createIssue(
                 eq("Board freezes"), contains("manager@example.com"), eq(List.of("bug")));
         verify(notificationEmailSender).send(
-                FeedbackType.BUG, "Board freezes", "https://github.com/pgaberra/slapstat-feedback/issues/3");
+                FeedbackType.BUG, "Board freezes", "https://github.com/slapstat/slapstat-feedback/issues/3");
     }
 
     @Test

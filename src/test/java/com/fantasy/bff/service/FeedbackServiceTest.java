@@ -33,7 +33,7 @@ class FeedbackServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final GitHubIssue ISSUE =
-            new GitHubIssue(7, "https://github.com/pgaberra/slapstat-feedback/issues/7");
+            new GitHubIssue(7, "https://github.com/slapstat/slapstat-feedback/issues/7");
     private static final User USER = new User(USER_ID.toString(), "manager@example.com", "alex", "hash", 0, true);
 
     @Mock private DatabaseServiceClient databaseServiceClient;
@@ -43,7 +43,7 @@ class FeedbackServiceTest {
     private FeedbackService service() {
         return new FeedbackService(
                 new FeedbackProperties(new FeedbackProperties.Github(
-                        "github_pat_test", "pgaberra/slapstat-feedback", "https://api.github.com", 5000), "info@slapstat.com"),
+                        "github_pat_test", "slapstat/slapstat-feedback", "https://api.github.com", 5000), "info@slapstat.com"),
                 databaseServiceClient, gitHubIssueClient, notificationEmailSender);
     }
 

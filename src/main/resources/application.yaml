@@ -203,7 +203,7 @@ feedback:
     # A fine-grained token with Issues: read and write on the feedback repository and nothing
     # else. Secret and required: a missing or blank token stops startup.
     token: ${FEEDBACK_GITHUB_TOKEN}
-    repository: ${FEEDBACK_GITHUB_REPOSITORY:pgaberra/slapstat-feedback}
+    repository: ${FEEDBACK_GITHUB_REPOSITORY:slapstat/slapstat-feedback}
     api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
     timeout-ms: 10000
   # Mailed a link to each issue as it is filed: GitHub does not notify the token's owner of an issue

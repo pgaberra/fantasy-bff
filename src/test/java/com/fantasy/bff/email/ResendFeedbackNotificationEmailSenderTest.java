@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 @ExtendWith(OutputCaptureExtension.class)
 class ResendFeedbackNotificationEmailSenderTest {
 
-    private static final String ISSUE = "https://github.com/pgaberra/slapstat-feedback/issues/7";
+    private static final String ISSUE = "https://github.com/slapstat/slapstat-feedback/issues/7";
 
     private WireMockServer server;
 
@@ -44,7 +44,7 @@ class ResendFeedbackNotificationEmailSenderTest {
                 new EmailProperties("SlapStat <no-reply@slapstat.com>",
                         new EmailProperties.Resend(apiKey, server.baseUrl(), 5000), logLinks),
                 new FeedbackProperties(new FeedbackProperties.Github(
-                        "github_pat_test", "pgaberra/slapstat-feedback", "https://api.github.com", 5000),
+                        "github_pat_test", "slapstat/slapstat-feedback", "https://api.github.com", 5000),
                         "info@slapstat.com"));
     }
 
