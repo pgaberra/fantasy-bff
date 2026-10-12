@@ -25,17 +25,17 @@ jobs:
       matrix:
         include:
           - service: db-service
-            producer: pgaberra/fantasy-db-service
+            producer: slapstat/fantasy-db-service
             producer_path: specs/openapi.yaml
             pinned_path: specs/fantasy-db-service-openapi.yaml
             remedy: ./gradlew openApiGenerate and fix any compile errors
           - service: yahoo-service
-            producer: pgaberra/fantasy-yahoo-service
+            producer: slapstat/fantasy-yahoo-service
             producer_path: specs/openapi.yaml
             pinned_path: specs/fantasy-yahoo-service-openapi.yaml
             remedy: ./gradlew generateYahooClient and fix any compile errors
           - service: espn-service
-            producer: pgaberra/fantasy-espn-service
+            producer: slapstat/fantasy-espn-service
             producer_path: specs/openapi.yaml
             pinned_path: specs/fantasy-espn-service-openapi.yaml
             remedy: ./gradlew generateEspnClient and fix any compile errors
@@ -76,10 +76,11 @@ jobs:
           FILE=.github/workflows/promote-to-prod.yml
           drift=0
           for repo in fantasy-web fantasy-db-service fantasy-espn-service fantasy-yahoo-service fantasy-projection-service; do
-            token="$PUBLIC_TOKEN"
-            if [ "$repo" = fantasy-projection-service ]; then token="$PRIVATE_TOKEN"; fi
+            token="$PUBLIC_TOKEN"; owner=slapstat
+            # projection-service is still under the user account; it moves to slapstat last.
+            if [ "$repo" = fantasy-projection-service ]; then token="$PRIVATE_TOKEN"; owner=pgaberra; fi
             if ! curl -fsSL -H "Authorization: Bearer $token" -H "Accept: application/vnd.github.raw" \
-                "https://api.github.com/repos/pgaberra/$repo/contents/$FILE" -o theirs.yml; then
+                "https://api.github.com/repos/$owner/$repo/contents/$FILE" -o theirs.yml; then
               echo "::error::could not read $FILE from $repo (for projection-service, check SPEC_READ_TOKEN has not expired)"
               drift=1
               continue

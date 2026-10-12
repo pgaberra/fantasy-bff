@@ -34,7 +34,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           bash .github/scripts/check-pinned-spec.sh \
-            pgaberra/fantasy-db-service specs/openapi.yaml specs/fantasy-db-service-openapi.yaml \
+            slapstat/fantasy-db-service specs/openapi.yaml specs/fantasy-db-service-openapi.yaml \
             './gradlew openApiGenerate and fix any compile errors'
 
       - name: Verify pinned yahoo-service spec is in sync
@@ -45,7 +45,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           bash .github/scripts/check-pinned-spec.sh \
-            pgaberra/fantasy-yahoo-service specs/openapi.yaml specs/fantasy-yahoo-service-openapi.yaml \
+            slapstat/fantasy-yahoo-service specs/openapi.yaml specs/fantasy-yahoo-service-openapi.yaml \
             './gradlew generateYahooClient and fix any compile errors'
 
       - name: Verify pinned espn-service spec is in sync
@@ -56,7 +56,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           bash .github/scripts/check-pinned-spec.sh \
-            pgaberra/fantasy-espn-service specs/openapi.yaml specs/fantasy-espn-service-openapi.yaml \
+            slapstat/fantasy-espn-service specs/openapi.yaml specs/fantasy-espn-service-openapi.yaml \
             './gradlew generateEspnClient and fix any compile errors'
 
       - name: Verify pinned projection-service spec is in sync
