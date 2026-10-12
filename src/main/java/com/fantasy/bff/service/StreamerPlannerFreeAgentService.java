@@ -59,11 +59,30 @@ public class StreamerPlannerFreeAgentService {
             String userId, PlayerIdSpace platform, String leagueId, LocalDate start, LocalDate end) {
         StreamerPlannerService.requireStretch(start, end);
         LeagueAvailablePlayers.Wire wire = leagueAvailablePlayers.read(userId, platform, leagueId);
-        List<Available> available = wire.players();
-        PlayerIdMapping mapping = wire.mapping();
         RangeProjectionsResponse projections =
                 projectionServiceClient.rangeProjections(start, end, PROJECTION_LIMIT);
+        List<FreeAgentResponse> rows = rows(wire, projections);
+        logUnranked(platform, wire.players(), rows, wire.mapping(), projections);
+        return response(start, end, projections, rows, wire);
+    }
 
+    /**
+     * The admins' demo: the same list with no league behind it, every pool player Yahoo rosters in
+     * at most {@code maxPercentRostered} of its leagues standing in for a league's wire.
+     *
+     * <p>Unranked players go unlogged here: under any useful threshold most of the pool is
+     * minor-leaguers the model does not project, and naming them all every request is noise.
+     */
+    public FreeAgentListResponse poolFreeAgents(LocalDate start, LocalDate end, double maxPercentRostered) {
+        StreamerPlannerService.requireStretch(start, end);
+        LeagueAvailablePlayers.Wire wire = leagueAvailablePlayers.readPool(maxPercentRostered);
+        RangeProjectionsResponse projections =
+                projectionServiceClient.rangeProjections(start, end, PROJECTION_LIMIT);
+        return response(start, end, projections, rows(wire, projections), wire);
+    }
+
+    private static List<FreeAgentResponse> rows(
+            LeagueAvailablePlayers.Wire wire, RangeProjectionsResponse projections) {
         List<FreeAgentResponse> rows = new ArrayList<>();
         for (RangeSkaterResponse skater : projections.getSkaters()) {
             Available player = wire.matched(skater.getNhlId());
@@ -79,9 +98,17 @@ public class StreamerPlannerFreeAgentService {
                         goalieStats(goalie)));
             }
         }
+        return rows;
+    }
+
+    private static FreeAgentListResponse response(
+            LocalDate start,
+            LocalDate end,
+            RangeProjectionsResponse projections,
+            List<FreeAgentResponse> rows,
+            LeagueAvailablePlayers.Wire wire) {
         // A default order, not a ranking: expected games first, since a player who does not play
         // cannot help whatever the league scores. The client re-sorts once it has scored them.
-        logUnranked(platform, available, rows, mapping, projections);
         rows.sort(Comparator.comparingDouble(FreeAgentResponse::expectedGames).reversed()
                 .thenComparing(FreeAgentResponse::name));
 
@@ -217,7 +244,8 @@ public class StreamerPlannerFreeAgentService {
                 player.availability(),
                 clubGames == null ? 0 : clubGames,
                 number(expectedGames),
-                stats);
+                stats,
+                player.percentRostered());
     }
 
     static Map<String, Double> skaterStats(RangeSkaterResponse line, boolean playsDefence) {

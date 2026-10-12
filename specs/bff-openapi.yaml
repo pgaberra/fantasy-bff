@@ -8,10 +8,10 @@ servers:
 security:
 - bearerAuth: []
 tags:
-- name: Shared projections
-  description: "Public, read-only projections (no sign-in required)"
 - name: Streamer planner
   description: Team schedules rated for streaming
+- name: Shared projections
+  description: "Public, read-only projections (no sign-in required)"
 - name: FA scout
   description: Available players worth keeping for the rest of the season
 - name: Projection shares
@@ -2591,6 +2591,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectionResponse"
+  /api/v1/admin/streamer-planner/free-agents:
+    get:
+      tags:
+      - Streamer planner
+      summary: "Admin demo: the Yahoo pool under a percent rostered, with the model's\
+        \ line for the stretch"
+      description: "The same list as a league's free agents, read without a league:\
+        \ every pool player Yahoo rosters in at most `maxPercentRostered` percent\
+        \ of its leagues. A player Yahoo gives no percentage for is left out, and\
+        \ availability is UNKNOWN for all, since nobody is on waivers without a league."
+      operationId: streamerPlannerPoolFreeAgents
+      parameters:
+      - name: start
+        in: query
+        description: "First date, e.g. 2026-10-12"
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: end
+        in: query
+        description: "Last date, inclusive"
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: maxPercentRostered
+        in: query
+        description: "Highest Yahoo percent rostered to include, 0-100"
+        required: true
+        schema:
+          type: number
+          format: double
+          maximum: 100.0
+          minimum: 0.0
+      responses:
+        "200":
+          description: Pool players under the threshold
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeAgentListResponse"
+        "400":
+          description: "`end` is before `start`, the stretch is too long, or the threshold\
+            \ is outside 0-100"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeAgentListResponse"
+        "403":
+          description: The caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeAgentListResponse"
   /api/v1/admin/premium/customers:
     get:
       tags:
@@ -4550,6 +4605,12 @@ components:
           description: "The model's projected totals over those games, in the projection's\
             \ own stat vocabulary. Rates (toiPerGame, shPct, svPct, gaa) are the season's\
             \ own and do not scale with the stretch."
+        percentRostered:
+          type: number
+          format: double
+          description: "Share of all Yahoo leagues that roster him, 0-100, as of Yahoo's\
+            \ last daily sync. Set only on the admins' pool list, which is filtered\
+            \ by it; null on a league's free agents."
       required:
       - availability
       - clubGames
