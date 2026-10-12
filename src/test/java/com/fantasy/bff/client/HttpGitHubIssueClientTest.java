@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HttpGitHubIssueClientTest {
 
-    private static final String ISSUES = "/repos/pgaberra/slapstat-feedback/issues";
+    private static final String ISSUES = "/repos/slapstat/slapstat-feedback/issues";
 
     private WireMockServer server;
     private HttpGitHubIssueClient client;
@@ -33,7 +33,7 @@ class HttpGitHubIssueClientTest {
         server = new WireMockServer(WireMockConfigs.http11());
         server.start();
         client = new HttpGitHubIssueClient(new FeedbackProperties(new FeedbackProperties.Github(
-                "github_pat_test", "pgaberra/slapstat-feedback", server.baseUrl(), 5000), "info@slapstat.com"));
+                "github_pat_test", "slapstat/slapstat-feedback", server.baseUrl(), 5000), "info@slapstat.com"));
     }
 
     @AfterEach
@@ -44,11 +44,11 @@ class HttpGitHubIssueClientTest {
     @Test
     void opensTheIssueInTheConfiguredRepository_andReturnsItsNumberAndLink() {
         server.stubFor(post(urlPathEqualTo(ISSUES))
-                .willReturn(okJson("{\"number\": 42, \"html_url\": \"https://github.com/pgaberra/slapstat-feedback/issues/42\", \"state\": \"open\"}")));
+                .willReturn(okJson("{\"number\": 42, \"html_url\": \"https://github.com/slapstat/slapstat-feedback/issues/42\", \"state\": \"open\"}")));
 
         GitHubIssue issue = client.createIssue("Draft board freezes", "the body", List.of("bug"));
 
-        assertThat(issue).isEqualTo(new GitHubIssue(42, "https://github.com/pgaberra/slapstat-feedback/issues/42"));
+        assertThat(issue).isEqualTo(new GitHubIssue(42, "https://github.com/slapstat/slapstat-feedback/issues/42"));
         server.verify(postRequestedFor(urlPathEqualTo(ISSUES))
                 .withHeader("Authorization", equalTo("Bearer github_pat_test"))
                 .withHeader("X-GitHub-Api-Version", equalTo("2022-11-28"))
