@@ -13,6 +13,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -90,6 +91,17 @@ public class HttpEspnServiceClient implements EspnServiceClient {
         return restClient.get()
                 .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/rosters")
                         .queryParam("appUserId", appUserId).build(leagueId))
+                .retrieve()
+                .body(LeagueRostersResponse.class);
+    }
+
+    @Override
+    public LeagueRostersResponse rosters(String appUserId, String leagueId, LocalDate date) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/espn/leagues/{leagueId}/rosters")
+                        .queryParam("appUserId", appUserId)
+                        .queryParam("date", date.toString())
+                        .build(leagueId))
                 .retrieve()
                 .body(LeagueRostersResponse.class);
     }

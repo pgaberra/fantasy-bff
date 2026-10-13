@@ -11,6 +11,7 @@ import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
 import org.springframework.core.ParameterizedTypeReference;
 
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -128,6 +129,19 @@ public class HttpYahooServiceClient implements YahooServiceClient {
         return restClient.get()
                 .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/rosters")
                         .queryParam("appUserId", appUserId).build(leagueKey))
+                .retrieve()
+                .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
+                        HttpYahooServiceClient::throwRefusal)
+                .body(LeagueRostersResponse.class);
+    }
+
+    @Override
+    public LeagueRostersResponse rosters(String appUserId, String leagueKey, LocalDate date) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/yahoo/leagues/{leagueKey}/rosters")
+                        .queryParam("appUserId", appUserId)
+                        .queryParam("date", date.toString())
+                        .build(leagueKey))
                 .retrieve()
                 .onStatus(status -> status.value() == HttpStatus.FORBIDDEN.value(),
                         HttpYahooServiceClient::throwRefusal)

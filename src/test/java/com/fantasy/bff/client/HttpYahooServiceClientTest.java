@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import java.time.LocalDate;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -78,6 +79,22 @@ class HttpYahooServiceClientTest {
         assertThat(rosters.getTeams().getFirst().getTeamKey()).isEqualTo("465.l.1.t.1");
         assertThat(rosters.getTeams().getFirst().getPlayers().getFirst().getPlayerId()).isEqualTo(6743);
         assertThat(rosters.getTeams().getFirst().getPlayers().getFirst().getSelectedPosition()).isEqualTo("IR+");
+    }
+
+    @Test
+    void rosters_forADate_asksForTheRostersAsSetThatDay() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/yahoo/leagues/465.l.1/rosters"))
+                .withQueryParam("appUserId", equalTo("user-1"))
+                .withQueryParam("date", equalTo("2026-10-14"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"leagueKey":"465.l.1","teams":[{"teamKey":"465.l.1.t.1","name":"Alpha","mine":true,
+                                 "players":[{"playerKey":"465.p.6743","playerId":6743,"selectedPosition":"BN"}]}]}""")));
+
+        var rosters = client.rosters("user-1", "465.l.1", LocalDate.of(2026, 10, 14));
+
+        assertThat(rosters.getTeams().getFirst().getPlayers().getFirst().getSelectedPosition()).isEqualTo("BN");
     }
 
     @Test

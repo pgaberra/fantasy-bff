@@ -12,7 +12,8 @@ public record PlannerMyTeamResponse(
                 boolean found,
         @Schema(description = "The team's name; absent when not found") String teamName,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
-                description = "Its players today, bench and injured reserve included; empty when "
+                description = "Its players today, or on the day asked for, bench and injured "
+                        + "reserve included; empty when "
                         + "not found or before the draft")
                 List<PlannerRosterPlayer> players,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,

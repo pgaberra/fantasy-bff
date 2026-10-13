@@ -8,6 +8,7 @@ import com.fantasy.bff.generated.espn.model.PlayerStatsResponse;
 import com.fantasy.bff.generated.espn.model.PlayerSyncStatusResponse;
 import com.fantasy.bff.generated.espn.model.SyncAcceptedResponse;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface EspnServiceClient {
@@ -22,6 +23,12 @@ public interface EspnServiceClient {
 
     /** A league's teams for the current season, each with the ESPN ids of the players it holds today. */
     LeagueRostersResponse rosters(String appUserId, String leagueId);
+
+    /**
+     * A league's teams with their rosters as set for {@code date}: each player's lineup slot is the
+     * one he holds that day, which for a day ahead is what the manager has set for it.
+     */
+    LeagueRostersResponse rosters(String appUserId, String leagueId, LocalDate date);
 
     /** Cached ESPN season stat lines for the stats Yahoo does not report. Not user-specific. */
     PlayerStatsResponse playerStats();

@@ -3,6 +3,7 @@ package com.fantasy.bff.service;
 import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.dto.response.PlannerRosterPlayer;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -47,11 +48,22 @@ public class LeagueOwnTeam {
     public record Rostered(PlannerRosterPlayer player, Integer sweaterNumber, List<String> reserveEligible) {}
 
     public Team read(String userId, PlayerIdSpace platform, String leagueId) {
-        return platform == PlayerIdSpace.YAHOO ? yahoo(userId, leagueId) : espn(userId, leagueId);
+        return read(userId, platform, leagueId, null);
     }
 
-    private Team yahoo(String userId, String leagueKey) {
-        var rosters = yahooServiceClient.rosters(userId, leagueKey);
+    /**
+     * The user's team as set for {@code date}: the players it holds and the slot each sits in that
+     * day, which for a day ahead is the lineup the manager has set for it. Null is today, as
+     * {@link #read(String, PlayerIdSpace, String)}.
+     */
+    public Team read(String userId, PlayerIdSpace platform, String leagueId, LocalDate date) {
+        return platform == PlayerIdSpace.YAHOO ? yahoo(userId, leagueId, date) : espn(userId, leagueId, date);
+    }
+
+    private Team yahoo(String userId, String leagueKey, LocalDate date) {
+        var rosters = date == null
+                ? yahooServiceClient.rosters(userId, leagueKey)
+                : yahooServiceClient.rosters(userId, leagueKey, date);
         var mine = rosters == null ? null : rosters.getTeams().stream()
                 .filter(team -> Boolean.TRUE.equals(team.getMine()))
                 .findFirst()
@@ -75,8 +87,10 @@ public class LeagueOwnTeam {
         return new Team(true, mine.getName(), players);
     }
 
-    private Team espn(String userId, String leagueId) {
-        var rosters = espnServiceClient.rosters(userId, leagueId);
+    private Team espn(String userId, String leagueId, LocalDate date) {
+        var rosters = date == null
+                ? espnServiceClient.rosters(userId, leagueId)
+                : espnServiceClient.rosters(userId, leagueId, date);
         var mine = rosters == null ? null : rosters.getTeams().stream()
                 .filter(team -> Boolean.TRUE.equals(team.getMine()))
                 .findFirst()
