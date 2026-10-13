@@ -7,6 +7,7 @@ import com.fantasy.bff.dto.response.FreeAgentListResponse;
 import com.fantasy.bff.dto.response.FreeAgentResponse;
 import com.fantasy.bff.dto.response.PlannerCrease;
 import com.fantasy.bff.generated.projection.model.RangeGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RangeNight;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RangeSkaterResponse;
 import com.fantasy.bff.service.LeagueAvailablePlayers.Available;
@@ -159,9 +160,14 @@ public class StreamerPlannerFreeAgentService {
         return player != null && player.goalie() ? player.playerId() : null;
     }
 
-    private static List<CreaseNight> nights(RangeGoalieResponse goalie) {
+    /** A goalie's nights in the stretch, each with his share and whether his club named him. */
+    static List<CreaseNight> nights(RangeGoalieResponse goalie) {
         return goalie.getNights().stream()
-                .map(night -> new CreaseNight(night.getGameDate(), number(night.getShare())))
+                .map(night -> {
+                    RangeNight.StarterEnum starter = night.getStarter();
+                    return new CreaseNight(
+                            night.getGameDate(), number(night.getShare()), starter == null ? null : starter.getValue());
+                })
                 .toList();
     }
 

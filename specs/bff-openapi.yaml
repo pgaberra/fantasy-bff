@@ -4490,6 +4490,30 @@ components:
       - skaterRank
       - skaterScore
       - team
+    CreaseNight:
+      type: object
+      description: A goalie's chance of starting one of his club's games
+      properties:
+        date:
+          type: string
+          format: date
+        share:
+          type: number
+          format: double
+          description: "His share of the crease that night, 0 to 1; nought while he\
+            \ is out. A club's goalies' shares of a night add up to its one start."
+        starter:
+          type: string
+          description: "Set on the night Daily Faceoff's starting goalies page names\
+            \ him the club's starter, and how sure it is: confirmed (his share is\
+            \ the whole night) or likely. Absent on every other night, his club's\
+            \ other goalies' included."
+          enum:
+          - confirmed
+          - likely
+      required:
+      - date
+      - share
     PlannerMyTeamResponse:
       type: object
       description: The user's own team in the chosen league
@@ -4543,9 +4567,16 @@ components:
           description: "The model's projected totals over those games, in the vocabulary\
             \ a free agent's line uses. Rates (toiPerGame, shPct, svPct, gaa) are\
             \ the season's own and do not scale with the stretch."
+        nights:
+          type: array
+          description: "A goalie's chance of starting each of his club's games in\
+            \ the stretch, and the nights his club has named him; empty for a skater"
+          items:
+            $ref: "#/components/schemas/CreaseNight"
       required:
       - clubGames
       - expectedGames
+      - nights
       - playerId
       - stats
     PlannerRosterPlayer:
@@ -4607,21 +4638,6 @@ components:
             $ref: "#/components/schemas/CreaseNight"
       required:
       - nights
-    CreaseNight:
-      type: object
-      description: A goalie's chance of starting one of his club's games
-      properties:
-        date:
-          type: string
-          format: date
-        share:
-          type: number
-          format: double
-          description: "His share of the crease that night, 0 to 1; nought while he\
-            \ is out. A club's goalies' shares of a night add up to its one start."
-      required:
-      - date
-      - share
     FreeAgentListResponse:
       type: object
       description: "The players a league has available over a stretch, best projected\

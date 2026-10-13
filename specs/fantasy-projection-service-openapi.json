@@ -819,11 +819,27 @@
           "share": {
             "title": "Share",
             "type": "number"
+          },
+          "starter": {
+            "anyOf": [
+              {
+                "enum": [
+                  "confirmed",
+                  "likely"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starter"
           }
         },
         "required": [
           "game_date",
-          "share"
+          "share",
+          "starter"
         ],
         "title": "RangeNight",
         "type": "object"

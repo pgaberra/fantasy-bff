@@ -19,6 +19,7 @@ import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RangeGoalieResponse;
+import com.fantasy.bff.generated.projection.model.RangeNight;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RangeSkaterResponse;
 import com.fantasy.bff.generated.yahoo.model.LeagueRosterPlayer;
@@ -217,6 +218,11 @@ class StreamerPlannerMyTeamTest extends BaseIntegrationTest {
         goalie.setExpectedGames(new BigDecimal("2.1"));
         goalie.setWins(new BigDecimal("1.1"));
         goalie.setSavePct(new BigDecimal("0.908"));
+        RangeNight tuesday = new RangeNight();
+        tuesday.setGameDate(MONDAY.plusDays(1));
+        tuesday.setShare(new BigDecimal("0.85"));
+        tuesday.setStarter(RangeNight.StarterEnum.LIKELY);
+        goalie.setNights(List.of(tuesday));
         RangeProjectionsResponse projections = new RangeProjectionsResponse();
         projections.setSeason(2026);
         projections.setModelVersion("marcel-v16");
@@ -240,7 +246,11 @@ class StreamerPlannerMyTeamTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.lines[0].stats.stp").value(2.2))
                 .andExpect(jsonPath("$.lines[1].playerId").value("5555"))
                 .andExpect(jsonPath("$.lines[1].stats.gs").value(2.1))
-                .andExpect(jsonPath("$.lines[1].stats.svPct").value(0.908));
+                .andExpect(jsonPath("$.lines[1].stats.svPct").value(0.908))
+                // A goalie goes out with his nights, the one his club has named him on marked.
+                .andExpect(jsonPath("$.lines[0].nights.length()").value(0))
+                .andExpect(jsonPath("$.lines[1].nights[0].share").value(0.85))
+                .andExpect(jsonPath("$.lines[1].nights[0].starter").value("likely"));
     }
 
     @Test
