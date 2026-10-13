@@ -1,6 +1,8 @@
 package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.PlannerMyTeamResponse;
+import com.fantasy.bff.dto.response.ScoutMyTeamResponse;
+import com.fantasy.bff.service.FaScoutService;
 import com.fantasy.bff.service.PlayerIdSpace;
 import com.fantasy.bff.service.StartBenchAvailability;
 import com.fantasy.bff.service.StreamerPlannerMyTeamService;
@@ -36,10 +38,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class StartBenchController {
 
     private final StreamerPlannerMyTeamService myTeamService;
+    private final FaScoutService scoutService;
     private final StartBenchAvailability availability;
 
-    public StartBenchController(StreamerPlannerMyTeamService myTeamService, StartBenchAvailability availability) {
+    public StartBenchController(
+            StreamerPlannerMyTeamService myTeamService,
+            FaScoutService scoutService,
+            StartBenchAvailability availability) {
         this.myTeamService = myTeamService;
+        this.scoutService = scoutService;
         this.availability = availability;
     }
 
@@ -67,5 +74,26 @@ public class StartBenchController {
                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         availability.require();
         return myTeamService.onDate(userId, platform, leagueId, date);
+    }
+
+    @Operation(
+            operationId = "startBenchRestOfSeason",
+            summary = "The user's own team in a league, with the model's rest of the season",
+            description = "Each player on the user's team today with the model's rest of the season, "
+                    + "the line FA Scout ranks a team by. Start/Bench ranks the team by it to name the "
+                    + "player to drop when a healthy player comes off injured reserve and the roster "
+                    + "has no open spot. Read live from the platform.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "The user's team, or found=false"),
+        @ApiResponse(responseCode = "404", description = "Start/Bench is off in this environment"),
+    })
+    @GetMapping("/rest-of-season")
+    public ScoutMyTeamResponse restOfSeason(
+            @AuthenticationPrincipal String userId,
+            @Parameter(description = "Which platform's league to read") @RequestParam PlayerIdSpace platform,
+            @Parameter(description = "The Yahoo league key or the ESPN league id")
+                    @RequestParam @NotBlank @Size(max = 64) String leagueId) {
+        availability.require();
+        return scoutService.restOfSeasonTeam(userId, platform, leagueId);
     }
 }

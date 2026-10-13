@@ -21,6 +21,8 @@ import com.fantasy.bff.client.YahooServiceClient;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RangeSkaterResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
+import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonSkater;
 import com.fantasy.bff.generated.yahoo.model.LeagueRosterPlayer;
 import com.fantasy.bff.generated.yahoo.model.LeagueRosterTeam;
 import com.fantasy.bff.generated.yahoo.model.LeagueRostersResponse;
@@ -175,6 +177,44 @@ class StartBenchTest extends BaseIntegrationTest {
                         .header("Authorization", bearer))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(yahooServiceClient, espnServiceClient);
+    }
+
+    /**
+     * The roster ranked by the rest of the season, what names the drop when a healthy player comes
+     * off injured reserve. Served under Start/Bench's own switch: FA Scout's is off here.
+     */
+    @Test
+    void readsTheTeamWithTheRestOfTheSeasonWithoutTheScoutsSwitch() throws Exception {
+        LeagueRosterPlayer mcdavid = yahooPlayer(6743, "Connor McDavid", "EDM", "C", "IR+");
+        mcdavid.setUniformNumber(97);
+        LeagueRosterTeam team = new LeagueRosterTeam();
+        team.setTeamKey("465.l.9.t.2");
+        team.setName("My Team");
+        team.setMine(true);
+        team.setPlayers(List.of(mcdavid));
+        LeagueRostersResponse rosters = new LeagueRostersResponse();
+        rosters.setLeagueKey("465.l.9");
+        rosters.setTeams(List.of(team));
+        when(yahooServiceClient.rosters("user-1", "465.l.9")).thenReturn(rosters);
+        RestOfSeasonSkaterResponse row = new RestOfSeasonSkaterResponse();
+        row.setNhlId(8478402);
+        row.setTargetSeason(2026);
+        row.setModelVersion("marcel-v118");
+        row.setGamesRemaining(78);
+        ServedRestOfSeasonSkater served = new ServedRestOfSeasonSkater();
+        served.setGamesPlayed(new BigDecimal("70"));
+        served.setPoints(new BigDecimal("110"));
+        row.setServed(served);
+        when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of(row));
+        when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/start-bench/rest-of-season?platform=YAHOO&leagueId=465.l.9")
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.found").value(true))
+                .andExpect(jsonPath("$.players[0].playerId").value("6743"))
+                .andExpect(jsonPath("$.players[0].reserve").value(true))
+                .andExpect(jsonPath("$.players[0].restOfSeason.games").value(70));
     }
 
     @Test

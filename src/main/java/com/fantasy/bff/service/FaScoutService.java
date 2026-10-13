@@ -130,6 +130,15 @@ public class FaScoutService {
      */
     public ScoutMyTeamResponse myTeam(String userId, PlayerIdSpace platform, String leagueId) {
         availability.require();
+        return restOfSeasonTeam(userId, platform, leagueId);
+    }
+
+    /**
+     * The same read without the scout's own switch, for a page that ranks the user's players by
+     * the rest of the season under a switch of its own: Start/Bench, which names the player to drop
+     * when a healthy one comes off injured reserve. The caller enforces its own availability.
+     */
+    public ScoutMyTeamResponse restOfSeasonTeam(String userId, PlayerIdSpace platform, String leagueId) {
         LeagueOwnTeam.Team team = ownTeam.read(userId, platform, leagueId);
         if (!team.found()) {
             return new ScoutMyTeamResponse(false, null, List.of());

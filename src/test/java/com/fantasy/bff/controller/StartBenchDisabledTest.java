@@ -42,6 +42,15 @@ class StartBenchDisabledTest extends BaseIntegrationTest {
     }
 
     @Test
+    void theRestOfTheSeasonIsNotServedEither() throws Exception {
+        String bearer = "Bearer " + jwtTokenValidator.generateToken("user-1", "a@example.com");
+        mockMvc.perform(get("/api/v1/start-bench/rest-of-season?platform=YAHOO&leagueId=465.l.9")
+                        .header("Authorization", bearer))
+                .andExpect(status().isNotFound());
+        verifyNoInteractions(projectionServiceClient, yahooServiceClient, espnServiceClient);
+    }
+
+    @Test
     void theFeatureIsReportedOff() throws Exception {
         mockMvc.perform(get("/api/v1/features"))
                 .andExpect(status().isOk())
