@@ -282,7 +282,10 @@ are not committed; every build regenerates them.
     scoring period, through each service's rosters `date`), each player with the model's line for
     that day alone (`StreamerPlannerMyTeamService.onDate`, a one-day stretch). The date is required:
     the web sends its own hockey night rather than the server picking one. The web sets the best
-    lineup from it. Signed in, not premium. Behind `start-bench.enabled` (`START_BENCH_ENABLED`, off
+    lineup from it. `GET /rest-of-season?platform=&leagueId=` is FA Scout's own-team read
+    (`FaScoutService.restOfSeasonTeam`) under Start/Bench's switch, not the scout's: the web ranks
+    the roster by it to name the drop when a healthy player comes off injured reserve.
+    Signed in, not premium. Behind `start-bench.enabled` (`START_BENCH_ENABLED`, off
     by default) AND the AI projection (`StartBenchAvailability`): otherwise 404, and
     `GET /api/v1/features` reports `startBench` false.
   - `DraftAnalysisController` — `GET /api/v1/draft-analysis/yahoo/{leagueKey}`: a Yahoo league's
