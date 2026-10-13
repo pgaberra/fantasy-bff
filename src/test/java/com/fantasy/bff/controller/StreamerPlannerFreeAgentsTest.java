@@ -403,6 +403,26 @@ class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
     }
 
     @Test
+    void saysOnTheNightTheClubHasNamedItsStarterHowSureThePageIs() throws Exception {
+        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
+                .thenReturn(List.of(yahooPlayer("5555", "Spencer Knight", "Chi", "G", true,
+                        YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT)));
+        RangeGoalieResponse knight = creaseLine(8477970, "CHI", "1.0", "0.6");
+        knight.getNights().getFirst().setStarter(RangeNight.StarterEnum.CONFIRMED);
+        when(projectionServiceClient.rangeProjections(eq(MONDAY), eq(SUNDAY), anyInt()))
+                .thenReturn(projections(List.of(), List.of(knight, creaseLine(8482821, "CHI", "0.0", "0.4"))));
+
+        mockMvc.perform(get("/api/v1/streamer-planner/free-agents?platform=YAHOO&leagueId=465.l.9&" + WEEK)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.creases[0].goalies[0].nights[0].share").value(1.0))
+                .andExpect(jsonPath("$.creases[0].goalies[0].nights[0].starter").value("confirmed"))
+                // A night nobody has named, and the other goalie's night, say nothing.
+                .andExpect(jsonPath("$.creases[0].goalies[0].nights[1].starter").doesNotExist())
+                .andExpect(jsonPath("$.creases[0].goalies[1].nights[0].starter").doesNotExist());
+    }
+
+    @Test
     void sendsTheWholeCreaseOfEveryClubWithAGoalieListedTheRosteredOnesUnnamed() throws Exception {
         when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
                 .thenReturn(List.of(

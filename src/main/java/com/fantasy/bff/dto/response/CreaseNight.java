@@ -9,4 +9,10 @@ public record CreaseNight(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "His share of the crease that night, 0 to 1; nought while he is out. "
                         + "A club's goalies' shares of a night add up to its one start.")
-                double share) {}
+                double share,
+        @Schema(description = "Set on the night Daily Faceoff's starting goalies page names him the "
+                        + "club's starter, and how sure it is: confirmed (his share is the whole "
+                        + "night) or likely. Absent on every other night, his club's other goalies' "
+                        + "included.",
+                allowableValues = {"confirmed", "likely"})
+                String starter) {}

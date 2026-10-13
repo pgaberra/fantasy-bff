@@ -119,7 +119,8 @@ public class StreamerPlannerMyTeamService {
                             player.playerId(),
                             clubGames(line.getClubGames()),
                             StreamerPlannerFreeAgentService.number(line.getExpectedGames()),
-                            StreamerPlannerFreeAgentService.goalieStats(line)));
+                            StreamerPlannerFreeAgentService.goalieStats(line),
+                            StreamerPlannerFreeAgentService.nights(line)));
                 }
             } else {
                 RangeSkaterResponse line = skaters.get(nhlId);
@@ -128,7 +129,8 @@ public class StreamerPlannerMyTeamService {
                             player.playerId(),
                             clubGames(line.getClubGames()),
                             StreamerPlannerFreeAgentService.number(line.getExpectedGames()),
-                            StreamerPlannerFreeAgentService.skaterStats(line, playsDefence(player.positions()))));
+                            StreamerPlannerFreeAgentService.skaterStats(line, playsDefence(player.positions())),
+                            List.of()));
                 }
             }
         }

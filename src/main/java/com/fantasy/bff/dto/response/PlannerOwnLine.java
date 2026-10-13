@@ -1,6 +1,7 @@
 package com.fantasy.bff.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,4 +24,8 @@ public record PlannerOwnLine(
                 description = "The model's projected totals over those games, in the vocabulary a "
                         + "free agent's line uses. Rates (toiPerGame, shPct, svPct, gaa) are the "
                         + "season's own and do not scale with the stretch.")
-                Map<String, Double> stats) {}
+                Map<String, Double> stats,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "A goalie's chance of starting each of his club's games in the stretch, "
+                        + "and the nights his club has named him; empty for a skater")
+                List<CreaseNight> nights) {}
