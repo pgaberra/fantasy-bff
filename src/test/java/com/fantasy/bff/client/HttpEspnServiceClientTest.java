@@ -9,8 +9,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
+import java.time.LocalDate;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -63,5 +65,18 @@ class HttpEspnServiceClientTest {
 
         assertThat(status.getRunning()).isTrue();
         assertThat(status.getPlayers()).isEqualTo(1659);
+    }
+
+    @Test
+    void rosters_forADate_asksForTheRostersAsSetThatDay() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/espn/leagues/123/rosters"))
+                .withQueryParam("appUserId", equalTo("user-1"))
+                .withQueryParam("date", equalTo("2026-10-14"))
+                .willReturn(okJson("{\"leagueId\":\"123\",\"teams\":[{\"teamId\":2,\"mine\":true,"
+                        + "\"playerIds\":[3114727],\"players\":[{\"espnId\":3114727,\"lineupSlot\":\"BN\"}]}]}")));
+
+        var rosters = client.rosters("user-1", "123", LocalDate.of(2026, 10, 14));
+
+        assertThat(rosters.getTeams().getFirst().getPlayers().getFirst().getLineupSlot()).isEqualTo("BN");
     }
 }

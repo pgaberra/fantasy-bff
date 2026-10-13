@@ -59,7 +59,19 @@ public class StreamerPlannerMyTeamService {
         if (start != null) {
             StreamerPlannerService.requireStretch(start, end);
         }
-        LeagueOwnTeam.Team team = ownTeam.read(userId, platform, leagueId);
+        return withLines(ownTeam.read(userId, platform, leagueId), start, end);
+    }
+
+    /**
+     * The user's team as set for one day, each player with the model's line for that day alone: his
+     * one game, if his club plays, weighed by the chance he dresses (or starts, for a goalie). What
+     * Start/Bench sets the day's lineup from.
+     */
+    public PlannerMyTeamResponse onDate(String userId, PlayerIdSpace platform, String leagueId, LocalDate date) {
+        return withLines(ownTeam.read(userId, platform, leagueId, date), date, date);
+    }
+
+    private PlannerMyTeamResponse withLines(LeagueOwnTeam.Team team, LocalDate start, LocalDate end) {
         List<PlannerRosterPlayer> players =
                 team.players().stream().map(LeagueOwnTeam.Rostered::player).toList();
         List<PlannerOwnLine> lines = start == null || players.isEmpty()

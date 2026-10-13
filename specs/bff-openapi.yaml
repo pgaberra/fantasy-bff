@@ -29,6 +29,8 @@ tags:
     \ of games. Data © MoneyPuck.com, used under its non-commercial terms."
 - name: Leagues
   description: What a linked fantasy league holds
+- name: Start/Bench
+  description: "The user's lineup for a day, with the model's line for each player"
 - name: Authentication
   description: Register and login endpoints
 - name: Admin
@@ -1483,6 +1485,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FreeAgentListResponse"
+  /api/v1/start-bench/my-team:
+    get:
+      tags:
+      - Start/Bench
+      summary: The user's own team in a league as set for a day
+      description: "Read live from the platform: each player's club, the positions\
+        \ the league may start him at, the slot he holds that day (for a day ahead,\
+        \ what the manager has set for it) and whether he is out. Each player the\
+        \ model projects also carries its line for that day alone, on a free agent's\
+        \ scale: his one game, if his club plays, weighed by the chance he dresses,\
+        \ or starts for a goalie."
+      operationId: startBenchMyTeam
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: date
+        in: query
+        description: "The day, e.g. 2026-10-13"
+        required: true
+        schema:
+          type: string
+          format: date
+      responses:
+        "200":
+          description: "The team, or found=false when none is the user's"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
+        "400":
+          description: The date is missing or not a date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
+        "404":
+          description: Start/Bench is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerMyTeamResponse"
   /api/v1/shared/{token}:
     get:
       tags:
@@ -4404,8 +4462,8 @@ components:
           description: The team's name; absent when not found
         players:
           type: array
-          description: "Its players today, bench and injured reserve included; empty\
-            \ when not found or before the draft"
+          description: "Its players today, or on the day asked for, bench and injured\
+            \ reserve included; empty when not found or before the draft"
           items:
             $ref: "#/components/schemas/PlannerRosterPlayer"
         lines:
@@ -4474,8 +4532,9 @@ components:
             type: string
         slot:
           type: string
-          description: "The slot he sits in today, in the platform's spelling (C,\
-            \ Util, BN, IR, IR+, NA, ...); absent when the platform does not say"
+          description: "The slot he sits in today, or on the day asked for, in the\
+            \ platform's spelling (C, Util, BN, IR, IR+, NA, ...); absent when the\
+            \ platform does not say"
         injuryStatus:
           type: string
           description: "The platform's injury status (DTD, O, IR, DAY_TO_DAY, OUT,\
@@ -5568,12 +5627,18 @@ components:
           description: "Whether this environment serves Draft Analysis, a league's\
             \ draft graded against the model. False means its endpoint answers 404,\
             \ so a client should not offer it."
+        startBench:
+          type: boolean
+          description: "Whether this environment serves Start/Bench, the user's lineup\
+            \ for a day with the model's suggestion of who to start. False means its\
+            \ endpoint answers 404, so a client should not offer it."
       required:
       - aiProjection
       - draftAnalysis
       - faScout
       - restOfSeasonPreset
       - roleChanges
+      - startBench
       - whosHotAvailableFilter
     ScoutLine:
       type: object

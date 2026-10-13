@@ -23,7 +23,8 @@ public record PlannerRosterPlayer(
                 description = "Every position the league may start him at (C, LW, RW, D, G); empty "
                         + "when the platform does not say")
                 List<String> positions,
-        @Schema(description = "The slot he sits in today, in the platform's spelling (C, Util, BN, "
+        @Schema(description = "The slot he sits in today, or on the day asked for, in the "
+                + "platform's spelling (C, Util, BN, "
                 + "IR, IR+, NA, ...); absent when the platform does not say")
                 String slot,
         @Schema(description = "The platform's injury status (DTD, O, IR, DAY_TO_DAY, OUT, ...); absent "

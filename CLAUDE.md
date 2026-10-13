@@ -277,6 +277,14 @@ are not committed; every build regenerates them.
     last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
     Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
     (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
+  - `StartBenchController` — `GET /api/v1/start-bench/my-team?platform=&leagueId=&date=`: the
+    user's team as the platform has it **set for that day** (Yahoo's `roster;date=`, ESPN's daily
+    scoring period, through each service's rosters `date`), each player with the model's line for
+    that day alone (`StreamerPlannerMyTeamService.onDate`, a one-day stretch). The date is required:
+    the web sends its own hockey night rather than the server picking one. The web sets the best
+    lineup from it. Signed in, not premium. Behind `start-bench.enabled` (`START_BENCH_ENABLED`, off
+    by default) AND the AI projection (`StartBenchAvailability`): otherwise 404, and
+    `GET /api/v1/features` reports `startBench` false.
   - `DraftAnalysisController` — `GET /api/v1/draft-analysis/yahoo/{leagueKey}`: a Yahoo league's
     draft with **every pick graded against the model** (`DraftAnalysisService`, `scoring.DraftGrader`).
     Players are valued by the league's own scoring over the whole pool, as Team Power Rankings values

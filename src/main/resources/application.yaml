@@ -187,6 +187,13 @@ fa-scout:
 draft-analysis:
   enabled: ${DRAFT_ANALYSIS_ENABLED:false}
 
+# Start/Bench (/api/v1/start-bench/**): the user's lineup for a day with the model's line for each
+# player, so the client can suggest who to start. Off unless this says otherwise, since it is new;
+# off, its endpoint answers 404 and /api/v1/features reports startBench false. It also needs the AI
+# projection, whose lines it sets the lineup by. Not a premium feature.
+start-bench:
+  enabled: ${START_BENCH_ENABLED:false}
+
 # Who's hot narrowed to the players nobody in the user's linked league holds
 # (GET /api/v1/leagues/rostered-players). Off unless this says otherwise, since it is new; off, the
 # endpoint answers 404 and /api/v1/features reports whosHotAvailableFilter false. It also needs a

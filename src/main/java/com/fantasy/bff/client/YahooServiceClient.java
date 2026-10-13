@@ -8,6 +8,7 @@ import com.fantasy.bff.generated.yahoo.model.LeagueSettingsResponse;
 import com.fantasy.bff.generated.yahoo.model.LeaguesResponse;
 import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface YahooServiceClient {
@@ -31,6 +32,12 @@ public interface YahooServiceClient {
 
     /** Every team in the league with the players on its roster today. */
     LeagueRostersResponse rosters(String appUserId, String leagueKey);
+
+    /**
+     * Every team in the league with its roster as set for {@code date}: each player's slot is the
+     * one he holds that day, which for a day ahead is what the manager has set for it.
+     */
+    LeagueRostersResponse rosters(String appUserId, String leagueKey, LocalDate date);
 
     /**
      * The players a league has available at one position (C, LW, RW, D or G): free agents and
