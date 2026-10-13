@@ -225,7 +225,8 @@ paths:
       - ESPN Leagues
       summary: Get a league's teams and the players on each roster today
       description: "Read for the configured season only, never the one before: a league\
-        \ is ranked on what its teams hold now. Players are named by ESPN's own ids."
+        \ is ranked on what its teams hold now. Players are named by ESPN's own ids.\
+        \ With a date, each player's lineup slot is the one he holds that day."
       operationId: rosters
       parameters:
       - name: leagueId
@@ -242,6 +243,17 @@ paths:
           type: string
           maxLength: 128
           minLength: 0
+      - name: date
+        in: query
+        description: "Read each player's lineup slot as set for this day (YYYY-MM-DD,\
+          \ the US Eastern calendar day ESPN keeps its daily lineups by); for a day\
+          \ still to come, what the manager has set for it so far. Today's lineup\
+          \ when absent."
+        required: false
+        schema:
+          type: string
+          format: date
+        example: 2026-10-14
       responses:
         "200":
           description: Rosters returned
@@ -250,8 +262,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueRostersResponse"
         "400":
-          description: League is private (cookies missing/invalid) or the league id
-            is malformed
+          description: "League is private (cookies missing/invalid), the league id\
+            \ or date is malformed, or the date is outside the season"
           content:
             application/json:
               schema:
@@ -682,8 +694,9 @@ components:
             type: string
         lineupSlot:
           type: string
-          description: "The slot he sits in today (C, LW, RW, F, D, G, Util, BN, IR);\
-            \ absent when ESPN does not say"
+          description: "The slot he sits in on the day read, today unless a date was\
+            \ asked for (C, LW, RW, F, D, G, Util, BN, IR); absent when ESPN does\
+            \ not say"
           example: BN
         injuryStatus:
           type: string

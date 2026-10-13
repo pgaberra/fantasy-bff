@@ -268,7 +268,10 @@ paths:
       summary: List a league's teams with the players each holds now
       description: "Each team's current roster, after trades, drops and pickups, bench\
         \ and injured reserve included. Player ids are the ids the draft's picks and\
-        \ the player read model use."
+        \ the player read model use. With a date, each roster is the lineup as set\
+        \ for that day: Yahoo keeps one per day, so a player's selectedPosition is\
+        \ his slot on that date, and a future day shows what the manager has set for\
+        \ it so far. This is what a start/bench view of a chosen day reads."
       operationId: rosters
       parameters:
       - name: leagueKey
@@ -285,6 +288,14 @@ paths:
           type: string
           maxLength: 128
           minLength: 0
+      - name: date
+        in: query
+        description: "The day whose lineup to read, as YYYY-MM-DD; today's roster\
+          \ when absent"
+        required: false
+        schema:
+          type: string
+          format: date
       responses:
         "200":
           description: Rosters returned
@@ -293,7 +304,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueRostersResponse"
         "400":
-          description: The league key or user id is blank or too long
+          description: "The league key or user id is blank or too long, or the date\
+            \ is not YYYY-MM-DD"
           content:
             application/json:
               schema:
