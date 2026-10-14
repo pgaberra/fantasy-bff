@@ -6,6 +6,7 @@ import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSnapshotsResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.RoleChangesResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
@@ -81,26 +82,51 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
 
     @Override
     public List<RestOfSeasonSkaterResponse> restOfSeasonSkaters(int season) {
-        return restOfSeason("/api/v1/rest-of-season/skaters", season, REST_SKATER_LIST);
+        return restOfSeason("/api/v1/rest-of-season/skaters", season, null, REST_SKATER_LIST);
     }
 
     @Override
     public List<RestOfSeasonGoalieResponse> restOfSeasonGoalies(int season) {
-        return restOfSeason("/api/v1/rest-of-season/goalies", season, REST_GOALIE_LIST);
+        return restOfSeason("/api/v1/rest-of-season/goalies", season, null, REST_GOALIE_LIST);
+    }
+
+    @Override
+    public List<RestOfSeasonSkaterResponse> restOfSeasonSkaters(int season, LocalDate asOf) {
+        return restOfSeason("/api/v1/rest-of-season/skaters", season, asOf, REST_SKATER_LIST);
+    }
+
+    @Override
+    public List<RestOfSeasonGoalieResponse> restOfSeasonGoalies(int season, LocalDate asOf) {
+        return restOfSeason("/api/v1/rest-of-season/goalies", season, asOf, REST_GOALIE_LIST);
+    }
+
+    @Override
+    public RestOfSeasonSnapshotsResponse restOfSeasonSnapshots(int season) {
+        return restClient.get()
+                .uri(b -> b.path("/api/v1/rest-of-season/snapshots").queryParam("season", season).build())
+                .retrieve()
+                .body(RestOfSeasonSnapshotsResponse.class);
     }
 
     /**
-     * A 404 is projection-service saying the season is not under way, which is an answer rather
-     * than a fault: there is no rest of it to project yet, and the caller reads the season line.
+     * A 404 is projection-service saying the season is not under way, or, asked for a day, that no
+     * run that early is kept: an answer rather than a fault, so the caller gets an empty list.
      */
-    private <T> List<T> restOfSeason(String path, int season, ParameterizedTypeReference<List<T>> type) {
+    private <T> List<T> restOfSeason(
+            String path, int season, LocalDate asOf, ParameterizedTypeReference<List<T>> type) {
         try {
             List<T> rows = restClient.get()
-                    .uri(b -> b.path(path).queryParam("season", season).build())
+                    .uri(b -> {
+                        b.path(path).queryParam("season", season);
+                        if (asOf != null) {
+                            b.queryParam("as_of", asOf);
+                        }
+                        return b.build();
+                    })
                     .retrieve()
                     .body(type);
             return rows == null ? List.of() : rows;
-        } catch (HttpClientErrorException.NotFound notUnderWay) {
+        } catch (HttpClientErrorException.NotFound notKept) {
             return List.of();
         }
     }
@@ -182,6 +208,20 @@ public class HttpProjectionServiceClient implements ProjectionServiceClient {
         return restClient.get()
                 .uri(b -> {
                     b.path("/api/v1/role-changes/skaters").queryParam("recent_games", recentGames);
+                    if (season != null) {
+                        b.queryParam("season", season);
+                    }
+                    return b.build();
+                })
+                .retrieve()
+                .body(RoleChangesResponse.class);
+    }
+
+    @Override
+    public RoleChangesResponse skaterRoleChangesSince(Integer season, LocalDate since) {
+        return restClient.get()
+                .uri(b -> {
+                    b.path("/api/v1/role-changes/skaters").queryParam("since", since);
                     if (season != null) {
                         b.queryParam("season", season);
                     }

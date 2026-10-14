@@ -37,5 +37,10 @@ public record FeaturesResponse(
                 description = "Whether this environment serves Start/Bench, the user's lineup for a "
                         + "day with the model's suggestion of who to start. False means its endpoint "
                         + "answers 404, so a client should not offer it.")
-        boolean startBench
+        boolean startBench,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "Whether this environment serves Player Scout, every player in a league "
+                        + "with the model's view of him now and on a chosen day. False means its "
+                        + "endpoints answer 404, so a client should not offer it.")
+        boolean playerScout
 ) {}
