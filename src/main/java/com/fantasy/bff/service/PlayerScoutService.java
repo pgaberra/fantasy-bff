@@ -379,7 +379,7 @@ public class PlayerScoutService {
 
     private LocalDate earliestSnapshot() {
         RestOfSeasonSnapshotsResponse snapshots = projectionServiceClient.restOfSeasonSnapshots(season);
-        if (snapshots == null || snapshots.getDays() == null || snapshots.getDays().isEmpty()) {
+        if (snapshots == null || snapshots.getDays().isEmpty()) {
             return null;
         }
         return snapshots.getDays().getFirst();
@@ -396,7 +396,7 @@ public class PlayerScoutService {
         LocalDate from = since != null ? since : LocalDate.of(season, 9, 1);
         RoleChangesResponse measured = projectionServiceClient.skaterRoleChangesSince(season, from);
         Map<Integer, ScoutUsage> byNhlId = new HashMap<>();
-        if (measured == null || measured.getSkaters() == null) {
+        if (measured == null) {
             return byNhlId;
         }
         for (SkaterRoleChangeResponse skater : measured.getSkaters()) {
