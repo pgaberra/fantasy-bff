@@ -95,7 +95,8 @@ public class PlayerScoutService {
      * Every player in the league the model projects, with its view of him now and on {@code since}
      * (null for the preseason line), and his ice since that day.
      */
-    public PlayerScoutListResponse players(String userId, PlayerIdSpace platform, String leagueId, LocalDate since) {
+    public PlayerScoutListResponse players(
+            String userId, PlayerIdSpace platform, String leagueId, LocalDate since, Integer recentGames) {
         availability.require();
         List<RestOfSeasonSkaterResponse> skaters = projectionServiceClient.restOfSeasonSkaters(season);
         List<RestOfSeasonGoalieResponse> goalies = projectionServiceClient.restOfSeasonGoalies(season);
@@ -103,12 +104,12 @@ public class PlayerScoutService {
             // Before the first game or after the last: no rest of the season, so the league is not
             // worth a call to the platform.
             return new PlayerScoutListResponse(
-                    season, null, false, new ScoutSince(since, "NONE", null, null), List.of());
+                    season, null, false, new ScoutSince(since, "NONE", null, null), recentGames, List.of());
         }
 
         Holders holders = holders(userId, platform, leagueId);
         Then then = then(since);
-        Map<Integer, ScoutUsage> usage = usage(since);
+        Map<Integer, ScoutUsage> usage = usage(since, recentGames);
 
         List<PlayerScoutRow> rows = new ArrayList<>();
         for (RestOfSeasonSkaterResponse row : skaters) {
@@ -141,7 +142,8 @@ public class PlayerScoutService {
         String modelVersion = !skaters.isEmpty()
                 ? skaters.getFirst().getModelVersion()
                 : goalies.getFirst().getModelVersion();
-        return new PlayerScoutListResponse(season, modelVersion, true, then.since(), List.copyOf(rows));
+        return new PlayerScoutListResponse(
+                season, modelVersion, true, then.since(), recentGames, List.copyOf(rows));
     }
 
     /**
@@ -388,13 +390,19 @@ public class PlayerScoutService {
     // --- The ice since ----------------------------------------------------------------------------
 
     /**
-     * Each skater's measured usage since the chosen day. Asked for the preseason line, the whole
-     * season so far is "since": a day before any season's first game makes last season the
-     * baseline, which is what the preseason comparison means on the ice.
+     * Each skater's measured usage: over his club's last {@code recentGames} when asked for, else
+     * since the chosen day. Asked for the preseason line, the whole season so far is "since": a
+     * day before any season's first game makes last season the baseline, which is what the
+     * preseason comparison means on the ice.
      */
-    private Map<Integer, ScoutUsage> usage(LocalDate since) {
-        LocalDate from = since != null ? since : LocalDate.of(season, 9, 1);
-        RoleChangesResponse measured = projectionServiceClient.skaterRoleChangesSince(season, from);
+    private Map<Integer, ScoutUsage> usage(LocalDate since, Integer recentGames) {
+        RoleChangesResponse measured;
+        if (recentGames != null) {
+            measured = projectionServiceClient.skaterRoleChanges(season, recentGames);
+        } else {
+            LocalDate from = since != null ? since : LocalDate.of(season, 9, 1);
+            measured = projectionServiceClient.skaterRoleChangesSince(season, from);
+        }
         Map<Integer, ScoutUsage> byNhlId = new HashMap<>();
         if (measured == null) {
             return byNhlId;

@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -149,6 +151,7 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.since.requested").value(nullValue()))
                 .andExpect(jsonPath("$.since.resolved").value(nullValue()))
                 .andExpect(jsonPath("$.since.earliestSnapshot").value("2026-10-27"))
+                .andExpect(jsonPath("$.recentGames").value(nullValue()))
                 // Three on the wire and two rostered, most games ahead first.
                 .andExpect(jsonPath("$.players", hasSize(5)))
                 .andExpect(jsonPath("$.players[0].name").value("Cale Makar"))
@@ -193,6 +196,28 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[4].type").value("goalie"))
                 .andExpect(jsonPath("$.players[4].now.games").value(50.0))
                 .andExpect(jsonPath("$.players[4].usage").value(nullValue()));
+    }
+
+    @Test
+    void theIceIsReadOverTheClubsLastGamesWhenAskedFor() throws Exception {
+        when(projectionServiceClient.skaterRoleChanges(2026, 5)).thenReturn(roleChanges(8481611));
+
+        mockMvc.perform(get(YAHOO_LEAGUE + "&recentGames=5").header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recentGames").value(5))
+                // Stankoven's ice came from the fixed window, Montour's since-the-day read was not made.
+                .andExpect(jsonPath("$.players[2].name").value("Logan Stankoven"))
+                .andExpect(jsonPath("$.players[2].usage.recent.games").value(4))
+                .andExpect(jsonPath("$.players[3].usage").value(nullValue()));
+        verify(projectionServiceClient, never()).skaterRoleChangesSince(anyInt(), any(LocalDate.class));
+    }
+
+    @Test
+    void anIceWindowOutsideItsBoundsIsRefused() throws Exception {
+        mockMvc.perform(get(YAHOO_LEAGUE + "&recentGames=0").header("Authorization", bearer))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(YAHOO_LEAGUE + "&recentGames=21").header("Authorization", bearer))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -84,9 +84,16 @@ public interface ProjectionServiceClient {
     SplitSeasonsResponse splitSeasons(Integer targetSeason);
 
     /**
-     * Every skater with a game since {@code since}: his ice and power-play share over them beside
-     * his baseline (his earlier games this season, else last season), and where the lineup page
-     * lists him now and listed him the day before. Every
+     * Every skater who dressed in his club's last {@code recentGames}: his ice and power-play share
+     * over them beside his baseline (his earlier games this season, else last season), and where
+     * the lineup page lists him now and before.
+     *
+     * @param season the season to measure, or null for the newest season with a game played
+     */
+    RoleChangesResponse skaterRoleChanges(Integer season, int recentGames);
+
+    /**
+     * As {@link #skaterRoleChanges}, with the recent stretch counted from {@code since}: every
      * game on or after it is recent, every earlier game of the season the baseline, and the lineup
      * page is read as it stood the day before.
      */
