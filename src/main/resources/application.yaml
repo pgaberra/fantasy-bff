@@ -160,12 +160,6 @@ services:
 ai-projection:
   enabled: ${AI_PROJECTION_ENABLED:true}
 
-# Role Changes (GET /api/v1/role-changes): skaters whose ice or power-play role just moved, measured
-# by projection-service. Off unless this says otherwise, since it is a draft; off, the endpoint
-# answers 404 and /api/v1/features reports roleChanges false. Not a premium feature.
-role-changes:
-  enabled: ${ROLE_CHANGES_ENABLED:false}
-
 # The rest of the season as a draft preset (source=rest_of_season, and
 # /api/v1/projection-model/rest-of-season/status). Off unless this says otherwise, since it is new;
 # off, both are refused and /api/v1/features reports restOfSeasonPreset false. It also needs the AI
@@ -173,16 +167,9 @@ role-changes:
 rest-of-season-preset:
   enabled: ${REST_OF_SEASON_PRESET_ENABLED:false}
 
-# The FA scout (/api/v1/fa-scout/**): a league's available players with the model's rest of the
-# season and its preseason line, to find the ones worth keeping. Off unless this says otherwise,
-# since it is new; off, its endpoint answers 404 and /api/v1/features reports faScout false. It
-# also needs the AI projection, whose lines it shows.
-fa-scout:
-  enabled: ${FA_SCOUT_ENABLED:false}
-
 # Player Scout (/api/v1/player-scout/**): every player in a league with the model's rest of the
 # season now and as it stood on a chosen day, rescaled to the games left, beside his measured ice
-# since that day. The page that replaces the FA scout and Role Changes. Off unless this says
+# since that day. The page that replaced the FA scout and Role Changes. Off unless this says
 # otherwise, since it is new; off, its endpoints answer 404 and /api/v1/features reports
 # playerScout false. It also needs the AI projection, whose lines it shows.
 player-scout:

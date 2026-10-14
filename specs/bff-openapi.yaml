@@ -12,8 +12,6 @@ tags:
   description: Team schedules rated for streaming
 - name: Shared projections
   description: "Public, read-only projections (no sign-in required)"
-- name: FA scout
-  description: Available players worth keeping for the rest of the season
 - name: Projection shares
   description: The current user's public links to their projections
 - name: Yahoo
@@ -22,8 +20,6 @@ tags:
   description: "How the model's view of every player in a league has moved, and why"
 - name: Players
   description: "NHL player stats endpoints (public, read-only)"
-- name: Role changes
-  description: Skaters whose role at their club just changed
 - name: Features
   description: Which features this environment serves
 - name: Projection model
@@ -1642,51 +1638,6 @@ paths:
               schema:
                 type: string
                 format: byte
-  /api/v1/role-changes:
-    get:
-      tags:
-      - Role changes
-      summary: Every skater's recent ice and power-play role beside his baseline
-      description: "Measured, not projected. The recent stretch is each club's own\
-        \ last N games; the baseline is the skater's earlier games this season once\
-        \ he has five, else his last season. The power-play share is read against\
-        \ his club's power-play time, so a club drawing more power plays does not\
-        \ read as a promotion. Unsorted."
-      operationId: roleChanges
-      parameters:
-      - name: season
-        in: query
-        description: Season start year; defaults to the newest season with a game
-          played
-        required: false
-        schema:
-          type: integer
-          format: int32
-          maximum: 2100
-          minimum: 1917
-      - name: recentGames
-        in: query
-        description: N in each club's own last N games
-        required: false
-        schema:
-          type: integer
-          format: int32
-          default: 5
-          maximum: 20
-          minimum: 1
-      responses:
-        "200":
-          description: Every skater who dressed in the recent games
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RoleChangeListResponse"
-        "404":
-          description: Role changes are off in this environment
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RoleChangeListResponse"
   /api/v1/projection-model/splits/skaters:
     get:
       tags:
@@ -2492,88 +2443,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeaturesResponse"
-  /api/v1/fa-scout/my-team:
-    get:
-      tags:
-      - FA scout
-      summary: "The user's own team in a league, with the model's rest of the season"
-      description: "Each player on the user's team today, bench and injured reserve\
-        \ included, with the model's rest of the season on the same line the available\
-        \ players carry: score both together to weigh a pickup against the player\
-        \ it would replace. Read live from the platform."
-      operationId: faScoutMyTeam
-      parameters:
-      - name: platform
-        in: query
-        description: Which platform's league to read
-        required: true
-        schema:
-          type: string
-          enum:
-          - YAHOO
-          - ESPN
-      - name: leagueId
-        in: query
-        description: The Yahoo league key or the ESPN league id
-        required: true
-        schema:
-          type: string
-          maxLength: 64
-          minLength: 0
-      responses:
-        "200":
-          description: "The user's team, or found=false"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScoutMyTeamResponse"
-        "404":
-          description: The FA scout is off in this environment
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScoutMyTeamResponse"
-  /api/v1/fa-scout/free-agents:
-    get:
-      tags:
-      - FA scout
-      summary: "The players a league has available, with the model's rest of the season"
-      description: "Each player carries the model's rest of the season and its line\
-        \ for him before the season began, both in the projection's own stat vocabulary:\
-        \ score them with the league's scoring settings. Joined on identity, so the\
-        \ answer does not depend on which platform the player pool is served from."
-      operationId: faScoutFreeAgents
-      parameters:
-      - name: platform
-        in: query
-        description: Which platform's league to read
-        required: true
-        schema:
-          type: string
-          enum:
-          - YAHOO
-          - ESPN
-      - name: leagueId
-        in: query
-        description: The Yahoo league key or the ESPN league id
-        required: true
-        schema:
-          type: string
-          maxLength: 64
-          minLength: 0
-      responses:
-        "200":
-          description: Available players the model projects
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScoutListResponse"
-        "404":
-          description: The FA scout is off in this environment
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScoutListResponse"
   /api/v1/espn/leagues/{leagueId}/projection-settings:
     get:
       tags:
@@ -5016,127 +4885,6 @@ components:
       - teams
       - token
       - updatedAt
-    LineupListing:
-      type: object
-      description: Where the Daily Faceoff lineup page listed a player on one day
-      properties:
-        seenOn:
-          type: string
-          format: date
-        line:
-          type: string
-          description: "Even-strength group: f1-f4 for forward lines, d1-d3 for pairs;\
-            \ absent when listed only on special teams or out of the lineup"
-        powerPlayUnit:
-          type: integer
-          format: int32
-          description: 1 or 2 for the power-play unit; absent for neither
-        outOfLineup:
-          type: boolean
-          description: "Listed out of the lineup: injured, scratched or day to day"
-      required:
-      - outOfLineup
-      - seenOn
-    PlayerRoleChangeResponse:
-      type: object
-      description: A skater's recent ice and power-play role beside his baseline
-      properties:
-        playerId:
-          type: integer
-          format: int32
-          description: The platform's player id
-        name:
-          type: string
-        teamAbbrev:
-          type: string
-        defence:
-          type: boolean
-          description: Eligible at defence
-        recent:
-          $ref: "#/components/schemas/RoleWindow"
-          description: His club's last N games
-        baseline:
-          $ref: "#/components/schemas/RoleWindow"
-          description: What the recent games are compared with; absent for a call-up
-            with no earlier games
-        baselineSource:
-          type: string
-          description: "SEASON for his earlier games this season, LAST_SEASON while\
-            \ this season has too few of them"
-          enum:
-          - SEASON
-          - LAST_SEASON
-        firstRecentGameDate:
-          type: string
-          format: date
-        lastRecentGameDate:
-          type: string
-          format: date
-        listedNow:
-          $ref: "#/components/schemas/LineupListing"
-          description: Where the lineup page lists him now
-        listedBefore:
-          $ref: "#/components/schemas/LineupListing"
-          description: Where the lineup page listed him before the recent games began
-      required:
-      - defence
-      - firstRecentGameDate
-      - lastRecentGameDate
-      - name
-      - playerId
-      - recent
-    RoleChangeListResponse:
-      type: object
-      description: "Every skater who dressed in his club's recent games, with his\
-        \ role then and before"
-      properties:
-        season:
-          type: integer
-          format: int32
-          description: The season measured; absent when no game is logged at all
-        recentGames:
-          type: integer
-          format: int32
-          description: N in each club's last N games
-        players:
-          type: array
-          description: "Unsorted: the client ranks"
-          items:
-            $ref: "#/components/schemas/PlayerRoleChangeResponse"
-      required:
-      - players
-      - recentGames
-    RoleWindow:
-      type: object
-      description: "A skater's usage over a stretch of games: ice a game, power-play\
-        \ ice and his share of his club's power play"
-      properties:
-        games:
-          type: integer
-          format: int32
-          description: Games he dressed for in the stretch
-        toiPerGame:
-          type: number
-          format: double
-          description: Seconds of ice a game
-        ppToiPerGame:
-          type: number
-          format: double
-          description: Seconds of power-play ice a game; absent where no game has
-            the reading
-        ppShare:
-          type: number
-          format: double
-          description: "His power-play seconds over his club's power-play time in\
-            \ the same games, 0 to 1; absent where it cannot be read"
-        shToiPerGame:
-          type: number
-          format: double
-          description: Seconds of shorthanded ice a game; absent where no game has
-            the reading
-      required:
-      - games
-      - toiPerGame
     PlayerSplitResponse:
       type: object
       description: A player's measured totals over a range of their team's games
@@ -5611,6 +5359,27 @@ components:
           format: int32
       required:
       - gp
+    LineupListing:
+      type: object
+      description: Where the Daily Faceoff lineup page listed a player on one day
+      properties:
+        seenOn:
+          type: string
+          format: date
+        line:
+          type: string
+          description: "Even-strength group: f1-f4 for forward lines, d1-d3 for pairs;\
+            \ absent when listed only on special teams or out of the lineup"
+        powerPlayUnit:
+          type: integer
+          format: int32
+          description: 1 or 2 for the power-play unit; absent for neither
+        outOfLineup:
+          type: boolean
+          description: "Listed out of the lineup: injured, scratched or day to day"
+      required:
+      - outOfLineup
+      - seenOn
     PlayerScoutListResponse:
       type: object
       description: "Every player in a league the model projects, with its view of\
@@ -5713,6 +5482,37 @@ components:
       - playerId
       - positions
       - type
+    RoleWindow:
+      type: object
+      description: "A skater's usage over a stretch of games: ice a game, power-play\
+        \ ice and his share of his club's power play"
+      properties:
+        games:
+          type: integer
+          format: int32
+          description: Games he dressed for in the stretch
+        toiPerGame:
+          type: number
+          format: double
+          description: Seconds of ice a game
+        ppToiPerGame:
+          type: number
+          format: double
+          description: Seconds of power-play ice a game; absent where no game has
+            the reading
+        ppShare:
+          type: number
+          format: double
+          description: "His power-play seconds over his club's power-play time in\
+            \ the same games, 0 to 1; absent where it cannot be read"
+        shToiPerGame:
+          type: number
+          format: double
+          description: Seconds of shorthanded ice a game; absent where no game has
+            the reading
+      required:
+      - games
+      - toiPerGame
     ScoutOwner:
       type: object
       description: The league team holding a player
@@ -6087,14 +5887,6 @@ components:
             \ (source=rest_of_season). False means it is refused, so a client should\
             \ not offer it. True still offers it only while a season is under way,\
             \ which `/projection-model/rest-of-season/status` says."
-        faScout:
-          type: boolean
-          description: "Whether this environment serves the FA scout. False means\
-            \ its endpoint answers 404, so a client should not offer it."
-        roleChanges:
-          type: boolean
-          description: "Whether this environment serves Role Changes. False means\
-            \ its endpoint answers 404, so a client should not offer it."
         draftAnalysis:
           type: boolean
           description: "Whether this environment serves Draft Analysis, a league's\
@@ -6113,87 +5905,10 @@ components:
       required:
       - aiProjection
       - draftAnalysis
-      - faScout
       - playerScout
       - restOfSeasonPreset
-      - roleChanges
       - startBench
       - whosHotAvailableFilter
-    ScoutListResponse:
-      type: object
-      description: A league's available players with the model's rest of the season
-      properties:
-        season:
-          type: integer
-          format: int32
-        modelVersion:
-          type: string
-          description: The model version the rest of the season came from
-        inSeason:
-          type: boolean
-          description: "Whether the season is under way. False before its first game\
-            \ and after its last, when there is no rest of the season and no player\
-            \ is listed."
-        preseasonAvailable:
-          type: boolean
-          description: "Whether the model's preseason line is stored for this season.\
-            \ False leaves every player's preseason absent, so nobody can read as\
-            \ rising."
-        players:
-          type: array
-          description: "Available players the model projects, in no ranked order:\
-            \ score them with the league's settings"
-          items:
-            $ref: "#/components/schemas/ScoutPlayerResponse"
-      required:
-      - inSeason
-      - players
-      - preseasonAvailable
-      - season
-    ScoutPlayerResponse:
-      type: object
-      description: "An available player, his rest of the season and his preseason\
-        \ line"
-      properties:
-        playerId:
-          type: string
-          description: The platform's player id
-        name:
-          type: string
-        teamAbbrev:
-          type: string
-          description: "The club he is on, in the platform's own spelling"
-        type:
-          type: string
-          description: skater or goalie
-        positions:
-          type: array
-          description: Every position the league may start him at
-          items:
-            type: string
-        availability:
-          type: string
-          description: "FREE_AGENT to add now, WAIVERS to claim first, UNKNOWN when\
-            \ the platform does not say"
-          enum:
-          - FREE_AGENT
-          - WAIVERS
-          - UNKNOWN
-        restOfSeason:
-          $ref: "#/components/schemas/ScoutLine"
-          description: "The model's rest of the season, lifted to the season line's\
-            \ scale, with the season so far left out"
-        preseason:
-          $ref: "#/components/schemas/ScoutLine"
-          description: "The model's line for the whole season as it stood on the eve\
-            \ of it, or absent when the model had none for him then"
-      required:
-      - availability
-      - name
-      - playerId
-      - positions
-      - restOfSeason
-      - type
     CredentialStatusResponse:
       type: object
       properties:

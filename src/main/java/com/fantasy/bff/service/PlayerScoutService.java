@@ -58,7 +58,7 @@ import org.springframework.stereotype.Service;
 public class PlayerScoutService {
 
     /** The model version projection-service freezes the eve of the season under. */
-    static final String PRESEASON = FaScoutService.PRESEASON;
+    static final String PRESEASON = ScoutLineService.PRESEASON;
 
     /** Games in the schedule when no club's count is known; the league has played 82 since 1995. */
     static final int SEASON_GAMES_FALLBACK = 82;
@@ -67,7 +67,7 @@ public class PlayerScoutService {
     private final LeagueAvailablePlayers leagueAvailablePlayers;
     private final LeagueOwnTeam leagueTeams;
     private final NhlIdentityJoin identityJoin;
-    private final FaScoutService faScoutService;
+    private final ScoutLineService scoutLineService;
     private final SeasonScheduleService scheduleService;
     private final PlayerScoutAvailability availability;
     private final int season;
@@ -77,7 +77,7 @@ public class PlayerScoutService {
             LeagueAvailablePlayers leagueAvailablePlayers,
             LeagueOwnTeam leagueTeams,
             NhlIdentityJoin identityJoin,
-            FaScoutService faScoutService,
+            ScoutLineService scoutLineService,
             SeasonScheduleService scheduleService,
             PlayerScoutAvailability availability,
             @Value("${services.projection.season}") int season) {
@@ -85,7 +85,7 @@ public class PlayerScoutService {
         this.leagueAvailablePlayers = leagueAvailablePlayers;
         this.leagueTeams = leagueTeams;
         this.identityJoin = identityJoin;
-        this.faScoutService = faScoutService;
+        this.scoutLineService = scoutLineService;
         this.scheduleService = scheduleService;
         this.availability = availability;
         this.season = season;
@@ -115,7 +115,7 @@ public class PlayerScoutService {
             Holder holder = holders.of(row.getNhlId());
             if (holder != null && !holder.goalie()) {
                 boolean defence = holder.playsDefence();
-                ScoutLine now = FaScoutService.skaterLine(ProjectionSeedService.seasonShape(row), defence);
+                ScoutLine now = ScoutLineService.skaterLine(ProjectionSeedService.seasonShape(row), defence);
                 rows.add(holder.row(
                         row.getNhlId(),
                         "skater",
@@ -128,7 +128,7 @@ public class PlayerScoutService {
         for (RestOfSeasonGoalieResponse row : goalies) {
             Holder holder = holders.of(row.getNhlId());
             if (holder != null && holder.goalie()) {
-                ScoutLine now = FaScoutService.goalieLine(ProjectionSeedService.seasonShape(row));
+                ScoutLine now = ScoutLineService.goalieLine(ProjectionSeedService.seasonShape(row));
                 rows.add(holder.row(
                         row.getNhlId(), "goalie", row.getGamesRemaining(), now, then.goalie(row), null));
             }
@@ -150,7 +150,7 @@ public class PlayerScoutService {
      */
     public PlayerScoutTeamResponse myTeam(String userId, PlayerIdSpace platform, String leagueId) {
         availability.require();
-        ScoutMyTeamResponse team = faScoutService.restOfSeasonTeam(userId, platform, leagueId);
+        ScoutMyTeamResponse team = scoutLineService.restOfSeasonTeam(userId, platform, leagueId);
         List<ClubGames> schedule = new ArrayList<>();
         scheduleService.schedule().window().forEach((club, dates) -> schedule.add(new ClubGames(club, dates)));
         schedule.sort(Comparator.comparing(ClubGames::team));
@@ -302,12 +302,12 @@ public class PlayerScoutService {
         ScoutLine skater(RestOfSeasonSkaterResponse now, boolean defence) {
             RestOfSeasonSkaterResponse kept = keptSkaters.get(now.getNhlId());
             if (kept != null) {
-                ScoutLine line = FaScoutService.skaterLine(ProjectionSeedService.seasonShape(kept), defence);
+                ScoutLine line = ScoutLineService.skaterLine(ProjectionSeedService.seasonShape(kept), defence);
                 return ScoutRescale.toGamesLeft(line, kept.getGamesRemaining(), now.getGamesRemaining());
             }
             SkaterProjectionResponse preseason = preseasonSkaters.get(now.getNhlId());
             if (preseason != null) {
-                ScoutLine line = FaScoutService.skaterLine(preseason, defence);
+                ScoutLine line = ScoutLineService.skaterLine(preseason, defence);
                 return ScoutRescale.toGamesLeft(line, seasonGames(now.getTeam()), now.getGamesRemaining());
             }
             return null;
@@ -316,12 +316,12 @@ public class PlayerScoutService {
         ScoutLine goalie(RestOfSeasonGoalieResponse now) {
             RestOfSeasonGoalieResponse kept = keptGoalies.get(now.getNhlId());
             if (kept != null) {
-                ScoutLine line = FaScoutService.goalieLine(ProjectionSeedService.seasonShape(kept));
+                ScoutLine line = ScoutLineService.goalieLine(ProjectionSeedService.seasonShape(kept));
                 return ScoutRescale.toGamesLeft(line, kept.getGamesRemaining(), now.getGamesRemaining());
             }
             GoalieProjectionResponse preseason = preseasonGoalies.get(now.getNhlId());
             if (preseason != null) {
-                ScoutLine line = FaScoutService.goalieLine(preseason);
+                ScoutLine line = ScoutLineService.goalieLine(preseason);
                 return ScoutRescale.toGamesLeft(line, seasonGames(now.getTeam()), now.getGamesRemaining());
             }
             return null;

@@ -3,10 +3,8 @@ package com.fantasy.bff.controller;
 import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.DraftAnalysisAvailability;
-import com.fantasy.bff.service.FaScoutAvailability;
 import com.fantasy.bff.service.PlayerScoutAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
-import com.fantasy.bff.service.RoleChangesAvailability;
 import com.fantasy.bff.service.StartBenchAvailability;
 import com.fantasy.bff.service.WhosHotAvailableFilterAvailability;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,8 +27,6 @@ public class FeatureController {
     private final AiProjectionAvailability aiProjection;
     private final WhosHotAvailableFilterAvailability whosHotAvailableFilter;
     private final RestOfSeasonPresetAvailability restOfSeasonPreset;
-    private final FaScoutAvailability faScout;
-    private final RoleChangesAvailability roleChanges;
     private final DraftAnalysisAvailability draftAnalysis;
     private final StartBenchAvailability startBench;
     private final PlayerScoutAvailability playerScout;
@@ -39,16 +35,12 @@ public class FeatureController {
             AiProjectionAvailability aiProjection,
             WhosHotAvailableFilterAvailability whosHotAvailableFilter,
             RestOfSeasonPresetAvailability restOfSeasonPreset,
-            FaScoutAvailability faScout,
-            RoleChangesAvailability roleChanges,
             DraftAnalysisAvailability draftAnalysis,
             StartBenchAvailability startBench,
             PlayerScoutAvailability playerScout) {
         this.aiProjection = aiProjection;
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
-        this.faScout = faScout;
-        this.roleChanges = roleChanges;
         this.draftAnalysis = draftAnalysis;
         this.startBench = startBench;
         this.playerScout = playerScout;
@@ -63,8 +55,6 @@ public class FeatureController {
         return new FeaturesResponse(
                 aiProjection.available(), whosHotAvailableFilter.available(),
                 restOfSeasonPreset.available(),
-                faScout.available(),
-                roleChanges.available(),
                 draftAnalysis.available(),
                 startBench.available(),
                 playerScout.available());

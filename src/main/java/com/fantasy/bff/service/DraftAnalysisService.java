@@ -81,7 +81,7 @@ public class DraftAnalysisService {
         LeagueDraftResponse draft = draftService.draft(userId, leagueKey);
         LeagueProjectionSettingsResponse settings = leagueService.projectionSettings(userId, leagueKey);
 
-        ProjectionSeedService.Seed seed = seedService.seed(season, FaScoutService.PRESEASON);
+        ProjectionSeedService.Seed seed = seedService.seed(season, ScoutLineService.PRESEASON);
         boolean preseason = !seed.players().isEmpty();
         if (!preseason) {
             seed = seedService.seed(season, defaultModelVersion);
