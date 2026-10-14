@@ -267,18 +267,8 @@ are not committed; every build regenerates them.
     the league, read live from the platform's rosters (never the pool): each player's club, real
     positions, today's slot and `out` (IR/NA slots, O/OUT/IR/suspension; day-to-day plays). The web
     places them per night to find the open slots.
-  - `FaScoutController` — `GET /api/v1/fa-scout/free-agents?platform=&leagueId=`: the players a
-    league has available with **two of the model's lines** each, the served rest of the season
-    (`ProjectionSeedService.seasonShape`, the same lifted `served` every page reads) and the frozen
-    preseason line (`model_version=preseason`, absent for a player it did not cover). The wire is
-    read and joined on identity by `LeagueAvailablePlayers`, the planner's own read moved into a
-    shared component. Nothing is scored: the web ranks both lines by the league's settings and the
-    places gained between them are what make a player Rising. Before opening night or after the
-    last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
-    Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
-    (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
   - `PlayerScoutController` — **Player Scout**, the FA scout and Role Changes in one page, which
-    replaces both once the web has moved. `GET /api/v1/player-scout/players?platform=&leagueId=
+    replaced both on 2026-10-14 (their routes and flags are gone). `GET /api/v1/player-scout/players?platform=&leagueId=
     [&since=]`: every player the league has available **or on a team** (`LeagueOwnTeam.readAll`,
     each row with `owner` {teamName, mine} or `availability`), joined on identity, with the served
     rest of the season `now` and the model's line as it stood on `since` as `then`: the newest day
@@ -289,7 +279,7 @@ are not committed; every build regenerates them.
     `toiPerGame`, `shPct`, `svPct`, `gaa`, `winPct` carry as they are), so the two can be read side
     by side. Beside them `usage`, his measured ice since the same day
     (`/role-changes/skaters?since=`): one date asks both questions. Nothing is scored; the web
-    ranks. `GET /my-team` is the FA scout's own-team read plus `schedule`, every club's remaining
+    ranks. `GET /my-team` is the own-team read (`ScoutLineService.restOfSeasonTeam`) plus `schedule`, every club's remaining
     nights, for the web to seat the roster over the rest of the season. Signed in, not premium
     (Alexander's call, 2026-10-14). Behind `player-scout.enabled` (`PLAYER_SCOUT_ENABLED`, off by
     default) AND the AI projection (`PlayerScoutAvailability`): otherwise 404, and
@@ -300,7 +290,7 @@ are not committed; every build regenerates them.
     that day alone (`StreamerPlannerMyTeamService.onDate`, a one-day stretch). The date is required:
     the web sends its own hockey night rather than the server picking one. The web sets the best
     lineup from it. `GET /rest-of-season?platform=&leagueId=` is FA Scout's own-team read
-    (`FaScoutService.restOfSeasonTeam`) under Start/Bench's switch, not the scout's: the web ranks
+    (`ScoutLineService.restOfSeasonTeam`) under Start/Bench's switch, not the scout's: the web ranks
     the roster by it to name the drop when a healthy player comes off injured reserve.
     Signed in, not premium. Behind `start-bench.enabled` (`START_BENCH_ENABLED`, off
     by default) AND the AI projection (`StartBenchAvailability`): otherwise 404, and

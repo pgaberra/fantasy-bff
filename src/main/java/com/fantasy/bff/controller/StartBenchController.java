@@ -2,7 +2,7 @@ package com.fantasy.bff.controller;
 
 import com.fantasy.bff.dto.response.PlannerMyTeamResponse;
 import com.fantasy.bff.dto.response.ScoutMyTeamResponse;
-import com.fantasy.bff.service.FaScoutService;
+import com.fantasy.bff.service.ScoutLineService;
 import com.fantasy.bff.service.PlayerIdSpace;
 import com.fantasy.bff.service.StartBenchAvailability;
 import com.fantasy.bff.service.StreamerPlannerMyTeamService;
@@ -38,12 +38,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class StartBenchController {
 
     private final StreamerPlannerMyTeamService myTeamService;
-    private final FaScoutService scoutService;
+    private final ScoutLineService scoutService;
     private final StartBenchAvailability availability;
 
     public StartBenchController(
             StreamerPlannerMyTeamService myTeamService,
-            FaScoutService scoutService,
+            ScoutLineService scoutService,
             StartBenchAvailability availability) {
         this.myTeamService = myTeamService;
         this.scoutService = scoutService;
