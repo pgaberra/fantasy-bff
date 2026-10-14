@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
@@ -43,8 +45,9 @@ public class PlayerScoutController {
             description = "The league's available players and every team's roster, each with the model's "
                     + "rest of the season today and its line for him as it stood on `since` (the newest "
                     + "day kept on or before it, else the preseason line), rescaled to the games his club "
-                    + "has left today, and his measured ice since that day beside before it. Both lines "
-                    + "are in the projection's own stat vocabulary: score them with the league's "
+                    + "has left today, and his measured ice beside before: over his club's last "
+                    + "`recentGames` when given, else since `since`, else the whole season so far. Both "
+                    + "lines are in the projection's own stat vocabulary: score them with the league's "
                     + "settings. Joined on identity, so the answer does not depend on which platform the "
                     + "player pool is served from.")
     @ApiResponses({
@@ -59,8 +62,10 @@ public class PlayerScoutController {
                     @RequestParam @NotBlank @Size(max = 64) String leagueId,
             @Parameter(description = "The day to compare with; left out, the model's preseason line")
                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                    LocalDate since) {
-        return scoutService.players(userId, platform, leagueId, since);
+                    LocalDate since,
+            @Parameter(description = "Read the ice over each club's last N games instead of since the day")
+                    @RequestParam(required = false) @Min(1) @Max(20) Integer recentGames) {
+        return scoutService.players(userId, platform, leagueId, since, recentGames);
     }
 
     @Operation(

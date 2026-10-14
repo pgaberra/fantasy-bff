@@ -236,6 +236,20 @@ class HttpProjectionServiceClientTest {
     }
 
     @Test
+    void skaterRoleChanges_sendsTheStretchAndLeavesTheSeasonOutWhenNoneIsNamed() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .willReturn(okJson("{\"season\":null,\"recent_games\":3,\"skaters\":[]}")));
+
+        var answer = client.skaterRoleChanges(null, 3);
+
+        assertThat(answer.getRecentGames()).isEqualTo(3);
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .withQueryParam("recent_games", equalTo("3"))
+                .withoutQueryParam("season")
+                .withoutQueryParam("since"));
+    }
+
+    @Test
     void skaterRoleChangesSince_sendsTheDayAndParsesItBack() {
         server.stubFor(get(urlPathEqualTo("/api/v1/role-changes/skaters"))
                 .withQueryParam("since", equalTo("2026-10-21"))
