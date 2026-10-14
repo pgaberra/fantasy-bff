@@ -4,6 +4,7 @@ import com.fantasy.bff.dto.response.FeaturesResponse;
 import com.fantasy.bff.service.AiProjectionAvailability;
 import com.fantasy.bff.service.DraftAnalysisAvailability;
 import com.fantasy.bff.service.FaScoutAvailability;
+import com.fantasy.bff.service.PlayerScoutAvailability;
 import com.fantasy.bff.service.RestOfSeasonPresetAvailability;
 import com.fantasy.bff.service.RoleChangesAvailability;
 import com.fantasy.bff.service.StartBenchAvailability;
@@ -32,6 +33,7 @@ public class FeatureController {
     private final RoleChangesAvailability roleChanges;
     private final DraftAnalysisAvailability draftAnalysis;
     private final StartBenchAvailability startBench;
+    private final PlayerScoutAvailability playerScout;
 
     public FeatureController(
             AiProjectionAvailability aiProjection,
@@ -40,7 +42,8 @@ public class FeatureController {
             FaScoutAvailability faScout,
             RoleChangesAvailability roleChanges,
             DraftAnalysisAvailability draftAnalysis,
-            StartBenchAvailability startBench) {
+            StartBenchAvailability startBench,
+            PlayerScoutAvailability playerScout) {
         this.aiProjection = aiProjection;
         this.whosHotAvailableFilter = whosHotAvailableFilter;
         this.restOfSeasonPreset = restOfSeasonPreset;
@@ -48,6 +51,7 @@ public class FeatureController {
         this.roleChanges = roleChanges;
         this.draftAnalysis = draftAnalysis;
         this.startBench = startBench;
+        this.playerScout = playerScout;
     }
 
     @GetMapping
@@ -62,6 +66,7 @@ public class FeatureController {
                 faScout.available(),
                 roleChanges.available(),
                 draftAnalysis.available(),
-                startBench.available());
+                startBench.available(),
+                playerScout.available());
     }
 }

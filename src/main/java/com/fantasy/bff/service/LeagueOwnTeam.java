@@ -10,8 +10,9 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * The user's own team in a Yahoo or ESPN league, today. The streamer planner reads it to find the
- * nights it has room, and the FA scout to find who could make room.
+ * The user's own team in a Yahoo or ESPN league, today, and every other team in it. The streamer
+ * planner reads the user's to find the nights it has room, the FA scout to find who could make
+ * room, and Player Scout reads them all to say who holds whom.
  *
  * <p>Read live from the platform, never from the player pool: the roster changes with every pickup,
  * and the platform's club and positions for a player are today's, where the pool's can lag.
@@ -47,6 +48,12 @@ public class LeagueOwnTeam {
      */
     public record Rostered(PlannerRosterPlayer player, Integer sweaterNumber, List<String> reserveEligible) {}
 
+    /**
+     * One team in the league as its platform lists it, the user's own or another manager's, with
+     * the same per-player detail {@link Team} carries.
+     */
+    public record LeagueTeam(String name, boolean mine, List<Rostered> players) {}
+
     public Team read(String userId, PlayerIdSpace platform, String leagueId) {
         return read(userId, platform, leagueId, null);
     }
@@ -57,61 +64,77 @@ public class LeagueOwnTeam {
      * {@link #read(String, PlayerIdSpace, String)}.
      */
     public Team read(String userId, PlayerIdSpace platform, String leagueId, LocalDate date) {
+        return readAll(userId, platform, leagueId, date).stream()
+                .filter(LeagueTeam::mine)
+                .findFirst()
+                .map(mine -> new Team(true, mine.name(), mine.players()))
+                .orElseGet(LeagueOwnTeam::notFound);
+    }
+
+    /**
+     * Every team in the league today, the user's own flagged: both platforms send every roster in
+     * one answer, so a page that weighs the whole league reads it once.
+     */
+    public List<LeagueTeam> readAll(String userId, PlayerIdSpace platform, String leagueId) {
+        return readAll(userId, platform, leagueId, null);
+    }
+
+    private List<LeagueTeam> readAll(String userId, PlayerIdSpace platform, String leagueId, LocalDate date) {
         return platform == PlayerIdSpace.YAHOO ? yahoo(userId, leagueId, date) : espn(userId, leagueId, date);
     }
 
-    private Team yahoo(String userId, String leagueKey, LocalDate date) {
+    private List<LeagueTeam> yahoo(String userId, String leagueKey, LocalDate date) {
         var rosters = date == null
                 ? yahooServiceClient.rosters(userId, leagueKey)
                 : yahooServiceClient.rosters(userId, leagueKey, date);
-        var mine = rosters == null ? null : rosters.getTeams().stream()
-                .filter(team -> Boolean.TRUE.equals(team.getMine()))
-                .findFirst()
-                .orElse(null);
-        if (mine == null) {
-            return notFound();
+        if (rosters == null) {
+            return List.of();
         }
-        List<Rostered> players = mine.getPlayers().stream()
-                .map(player -> new Rostered(
-                        player(
-                                String.valueOf(player.getPlayerId()),
-                                player.getFullName(),
-                                player.getTeamAbbrev(),
-                                Boolean.TRUE.equals(player.getGoalie()),
-                                player.getEligiblePositions(),
-                                player.getSelectedPosition(),
-                                player.getStatus()),
-                        player.getUniformNumber(),
-                        InjuredReserve.yahooEligible(player.getEligiblePositions())))
+        return rosters.getTeams().stream()
+                .map(team -> new LeagueTeam(
+                        team.getName(),
+                        Boolean.TRUE.equals(team.getMine()),
+                        team.getPlayers().stream()
+                                .map(player -> new Rostered(
+                                        player(
+                                                String.valueOf(player.getPlayerId()),
+                                                player.getFullName(),
+                                                player.getTeamAbbrev(),
+                                                Boolean.TRUE.equals(player.getGoalie()),
+                                                player.getEligiblePositions(),
+                                                player.getSelectedPosition(),
+                                                player.getStatus()),
+                                        player.getUniformNumber(),
+                                        InjuredReserve.yahooEligible(player.getEligiblePositions())))
+                                .toList()))
                 .toList();
-        return new Team(true, mine.getName(), players);
     }
 
-    private Team espn(String userId, String leagueId, LocalDate date) {
+    private List<LeagueTeam> espn(String userId, String leagueId, LocalDate date) {
         var rosters = date == null
                 ? espnServiceClient.rosters(userId, leagueId)
                 : espnServiceClient.rosters(userId, leagueId, date);
-        var mine = rosters == null ? null : rosters.getTeams().stream()
-                .filter(team -> Boolean.TRUE.equals(team.getMine()))
-                .findFirst()
-                .orElse(null);
-        if (mine == null) {
-            return notFound();
+        if (rosters == null) {
+            return List.of();
         }
-        List<Rostered> players = mine.getPlayers().stream()
-                .map(player -> new Rostered(
-                        player(
-                                String.valueOf(player.getEspnId()),
-                                player.getFullName(),
-                                player.getTeamAbbrev(),
-                                Boolean.TRUE.equals(player.getGoalie()),
-                                player.getEligiblePositions(),
-                                player.getLineupSlot(),
-                                player.getInjuryStatus()),
-                        player.getUniformNumber(),
-                        InjuredReserve.espnEligible(player.getInjuryStatus())))
+        return rosters.getTeams().stream()
+                .map(team -> new LeagueTeam(
+                        team.getName(),
+                        Boolean.TRUE.equals(team.getMine()),
+                        team.getPlayers().stream()
+                                .map(player -> new Rostered(
+                                        player(
+                                                String.valueOf(player.getEspnId()),
+                                                player.getFullName(),
+                                                player.getTeamAbbrev(),
+                                                Boolean.TRUE.equals(player.getGoalie()),
+                                                player.getEligiblePositions(),
+                                                player.getLineupSlot(),
+                                                player.getInjuryStatus()),
+                                        player.getUniformNumber(),
+                                        InjuredReserve.espnEligible(player.getInjuryStatus())))
+                                .toList()))
                 .toList();
-        return new Team(true, mine.getName(), players);
     }
 
     private static Team notFound() {

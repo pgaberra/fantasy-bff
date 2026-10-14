@@ -277,6 +277,23 @@ are not committed; every build regenerates them.
     last game it answers `inSeason: false` without asking the platform. Signed in, not premium.
     Behind `fa-scout.enabled` (`FA_SCOUT_ENABLED`, off by default) AND the AI projection
     (`FaScoutAvailability`): otherwise 404, and `GET /api/v1/features` reports `faScout` false.
+  - `PlayerScoutController` — **Player Scout**, the FA scout and Role Changes in one page, which
+    replaces both once the web has moved. `GET /api/v1/player-scout/players?platform=&leagueId=
+    [&since=]`: every player the league has available **or on a team** (`LeagueOwnTeam.readAll`,
+    each row with `owner` {teamName, mine} or `availability`), joined on identity, with the served
+    rest of the season `now` and the model's line as it stood on `since` as `then`: the newest day
+    projection-service kept on or before it (`/rest-of-season?as_of=`), else the preseason line,
+    and `since` {kind SNAPSHOT|PRESEASON|NONE, resolved, earliestSnapshot} says which. **The then
+    line is re-spread over the games his club has left today** (`ScoutRescale`: the share of the
+    schedule it expected him to play, of today's schedule, at its own per-game rates; rates such as
+    `toiPerGame`, `shPct`, `svPct`, `gaa`, `winPct` carry as they are), so the two can be read side
+    by side. Beside them `usage`, his measured ice since the same day
+    (`/role-changes/skaters?since=`): one date asks both questions. Nothing is scored; the web
+    ranks. `GET /my-team` is the FA scout's own-team read plus `schedule`, every club's remaining
+    nights, for the web to seat the roster over the rest of the season. Signed in, not premium
+    (Alexander's call, 2026-10-14). Behind `player-scout.enabled` (`PLAYER_SCOUT_ENABLED`, off by
+    default) AND the AI projection (`PlayerScoutAvailability`): otherwise 404, and
+    `GET /api/v1/features` reports `playerScout` false.
   - `StartBenchController` — `GET /api/v1/start-bench/my-team?platform=&leagueId=&date=`: the
     user's team as the platform has it **set for that day** (Yahoo's `roster;date=`, ESPN's daily
     scoring period, through each service's rosters `date`), each player with the model's line for

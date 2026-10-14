@@ -6,6 +6,7 @@ import com.fantasy.bff.generated.projection.model.GoalieSplitResponse;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonGoalieResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
+import com.fantasy.bff.generated.projection.model.RestOfSeasonSnapshotsResponse;
 import com.fantasy.bff.generated.projection.model.RangeProjectionsResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
@@ -31,6 +32,19 @@ public interface ProjectionServiceClient {
 
     /** The goalies' half of {@link #restOfSeasonSkaters}, empty on the same terms. */
     List<RestOfSeasonGoalieResponse> restOfSeasonGoalies(int season);
+
+    /**
+     * The rest of the season as it stood on {@code asOf}: the line of the newest run
+     * projection-service kept on or before that day, its {@code generated_at} saying which. Empty,
+     * not an error, when no day that early is kept.
+     */
+    List<RestOfSeasonSkaterResponse> restOfSeasonSkaters(int season, LocalDate asOf);
+
+    /** The goalies' half of {@link #restOfSeasonSkaters(int, LocalDate)}, empty on the same terms. */
+    List<RestOfSeasonGoalieResponse> restOfSeasonGoalies(int season, LocalDate asOf);
+
+    /** The days a rest-of-season line is kept for in {@code season}, oldest first. */
+    RestOfSeasonSnapshotsResponse restOfSeasonSnapshots(int season);
 
     /**
      * Player identity — name, team, sweater number — for every player the NHL still lists as
@@ -76,6 +90,13 @@ public interface ProjectionServiceClient {
      * @param season the season to measure, or null for the newest season with a game played
      */
     RoleChangesResponse skaterRoleChanges(Integer season, int recentGames);
+
+    /**
+     * As {@link #skaterRoleChanges}, with the recent stretch counted from {@code since}: every
+     * game on or after it is recent, every earlier game of the season the baseline, and the lineup
+     * page is read as it stood the day before.
+     */
+    RoleChangesResponse skaterRoleChangesSince(Integer season, LocalDate since);
 
     /** The newest published season's Monday-Sunday weeks, numbered from opening night. */
     ScheduleWeeksResponse scheduleWeeks();

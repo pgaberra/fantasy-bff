@@ -18,6 +18,8 @@ tags:
   description: The current user's public links to their projections
 - name: Yahoo
   description: The authenticated user's Yahoo fantasy account and leagues
+- name: Player scout
+  description: "How the model's view of every player in a league has moved, and why"
 - name: Players
   description: "NHL player stats endpoints (public, read-only)"
 - name: Role changes
@@ -2160,6 +2162,101 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalieResponse"
+  /api/v1/player-scout/players:
+    get:
+      tags:
+      - Player scout
+      summary: "Every player in a league, with the model's rest of the season now\
+        \ and on a chosen day"
+      description: "The league's available players and every team's roster, each with\
+        \ the model's rest of the season today and its line for him as it stood on\
+        \ `since` (the newest day kept on or before it, else the preseason line),\
+        \ rescaled to the games his club has left today, and his measured ice since\
+        \ that day beside before it. Both lines are in the projection's own stat vocabulary:\
+        \ score them with the league's settings. Joined on identity, so the answer\
+        \ does not depend on which platform the player pool is served from."
+      operationId: playerScoutPlayers
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      - name: since
+        in: query
+        description: "The day to compare with; left out, the model's preseason line"
+        required: false
+        schema:
+          type: string
+          format: date
+      responses:
+        "200":
+          description: The league's players the model projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScoutListResponse"
+        "404":
+          description: Player Scout is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScoutListResponse"
+  /api/v1/player-scout/my-team:
+    get:
+      tags:
+      - Player scout
+      summary: "The user's own team in a league, with the model's rest of the season\
+        \ and the schedule"
+      description: "Each player on the user's team today, bench and injured reserve\
+        \ included, with the model's rest of the season on the same line the league's\
+        \ players carry, and every club's remaining nights: seat the roster night\
+        \ by night to weigh what each player's place in the lineup is worth. Read\
+        \ live from the platform."
+      operationId: playerScoutMyTeam
+      parameters:
+      - name: platform
+        in: query
+        description: Which platform's league to read
+        required: true
+        schema:
+          type: string
+          enum:
+          - YAHOO
+          - ESPN
+      - name: leagueId
+        in: query
+        description: The Yahoo league key or the ESPN league id
+        required: true
+        schema:
+          type: string
+          maxLength: 64
+          minLength: 0
+      responses:
+        "200":
+          description: "The user's team, or found=false"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScoutTeamResponse"
+        "404":
+          description: Player Scout is off in this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScoutTeamResponse"
   /api/v1/leagues/rostered-players:
     get:
       tags:
@@ -5514,6 +5611,223 @@ components:
           format: int32
       required:
       - gp
+    PlayerScoutListResponse:
+      type: object
+      description: "Every player in a league the model projects, with its view of\
+        \ him now and on a chosen day"
+      properties:
+        season:
+          type: integer
+          format: int32
+        modelVersion:
+          type: string
+          description: The model version the rest of the season came from
+        inSeason:
+          type: boolean
+          description: "Whether the season is under way. False before its first game\
+            \ and after its last, when there is no rest of the season and no player\
+            \ is listed."
+        since:
+          $ref: "#/components/schemas/ScoutSince"
+          description: "Which earlier line the then-lines are, and what answered the\
+            \ day asked for"
+        players:
+          type: array
+          description: "Every player the model projects whom the league has available\
+            \ or on a team, in no ranked order: score them with the league's settings"
+          items:
+            $ref: "#/components/schemas/PlayerScoutRow"
+      required:
+      - inSeason
+      - players
+      - season
+      - since
+    PlayerScoutRow:
+      type: object
+      description: "A player in the league: his owner, the model's view of him now\
+        \ and then, and his ice since"
+      properties:
+        playerId:
+          type: string
+          description: The platform's player id
+        nhlId:
+          type: integer
+          format: int32
+          description: The model's NHL id for him
+        name:
+          type: string
+        teamAbbrev:
+          type: string
+          description: "The club he is on, in the platform's own spelling"
+        type:
+          type: string
+          description: skater or goalie
+        positions:
+          type: array
+          description: Every position the league may start him at
+          items:
+            type: string
+        availability:
+          type: string
+          description: "FREE_AGENT to add now, WAIVERS to claim first, UNKNOWN when\
+            \ the platform does not say; absent for a rostered player"
+          enum:
+          - FREE_AGENT
+          - WAIVERS
+          - UNKNOWN
+        owner:
+          $ref: "#/components/schemas/ScoutOwner"
+          description: The league team holding him; absent when the league has him
+            available
+        slot:
+          type: string
+          description: "The slot he sits in on his team today, in the platform's spelling;\
+            \ absent for an available player or when the platform does not say"
+        injuryStatus:
+          type: string
+          description: The platform's injury status; absent for a healthy player
+        gamesRemaining:
+          type: integer
+          format: int32
+          description: "His club's games still to play today: the schedule both lines\
+            \ are spread over"
+        now:
+          $ref: "#/components/schemas/ScoutLine"
+          description: "The model's rest of the season today, lifted to the season\
+            \ line's scale"
+        then:
+          $ref: "#/components/schemas/ScoutLine"
+          description: "The model's line for him as it stood on the chosen day, rescaled\
+            \ to the games his club has left today: its per-game rates over the share\
+            \ of those games it expected him to play. Absent when the model had no\
+            \ line for him then."
+        usage:
+          $ref: "#/components/schemas/ScoutUsage"
+          description: His measured ice since the chosen day beside before it; absent
+            for a goalie or a skater with no game since
+      required:
+      - gamesRemaining
+      - name
+      - nhlId
+      - now
+      - playerId
+      - positions
+      - type
+    ScoutOwner:
+      type: object
+      description: The league team holding a player
+      properties:
+        teamName:
+          type: string
+          description: The team's name in the league
+        mine:
+          type: boolean
+          description: True when it is the user's own team
+      required:
+      - mine
+      - teamName
+    ScoutSince:
+      type: object
+      description: "The earlier day the players' then-lines stand for, and what answered\
+        \ it"
+      properties:
+        requested:
+          type: string
+          format: date
+          description: The day the client asked for; absent for the preseason line
+        kind:
+          type: string
+          description: "SNAPSHOT when a day's kept line answered, PRESEASON when the\
+            \ model's line from the eve of the season did (asked for, or the newest\
+            \ before the day asked for), NONE when neither is stored and no player\
+            \ has a then-line"
+          enum:
+          - SNAPSHOT
+          - PRESEASON
+          - NONE
+        resolved:
+          type: string
+          format: date
+          description: "The day the kept line was counted from, for SNAPSHOT; absent\
+            \ otherwise"
+        earliestSnapshot:
+          type: string
+          format: date
+          description: The first day a line is kept for this season; absent while
+            none is
+      required:
+      - kind
+    ScoutUsage:
+      type: object
+      description: "A skater's measured ice and power-play role since the chosen day,\
+        \ beside before it"
+      properties:
+        recent:
+          $ref: "#/components/schemas/RoleWindow"
+          description: His games on or after the chosen day
+        baseline:
+          $ref: "#/components/schemas/RoleWindow"
+          description: "His games before it this season, or his whole last season\
+            \ while this season has too few; absent for a call-up with neither"
+        baselineSource:
+          type: string
+          description: "SEASON for his earlier games this season, LAST_SEASON for\
+            \ last season"
+          enum:
+          - SEASON
+          - LAST_SEASON
+        listedNow:
+          $ref: "#/components/schemas/LineupListing"
+          description: Where the Daily Faceoff lineup page lists him now
+        listedBefore:
+          $ref: "#/components/schemas/LineupListing"
+          description: Where the page listed him the day before the chosen day
+      required:
+      - recent
+    ClubGames:
+      type: object
+      description: The dates an NHL club still plays this season
+      properties:
+        team:
+          type: string
+          description: "NHL abbreviation, e.g. TBL"
+        dates:
+          type: array
+          description: "Game dates from today on, earliest first"
+          items:
+            type: string
+            format: date
+      required:
+      - dates
+      - team
+    PlayerScoutTeamResponse:
+      type: object
+      description: "The user's own team with the model's rest of the season, and the\
+        \ clubs' remaining nights"
+      properties:
+        found:
+          type: boolean
+          description: "False when no team in the league is the user's: a league they\
+            \ only follow, or an ESPN league read without their cookies"
+        teamName:
+          type: string
+          description: The team's name; absent when not found
+        players:
+          type: array
+          description: "Its players today, bench and injured reserve included; empty\
+            \ when not found or before the draft"
+          items:
+            $ref: "#/components/schemas/ScoutRosterPlayer"
+        schedule:
+          type: array
+          description: "Every NHL club's game dates from today to the end of the season,\
+            \ in the player pool's spelling of the club"
+          items:
+            $ref: "#/components/schemas/ClubGames"
+      required:
+      - found
+      - players
+      - schedule
     RosteredPlayersResponse:
       type: object
       properties:
@@ -5791,10 +6105,16 @@ components:
           description: "Whether this environment serves Start/Bench, the user's lineup\
             \ for a day with the model's suggestion of who to start. False means its\
             \ endpoint answers 404, so a client should not offer it."
+        playerScout:
+          type: boolean
+          description: "Whether this environment serves Player Scout, every player\
+            \ in a league with the model's view of him now and on a chosen day. False\
+            \ means its endpoints answer 404, so a client should not offer it."
       required:
       - aiProjection
       - draftAnalysis
       - faScout
+      - playerScout
       - restOfSeasonPreset
       - roleChanges
       - startBench

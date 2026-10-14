@@ -1,5 +1,6 @@
 package com.fantasy.bff.client;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -16,6 +17,7 @@ import com.fantasy.bff.generated.projection.model.SplitSeasonsResponse;
 import com.fantasy.bff.support.WireMockConfigs;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -209,5 +211,78 @@ class HttpProjectionServiceClientTest {
         assertThat(seasons.getSeasons())
                 .extracting(SplitSeasonResponse::getScheduleGames)
                 .containsExactly(84, 82);
+    }
+
+    @Test
+    void restOfSeasonSkaters_asksForADayAndParsesTheKeptLine() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/rest-of-season/skaters"))
+                .withQueryParam("season", equalTo("2026"))
+                .withQueryParam("as_of", equalTo("2026-10-27"))
+                .willReturn(okJson("""
+                        [{"nhl_id":8478402,"target_season":2026,"model_version":"marcel-v110","team":"EDM",
+                          "games_remaining":73,"games_played":69.0,"toi_per_game_seconds":1300.0,
+                          "goals":30.0,"assists":60.0,"points":90.0,"plus_minus":null,"pim":null,
+                          "pp_goals":null,"pp_assists":null,"pp_points":null,"sh_goals":null,
+                          "sh_assists":null,"sh_points":null,"gw_goals":null,"shots":null,
+                          "shooting_pct":null,"faceoffs_won":null,"faceoffs_lost":null,"hits":null,
+                          "blocks":null,"shifts":null,"hat_tricks":null,
+                          "served":{"games_played":70.0,"points":96.0},
+                          "generated_at":"2026-10-27T04:30:00Z"}]
+                        """)));
+
+        var rows = client.restOfSeasonSkaters(2026, LocalDate.of(2026, 10, 27));
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.getFirst().getGamesRemaining()).isEqualTo(73);
+        assertThat(rows.getFirst().getServed().getPoints()).isEqualByComparingTo(new BigDecimal("96.0"));
+        assertThat(rows.getFirst().getGeneratedAt().toLocalDate()).isEqualTo(LocalDate.of(2026, 10, 27));
+    }
+
+    @Test
+    void restOfSeasonGoalies_aDayNothingIsKeptForIsAnEmptyListNotAFault() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/rest-of-season/goalies"))
+                .withQueryParam("as_of", equalTo("2026-10-01"))
+                .willReturn(aResponse().withStatus(404)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"detail\":\"No rest-of-season projection of season 2026 is kept on or before 2026-10-01\"}")));
+
+        assertThat(client.restOfSeasonGoalies(2026, LocalDate.of(2026, 10, 1))).isEmpty();
+    }
+
+    @Test
+    void restOfSeasonSkaters_leavesTheDayOutWhenNoneIsAsked() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/rest-of-season/skaters"))
+                .willReturn(okJson("[]")));
+
+        client.restOfSeasonSkaters(2026);
+
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/rest-of-season/skaters"))
+                .withQueryParam("season", equalTo("2026"))
+                .withoutQueryParam("as_of"));
+    }
+
+    @Test
+    void restOfSeasonSnapshots_parsesTheDaysKept() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/rest-of-season/snapshots"))
+                .withQueryParam("season", equalTo("2026"))
+                .willReturn(okJson("{\"season\":2026,\"days\":[\"2026-10-20\",\"2026-10-27\"]}")));
+
+        var snapshots = client.restOfSeasonSnapshots(2026);
+
+        assertThat(snapshots.getDays()).containsExactly(LocalDate.of(2026, 10, 20), LocalDate.of(2026, 10, 27));
+    }
+
+    @Test
+    void skaterRoleChangesSince_sendsTheDayAndParsesItBack() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .withQueryParam("since", equalTo("2026-10-21"))
+                .withQueryParam("season", equalTo("2026"))
+                .willReturn(okJson("{\"season\":2026,\"recent_games\":5,\"since\":\"2026-10-21\",\"skaters\":[]}")));
+
+        var answer = client.skaterRoleChangesSince(2026, LocalDate.of(2026, 10, 21));
+
+        assertThat(answer.getSince()).isEqualTo(LocalDate.of(2026, 10, 21));
+        server.verify(getRequestedFor(urlPathEqualTo("/api/v1/role-changes/skaters"))
+                .withoutQueryParam("recent_games"));
     }
 }

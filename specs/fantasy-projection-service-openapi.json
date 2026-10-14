@@ -1778,6 +1778,29 @@
         "title": "RestOfSeasonSkaterResponse",
         "type": "object"
       },
+      "RestOfSeasonSnapshotsResponse": {
+        "description": "The days a rest-of-season line is kept for, oldest first: what `as_of` can be answered\nfrom. Empty before the first run of a season under way has been kept.",
+        "properties": {
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season",
+          "days"
+        ],
+        "title": "RestOfSeasonSnapshotsResponse",
+        "type": "object"
+      },
       "RoleChangesResponse": {
         "properties": {
           "recent_games": {
@@ -1794,6 +1817,18 @@
               }
             ],
             "title": "Season"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
           },
           "skaters": {
             "items": {
@@ -3880,6 +3915,25 @@
             }
           },
           {
+            "description": "The rest of the season as it stood on this day rather than today: the line of the newest run kept on or before it (see /rest-of-season/snapshots for the days kept), 404 when none is. Its `generated_at` says which day answered.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The rest of the season as it stood on this day rather than today: the line of the newest run kept on or before it (see /rest-of-season/snapshots for the days kept), 404 when none is. Its `generated_at` says which day answered.",
+              "title": "As Of"
+            }
+          },
+          {
             "in": "header",
             "name": "x-internal-api-key",
             "required": false,
@@ -3944,6 +3998,25 @@
             }
           },
           {
+            "description": "The rest of the season as it stood on this day rather than today: the line of the newest run kept on or before it (see /rest-of-season/snapshots for the days kept), 404 when none is. Its `generated_at` says which day answered.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The rest of the season as it stood on this day rather than today: the line of the newest run kept on or before it (see /rest-of-season/snapshots for the days kept), 404 when none is. Its `generated_at` says which day answered.",
+              "title": "As Of"
+            }
+          },
+          {
             "in": "header",
             "name": "x-internal-api-key",
             "required": false,
@@ -3992,9 +4065,69 @@
         ]
       }
     },
+    "/api/v1/rest-of-season/snapshots": {
+      "get": {
+        "operationId": "list_rest_of_season_snapshots_api_v1_rest_of_season_snapshots_get",
+        "parameters": [
+          {
+            "description": "Target season start year, e.g. 2026",
+            "in": "query",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "description": "Target season start year, e.g. 2026",
+              "title": "Season",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestOfSeasonSnapshotsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rest Of Season Snapshots",
+        "tags": [
+          "rest-of-season"
+        ]
+      }
+    },
     "/api/v1/role-changes/skaters": {
       "get": {
-        "description": "Every skater who dressed in his club's last `recent_games`: his ice, power-play ice and\nshare of his club's power play over them, beside the same over his baseline, and where the\nlineup page lists him now and before. Unsorted; the client ranks.",
+        "description": "Every skater who dressed in his club's last `recent_games`, or since `since`: his ice,\npower-play ice and share of his club's power play over them, beside the same over his\nbaseline, and where the lineup page lists him now and before. Unsorted; the client ranks.",
         "operationId": "skater_role_changes_api_v1_role_changes_skaters_get",
         "parameters": [
           {
@@ -4018,17 +4151,36 @@
             }
           },
           {
-            "description": "The recent stretch: each club's own last N games, counted back from the latest game logged for that club",
+            "description": "The recent stretch: each club's own last N games, counted back from the latest game logged for that club. Ignored when `since` is given",
             "in": "query",
             "name": "recent_games",
             "required": false,
             "schema": {
               "default": 5,
-              "description": "The recent stretch: each club's own last N games, counted back from the latest game logged for that club",
+              "description": "The recent stretch: each club's own last N games, counted back from the latest game logged for that club. Ignored when `since` is given",
               "maximum": 20,
               "minimum": 1,
               "title": "Recent Games",
               "type": "integer"
+            }
+          },
+          {
+            "description": "The recent stretch counted from a day instead: every game on or after it is recent, every earlier game of the season the baseline (last season when there are too few), and the lineup page is read as it stood the day before it. A day before the season's first game compares the whole season so far with last season",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The recent stretch counted from a day instead: every game on or after it is recent, every earlier game of the season the baseline (last season when there are too few), and the lineup page is read as it stood the day before it. A day before the season's first game compares the whole season so far with last season",
+              "title": "Since"
             }
           },
           {
