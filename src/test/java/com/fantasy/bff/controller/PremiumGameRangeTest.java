@@ -52,7 +52,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestPropertySource(properties = {
         "payments.provider=mock",
         "payments.mock.webhook-secret=test-mock-secret",
-        "services.projection.player-mapping-ttl-ms=0"
+        "services.projection.player-mapping-ttl-ms=0",
+        "players.league-pool-ttl-ms=0"
 })
 class PremiumGameRangeTest extends BaseIntegrationTest {
 

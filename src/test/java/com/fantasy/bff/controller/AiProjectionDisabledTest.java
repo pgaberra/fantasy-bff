@@ -39,7 +39,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "ai-projection.enabled=false",
-        "services.projection.player-mapping-ttl-ms=0"
+        "services.projection.player-mapping-ttl-ms=0",
+        "players.league-pool-ttl-ms=0"
 })
 class AiProjectionDisabledTest extends BaseIntegrationTest {
 
