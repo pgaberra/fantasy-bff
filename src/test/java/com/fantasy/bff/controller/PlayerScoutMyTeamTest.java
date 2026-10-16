@@ -44,7 +44,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "player-scout.enabled=true",
-        "services.projection.player-mapping-ttl-ms=0"
+        "services.projection.player-mapping-ttl-ms=0",
+        "players.league-pool-ttl-ms=0"
 })
 class PlayerScoutMyTeamTest extends BaseIntegrationTest {
 

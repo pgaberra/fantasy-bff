@@ -60,6 +60,11 @@ players:
   # endpoint answers 404 without asking the platform, and the web draws initials instead.
   avatars:
     enabled: ${PLAYER_AVATARS_ENABLED:false}
+  # How long each platform's whole pool, joined to the model's ids, is held for reading a league's
+  # wire (Player Scout, the Streamer Planner). The pool changes once a day, when the platform's
+  # service syncs; reading and joining it per request was thousands of rows and a matching pass
+  # over some two thousand players. A league's rosters and waivers are still read every time.
+  league-pool-ttl-ms: ${PLAYERS_LEAGUE_POOL_TTL_MS:900000}
 
 services:
   # Per-downstream read/connect timeouts (ms). These apply in every environment:

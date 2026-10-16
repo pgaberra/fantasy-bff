@@ -59,7 +59,8 @@ import org.springframework.test.web.servlet.ResultActions;
 @ExtendWith(OutputCaptureExtension.class)
 @TestPropertySource(properties = {
         // The mapping is cached in a singleton; zero means "always stale", so each test's stubs win.
-        "services.projection.player-mapping-ttl-ms=0"
+        "services.projection.player-mapping-ttl-ms=0",
+        "players.league-pool-ttl-ms=0"
 })
 class StreamerPlannerFreeAgentsTest extends BaseIntegrationTest {
 

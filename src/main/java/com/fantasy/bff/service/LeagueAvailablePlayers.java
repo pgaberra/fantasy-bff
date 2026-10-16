@@ -10,6 +10,8 @@ import com.fantasy.bff.generated.yahoo.model.YahooAvailablePlayerResponse;
 import com.fantasy.bff.service.LeagueOwnTeam.LeagueTeam;
 import com.fantasy.bff.service.mapping.PlayerFieldMapping;
 import com.fantasy.bff.service.mapping.PlayerIdMapping;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -17,6 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -33,9 +38,23 @@ import org.springframework.stereotype.Component;
  *
  * <p>The platform still says who is on waivers: that list is short, so it is read whole, and
  * everyone else available is a free agent.
+ *
+ * <p>The pool and its join are the same for every league on a platform and change once a day, when
+ * the platform's service syncs, so each platform's is held for {@code players.league-pool-ttl-ms}
+ * rather than read and joined per request: thousands of rows and a matching pass over some two
+ * thousand players. The rosters and the waivers are a league's own and are read every time.
  */
 @Component
 public class LeagueAvailablePlayers {
+
+    private static final Logger log = LoggerFactory.getLogger(LeagueAvailablePlayers.class);
+
+    /**
+     * A failed refresh is retried on this cadence rather than on the next request, with the
+     * previous pool served meanwhile: the pool does not go stale in minutes, and a blip in the
+     * platform's service should cost freshness, not the wire.
+     */
+    private static final Duration RETRY_AFTER_FAILURE = Duration.ofMinutes(1);
 
     /**
      * Players on waivers asked of the platform, the most either service serves. A league's
@@ -49,6 +68,16 @@ public class LeagueAvailablePlayers {
     private final LeagueOwnTeam leagueTeams;
     private final NhlIdentityJoin identityJoin;
     private final int espnSeason;
+    private final Duration poolTtl;
+    private final Map<PlayerIdSpace, Pool> pools = new ConcurrentHashMap<>();
+    private final Map<PlayerIdSpace, Object> refreshLocks = new ConcurrentHashMap<>();
+
+    /**
+     * A platform's whole pool, joined to the model's ids as one, held until {@code expiresAt}.
+     *
+     * @param ids the pool's player ids, to tell a waiver row the pool does not have from one it does
+     */
+    private record Pool(List<Available> players, Set<String> ids, PlayerIdMapping mapping, Instant expiresAt) {}
 
     public LeagueAvailablePlayers(
             YahooServiceClient yahooServiceClient,
@@ -56,13 +85,15 @@ public class LeagueAvailablePlayers {
             PlayerServiceClient playerServiceClient,
             LeagueOwnTeam leagueTeams,
             NhlIdentityJoin identityJoin,
-            @Value("${services.espn-fantasy.stats-season}") int espnSeason) {
+            @Value("${services.espn-fantasy.stats-season}") int espnSeason,
+            @Value("${players.league-pool-ttl-ms:900000}") long poolTtlMs) {
         this.yahooServiceClient = yahooServiceClient;
         this.espnServiceClient = espnServiceClient;
         this.playerServiceClient = playerServiceClient;
         this.leagueTeams = leagueTeams;
         this.identityJoin = identityJoin;
         this.espnSeason = espnSeason;
+        this.poolTtl = Duration.ofMillis(poolTtlMs);
     }
 
     /** One available player as both sides need him: the platform's id, his identity, his status. */
@@ -124,19 +155,71 @@ public class LeagueAvailablePlayers {
         }
         Set<String> rostered = new HashSet<>();
         teams.forEach(team -> team.players().forEach(player -> rostered.add(player.player().playerId())));
-        List<Available> pool = platform == PlayerIdSpace.YAHOO ? yahooPool() : espnPool();
+        Pool pool = pool(platform);
         List<Available> waivers = platform == PlayerIdSpace.YAHOO
                 ? yahooWaivers(userId, leagueId)
                 : espnWaivers(userId, leagueId);
-        List<Available> available = unrostered(pool, waivers, rostered);
-        // Joined as the whole pool, rostered players included, and only then narrowed to the
-        // wire: with a rostered man taken out first, the resolver's surname-and-initial fallback
-        // could hand his NHL id to the one namesake left, and list him as available.
-        List<Available> everyone = new ArrayList<>(pool);
-        Set<String> pooled = new HashSet<>();
-        pool.forEach(player -> pooled.add(player.playerId()));
-        available.stream().filter(player -> !pooled.contains(player.playerId())).forEach(everyone::add);
+        List<Available> available = unrostered(pool.players(), waivers, rostered);
+        List<Available> unpooled = available.stream()
+                .filter(player -> !pool.ids().contains(player.playerId()))
+                .toList();
+        if (unpooled.isEmpty()) {
+            return wire(available, pool.mapping());
+        }
+        // A waiver row the pool does not have yet (called up since its last sync) is joined with
+        // the whole pool around it, for the reason given on joinPool; this is the rare request.
+        List<Available> everyone = new ArrayList<>(pool.players());
+        everyone.addAll(unpooled);
         return wire(available, join(everyone));
+    }
+
+    /**
+     * The platform's pool and its join, from memory while they are fresh. One request per platform
+     * refreshes them and any other arriving meanwhile waits for its answer, rather than every
+     * request at the expiry reading and joining the whole pool for itself.
+     */
+    private Pool pool(PlayerIdSpace platform) {
+        Pool fresh = fresh(platform);
+        if (fresh != null) {
+            return fresh;
+        }
+        synchronized (refreshLocks.computeIfAbsent(platform, unused -> new Object())) {
+            fresh = fresh(platform);
+            if (fresh != null) {
+                return fresh;
+            }
+            Pool cached = pools.get(platform);
+            Pool refreshed;
+            try {
+                refreshed = joinPool(
+                        platform == PlayerIdSpace.YAHOO ? yahooPool() : espnPool(), Instant.now().plus(poolTtl));
+            } catch (RuntimeException e) {
+                if (cached == null) {
+                    throw e;
+                }
+                log.error("Failed to refresh a platform's player pool for league wires; serving the previous one", e);
+                refreshed = new Pool(
+                        cached.players(), cached.ids(), cached.mapping(), Instant.now().plus(RETRY_AFTER_FAILURE));
+            }
+            pools.put(platform, refreshed);
+            return refreshed;
+        }
+    }
+
+    private Pool fresh(PlayerIdSpace platform) {
+        Pool cached = pools.get(platform);
+        return cached != null && Instant.now().isBefore(cached.expiresAt()) ? cached : null;
+    }
+
+    /**
+     * Joined as the whole pool, rostered players included, and only narrowed to a league's wire
+     * afterwards: with a rostered man taken out first, the resolver's surname-and-initial fallback
+     * could hand his NHL id to the one namesake left, and list him as available.
+     */
+    private Pool joinPool(List<Available> players, Instant expiresAt) {
+        Set<String> ids = new HashSet<>();
+        players.forEach(player -> ids.add(player.playerId()));
+        return new Pool(List.copyOf(players), Set.copyOf(ids), join(players), expiresAt);
     }
 
     /**

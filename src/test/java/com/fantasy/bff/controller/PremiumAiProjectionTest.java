@@ -64,6 +64,7 @@ import org.springframework.test.web.servlet.MockMvc;
             "payments.provider=mock",
             "payments.mock.webhook-secret=test-mock-secret",
             "services.projection.player-mapping-ttl-ms=0",
+        "players.league-pool-ttl-ms=0",
             "rest-of-season-preset.enabled=true"
         })
 class PremiumAiProjectionTest extends BaseIntegrationTest {
