@@ -52,9 +52,6 @@ public interface EspnServiceClient {
      */
     SyncAcceptedResponse triggerPlayerSync();
 
-    /**
-     * The players a league has available at one position (C, LW, RW, D or G): free agents and
-     * players on waivers together.
-     */
-    List<AvailablePlayer> leagueFreeAgents(String appUserId, String leagueId, String position, int limit);
+    /** The players a league has on waivers, up to {@code limit}. */
+    List<AvailablePlayer> leagueWaivers(String appUserId, String leagueId, int limit);
 }

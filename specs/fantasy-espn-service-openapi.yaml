@@ -321,6 +321,14 @@ paths:
         schema:
           type: string
           pattern: ^(C|LW|RW|D|G)$
+      - name: waiversOnly
+        in: query
+        description: Only the players on waivers; free agents and waivers together
+          when absent or false
+        required: false
+        schema:
+          type: boolean
+          default: false
       responses:
         "200":
           description: Available players returned

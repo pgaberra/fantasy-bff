@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
@@ -71,6 +70,8 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
 
     private static final String YAHOO_LEAGUE = "/api/v1/player-scout/players?platform=YAHOO&leagueId=465.l.9";
     private static final LocalDate KEPT_DAY = LocalDate.of(2026, 10, 27);
+    private static final YahooAvailablePlayerResponse.AvailabilityEnum WAIVERS =
+            YahooAvailablePlayerResponse.AvailabilityEnum.WAIVERS;
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JwtTokenValidator jwtTokenValidator;
@@ -112,11 +113,15 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
                 .thenReturn(roleChanges(8476875));
         when(scheduleService.schedule()).thenReturn(new LeagueSchedule(
                 Map.of("SEA", List.of(), "COL", List.of()), Map.of("SEA", 84, "COL", 84)));
-        when(yahooServiceClient.leagueFreeAgents(eq("user-1"), eq("465.l.9"), anyString(), anyInt()))
-                .thenReturn(List.of(
-                        yahooPlayer("1001", "Brandon Montour", "Sea", "D", false),
-                        yahooPlayer("1002", "Logan Stankoven", "Car", "RW", false),
-                        yahooPlayer("1003", "Spencer Knight", "Chi", "G", true)));
+        // The pool holds everyone, rostered or not; the league's rosters say who is taken.
+        when(playerServiceClient.getRosteredPlayers()).thenReturn(List.of(
+                pooled("9001", "Nathan MacKinnon", "Col", "C", false),
+                pooled("6743", "Cale Makar", "Col", "D", false),
+                pooled("1001", "Brandon Montour", "Sea", "D", false),
+                pooled("1002", "Logan Stankoven", "Car", "RW", false),
+                pooled("1003", "Spencer Knight", "Chi", "G", true)));
+        when(yahooServiceClient.leagueWaivers("user-1", "465.l.9", 300)).thenReturn(List.of(
+                yahooPlayer("1001", "Brandon Montour", "Sea", "D", false, WAIVERS)));
         LeagueRostersResponse rosters = new LeagueRostersResponse();
         rosters.setLeagueKey("465.l.9");
         rosters.setTeams(List.of(
@@ -172,6 +177,9 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[2].owner").value(nullValue()))
                 .andExpect(jsonPath("$.players[2].availability").value("FREE_AGENT"))
                 .andExpect(jsonPath("$.players[3].playerId").value("1001"))
+                // On waivers by the platform's own word; everyone else unrostered is a free agent.
+                .andExpect(jsonPath("$.players[3].availability").value("WAIVERS"))
+                .andExpect(jsonPath("$.players[4].availability").value("FREE_AGENT"))
                 .andExpect(jsonPath("$.players[3].name").value("Brandon Montour"))
                 .andExpect(jsonPath("$.players[3].type").value("skater"))
                 .andExpect(jsonPath("$.players[3].gamesRemaining").value(78))
@@ -196,6 +204,106 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.players[4].type").value("goalie"))
                 .andExpect(jsonPath("$.players[4].now.games").value(50.0))
                 .andExpect(jsonPath("$.players[4].usage").value(nullValue()));
+    }
+
+    /**
+     * The reported case: a player a rival has just cut, ranked by the platform below any page of
+     * its available list a cap would keep. The wire is the pool less the rosters, so how far down
+     * the platform ranks him does not come into it, and he is found.
+     */
+    @Test
+    void aPlayerNoTeamHoldsIsListedHoweverLowThePlatformRanksHim() throws Exception {
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(
+                identity(8480069, "Cale Makar", "COL", 8),
+                identity(8477492, "Nathan MacKinnon", "COL", 29),
+                identity(8482665, "William Eklund", "SJS", 72)));
+        when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of(
+                restOfSeason(8480069, "COL", 76, "74", "1500", "90.0"),
+                restOfSeason(8477492, "COL", 76, "74", "1320", "110.0"),
+                restOfSeason(8482665, "SJS", 77, "60", "1000", "31.0")));
+        when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of());
+        when(playerServiceClient.getRosteredPlayers()).thenReturn(List.of(
+                pooled("9001", "Nathan MacKinnon", "Col", "C", false),
+                pooled("6743", "Cale Makar", "Col", "D", false),
+                pooled("7700", "William Eklund", "SJ", "LW", false)));
+        when(yahooServiceClient.leagueWaivers("user-1", "465.l.9", 300)).thenReturn(List.of());
+
+        mockMvc.perform(get(YAHOO_LEAGUE).header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players", hasSize(3)))
+                .andExpect(jsonPath("$.players[2].name").value("William Eklund"))
+                .andExpect(jsonPath("$.players[2].playerId").value("7700"))
+                .andExpect(jsonPath("$.players[2].owner").value(nullValue()))
+                .andExpect(jsonPath("$.players[2].availability").value("FREE_AGENT"));
+    }
+
+    /**
+     * A rostered player the platform knows by a longer first name, with an unrostered namesake on
+     * his club. Joined with the rostered man taken out first, the surname-and-initial fallback
+     * would hand his NHL id to the namesake and list him as available; joined as the whole pool,
+     * the two "A. Smith"s separate nobody, and he stays on the team that holds him.
+     */
+    @Test
+    void aRosteredPlayerIsNeverListedAvailableThroughAnUnrosteredNamesake() throws Exception {
+        when(projectionServiceClient.activePlayers(any())).thenReturn(List.of(
+                identity(8480069, "Cale Makar", "COL", 8),
+                identity(8477492, "Nathan MacKinnon", "COL", 29),
+                identity(8483000, "Alex Smith", "SEA", 10)));
+        when(projectionServiceClient.restOfSeasonSkaters(2026)).thenReturn(List.of(
+                restOfSeason(8480069, "COL", 76, "74", "1500", "90.0"),
+                restOfSeason(8477492, "COL", 76, "74", "1320", "110.0"),
+                restOfSeason(8483000, "SEA", 78, "70", "1100", "40.0")));
+        when(projectionServiceClient.restOfSeasonGoalies(2026)).thenReturn(List.of());
+        when(playerServiceClient.getRosteredPlayers()).thenReturn(List.of(
+                pooled("9001", "Nathan MacKinnon", "Col", "C", false),
+                pooled("6743", "Cale Makar", "Col", "D", false),
+                pooled("5100", "Alexander Smith", "Sea", "C", false),
+                pooled("5200", "Adam Smith", "Sea", "LW", false)));
+        when(yahooServiceClient.leagueWaivers("user-1", "465.l.9", 300)).thenReturn(List.of());
+        LeagueRostersResponse rosters = new LeagueRostersResponse();
+        rosters.setLeagueKey("465.l.9");
+        rosters.setTeams(List.of(
+                yahooTeam("Someone Else", false, List.of(
+                        rostered(9001, "Nathan MacKinnon", "Col", List.of("C"), "C", null, 29),
+                        rostered(5100, "Alexander Smith", "Sea", List.of("C"), "C", null, 10))),
+                yahooTeam("Slapshots", true, List.of(
+                        rostered(6743, "Cale Makar", "Col", List.of("D"), "D", null, 8)))));
+        when(yahooServiceClient.rosters("user-1", "465.l.9")).thenReturn(rosters);
+
+        mockMvc.perform(get(YAHOO_LEAGUE).header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players", hasSize(3)))
+                .andExpect(jsonPath("$.players[2].nhlId").value(8483000))
+                .andExpect(jsonPath("$.players[2].playerId").value("5100"))
+                .andExpect(jsonPath("$.players[2].owner.teamName").value("Someone Else"))
+                .andExpect(jsonPath("$.players[2].availability").value(nullValue()));
+    }
+
+    @Test
+    void aPlayerOnWaiversThePoolHasNotSyncedYetIsListedFromThePlatformsRow() throws Exception {
+        when(playerServiceClient.getRosteredPlayers()).thenReturn(List.of(
+                pooled("9001", "Nathan MacKinnon", "Col", "C", false),
+                pooled("6743", "Cale Makar", "Col", "D", false)));
+        when(yahooServiceClient.leagueWaivers("user-1", "465.l.9", 300)).thenReturn(List.of(
+                yahooPlayer("1002", "Logan Stankoven", "Car", "RW", false, WAIVERS)));
+
+        mockMvc.perform(get(YAHOO_LEAGUE).header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.players", hasSize(3)))
+                .andExpect(jsonPath("$.players[2].name").value("Logan Stankoven"))
+                .andExpect(jsonPath("$.players[2].availability").value("WAIVERS"));
+    }
+
+    @Test
+    void aLeagueWhoseRostersCameBackEmptyIsAnErrorNotAWholePoolOfFreeAgents() throws Exception {
+        LeagueRostersResponse empty = new LeagueRostersResponse();
+        empty.setLeagueKey("465.l.9");
+        empty.setTeams(List.of());
+        when(yahooServiceClient.rosters("user-1", "465.l.9")).thenReturn(empty);
+
+        mockMvc.perform(get(YAHOO_LEAGUE).header("Authorization", bearer))
+                // A downstream answer the BFF cannot use: a gateway fault, logged at ERROR.
+                .andExpect(status().isBadGateway());
     }
 
     @Test
@@ -388,8 +496,14 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
         return listing;
     }
 
-    private static YahooAvailablePlayerResponse yahooPlayer(
+    private static PlayerServiceClient.RosteredPlayer pooled(
             String id, String name, String team, String position, boolean goalie) {
+        return new PlayerServiceClient.RosteredPlayer(id, name, team, List.of(position), goalie, null, 12.0);
+    }
+
+    private static YahooAvailablePlayerResponse yahooPlayer(
+            String id, String name, String team, String position, boolean goalie,
+            YahooAvailablePlayerResponse.AvailabilityEnum availability) {
         YahooAvailablePlayerResponse player = new YahooAvailablePlayerResponse();
         player.setYahooId(id);
         player.setFullName(name);
@@ -397,7 +511,7 @@ class PlayerScoutPlayersTest extends BaseIntegrationTest {
         player.setPosition(position);
         player.setGoalie(goalie);
         player.setEligiblePositions(List.of(position));
-        player.setAvailability(YahooAvailablePlayerResponse.AvailabilityEnum.FREE_AGENT);
+        player.setAvailability(availability);
         return player;
     }
 
