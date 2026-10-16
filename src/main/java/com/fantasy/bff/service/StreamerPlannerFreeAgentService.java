@@ -176,6 +176,12 @@ public class StreamerPlannerFreeAgentService {
      * them: the count lumped three different things together and gave the user nothing to act on.
      * Only one of the three is a fault — a player the model projects whose name did not match —
      * and that one is worth seeing here, since he vanishes from the ranking without a trace.
+     *
+     * <p>The wire is the league's whole unrostered pool, most of it minor-leaguers with no NHL
+     * identity and no projection, so those two groups are counted, not named: naming them would
+     * put a thousand names in every request's log. A player who is a skater on one side and a
+     * goalie on the other is rare and always a fault, so he is still named, and so is a player
+     * the model projects whom nobody in the pool matched: the fault the count would hide.
      */
     private static void logUnranked(
             PlayerIdSpace platform,
@@ -195,38 +201,42 @@ public class StreamerPlannerFreeAgentService {
         Set<String> ranked = new HashSet<>();
         rows.forEach(row -> ranked.add(row.playerId()));
 
-        List<String> nameUnmatched = new ArrayList<>();
-        List<String> notProjected = new ArrayList<>();
+        int nameUnmatched = 0;
+        int notProjected = 0;
         List<String> typeDiffers = new ArrayList<>();
         for (Available player : available) {
             if (ranked.contains(player.playerId())) {
                 continue;
             }
             Long nhlId = nhlIdByPlatformId.get(player.playerId());
-            // The name and id are the platform's text, so a line break in either is stripped.
-            String label =
-                    (player.name() + " (" + player.playerId() + ")").replaceAll("[\r\n]", "");
             if (nhlId == null) {
-                nameUnmatched.add(label);
+                nameUnmatched++;
             } else if (!projected.contains(nhlId)) {
-                notProjected.add(label);
+                notProjected++;
             } else {
-                typeDiffers.add(label);
+                // The name and id are the platform's text, so a line break in either is stripped.
+                typeDiffers.add((player.name() + " (" + player.playerId() + ")").replaceAll("[\r\n]", ""));
+            }
+        }
+        List<String> projectedUnmatched = new ArrayList<>();
+        for (PlayerIdMapping.Unmatched missing : mapping.unmatched()) {
+            if (projected.contains(missing.nhlId())) {
+                projectedUnmatched.add(missing.name() + " (" + missing.nhlId() + ")");
             }
         }
         log.info(
                 "Streamer planner left {} of {} available {} players unranked: {} matched no NHL "
-                        + "player {}, {} have no projection {}, {} are a skater on one side and a "
-                        + "goalie on the other {}",
+                        + "player, {} have no projection, {} are a skater on one side and a "
+                        + "goalie on the other {}; {} projected players matched nobody in the pool {}",
                 available.size() - rows.size(),
                 available.size(),
                 platform,
-                nameUnmatched.size(),
                 nameUnmatched,
-                notProjected.size(),
                 notProjected,
                 typeDiffers.size(),
-                typeDiffers);
+                typeDiffers,
+                projectedUnmatched.size(),
+                projectedUnmatched);
     }
 
     private static void addId(Set<Long> ids, Integer nhlId) {

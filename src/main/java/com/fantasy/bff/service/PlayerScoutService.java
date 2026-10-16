@@ -249,8 +249,8 @@ public class PlayerScoutService {
      * rosters are joined as one list, since a player sits on one team at a time.
      */
     private Holders holders(String userId, PlayerIdSpace platform, String leagueId) {
-        LeagueAvailablePlayers.Wire wire = leagueAvailablePlayers.read(userId, platform, leagueId);
         List<LeagueTeam> teams = leagueTeams.readAll(userId, platform, leagueId);
+        LeagueAvailablePlayers.Wire wire = leagueAvailablePlayers.read(userId, platform, leagueId, teams);
         Map<String, RosteredHolder> byPlatformId = new HashMap<>();
         List<NhlIdentityJoin.PlatformPlayer> players = new ArrayList<>();
         for (LeagueTeam team : teams) {
