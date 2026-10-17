@@ -28,8 +28,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * The NHL schedule a league's lineups are set against: every club's game dates in the newest
- * published season, from projection-service.
+ * The NHL schedule a league's lineups are set against: every club's games in the newest published
+ * season, from projection-service, each with its opponent and venue, and what a game against each
+ * opponent at each venue is worth to a player's line.
  *
  * <p>projection-service hands the schedule out a month at a time (its streaming rating caps a
  * stretch at 31 days), so the season is read in month-sized pieces and kept for a few hours: the
