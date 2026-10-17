@@ -9,16 +9,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
+import com.fantasy.bff.dto.response.ClubNight;
+import com.fantasy.bff.dto.response.OpponentWorth;
 import com.fantasy.bff.generated.projection.model.RatedGameResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleStrengthResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeekResponse;
 import com.fantasy.bff.generated.projection.model.ScheduleWeeksResponse;
 import com.fantasy.bff.generated.projection.model.TeamScheduleResponse;
 import com.fantasy.bff.service.scoring.LeagueSchedule;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,13 +49,23 @@ class SeasonScheduleServiceTest {
         });
     }
 
-    /** A club's games that fall in the stretch asked for, as projection-service answers. */
+    /**
+     * A club's games that fall in the stretch asked for, as projection-service answers: LA plays
+     * Toronto, at home on even days of the month, and Toronto plays LA. Each game's worth to points
+     * is the day of the month the stretch starts on over ten, which says which morning rated it.
+     */
     private static TeamScheduleResponse team(String club, LocalDate from, LocalDate to, LocalDate... dates) {
+        String opponent = club.equals("LAK") ? "TOR" : "LAK";
         return new TeamScheduleResponse()
                 .team(club)
                 .schedule(Stream.of(dates)
                         .filter(date -> !date.isBefore(from) && !date.isAfter(to))
-                        .map(date -> new RatedGameResponse().date(date))
+                        .map(date -> new RatedGameResponse()
+                                .date(date)
+                                .opponent(opponent)
+                                .home(club.equals("LAK") == (date.getDayOfMonth() % 2 == 0))
+                                .statWorth(Map.of("points", BigDecimal.valueOf(from.getDayOfMonth(), 1)))
+                                .plusMinusPerMinute(new BigDecimal("0.002")))
                         .toList());
     }
 
@@ -106,5 +120,28 @@ class SeasonScheduleServiceTest {
 
         assertThatThrownBy(() -> on(LocalDate.of(2026, 10, 20)).schedule())
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("each game of the window carries its opponent and venue")
+    void nightsCarryOpponentAndVenue() {
+        SeasonScheduleService.SeasonNights nights = on(LocalDate.of(2026, 10, 20)).nights();
+
+        assertThat(nights.window().get("LA")).containsExactly(
+                new ClubNight(LocalDate.of(2026, 10, 20), "TOR", true),
+                new ClubNight(LAST_NIGHT, "TOR", true));
+        assertThat(nights.window().get("TOR")).containsExactly(new ClubNight(LocalDate.of(2026, 11, 10), "LAK", false));
+    }
+
+    @Test
+    @DisplayName("a game's worth is rated as the opponents stand today, once per opponent and venue")
+    void worthIsRatedFromToday() {
+        SeasonScheduleService.SeasonNights nights = on(LocalDate.of(2026, 10, 20)).nights();
+
+        // The month from today, not the piece from opening night, whose morning knew less.
+        verify(client).scheduleStrength(LocalDate.of(2026, 10, 20), LocalDate.of(2026, 11, 19));
+        assertThat(nights.worth()).containsExactly(
+                new OpponentWorth("LAK", false, Map.of("points", 2.0, "defPoints", 2.0), 0.002),
+                new OpponentWorth("TOR", true, Map.of("points", 2.0, "defPoints", 2.0), 0.002));
     }
 }

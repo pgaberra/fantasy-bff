@@ -22,4 +22,9 @@ public record PlayerScoutTeamResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "Every NHL club's game dates from today to the end of the season, in the "
                         + "player pool's spelling of the club")
-                List<ClubGames> schedule) {}
+                List<ClubGames> schedule,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "What a game against each opponent at each venue is worth to a player's line, "
+                        + "so the client can weigh each of his nights rather than count them all alike. "
+                        + "A game against an opponent not listed is an average night")
+                List<OpponentWorth> opponentWorth) {}

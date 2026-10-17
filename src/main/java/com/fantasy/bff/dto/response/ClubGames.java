@@ -9,4 +9,7 @@ import java.util.List;
 public record ClubGames(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "NHL abbreviation, e.g. TBL") String team,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Game dates from today on, earliest first")
-                List<LocalDate> dates) {}
+                List<LocalDate> dates,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                description = "The same games with who each is against and where, earliest first")
+                List<ClubNight> games) {}
