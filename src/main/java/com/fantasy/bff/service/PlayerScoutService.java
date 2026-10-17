@@ -2,6 +2,7 @@ package com.fantasy.bff.service;
 
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.dto.response.ClubGames;
+import com.fantasy.bff.dto.response.ClubNight;
 import com.fantasy.bff.dto.response.LineupListing;
 import com.fantasy.bff.dto.response.PlannerRosterPlayer;
 import com.fantasy.bff.dto.response.PlayerScoutListResponse;
@@ -147,16 +148,20 @@ public class PlayerScoutService {
     }
 
     /**
-     * The user's own team on the rest-of-season line the league's players carry, and every club's
-     * remaining nights for the client to seat the roster over.
+     * The user's own team on the rest-of-season line the league's players carry, every club's
+     * remaining nights for the client to seat the roster over, and what a night against each
+     * opponent at each venue is worth, so a player's games are not all counted alike.
      */
     public PlayerScoutTeamResponse myTeam(String userId, PlayerIdSpace platform, String leagueId) {
         availability.require();
         ScoutMyTeamResponse team = scoutLineService.restOfSeasonTeam(userId, platform, leagueId);
+        SeasonScheduleService.SeasonNights nights = scheduleService.nights();
         List<ClubGames> schedule = new ArrayList<>();
-        scheduleService.schedule().window().forEach((club, dates) -> schedule.add(new ClubGames(club, dates)));
+        nights.window().forEach((club, games) ->
+                schedule.add(new ClubGames(club, games.stream().map(ClubNight::date).toList(), games)));
         schedule.sort(Comparator.comparing(ClubGames::team));
-        return new PlayerScoutTeamResponse(team.found(), team.teamName(), team.players(), List.copyOf(schedule));
+        return new PlayerScoutTeamResponse(
+                team.found(), team.teamName(), team.players(), List.copyOf(schedule), nights.worth());
     }
 
     // --- Who holds whom ---------------------------------------------------------------------------

@@ -14,6 +14,8 @@ import com.fantasy.bff.client.EspnServiceClient;
 import com.fantasy.bff.client.PlayerServiceClient;
 import com.fantasy.bff.client.ProjectionServiceClient;
 import com.fantasy.bff.client.YahooServiceClient;
+import com.fantasy.bff.dto.response.ClubNight;
+import com.fantasy.bff.dto.response.OpponentWorth;
 import com.fantasy.bff.generated.projection.model.PlayerResponse;
 import com.fantasy.bff.generated.projection.model.RestOfSeasonSkaterResponse;
 import com.fantasy.bff.generated.projection.model.ServedRestOfSeasonSkater;
@@ -91,6 +93,13 @@ class PlayerScoutMyTeamTest extends BaseIntegrationTest {
                         "COL", List.of(LocalDate.of(2026, 10, 15), LocalDate.of(2026, 10, 17)),
                         "BOS", List.of(LocalDate.of(2026, 10, 16))),
                 Map.of("COL", 84, "BOS", 84)));
+        when(scheduleService.nights()).thenReturn(new SeasonScheduleService.SeasonNights(
+                Map.of(
+                        "COL", List.of(
+                                new ClubNight(LocalDate.of(2026, 10, 15), "BOS", true),
+                                new ClubNight(LocalDate.of(2026, 10, 17), "VGK", false)),
+                        "BOS", List.of(new ClubNight(LocalDate.of(2026, 10, 16), null, false))),
+                List.of(new OpponentWorth("BOS", true, Map.of("points", 1.08), 0.0021))));
 
         LeagueRosterPlayer player = new LeagueRosterPlayer();
         player.setPlayerKey("465.p.6743");
@@ -133,7 +142,17 @@ class PlayerScoutMyTeamTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.schedule[0].team").value("BOS"))
                 .andExpect(jsonPath("$.schedule[0].dates", contains("2026-10-16")))
                 .andExpect(jsonPath("$.schedule[1].team").value("COL"))
-                .andExpect(jsonPath("$.schedule[1].dates", contains("2026-10-15", "2026-10-17")));
+                .andExpect(jsonPath("$.schedule[1].dates", contains("2026-10-15", "2026-10-17")))
+                // Each game with its opponent and venue, and what a night against each is worth.
+                .andExpect(jsonPath("$.schedule[1].games[0].date").value("2026-10-15"))
+                .andExpect(jsonPath("$.schedule[1].games[0].opponent").value("BOS"))
+                .andExpect(jsonPath("$.schedule[1].games[0].home").value(true))
+                .andExpect(jsonPath("$.schedule[1].games[1].home").value(false))
+                .andExpect(jsonPath("$.opponentWorth", hasSize(1)))
+                .andExpect(jsonPath("$.opponentWorth[0].opponent").value("BOS"))
+                .andExpect(jsonPath("$.opponentWorth[0].home").value(true))
+                .andExpect(jsonPath("$.opponentWorth[0].statWorth.points").value(1.08))
+                .andExpect(jsonPath("$.opponentWorth[0].plusMinusPerMinute").value(0.0021));
     }
 
     @Test
